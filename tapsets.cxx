@@ -360,6 +360,62 @@ common_probe_entryfn_epilogue (systemtap_session& s,
 // ------------------------------------------------------------------------
 
 // ------------------------------------------------------------------------
+// kprobes (both dwarf based and non-dwarf based) probes
+// ------------------------------------------------------------------------
+
+
+struct generic_kprobe_derived_probe: public derived_probe
+{
+  generic_kprobe_derived_probe(probe *base,
+			       probe_point *location,
+			       interned_string module,
+			       interned_string section,
+			       Dwarf_Addr addr,
+			       bool has_return,
+			       bool has_maxactive = false,
+			       int64_t maxactive_val = 0,
+			       interned_string symbol_name = "",
+			       Dwarf_Addr offset = 0);
+
+  virtual void join_group(systemtap_session&) = 0;
+
+  interned_string module;
+  interned_string section;
+  Dwarf_Addr addr;
+  bool has_return;
+  bool has_maxactive;
+  int64_t maxactive_val;
+
+  // PR18889: For modules, we have to probe using "symbol+offset"
+  // instead of using an address, otherwise we can't probe the init
+  // section. 'symbol_name' is the closest known symbol to 'addr' and
+  // 'offset' is the offset from the symbol.
+  interned_string symbol_name;
+  Dwarf_Addr offset;
+
+  unsigned saved_longs, saved_strings;
+  generic_kprobe_derived_probe* entry_handler;
+};
+
+generic_kprobe_derived_probe::generic_kprobe_derived_probe(probe *base,
+							   probe_point *location,
+							   interned_string module,
+							   interned_string section,
+							   Dwarf_Addr addr,
+							   bool has_return,
+							   bool has_maxactive,
+							   int64_t maxactive_val,
+							   interned_string symbol_name,
+							   Dwarf_Addr offset) :
+  derived_probe (base, location, true /* .components soon rewritten */ ),
+  module(module), section(section), addr(addr), has_return(has_return),
+  has_maxactive(has_maxactive), maxactive_val(maxactive_val),
+  symbol_name(symbol_name), offset(offset),
+  saved_longs(0), saved_strings(0), entry_handler(0)
+{
+}
+
+// ------------------------------------------------------------------------
 //  Dwarf derived probes.  "We apologize for the inconvience."
 // ------------------------------------------------------------------------
 
@@ -469,7 +525,7 @@ struct dwarf_var_expanding_visitor;
 // the relocation vs non-relocation variants.  Likewise for
 // kprobe vs kretprobe variants.
 
-struct dwarf_derived_probe: public derived_probe
+struct dwarf_derived_probe: public generic_kprobe_derived_probe
 {
   dwarf_derived_probe (interned_string function,
                        interned_string filename,
@@ -483,29 +539,13 @@ struct dwarf_derived_probe: public derived_probe
 		       interned_string symbol_name = "",
 		       Dwarf_Addr offset = 0);
 
-  interned_string module;
-  interned_string section;
-  Dwarf_Addr addr;
   interned_string path;
   bool has_process;
-  bool has_return;
-  bool has_maxactive;
   bool has_library;
-  int64_t maxactive_val;
-  // dwarf_derived_probe_group::emit_module_decls uses this to emit sdt kprobe definition
+  // generic_kprobe_derived_probe_group::emit_module_decls uses this to emit sdt kprobe definition
   interned_string user_path;
   interned_string user_lib;
   bool access_vars;
-
-  // PR18889: For modules, we have to probe using "symbol+offset"
-  // instead of using an address, otherwise we can't probe the init
-  // section. 'symbol_name' is the closest known symbol to 'addr' and
-  // 'offset' is the offset from the symbol.
-  interned_string symbol_name;
-  Dwarf_Addr offset;
-
-  unsigned saved_longs, saved_strings;
-  dwarf_derived_probe* entry_handler;
 
   void printsig (std::ostream &o) const;
   virtual void join_group (systemtap_session& s);
@@ -539,10 +579,9 @@ protected:
                       probe_point *location,
                       Dwarf_Addr addr,
                       bool has_return):
-    derived_probe(base, location), addr(addr), has_process(0),
-    has_return(has_return), has_maxactive(0), has_library(0),
-    maxactive_val(0), access_vars(false), saved_longs(0),
-    saved_strings(0), entry_handler(0)
+    generic_kprobe_derived_probe(base, location, "", "", addr, has_return),
+    has_process(0), has_library(0),
+    access_vars(false)
   {}
 
 private:
@@ -584,15 +623,15 @@ private:
   list<string> args;
 };
 
-struct dwarf_derived_probe_group: public derived_probe_group
+struct generic_kprobe_derived_probe_group: public derived_probe_group
 {
 private:
-  unordered_multimap<interned_string,dwarf_derived_probe*> probes_by_module;
-  typedef unordered_multimap<interned_string,dwarf_derived_probe*>::iterator p_b_m_iterator;
+  unordered_multimap<interned_string,generic_kprobe_derived_probe*> probes_by_module;
+  typedef unordered_multimap<interned_string,generic_kprobe_derived_probe*>::iterator p_b_m_iterator;
 
 public:
-  dwarf_derived_probe_group() {}
-  void enroll (dwarf_derived_probe* probe);
+  generic_kprobe_derived_probe_group() {}
+  void enroll (generic_kprobe_derived_probe* probe);
   void emit_module_decls (systemtap_session& s);
   void emit_module_init (systemtap_session& s);
   void emit_module_refresh (systemtap_session& s);
@@ -4915,12 +4954,12 @@ dwarf_derived_probe::join_group (systemtap_session& s)
   if (!has_return && (saved_longs || saved_strings))
     return;
 
-  if (! s.dwarf_derived_probes)
-    s.dwarf_derived_probes = new dwarf_derived_probe_group ();
-  s.dwarf_derived_probes->enroll (this);
-  this->group = s.dwarf_derived_probes;
+  if (! s.generic_kprobe_derived_probes)
+    s.generic_kprobe_derived_probes = new generic_kprobe_derived_probe_group ();
+  s.generic_kprobe_derived_probes->enroll (this);
+  this->group = s.generic_kprobe_derived_probes;
   if (has_return && entry_handler)
-    entry_handler->group = s.dwarf_derived_probes;
+    entry_handler->group = s.generic_kprobe_derived_probes;
 }
 
 
@@ -4994,20 +5033,15 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
                                          Dwarf_Die* scope_die /* may be null */,
 					 interned_string symbol_name,
 					 Dwarf_Addr offset)
-  : derived_probe (q.base_probe, q.base_loc, true /* .components soon rewritten */ ),
-    module (module), section (section), addr (addr),
+  : generic_kprobe_derived_probe (q.base_probe, q.base_loc, module, section,
+				  addr, q.has_return,
+				  q.has_maxactive, q.maxactive_val, "", offset),
     path (q.path),
     has_process (q.has_process),
-    has_return (q.has_return),
-    has_maxactive (q.has_maxactive),
     has_library (q.has_library),
-    maxactive_val (q.maxactive_val),
     user_path (q.user_path),
     user_lib (q.user_lib),
-    access_vars(false),
-    offset(offset),
-    saved_longs(0), saved_strings(0),
-    entry_handler(0)
+    access_vars(false)
 {
   // If we were given a fullpath to a kernel module, then get the simple name
   if (q.has_module && is_fully_resolved(module, q.dw.sess.sysroot, q.dw.sess.sysenv))
@@ -5648,21 +5682,22 @@ dwarf_derived_probe::emit_probe_local_init(systemtap_session& s, translator_outp
 // ------------------------------------------------------------------------
 
 void
-dwarf_derived_probe_group::enroll (dwarf_derived_probe* p)
+generic_kprobe_derived_probe_group::enroll (generic_kprobe_derived_probe* p)
 {
   probes_by_module.insert (make_pair (p->module, p));
 
-  // XXX: probes put at the same address should all share a
-  // single kprobe/kretprobe, and have their handlers executed
-  // sequentially.
+  // XXX: probes put at the same address (or symbol_name+offset)
+  // should all share a single kprobe/kretprobe, and have their
+  // handlers executed sequentially.
 }
 
-void
-dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
+
+void 
+generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
 {
   if (probes_by_module.empty()) return;
 
-  s.op->newline() << "/* ---- dwarf probes ---- */";
+  s.op->newline() << "/* ---- dwarf and non-dwarf kprobe-based probes ---- */";
 
   // FIXME: we could do the same thing (finding stats for the embedded
   // strings) for 'symbol_name'...
@@ -5675,7 +5710,7 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
   size_t all_name_cnt = probes_by_module.size(); // for average
   for (p_b_m_iterator it = probes_by_module.begin(); it != probes_by_module.end(); it++)
     {
-      dwarf_derived_probe* p = it->second;
+      generic_kprobe_derived_probe* p = it->second;
 #define DOIT(var,expr) do {                             \
         size_t var##_size = (expr) + 1;                 \
         var##_max = max (var##_max, var##_size);        \
@@ -5735,7 +5770,7 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
   size_t stap_dwarf_kprobe_idx = 0;
   for (p_b_m_iterator it = probes_by_module.begin(); it != probes_by_module.end(); it++)
     {
-      dwarf_derived_probe* p = it->second;
+      generic_kprobe_derived_probe* p = it->second;
       s.op->newline() << "{";
       if (p->has_return)
         s.op->line() << " .return_p=1,";
@@ -5761,15 +5796,19 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->line() << " .section=\"" << p->section << "\",";
       s.op->line() << " .probe=" << common_probe_init (p) << ",";
       s.op->line() << " .kprobe=&stap_dwarf_kprobes[" << stap_dwarf_kprobe_idx++ << "],";
-      if (p->symbol_name != "")
+      if (!p->symbol_name.empty())
         {
 	  // After kernel commit 4982223e51, module notifiers are
 	  // being called too early. So, we have to switch to using
 	  // symbol+offset probing for modules.
-	  s.op->newline(-1) << "#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)";
+	  if (! p->section.empty())
+	    s.op->newline(-1) << "#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)";
+	  else
+	    s.op->indent(-1);
 	  s.op->newline() << " .symbol_name=\"" << p->symbol_name << "\",";
 	  s.op->line() << " .offset=(unsigned int)" << p->offset << ",";
-	  s.op->newline() << "#endif";
+	  if (! p->section.empty())
+	    s.op->newline() << "#endif";
 	  s.op->newline(1);
 	}	  
       s.op->line() << " },";
@@ -5856,12 +5895,12 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
 }
 
 
-void
-dwarf_derived_probe_group::emit_module_init (systemtap_session& s)
+void 
+generic_kprobe_derived_probe_group::emit_module_init (systemtap_session& s)
 {
   if (probes_by_module.empty()) return;
 
-  s.op->newline() << "/* ---- dwarf probes ---- */";
+  s.op->newline() << "/* ---- dwarf and non-dwarf kprobe-based probes ---- */";
 
   // We'll let stapkp_init() handle reporting errors by setting probe_point to
   // NULL.
@@ -5872,13 +5911,12 @@ dwarf_derived_probe_group::emit_module_init (systemtap_session& s)
                                      << "ARRAY_SIZE(stap_dwarf_probes));";
 }
 
-
-void
-dwarf_derived_probe_group::emit_module_refresh (systemtap_session& s)
+void 
+generic_kprobe_derived_probe_group::emit_module_refresh (systemtap_session& s)
 {
   if (probes_by_module.empty()) return;
 
-  s.op->newline() << "/* ---- dwarf probes ---- */";
+  s.op->newline() << "/* ---- dwarf and non-dwarf kprobe-based probes ---- */";
 
   s.op->newline() << "stapkp_refresh( "
                                    << "modname, "
@@ -5886,18 +5924,19 @@ dwarf_derived_probe_group::emit_module_refresh (systemtap_session& s)
                                    << "ARRAY_SIZE(stap_dwarf_probes));";
 }
 
-
-void
-dwarf_derived_probe_group::emit_module_exit (systemtap_session& s)
+void 
+generic_kprobe_derived_probe_group::emit_module_exit (systemtap_session& s)
 {
   if (probes_by_module.empty()) return;
 
-  s.op->newline() << "/* ---- dwarf probes ---- */";
+  s.op->newline() << "/* ---- dwarf and non-dwarf kprobe-based probes ---- */";
 
   s.op->newline() << "stapkp_exit( "
                                 << "stap_dwarf_probes, "
                                 << "ARRAY_SIZE(stap_dwarf_probes));";
 }
+
+// ------------------------------------------------------------------------
 
 static void sdt_v3_tokenize(const string& str, vector<string>& tokens)
 {
@@ -9344,17 +9383,18 @@ uprobe_derived_probe_group::emit_module_exit (systemtap_session& s)
 
 
 // ------------------------------------------------------------------------
-// Kprobe derived probes
+// Dwarfless kprobe derived probes
 // ------------------------------------------------------------------------
 
 static const string TOK_KPROBE("kprobe");
 
-struct kprobe_derived_probe: public derived_probe
+struct kprobe_derived_probe: public generic_kprobe_derived_probe
 {
   kprobe_derived_probe (systemtap_session& sess,
 			vector<derived_probe *> & results,
 			probe *base,
 			probe_point *location,
+			interned_string module,
 			interned_string name,
 			int64_t stmt_addr,
 			bool has_call,
@@ -9367,33 +9407,15 @@ struct kprobe_derived_probe: public derived_probe
 			const string& path,
 			const string& library
 			);
-  string symbol_name;
-  Dwarf_Addr addr;
   bool has_call;
-  bool has_return;
   bool has_statement;
-  bool has_maxactive;
   bool has_path;
   bool has_library;
-  int64_t maxactive_val;
   string path;
   string library;
   bool access_var;
   void printsig (std::ostream &o) const;
   void join_group (systemtap_session& s);
-};
-
-struct kprobe_derived_probe_group: public derived_probe_group
-{
-private:
-  multimap<string,kprobe_derived_probe*> probes_by_module;
-  typedef multimap<string,kprobe_derived_probe*>::iterator p_b_m_iterator;
-
-public:
-  void enroll (kprobe_derived_probe* probe);
-  void emit_module_decls (systemtap_session& s);
-  void emit_module_init (systemtap_session& s);
-  void emit_module_exit (systemtap_session& s);
 };
 
 struct kprobe_var_expanding_visitor: public var_expanding_visitor
@@ -9417,6 +9439,7 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
 					    vector<derived_probe *> & results,
 					    probe *base,
 					    probe_point *location,
+					    interned_string module,
 					    interned_string name,
 					    int64_t stmt_addr,
 					    bool has_call,
@@ -9429,12 +9452,13 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
 					    const string& path,
 					    const string& library
 					    ):
-  derived_probe (base, location, true /* .components soon rewritten */ ),
-  symbol_name (name), addr (stmt_addr), has_call (has_call),
-  has_return (has_return), has_statement (has_statement),
-  has_maxactive (has_maxactive), has_path (has_path),
-  has_library (has_library),
-  maxactive_val (maxactive_val),
+  generic_kprobe_derived_probe (base, location, 
+				module, "" /* FIXME: * section */,
+				stmt_addr, has_return,
+				has_maxactive, maxactive_val,
+				name),
+  has_call (has_call), has_statement (has_statement),
+  has_path (has_path), has_library (has_library),
   path (path), library (library)
 {
   this->tok = base->tok;
@@ -9489,6 +9513,10 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
   // synthesize a sibling function-entry probe.  We don't go through
   // the whole probe derivation business (PR10642) that could lead to
   // wildcard/alias resolution, or for that dwarf-induced duplication.
+  //
+  // XXX: The dwarf_kprobe_derived_probe class has a different method
+  // to handle these synthesized probes. It might be possible to use
+  // the same method.
   if (v.add_call_probe)
     {
       assert (has_return);
@@ -9498,8 +9526,9 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
       base->body = v.add_call_probe;
 
       derived_probe *entry_handler
-	= new kprobe_derived_probe (sess, results, base, location, name, 0,
-				    true /* has_call */, false /* has_return */,
+	= new kprobe_derived_probe (sess, results, base, location,
+				    module, name, 0, true /* has_call */,
+				    false /* has_return */,
 				    has_statement, has_maxactive, has_path,
 				    has_library, maxactive_val, path, library);
       results.push_back (entry_handler);
@@ -9519,383 +9548,10 @@ void kprobe_derived_probe::printsig (ostream& o) const
 
 void kprobe_derived_probe::join_group (systemtap_session& s)
 {
-  if (! s.kprobe_derived_probes)
-	s.kprobe_derived_probes = new kprobe_derived_probe_group ();
-  s.kprobe_derived_probes->enroll (this);
-  this->group = s.kprobe_derived_probes;
-}
-
-void kprobe_derived_probe_group::enroll (kprobe_derived_probe* p)
-{
-  probes_by_module.insert (make_pair (p->symbol_name, p));
-  // probes of same symbol should share single kprobe/kretprobe
-}
-
-void
-kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
-{
-  if (probes_by_module.empty()) return;
-
-  s.op->newline() << "/* ---- kprobe-based probes ---- */";
-
-  // Warn of misconfigured kernels
-  s.op->newline() << "#if ! defined(CONFIG_KPROBES)";
-  s.op->newline() << "#error \"Need CONFIG_KPROBES!\"";
-  s.op->newline() << "#endif";
-  s.op->newline();
-
-  s.op->newline() << "#ifndef KRETACTIVE";
-  s.op->newline() << "#define KRETACTIVE (max(15,6*(int)num_possible_cpus()))";
-  s.op->newline() << "#endif";
-
-  // Forward declare the master entry functions
-  s.op->newline() << "static int enter_kprobe2_probe (struct kprobe *inst,";
-  s.op->line() << " struct pt_regs *regs);";
-  s.op->newline() << "static int enter_kretprobe2_probe (struct kretprobe_instance *inst,";
-  s.op->line() << " struct pt_regs *regs);";
-
-  // Emit an array of kprobe/kretprobe pointers
-  s.op->newline() << "#if defined(STAPCONF_UNREGISTER_KPROBES)";
-  s.op->newline() << "static void * stap_unreg_kprobes2[" << probes_by_module.size() << "];";
-  s.op->newline() << "#endif";
-
-  // Emit the actual probe list.
-
-  s.op->newline() << "static struct stap_dwarfless_kprobe {";
-  s.op->newline(1) << "union { struct kprobe kp; struct kretprobe krp; } u;";
-  s.op->newline() << "#ifdef __ia64__";
-  s.op->newline() << "struct kprobe dummy;";
-  s.op->newline() << "#endif";
-  s.op->newline(-1) << "} stap_dwarfless_kprobes[" << probes_by_module.size() << "];";
-  // NB: bss!
-
-  s.op->newline() << "static struct stap_dwarfless_probe {";
-  s.op->newline(1) << "const unsigned return_p:1;";
-  s.op->newline() << "const unsigned maxactive_p:1;";
-  s.op->newline() << "const unsigned optional_p:1;";
-  s.op->newline() << "unsigned registered_p:1;";
-  s.op->newline() << "const unsigned short maxactive_val;";
-
-  // Function Names are mostly small and uniform enough to justify putting
-  // char[MAX]'s into  the array instead of relocated char*'s.
-
-  size_t symbol_string_name_max = 0;
-  size_t symbol_string_name_tot = 0;
-  for (p_b_m_iterator it = probes_by_module.begin(); it != probes_by_module.end(); it++)
-    {
-      kprobe_derived_probe* p = it->second;
-#define DOIT(var,expr) do {                             \
-        size_t var##_size = (expr) + 1;                 \
-        var##_max = max (var##_max, var##_size);        \
-        var##_tot += var##_size; } while (0)
-      DOIT(symbol_string_name, p->symbol_name.size());
-#undef DOIT
-    }
-
-#define CALCIT(var)                                                     \
-	s.op->newline() << "const char " << #var << "[" << var##_name_max << "] ;";
-
-  CALCIT(symbol_string);
-#undef CALCIT
-
-  s.op->newline() << "unsigned long address;";
-  s.op->newline() << "const struct stap_probe * const probe;";
-  s.op->newline(-1) << "} stap_dwarfless_probes[] = {";
-  s.op->indent(1);
-
-  for (p_b_m_iterator it = probes_by_module.begin(); it != probes_by_module.end(); it++)
-    {
-      kprobe_derived_probe* p = it->second;
-      s.op->newline() << "{";
-      if (p->has_return)
-        s.op->line() << " .return_p=1,";
-
-      if (p->has_maxactive)
-        {
-          s.op->line() << " .maxactive_p=1,";
-          assert (p->maxactive_val >= 0 && p->maxactive_val <= USHRT_MAX);
-          s.op->line() << " .maxactive_val=" << p->maxactive_val << ",";
-        }
-
-      if (p->locations[0]->optional)
-        s.op->line() << " .optional_p=1,";
-
-      if (p->has_statement)
-        s.op->line() << " .address=(unsigned long)0x" << hex << p->addr << dec << "ULL,";
-      else
-        s.op->line() << " .symbol_string=\"" << p->symbol_name << "\",";
-
-      s.op->line() << " .probe=" << common_probe_init (p) << ",";
-      s.op->line() << " },";
-    }
-
-  s.op->newline(-1) << "};";
-
-  // Emit the kprobes callback function
-  s.op->newline();
-  s.op->newline() << "static int enter_kprobe2_probe (struct kprobe *inst,";
-  s.op->line() << " struct pt_regs *regs) {";
-  // NB: as of PR5673, the kprobe|kretprobe union struct is in BSS
-  s.op->newline(1) << "int kprobe_idx = ((uintptr_t)inst-(uintptr_t)stap_dwarfless_kprobes)/sizeof(struct stap_dwarfless_kprobe);";
-  // Check that the index is plausible
-  s.op->newline() << "struct stap_dwarfless_probe *sdp = &stap_dwarfless_probes[";
-  s.op->line() << "((kprobe_idx >= 0 && kprobe_idx < " << probes_by_module.size() << ")?";
-  s.op->line() << "kprobe_idx:0)"; // NB: at least we avoid memory corruption
-  // XXX: it would be nice to give a more verbose error though; BUG_ON later?
-  s.op->line() << "];";
-  common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "sdp->probe",
-				 "stp_probe_type_kprobe");
-  s.op->newline() << "c->kregs = regs;";
-
-  // Make it look like the IP is set as it wouldn't have been replaced
-  // by a breakpoint instruction when calling real probe handler. Reset
-  // IP regs on return, so we don't confuse kprobes. PR10458
-  s.op->newline() << "{";
-  s.op->indent(1);
-  s.op->newline() << "unsigned long kprobes_ip = REG_IP(c->kregs);";
-  s.op->newline() << "SET_REG_IP(regs, (unsigned long) inst->addr);";
-  s.op->newline() << "(*sdp->probe->ph) (c);";
-  s.op->newline() << "SET_REG_IP(regs, kprobes_ip);";
-  s.op->newline(-1) << "}";
-
-  common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
-  s.op->newline() << "return 0;";
-  s.op->newline(-1) << "}";
-
-  // Same for kretprobes
-  s.op->newline();
-  s.op->newline() << "static int enter_kretprobe2_probe (struct kretprobe_instance *inst,";
-  s.op->line() << " struct pt_regs *regs) {";
-  s.op->newline(1) << "struct kretprobe *krp = inst->rp;";
-
-  // NB: as of PR5673, the kprobe|kretprobe union struct is in BSS
-  s.op->newline() << "int kprobe_idx = ((uintptr_t)krp-(uintptr_t)stap_dwarfless_kprobes)/sizeof(struct stap_dwarfless_kprobe);";
-  // Check that the index is plausible
-  s.op->newline() << "struct stap_dwarfless_probe *sdp = &stap_dwarfless_probes[";
-  s.op->line() << "((kprobe_idx >= 0 && kprobe_idx < " << probes_by_module.size() << ")?";
-  s.op->line() << "kprobe_idx:0)"; // NB: at least we avoid memory corruption
-  // XXX: it would be nice to give a more verbose error though; BUG_ON later?
-  s.op->line() << "];";
-
-  common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "sdp->probe",
-				 "stp_probe_type_kretprobe");
-  s.op->newline() << "c->kregs = regs;";
-  s.op->newline() << "c->ips.krp.pi = inst;"; // for assisting runtime's backtrace logic
-
-  // Make it look like the IP is set as it wouldn't have been replaced
-  // by a breakpoint instruction when calling real probe handler. Reset
-  // IP regs on return, so we don't confuse kprobes. PR10458
-  s.op->newline() << "{";
-  s.op->indent(1);
-  s.op->newline() << "unsigned long kprobes_ip = REG_IP(c->kregs);";
-  s.op->newline() << "SET_REG_IP(regs, (unsigned long) inst->rp->kp.addr);";
-  s.op->newline() << "(*sdp->probe->ph) (c);";
-  s.op->newline() << "SET_REG_IP(regs, kprobes_ip);";
-  s.op->newline(-1) << "}";
-
-  common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
-  s.op->newline() << "return 0;";
-  s.op->newline(-1) << "}";
-
-  s.op->newline() << "#ifdef STAPCONF_KALLSYMS_ON_EACH_SYMBOL";
-  s.op->newline() << "static int kprobe_resolve(void *data, const char *name,";
-  s.op->newline() << "                          struct module *owner,";
-  s.op->newline() << "                          unsigned long val) {";
-  s.op->newline(1) << "int i;";
-  s.op->newline() << "int *p = (int *) data;";
-  s.op->newline() << "for (i=0; i<" << probes_by_module.size()
-		  << " && *p > 0; i++) {";
-  s.op->newline(1) << "struct stap_dwarfless_probe *sdp = & stap_dwarfless_probes[i];";
-  s.op->newline() << "if (! sdp->address) {";
-  s.op->indent(1);
-  s.op->newline() << "const char *colon;";
-  s.op->newline() << "if (owner && (colon = strchr(sdp->symbol_string, ':'))) {";
-  s.op->indent(1);
-  s.op->newline() << "if ((strlen(owner->name) == (colon - sdp->symbol_string))";
-  s.op->newline() << "    && (strncmp(sdp->symbol_string, owner->name, colon - sdp->symbol_string) == 0)";
-  s.op->newline() << "    && (strcmp(colon + 1, name) == 0)) {";
-  s.op->newline(1) << "sdp->address = val;";
-  s.op->newline() << "(*p)--;";
-  s.op->newline(-1) << "}";
-  s.op->newline(-1) << "}";
-  s.op->newline() << "else {";
-  s.op->newline(1) << "if (strcmp(sdp->symbol_string, name) == 0) {";
-  s.op->newline(1) << "sdp->address = val;";
-  s.op->newline() << "(*p)--;";
-  s.op->newline(-1) << "}";
-  s.op->newline(-1) << "}";
-  s.op->newline(-1) << "}";
-  s.op->newline(-1) << "}";
-  s.op->newline() << "return (p > 0) ? 0 : -1;";
-  s.op->newline(-1) << "}";
-  s.op->newline() << "#endif";
-}
-
-
-void
-kprobe_derived_probe_group::emit_module_init (systemtap_session& s)
-{
-  s.op->newline() << "#ifdef STAPCONF_KALLSYMS_ON_EACH_SYMBOL";
-  s.op->newline() << "{";
-  s.op->newline(1) << "int p = 0;";
-  s.op->newline() << "for (i = 0; i < " << probes_by_module.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_dwarfless_probe *sdp = & stap_dwarfless_probes[i];";
-  s.op->newline() << "if (! sdp->address)";
-  s.op->newline(1) << "p++;";
-  s.op->newline(-2) << "}";
-  s.op->newline() << "rcu_read_lock();";
-  s.op->newline() << "kallsyms_on_each_symbol(kprobe_resolve, &p);";
-  s.op->newline() << "rcu_read_unlock();";
-  s.op->newline(-1) << "}";
-  s.op->newline() << "#endif";
-
-  s.op->newline() << "for (i=0; i<" << probes_by_module.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_dwarfless_probe *sdp = & stap_dwarfless_probes[i];";
-  s.op->newline() << "struct stap_dwarfless_kprobe *kp = & stap_dwarfless_kprobes[i];";
-  s.op->newline() << "void *addr = (void *) sdp->address;";
-  s.op->newline() << "const char *symbol_name = addr ? NULL : sdp->symbol_string;";
-
-  s.op->newline() << "#ifdef STAPCONF_KALLSYMS_ON_EACH_SYMBOL";
-  s.op->newline() << "if (! addr) {";
-  s.op->newline(1) << "sdp->registered_p = 0;";
-  s.op->newline() << "if (!sdp->optional_p)";
-  s.op->newline(1) << "_stp_warn (\"probe %s registration error (symbol not found)\", probe_point);";
-  s.op->newline(-1) << "continue;";
-  s.op->newline(-1) << "}";
-  s.op->newline() << "#endif";
-
-  s.op->newline() << "probe_point = sdp->probe->pp;"; // for error messages
-  s.op->newline() << "if (sdp->return_p) {";
-  s.op->newline(1) << "kp->u.krp.kp.addr = addr;";
-  s.op->newline() << "#ifdef STAPCONF_KPROBE_SYMBOL_NAME";
-  s.op->newline() << "kp->u.krp.kp.symbol_name = (char *) symbol_name;";
-  s.op->newline() << "#endif";
-  s.op->newline() << "if (sdp->maxactive_p) {";
-  s.op->newline(1) << "kp->u.krp.maxactive = sdp->maxactive_val;";
-  s.op->newline(-1) << "} else {";
-  s.op->newline(1) << "kp->u.krp.maxactive = KRETACTIVE;";
-  s.op->newline(-1) << "}";
-  s.op->newline() << "kp->u.krp.handler = &enter_kretprobe2_probe;";
-  // to ensure safeness of bspcache, always use aggr_kprobe on ia64
-  s.op->newline() << "#ifdef __ia64__";
-  s.op->newline() << "kp->dummy.addr = kp->u.krp.kp.addr;";
-  s.op->newline() << "#ifdef STAPCONF_KPROBE_SYMBOL_NAME";
-  s.op->newline() << "kp->dummy.symbol_name = kp->u.krp.kp.symbol_name;";
-  s.op->newline() << "#endif";
-  s.op->newline() << "kp->dummy.pre_handler = NULL;";
-  s.op->newline() << "rc = register_kprobe (& kp->dummy);";
-  s.op->newline() << "if (rc == 0) {";
-  s.op->newline(1) << "rc = register_kretprobe (& kp->u.krp);";
-  s.op->newline() << "if (rc != 0)";
-  s.op->newline(1) << "unregister_kprobe (& kp->dummy);";
-  s.op->newline(-2) << "}";
-  s.op->newline() << "#else";
-  s.op->newline() << "rc = register_kretprobe (& kp->u.krp);";
-  s.op->newline() << "#endif";
-  s.op->newline(-1) << "} else {";
-  // to ensure safeness of bspcache, always use aggr_kprobe on ia64
-  s.op->newline(1) << "kp->u.kp.addr = addr;";
-  s.op->newline() << "#ifdef STAPCONF_KPROBE_SYMBOL_NAME";
-  s.op->newline() << "kp->u.kp.symbol_name = (char *) symbol_name;";
-  s.op->newline() << "#endif";
-  s.op->newline() << "kp->u.kp.pre_handler = &enter_kprobe2_probe;";
-  s.op->newline() << "#ifdef __ia64__";
-  s.op->newline() << "kp->dummy.pre_handler = NULL;";
-  s.op->newline() << "kp->dummy.addr = kp->u.kp.addr;";
-  s.op->newline() << "#ifdef STAPCONF_KPROBE_SYMBOL_NAME";
-  s.op->newline() << "kp->dummy.symbol_name = kp->u.kp.symbol_name;";
-  s.op->newline() << "#endif";
-  s.op->newline() << "rc = register_kprobe (& kp->dummy);";
-  s.op->newline() << "if (rc == 0) {";
-  s.op->newline(1) << "rc = register_kprobe (& kp->u.kp);";
-  s.op->newline() << "if (rc != 0)";
-  s.op->newline(1) << "unregister_kprobe (& kp->dummy);";
-  s.op->newline(-2) << "}";
-  s.op->newline() << "#else";
-  s.op->newline() << "rc = register_kprobe (& kp->u.kp);";
-  s.op->newline() << "#endif";
-  s.op->newline(-1) << "}";
-  s.op->newline() << "if (rc) {"; // PR6749: tolerate a failed register_*probe.
-  s.op->newline(1) << "sdp->registered_p = 0;";
-  s.op->newline() << "if (!sdp->optional_p)";
-  s.op->newline(1) << "_stp_warn (\"probe %s (address 0x%lx) registration error (rc %d)\", probe_point, (unsigned long) addr, rc);";
-  s.op->newline(-1) << "rc = 0;"; // continue with other probes
-  // XXX: shall we increment numskipped?
-  s.op->newline(-1) << "}";
-
-  s.op->newline() << "else sdp->registered_p = 1;";
-  s.op->newline(-1) << "}"; // for loop
-}
-
-
-void
-kprobe_derived_probe_group::emit_module_exit (systemtap_session& s)
-{
-  //Unregister kprobes by batch interfaces.
-  s.op->newline() << "#if defined(STAPCONF_UNREGISTER_KPROBES)";
-  s.op->newline() << "j = 0;";
-  s.op->newline() << "for (i=0; i<" << probes_by_module.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_dwarfless_probe *sdp = & stap_dwarfless_probes[i];";
-  s.op->newline() << "struct stap_dwarfless_kprobe *kp = & stap_dwarfless_kprobes[i];";
-  s.op->newline() << "if (! sdp->registered_p) continue;";
-  s.op->newline() << "if (!sdp->return_p)";
-  s.op->newline(1) << "stap_unreg_kprobes2[j++] = &kp->u.kp;";
-  s.op->newline(-2) << "}";
-  s.op->newline() << "unregister_kprobes((struct kprobe **)stap_unreg_kprobes2, j);";
-  s.op->newline() << "j = 0;";
-  s.op->newline() << "for (i=0; i<" << probes_by_module.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_dwarfless_probe *sdp = & stap_dwarfless_probes[i];";
-  s.op->newline() << "struct stap_dwarfless_kprobe *kp = & stap_dwarfless_kprobes[i];";
-  s.op->newline() << "if (! sdp->registered_p) continue;";
-  s.op->newline() << "if (sdp->return_p)";
-  s.op->newline(1) << "stap_unreg_kprobes2[j++] = &kp->u.krp;";
-  s.op->newline(-2) << "}";
-  s.op->newline() << "unregister_kretprobes((struct kretprobe **)stap_unreg_kprobes2, j);";
-  s.op->newline() << "#ifdef __ia64__";
-  s.op->newline() << "j = 0;";
-  s.op->newline() << "for (i=0; i<" << probes_by_module.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_dwarfless_probe *sdp = & stap_dwarfless_probes[i];";
-  s.op->newline() << "struct stap_dwarfless_kprobe *kp = & stap_dwarfless_kprobes[i];";
-  s.op->newline() << "if (! sdp->registered_p) continue;";
-  s.op->newline() << "stap_unreg_kprobes2[j++] = &kp->dummy;";
-  s.op->newline(-1) << "}";
-  s.op->newline() << "unregister_kprobes((struct kprobe **)stap_unreg_kprobes2, j);";
-  s.op->newline() << "#endif";
-  s.op->newline() << "#endif";
-
-  s.op->newline() << "for (i=0; i<" << probes_by_module.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_dwarfless_probe *sdp = & stap_dwarfless_probes[i];";
-  s.op->newline() << "struct stap_dwarfless_kprobe *kp = & stap_dwarfless_kprobes[i];";
-  s.op->newline() << "if (! sdp->registered_p) continue;";
-  s.op->newline() << "if (sdp->return_p) {";
-  s.op->newline() << "#if !defined(STAPCONF_UNREGISTER_KPROBES)";
-  s.op->newline(1) << "unregister_kretprobe (&kp->u.krp);";
-  s.op->newline() << "#endif";
-  s.op->newline() << "atomic_add (kp->u.krp.nmissed, skipped_count());";
-  s.op->newline() << "#ifdef STP_TIMING";
-  s.op->newline() << "if (kp->u.krp.nmissed)";
-  s.op->newline(1) << "_stp_warn (\"Skipped due to missed kretprobe/1 on '%s': %d\\n\", sdp->probe->pp, kp->u.krp.nmissed);";
-  s.op->newline(-1) << "#endif";
-  s.op->newline() << "atomic_add (kp->u.krp.kp.nmissed, skipped_count());";
-  s.op->newline() << "#ifdef STP_TIMING";
-  s.op->newline() << "if (kp->u.krp.kp.nmissed)";
-  s.op->newline(1) << "_stp_warn (\"Skipped due to missed kretprobe/2 on '%s': %lu\\n\", sdp->probe->pp, kp->u.krp.kp.nmissed);";
-  s.op->newline(-1) << "#endif";
-  s.op->newline(-1) << "} else {";
-  s.op->newline() << "#if !defined(STAPCONF_UNREGISTER_KPROBES)";
-  s.op->newline(1) << "unregister_kprobe (&kp->u.kp);";
-  s.op->newline() << "#endif";
-  s.op->newline() << "atomic_add (kp->u.kp.nmissed, skipped_count());";
-  s.op->newline() << "#ifdef STP_TIMING";
-  s.op->newline() << "if (kp->u.kp.nmissed)";
-  s.op->newline(1) << "_stp_warn (\"Skipped due to missed kprobe on '%s': %lu\\n\", sdp->probe->pp, kp->u.kp.nmissed);";
-  s.op->newline(-1) << "#endif";
-  s.op->newline(-1) << "}";
-  s.op->newline() << "#if !defined(STAPCONF_UNREGISTER_KPROBES) && defined(__ia64__)";
-  s.op->newline() << "unregister_kprobe (&kp->dummy);";
-  s.op->newline() << "#endif";
-  s.op->newline() << "sdp->registered_p = 0;";
-  s.op->newline(-1) << "}";
+  if (! s.generic_kprobe_derived_probes)
+    s.generic_kprobe_derived_probes = new generic_kprobe_derived_probe_group ();
+  s.generic_kprobe_derived_probes->enroll (this);
+  this->group = s.generic_kprobe_derived_probes;
 }
 
 struct kprobe_builder: public derived_probe_builder
@@ -9956,7 +9612,8 @@ kprobe_builder::build(systemtap_session & sess,
 	  function_string_val = (string)module_string_val + ":" + (string)function_string_val;
 	  derived_probe *dp
 	    = new kprobe_derived_probe (sess, finished_results, base,
-					location, function_string_val,
+					location, module_string_val,
+					function_string_val,
 					0, has_call, has_return,
 					has_statement_num, has_maxactive,
 					has_path, has_library, maxactive_val,
@@ -9990,7 +9647,7 @@ kprobe_builder::build(systemtap_session & sess,
 	    {
               derived_probe *dp
                 = new kprobe_derived_probe (sess, finished_results, base,
-                                            location, *it, 0, has_call,
+                                            location, "", *it, 0, has_call,
                                             has_return, has_statement_num,
                                             has_maxactive, has_path,
                                             has_library, maxactive_val,
@@ -10008,7 +9665,9 @@ kprobe_builder::build(systemtap_session & sess,
       finished_results.push_back (new kprobe_derived_probe (sess,
 							    finished_results,
 							    base,
-							    location, "",
+							    location,
+							    module_string_val,
+							    "",
 							    statement_num_val,
 							    has_call,
 							    has_return,
@@ -11798,13 +11457,12 @@ all_session_groups(systemtap_session& s)
   // has be unregistered.  To do the latter,
   // c_unparser::emit_module_exit() will run this list backwards.
   DOONE(be);
-  DOONE(dwarf);
+  DOONE(generic_kprobe);
   DOONE(uprobe);
   DOONE(timer);
   DOONE(profile);
   DOONE(mark);
   DOONE(tracepoint);
-  DOONE(kprobe);
   DOONE(hwbkpt);
   DOONE(perf);
   DOONE(hrtimer);

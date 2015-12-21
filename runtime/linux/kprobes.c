@@ -178,6 +178,7 @@ stapkp_prepare_kprobe(struct stap_dwarf_probe *sdp)
 #ifdef __ia64__ // PR6028
    sdp->kprobe->dummy.addr = kp->addr;
    sdp->kprobe->dummy.pre_handler = NULL;
+   sdp->kprobe->dummy.symbol_name = kp->symbol_name;
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
@@ -278,6 +279,7 @@ stapkp_prepare_kretprobe(struct stap_dwarf_probe *sdp)
 #ifdef __ia64__ // PR6028
    sdp->kprobe->dummy.addr = krp->kp.addr;
    sdp->kprobe->dummy.pre_handler = NULL;
+   sdp->kprobe->dummy.symbol_name = krp->kp.symbol_name;
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
@@ -655,22 +657,32 @@ stapkp_symbol_callback(void *data, const char *name,
    struct stapkp_symbol_data *sd = data;
    size_t i;
 
-   // Right now, all the symbol_name+offset probes are in modules, so
-   // if we aren't looking at a module symbol we're done.
-   if (!mod)
+   if ((mod && sd->modname && strcmp(mod->name, sd->modname) != 0)
+       || (!mod && sd->modname))
       return 0;
 
    for (i = 0; i < sd->nprobes; i++) {
       struct stap_dwarf_probe *sdp = &sd->probes[i];
-      char *colon;
+      int update_addr = 0;
 
       if (! sdp->symbol_name)
 	 continue;
-      if (sd->modname && strcmp(mod->name, sd->modname) != 0)
-	 continue;
-      colon = strchr(sdp->symbol_name, ':');
-      if (colon != NULL && strcmp(mod->name, sdp->module) == 0
-	  && strcmp(name, colon+1) == 0) {
+
+      // If (1) We're probing a module symbol and we're in that module
+      // and the names match; or (2) we're probing a symbol in the
+      // kernel and the names match, then update the k[ret]probe
+      // address.
+      if (mod && sdp->module && strcmp(mod->name, sdp->module) == 0) {
+	 char *colon = strchr(sdp->symbol_name, ':');
+
+	 if (colon != NULL && strcmp(name, colon+1) == 0)
+	    update_addr = 1;
+      }
+      else if (!mod && (sdp->module == NULL || sdp->module[0] == '\0')
+	       && strcmp(name, sdp->symbol_name) == 0)
+	 update_addr = 1;
+      if (update_addr) {
+
 	 if (sdp->return_p)
 	    sdp->kprobe->u.krp.kp.addr = (void *)(addr + sdp->offset);
 	 else
@@ -711,6 +723,7 @@ stapkp_init(struct stap_dwarf_probe *probes,
       // Here we're going to try to convert any symbol_name+offset
       // probes into address probes.
       struct stapkp_symbol_data sd;
+      dbug_stapkp("looking up %lu probes\n", probe_max);
       sd.probes = probes;
       sd.nprobes = nprobes;
       sd.probe_max = probe_max;
@@ -718,6 +731,7 @@ stapkp_init(struct stap_dwarf_probe *probes,
       mutex_lock(&module_mutex);
       kallsyms_on_each_symbol(stapkp_symbol_callback, &sd);
       mutex_unlock(&module_mutex);
+      dbug_stapkp("found %lu probes\n", sd.probe_max);
    }
 #endif
 
@@ -732,7 +746,8 @@ stapkp_init(struct stap_dwarf_probe *probes,
       // NB: We keep going even if a probe failed to register (PR6749). We only
       // warn about it if it wasn't optional and isn't in a module.
       if (rc && !sdp->optional_p
-	  && (!sdp->module || strcmp(sdp->module, "kernel") == 0)) {
+	  && ((sdp->module == NULL) || sdp->module[0] == '\0'
+	      || strcmp(sdp->module, "kernel") == 0)) {
 	 if (sdp->symbol_name)
 	    _stp_warn("probe %s (%s+%u) registration error (rc %d)",
 		      sdp->probe->pp, sdp->symbol_name, sdp->offset, rc);
