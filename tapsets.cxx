@@ -5726,17 +5726,17 @@ generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
 #define CALCIT(var)                                                     \
   if ((var##_name_max-(var##_name_tot/all_name_cnt)) < (3 * sizeof(void*))) \
     {                                                                   \
-      s.op->newline() << "#define STAP_DWARF_PROBE_STR_" << #var << " " \
+      s.op->newline() << "#define STAP_KPROBE_PROBE_STR_" << #var << " " \
                       << "const char " << #var                          \
                       << "[" << var##_name_max << "]";                 \
-      if (s.verbose > 2) clog << "stap_dwarf_probe " << #var            \
+      if (s.verbose > 2) clog << "stap_kprobe_probe " << #var            \
                               << "[" << var##_name_max << "]" << endl;  \
     }                                                                   \
   else                                                                  \
     {                                                                   \
-      s.op->newline() << "#define STAP_DWARF_PROBE_STR_" << #var << " " \
+      s.op->newline() << "#define STAP_KPROBE_PROBE_STR_" << #var << " " \
                       << "const char * const " << #var << "";          \
-      if (s.verbose > 2) clog << "stap_dwarf_probe *" << #var << endl;  \
+      if (s.verbose > 2) clog << "stap_kprobe_probe *" << #var << endl;  \
     }
 
   CALCIT(module);
@@ -5746,7 +5746,7 @@ generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   s.op->newline() << "#include \"linux/kprobes.c\"";
 
-#define UNDEFIT(var) s.op->newline() << "#undef STAP_DWARF_PROBE_STR_" << #var
+#define UNDEFIT(var) s.op->newline() << "#undef STAP_KPROBE_PROBE_STR_" << #var
   UNDEFIT(module);
   UNDEFIT(section);
 #undef UNDEFIT
@@ -5759,15 +5759,15 @@ generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   // Emit the actual probe list.
 
   // NB: we used to plop a union { struct kprobe; struct kretprobe } into
-  // struct stap_dwarf_probe, but it being initialized data makes it add
-  // hundreds of bytes of padding per stap_dwarf_probe.  (PR5673)
-  s.op->newline() << "static struct stap_dwarf_kprobe stap_dwarf_kprobes[" << probes_by_module.size() << "];";
+  // struct stap_kprobe_probe, but it being initialized data makes it add
+  // hundreds of bytes of padding per stap_kprobe_probe.  (PR5673)
+  s.op->newline() << "static struct stap_kprobe stap_kprobes[" << probes_by_module.size() << "];";
   // NB: bss!
 
-  s.op->newline() << "static struct stap_dwarf_probe stap_dwarf_probes[] = {";
+  s.op->newline() << "static struct stap_kprobe_probe stap_kprobe_probes[] = {";
   s.op->indent(1);
 
-  size_t stap_dwarf_kprobe_idx = 0;
+  size_t stap_kprobe_idx = 0;
   for (p_b_m_iterator it = probes_by_module.begin(); it != probes_by_module.end(); it++)
     {
       generic_kprobe_derived_probe* p = it->second;
@@ -5795,7 +5795,7 @@ generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->line() << " .module=\"" << p->module << "\",";
       s.op->line() << " .section=\"" << p->section << "\",";
       s.op->line() << " .probe=" << common_probe_init (p) << ",";
-      s.op->line() << " .kprobe=&stap_dwarf_kprobes[" << stap_dwarf_kprobe_idx++ << "],";
+      s.op->line() << " .kprobe=&stap_kprobes[" << stap_kprobe_idx++ << "],";
       if (!p->symbol_name.empty())
         {
 	  // After kernel commit 4982223e51, module notifiers are
@@ -5821,14 +5821,14 @@ generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "static int enter_kprobe_probe (struct kprobe *inst,";
   s.op->line() << " struct pt_regs *regs) {";
   // NB: as of PR5673, the kprobe|kretprobe union struct is in BSS
-  s.op->newline(1) << "int kprobe_idx = ((uintptr_t)inst-(uintptr_t)stap_dwarf_kprobes)/sizeof(struct stap_dwarf_kprobe);";
+  s.op->newline(1) << "int kprobe_idx = ((uintptr_t)inst-(uintptr_t)stap_kprobes)/sizeof(struct stap_kprobe);";
   // Check that the index is plausible
-  s.op->newline() << "struct stap_dwarf_probe *sdp = &stap_dwarf_probes[";
+  s.op->newline() << "struct stap_kprobe_probe *skp = &stap_kprobe_probes[";
   s.op->line() << "((kprobe_idx >= 0 && kprobe_idx < " << probes_by_module.size() << ")?";
   s.op->line() << "kprobe_idx:0)"; // NB: at least we avoid memory corruption
   // XXX: it would be nice to give a more verbose error though; BUG_ON later?
   s.op->line() << "];";
-  common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "sdp->probe",
+  common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "skp->probe",
 				 "stp_probe_type_kprobe");
   s.op->newline() << "c->kregs = regs;";
 
@@ -5839,7 +5839,7 @@ generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->indent(1);
   s.op->newline() << "unsigned long kprobes_ip = REG_IP(c->kregs);";
   s.op->newline() << "SET_REG_IP(regs, (unsigned long) inst->addr);";
-  s.op->newline() << "(*sdp->probe->ph) (c);";
+  s.op->newline() << "(*skp->probe->ph) (c);";
   s.op->newline() << "SET_REG_IP(regs, kprobes_ip);";
   s.op->newline(-1) << "}";
 
@@ -5854,15 +5854,15 @@ generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline(1) << "struct kretprobe *krp = inst->rp;";
 
   // NB: as of PR5673, the kprobe|kretprobe union struct is in BSS
-  s.op->newline() << "int kprobe_idx = ((uintptr_t)krp-(uintptr_t)stap_dwarf_kprobes)/sizeof(struct stap_dwarf_kprobe);";
+  s.op->newline() << "int kprobe_idx = ((uintptr_t)krp-(uintptr_t)stap_kprobes)/sizeof(struct stap_kprobe);";
   // Check that the index is plausible
-  s.op->newline() << "struct stap_dwarf_probe *sdp = &stap_dwarf_probes[";
+  s.op->newline() << "struct stap_kprobe_probe *skp = &stap_kprobe_probes[";
   s.op->line() << "((kprobe_idx >= 0 && kprobe_idx < " << probes_by_module.size() << ")?";
   s.op->line() << "kprobe_idx:0)"; // NB: at least we avoid memory corruption
   // XXX: it would be nice to give a more verbose error though; BUG_ON later?
   s.op->line() << "];";
 
-  s.op->newline() << "const struct stap_probe *sp = entry ? sdp->entry_probe : sdp->probe;";
+  s.op->newline() << "const struct stap_probe *sp = entry ? skp->entry_probe : skp->probe;";
   s.op->newline() << "if (sp) {";
   s.op->indent(1);
   common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "sp",
@@ -5871,7 +5871,7 @@ generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   // for assisting runtime's backtrace logic and accessing kretprobe data packets
   s.op->newline() << "c->ips.krp.pi = inst;";
-  s.op->newline() << "c->ips.krp.pi_longs = sdp->saved_longs;";
+  s.op->newline() << "c->ips.krp.pi_longs = skp->saved_longs;";
 
   // Make it look like the IP is set as it wouldn't have been replaced
   // by a breakpoint instruction when calling real probe handler. Reset
@@ -5907,8 +5907,8 @@ generic_kprobe_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline() << "probe_point = NULL;";
 
   s.op->newline() << "rc = stapkp_init( "
-                                     << "stap_dwarf_probes, "
-                                     << "ARRAY_SIZE(stap_dwarf_probes));";
+                                     << "stap_kprobe_probes, "
+                                     << "ARRAY_SIZE(stap_kprobe_probes));";
 }
 
 void 
@@ -5920,8 +5920,8 @@ generic_kprobe_derived_probe_group::emit_module_refresh (systemtap_session& s)
 
   s.op->newline() << "stapkp_refresh( "
                                    << "modname, "
-                                   << "stap_dwarf_probes, "
-                                   << "ARRAY_SIZE(stap_dwarf_probes));";
+                                   << "stap_kprobe_probes, "
+                                   << "ARRAY_SIZE(stap_kprobe_probes));";
 }
 
 void 
@@ -5932,8 +5932,8 @@ generic_kprobe_derived_probe_group::emit_module_exit (systemtap_session& s)
   s.op->newline() << "/* ---- dwarf and non-dwarf kprobe-based probes ---- */";
 
   s.op->newline() << "stapkp_exit( "
-                                << "stap_dwarf_probes, "
-                                << "ARRAY_SIZE(stap_dwarf_probes));";
+                                << "stap_kprobe_probes, "
+                                << "ARRAY_SIZE(stap_kprobe_probes));";
 }
 
 // ------------------------------------------------------------------------
@@ -9914,8 +9914,8 @@ hwbkpt_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline(1) << "struct perf_event_attr *hp = & stap_hwbkpt_probe_array[i];";
   // XXX: why not match stap_hwbkpt_ret_array[i] against bp instead?
   s.op->newline() << "if (bp->attr.bp_addr==hp->bp_addr && bp->attr.bp_type==hp->bp_type && bp->attr.bp_len==hp->bp_len) {";
-  s.op->newline(1) << "struct stap_hwbkpt_probe *sdp = &stap_hwbkpt_probes[i];";
-  common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "sdp->probe",
+  s.op->newline(1) << "struct stap_hwbkpt_probe *skp = &stap_hwbkpt_probes[i];";
+  common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "skp->probe",
 				 "stp_probe_type_hwbkpt");
   s.op->newline() << "if (user_mode(regs)) {";
   s.op->newline(1)<< "c->user_mode_p = 1;";
@@ -9923,7 +9923,7 @@ hwbkpt_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline(-1) << "} else {";
   s.op->newline(1) << "c->kregs = regs;";
   s.op->newline(-1) << "}";
-  s.op->newline() << "(*sdp->probe->ph) (c);";
+  s.op->newline() << "(*skp->probe->ph) (c);";
   common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
   s.op->newline(-1) << "}";
   s.op->newline(-1) << "}";
@@ -9935,26 +9935,26 @@ void
 hwbkpt_derived_probe_group::emit_module_init (systemtap_session& s)
 {
   s.op->newline() << "for (i=0; i<" << hwbkpt_probes.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_hwbkpt_probe *sdp = & stap_hwbkpt_probes[i];";
+  s.op->newline(1) << "struct stap_hwbkpt_probe *skp = & stap_hwbkpt_probes[i];";
   s.op->newline() << "struct perf_event_attr *hp = & stap_hwbkpt_probe_array[i];";
-  s.op->newline() << "void *addr = (void *) sdp->address;";
-  s.op->newline() << "const char *hwbkpt_symbol_name = addr ? NULL : sdp->symbol;";
+  s.op->newline() << "void *addr = (void *) skp->address;";
+  s.op->newline() << "const char *hwbkpt_symbol_name = addr ? NULL : skp->symbol;";
   s.op->newline() << "hw_breakpoint_init(hp);";
   s.op->newline() << "if (addr)";
   s.op->newline(1) << "hp->bp_addr = (unsigned long) addr;";
   s.op->newline(-1) << "else { ";
   s.op->newline(1) << "hp->bp_addr = kallsyms_lookup_name(hwbkpt_symbol_name);";
   s.op->newline() << "if (!hp->bp_addr) { ";
-  s.op->newline(1) << "_stp_warn(\"Probe %s registration skipped: invalid symbol %s \",sdp->probe->pp,hwbkpt_symbol_name);";
+  s.op->newline(1) << "_stp_warn(\"Probe %s registration skipped: invalid symbol %s \",skp->probe->pp,hwbkpt_symbol_name);";
   s.op->newline() << "continue;";
   s.op->newline(-1) << "}";
   s.op->newline(-1) << "}";
-  s.op->newline() << "hp->bp_type = sdp->atype;";
+  s.op->newline() << "hp->bp_type = skp->atype;";
 
   // On x86 & x86-64, hp->bp_len is not just a number but a macro/enum (!?!).
   if (s.architecture == "i386" || s.architecture == "x86_64" )
     {
-      s.op->newline() << "switch(sdp->len) {";
+      s.op->newline() << "switch(skp->len) {";
       s.op->newline() << "case 1:";
       s.op->newline(1) << "hp->bp_len = HW_BREAKPOINT_LEN_1;";
       s.op->newline() << "break;";
@@ -9975,9 +9975,9 @@ hwbkpt_derived_probe_group::emit_module_init (systemtap_session& s)
       s.op->newline(-1) << "}";
     }
   else // other architectures presumed straightforward
-    s.op->newline() << "hp->bp_len = sdp->len;";
+    s.op->newline() << "hp->bp_len = skp->len;";
 
-  s.op->newline() << "probe_point = sdp->probe->pp;"; // for error messages
+  s.op->newline() << "probe_point = skp->probe->pp;"; // for error messages
   s.op->newline() << "#ifdef STAPCONF_HW_BREAKPOINT_CONTEXT";
   s.op->newline() << "stap_hwbkpt_ret_array[i] = register_wide_hw_breakpoint(hp, (void *)&enter_hwbkpt_probe, NULL);";
   s.op->newline() << "#else";
@@ -9990,9 +9990,9 @@ hwbkpt_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline(-1) << "}";
   s.op->newline() << "if (rc) {";
   s.op->newline(1) << "_stp_warn(\"Hwbkpt probe %s: registration error %d, addr %p, name %s\", probe_point, rc, addr, hwbkpt_symbol_name);";
-  s.op->newline() << "sdp->registered_p = 0;";
+  s.op->newline() << "skp->registered_p = 0;";
   s.op->newline(-1) << "}";
-  s.op->newline() << " else sdp->registered_p = 1;";
+  s.op->newline() << " else skp->registered_p = 1;";
   s.op->newline(-1) << "}"; // for loop
 }
 
@@ -10001,10 +10001,10 @@ hwbkpt_derived_probe_group::emit_module_exit (systemtap_session& s)
 {
   //Unregister hwbkpt probes.
   s.op->newline() << "for (i=0; i<" << hwbkpt_probes.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_hwbkpt_probe *sdp = & stap_hwbkpt_probes[i];";
-  s.op->newline() << "if (sdp->registered_p == 0) continue;";
+  s.op->newline(1) << "struct stap_hwbkpt_probe *skp = & stap_hwbkpt_probes[i];";
+  s.op->newline() << "if (skp->registered_p == 0) continue;";
   s.op->newline() << "unregister_wide_hw_breakpoint(stap_hwbkpt_ret_array[i]);";
-  s.op->newline() << "sdp->registered_p = 0;";
+  s.op->newline() << "skp->registered_p = 0;";
   s.op->newline(-1) << "}";
 }
 
