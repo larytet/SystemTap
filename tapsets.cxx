@@ -10537,20 +10537,67 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s, const string
     they_live.push_back ("#include <linux/kvm_host.h>");
   }
 
-  if (header.find("xfs") != string::npos && s.kernel_config["CONFIG_XFS_FS"] != string("")) {
+  if (header.find("xfs") != string::npos
+      && s.kernel_config["CONFIG_XFS_FS"] != string("")) {
     they_live.push_back ("#define XFS_BIG_BLKNOS 1");
-    if (s.kernel_source_tree != "")
-      they_live.push_back ("#include \"fs/xfs/xfs_types.h\""); // in kernel-source tree
+
+    // The xfs_types.h include file got moved from fs/xfs/xfs_types.h
+    // to fs/xfs/libxfs/xfs_types.h in upstream kernel 4.4, but that
+    // patch has gotten backported to RHEL7's 3.10, so we can't really
+    // depend on kernel version to know where that file is. We could
+    // add lots of typedefs here to get things to compile (like for
+    // xfs_agblock_t, xfs_agino_t, etc.), but the upstream kernel
+    // could change the types being mapped and we'd get a compile
+    // error when the types don't match. So, we'll try to find the
+    // xfs_types.h file in the kernel source tree.
+    if (s.kernel_source_tree != "") {
+      // Sigh. xfs_types.h (no matter where it is), also needs
+      // xfs_linux.h. But, on newer kernels, xfs_linux.h includes
+      // xfs_types.h, but really needs a '-I' command to do so.
+      if (file_exists(s.kernel_source_tree + "/fs/xfs/xfs_linux.h"))
+	they_live.push_back ("#include \"fs/xfs/xfs_linux.h\"");
+      if (file_exists(s.kernel_source_tree + "/fs/xfs/libxfs/xfs_types.h"))
+	they_live.push_back ("#include \"fs/xfs/libxfs/xfs_types.h\"");
+      else if (file_exists(s.kernel_source_tree + "/fs/xfs/xfs_types.h"))
+	they_live.push_back ("#include \"fs/xfs/xfs_types.h\"");
+    }
+
     they_live.push_back ("struct xfs_mount;");
     they_live.push_back ("struct xfs_inode;");
     they_live.push_back ("struct xfs_buf;");
     they_live.push_back ("struct xfs_bmbt_irec;");
     they_live.push_back ("struct xfs_trans;");
+    they_live.push_back ("struct xfs_name;");
   }
 
-  if (header.find("nfs") != string::npos && s.kernel_config["CONFIG_NFSD"] != string("")) {
+  if (header.find("nfs") != string::npos
+      && s.kernel_config["CONFIG_NFSD"] != string("")) {
     they_live.push_back ("struct rpc_task;");
+    they_live.push_back ("struct nfs_open_context;");
+    they_live.push_back ("struct nfs_client;");
+    they_live.push_back ("struct nfs_fattr;");
+    they_live.push_back ("struct nfs_fh;");
+    they_live.push_back ("struct nfs_server;");
+    they_live.push_back ("struct nfs_pgio_header;");
+    they_live.push_back ("struct nfs_commit_data;");
+    they_live.push_back ("struct nfs_closeres;");
+    they_live.push_back ("struct nfs_closeargs;");
+    they_live.push_back ("struct nfs_unlinkdata;");
+    they_live.push_back ("struct nfs4_sequence_args;");
+    they_live.push_back ("struct nfs4_sequence_res;");
+    they_live.push_back ("struct nfs4_session;");
+    they_live.push_back ("struct nfs4_state;");
+    they_live.push_back ("struct nfs4_delegreturnres;");
+    they_live.push_back ("struct nfs4_delegreturnargs;");
+    they_live.push_back ("struct pnfs_layout_range;");
+
+    // We need a definition of a 'stateid_t', which is a typedef of an
+    // anonymous struct. So, we'll have to include the right kernel
+    // header file.
+    if (s.kernel_source_tree != "")
+      they_live.push_back ("#include \"fs/nfsd/state.h\"");
   }
+
   // RHEL6.3
   if (header.find("rpc") != string::npos && s.kernel_config["CONFIG_NFSD"] != string("")) {
     they_live.push_back ("struct rpc_clnt;");
@@ -10575,8 +10622,13 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s, const string
       they_live.push_back ("struct work_struct;");
     }
 
+  // Here we need the header file, since we need the snd_soc_dapm_path
+  // struct declared and the snd_soc_dapm_direction enum.
   if (header.find("asoc") != string::npos)
-    they_live.push_back ("struct snd_soc_dapm_path;");
+    {
+      if (s.kernel_source_tree != "")
+	they_live.push_back ("#include \"sound/soc.h\"");
+    }
 
   if (header.find("9p") != string::npos)
     {
@@ -10590,6 +10642,7 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s, const string
       they_live.push_back ("struct btree;");
       they_live.push_back ("struct cache_set;");
       they_live.push_back ("struct cache;");
+      they_live.push_back ("struct bcache_device;");
     }
 
   if (header.find("f2fs") != string::npos)
@@ -10597,6 +10650,10 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s, const string
       // cannot get fs/f2fs/f2fs.h #included
       they_live.push_back ("typedef u32 block_t;");
       they_live.push_back ("typedef u32 nid_t;");
+      they_live.push_back ("struct f2fs_io_info;");
+      they_live.push_back ("struct f2fs_sb_info;");
+      they_live.push_back ("struct extent_info;");
+      they_live.push_back ("struct extent_node;");
     }
 
   if (header.find("radeon") != string::npos)
@@ -10609,6 +10666,34 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s, const string
   if (header.find("/ath/") != string::npos)
     they_live.push_back ("struct ath5k_hw;");
 
+  if (header.find("nilfs2") != string::npos)
+    they_live.push_back ("struct nilfs_transaction_info;");
+
+  if (header.find("spi") != string::npos)
+    {
+      they_live.push_back ("struct spi_master;");
+      they_live.push_back ("struct spi_message;");
+      they_live.push_back ("struct spi_transfer;");
+    }
+
+  if (header.find("thermal_power_allocator") != string::npos)
+    they_live.push_back ("struct thermal_zone_device;");
+
+  if (header.find("radeon_trace") != string::npos)
+    {
+      they_live.push_back ("struct radeon_cs_parser;");
+      they_live.push_back ("struct radeon_bo_va;");
+      they_live.push_back ("struct radeon_semaphore;");
+    }
+
+  if (header.find("brcms_trace_brcmsmac") != string::npos)
+    they_live.push_back ("struct brcms_timer;");
+
+  if (header.find("hda_intel_trace") != string::npos)
+    they_live.push_back ("struct azx;");
+
+  if (header.find("v4l2") != string::npos)
+    they_live.push_back ("struct v4l2_buffer;");
 
   return they_live;
 }
