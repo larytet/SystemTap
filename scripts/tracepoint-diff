@@ -19,11 +19,14 @@ echo made work directory $tmp
 trap 'rm -fr $tmp' 0 1 2 3 5 9 15
 
 echo gathering perf tracepoint list
-${PERF-perf} list | grep Tracepoint | egrep -v 'sys_(enter|exit)_' | 
-     cut -f2 -d':' | awk '{print $1}' | sort > $tmp/perf
-
+${PERF-perf} list tracepoint | grep Tracepoint | egrep -v 'sys_(enter|exit)_' \
+     | awk '{print $1}' | sort > $tmp/perf
+perf_tracepoints=`wc -l $tmp/perf | cut -f1 -d' '`
+echo "  perf found $perf_tracepoints tracepoints"
 echo gathering systemtap tracepoint list
 ${STAP-stap} --poison-cache -L 'kernel.trace("*")' | cut -f2 -d'"' | sort > $tmp/stap
+stap_tracepoints=`wc -l $tmp/stap | cut -f1 -d' '`
+echo "  stap found $stap_tracepoints tracepoints"
 
 echo listing tracepoints missing in stap
 echo
