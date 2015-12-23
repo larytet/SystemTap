@@ -1,6 +1,7 @@
 set test "control_limits MAXNESTING"
 if {![installtest_p]} { untested $test; return }
 
+# Test MAXNESTING.
 foreach runtime [get_runtime_list] {
     set test "control_limits MAXNESTING"
     if {$runtime != ""} {
@@ -22,6 +23,27 @@ foreach runtime [get_runtime_list] {
 }
 
 foreach runtime [get_runtime_list] {
+    set test "control_limits MAXNESTING proper"
+    if {$runtime != ""} {
+	lappend test "($runtime)"
+	spawn stap -u -DMAXNESTING=8 $srcdir/$subdir/control_limits.stp \
+	    --runtime=$runtime
+    } else {
+	spawn stap -u -DMAXNESTING=8 $srcdir/$subdir/control_limits.stp
+    }
+    set ko 0
+    expect {
+	-timeout 150
+	-re {ERROR.*MAXNESTING} { incr ko; exp_continue }
+	timeout { fail "$test (timeout)" }
+	eof { }
+    }
+    catch {close}; catch {wait}
+    if {$ko == 0} { pass "$test ($ko)" } { fail "$test ($ko)" }
+}
+
+# Test MAXACTION.
+foreach runtime [get_runtime_list] {
     set test "control_limits MAXACTION"
     if {$runtime != ""} {
 	lappend test "($runtime)"
@@ -42,6 +64,71 @@ foreach runtime [get_runtime_list] {
     if {$ok == 1} { pass "$test ($ok)" } { fail "$test ($ok)" }
 }
 
+foreach runtime [get_runtime_list] {
+    set test "control_limits MAXACTION proper"
+    if {$runtime != ""} {
+	lappend test "($runtime)"
+	spawn stap -u -DMAXACTION_INTERRUPTIBLE=502 \
+	    $srcdir/$subdir/control_limits.stp --runtime=$runtime 
+    } else {
+	spawn stap -u -DMAXACTION_INTERRUPTIBLE=502 \
+	    $srcdir/$subdir/control_limits.stp
+    }
+    set ko 0
+    expect {
+	-timeout 150
+	-re {ERROR.*MAXACTION} { incr ko; exp_continue }
+	timeout { fail "$test (timeout)" }
+	eof { }
+    }
+    catch {close}; catch {wait}
+    if {$ko == 0} { pass "$test ($ko)" } { fail "$test ($ko)" }
+}
+
+# Test MAXMAPENTRIES.
+foreach runtime [get_runtime_list] {
+    set test "control_limits MAXMAPENTRIES"
+    if {$runtime != ""} {
+	lappend test "($runtime)"
+	spawn stap -u -D MAXMAPENTRIES=19 \
+	    $srcdir/$subdir/control_limits.stp --runtime=$runtime 
+    } else {
+	spawn stap -u -D MAXMAPENTRIES=19 \
+	    $srcdir/$subdir/control_limits.stp
+    }
+    set ok 0
+    expect {
+	-timeout 150
+	-re {ERROR.*MAXMAPENTRIES} { incr ok; exp_continue }
+	timeout { fail "$test (timeout)" }
+	eof { }
+    }
+    catch {close}; catch {wait}
+    if {$ok == 1} { pass "$test ($ok)" } { fail "$test ($ok)" }
+}
+
+foreach runtime [get_runtime_list] {
+    set test "control_limits MAXMAPENTRIES proper"
+    if {$runtime != ""} {
+	lappend test "($runtime)"
+	spawn stap -u -D MAXMAPENTRIES=20 \
+	    $srcdir/$subdir/control_limits.stp --runtime=$runtime 
+    } else {
+	spawn stap -u -D MAXMAPENTRIES=20 \
+	    $srcdir/$subdir/control_limits.stp
+    }
+    set ko 0
+    expect {
+	-timeout 150
+	-re {ERROR.*MAXMAPENTRIES} { incr ko; exp_continue }
+	timeout { fail "$test (timeout)" }
+	eof { }
+    }
+    catch {close}; catch {wait}
+    if {$ko == 0} { pass "$test ($ko)" } { fail "$test ($ko)" }
+}
+
+# Test MAXSTRINGLEN.
 foreach runtime [get_runtime_list] {
     set test "control_limits MAXSTRINGLEN small"
     if {$runtime != ""} {
