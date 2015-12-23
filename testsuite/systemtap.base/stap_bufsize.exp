@@ -1,0 +1,23 @@
+# Check set buffer size
+set test "buffer size"
+if {![installtest_p]} { untested "$test"; return }
+
+set ret 0
+
+if {[catch { exec sh -c "stap -s 1 -vvv -e 'probe begin{exit();}' 2>&1 | grep -q 'module options: _stp_bufsize=1'"}]} {
+    set ret 1
+}
+
+if {[catch { exec sh -c "stap -s 64 -vvv -e 'probe begin{exit();}' 2>&1 | grep -q 'module options: _stp_bufsize=64'"}]} {
+    set ret 1
+}
+
+if {[catch { exec sh -c "stap -s 4096 -vvv -e 'probe begin{exit();}' 2>&1 | grep -q 'Invalid buffer size (should be 1-4095).'"}]} {
+    set ret 1
+}
+
+if { $ret == 0 } {
+    pass $test
+} else {
+    fail $test
+}

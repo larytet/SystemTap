@@ -1,0 +1,8 @@
+#! stap -p2
+
+# Variable identifier can't start with $.
+probe begin
+{
+	$var=2015
+	exit()
+}
