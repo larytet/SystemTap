@@ -1,0 +1,10 @@
+#! stap -gp2
+# accessing aggregates
+global var
+
+probe begin {
+  var <<< 1
+
+  println(%{ /* pragma:read:var */ STAP_GLOBAL_GET_var() %})
+  println(var)
+}

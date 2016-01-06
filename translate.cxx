@@ -151,6 +151,12 @@ struct c_unparser: public unparser, public visitor
   string c_arg_define (const string& e);
   string c_arg_undef (const string& e);
 
+  string map_keytypes(vardecl* v);
+  void c_global_write_def(vardecl* v);
+  void c_global_read_def(vardecl* v);
+  void c_global_write_undef(vardecl* v);
+  void c_global_read_undef(vardecl* v);
+
   void c_assign (var& lvalue, const string& rvalue, const token* tok);
   void c_assign (tmpvar& lvalue, expression* rvalue, const char* msg);
   void c_assign (const string& lvalue, expression* rvalue, const char* msg);
@@ -2963,6 +2969,32 @@ mapvar::shortname(exp_type e)
     }
 }
 
+string
+c_unparser::map_keytypes(vardecl* v)
+{
+  string result;
+  vector<exp_type> types = v->index_types;
+  types.push_back (v->type);
+  for (unsigned i = 0; i < types.size(); ++i)
+    {
+      switch (types[i])
+        {
+        case pe_long:
+          result += 'i';
+          break;
+        case pe_string:
+          result += 's';
+          break;
+        case pe_stats:
+          result += 'x';
+          break;
+        default:
+          throw SEMANTIC_ERROR(_("unknown type of map"));
+          break;
+        }
+    }
+  return result;
+}
 
 void
 c_unparser::emit_map_type_instantiations ()
@@ -3079,6 +3111,55 @@ c_unparser::c_arg_undef (const string& e)
   return "#undef STAP_ARG_" + e;
 }
 
+void
+c_unparser::c_global_write_def(vardecl* v)
+{
+  if (v->arity > 0)
+    {
+      o->newline() << "#define STAP_GLOBAL_SET_" << v->tok->content << "(...) "
+                   << "({int rc = _stp_map_set_" << map_keytypes(v)
+                   << "(global(" << c_globalname(v->name) << "), __VA_ARGS__); "
+                   << "if (unlikely(rc)) { c->last_error = " << STAP_T_01
+                   << lex_cast(v->maxsize > 0 ? "size limit (" + lex_cast(v->maxsize)
+                      + ")" : "MAXMAPENTRIES") + "\"; goto out; } rc;})";
+    }
+  else
+    {
+      o->newline() << "#define STAP_GLOBAL_SET_" << v->tok->content << "(val) ";
+      if (v->type == pe_string)
+          o->line() << "strlcpy(global(" << c_globalname(v->name) << "), val, MAXSTRINGLEN)";
+      else if (v->type == pe_long)
+          o->line() << "global_set(" << c_globalname(v->name) << ", val)";
+    }
+}
+
+void
+c_unparser::c_global_read_def(vardecl* v)
+{
+  if (v->arity > 0)
+    {
+      o->newline() << "#define STAP_GLOBAL_GET_" << v->tok->content << "(...) "
+                   << "_stp_map_get_" << map_keytypes(v)
+                   << "(global(" << c_globalname(v->name) << "), __VA_ARGS__)";
+    }
+  else
+    {
+      o->newline() << "#define STAP_GLOBAL_GET_" << v->tok->content << "() "
+                   << "global(" << c_globalname(v->name) << ")";
+    }
+}
+
+void
+c_unparser::c_global_write_undef(vardecl* v)
+{
+  o->newline() << "#undef STAP_GLOBAL_SET_" << v->tok->content;
+}
+
+void
+c_unparser::c_global_read_undef(vardecl* v)
+{
+  o->newline() << "#undef STAP_GLOBAL_GET_" << v->tok->content;
+}
 
 void
 c_unparser::c_assign (var& lvalue, const string& rvalue, const token *tok)
@@ -3127,7 +3208,6 @@ c_unparser::c_assign(tmpvar& t, expression *e, const char* msg)
   else
     c_assign (t.value(), e, msg);
 }
-
 
 struct expression_is_functioncall : public nop_visitor
 {
@@ -3587,8 +3667,34 @@ c_unparser::visit_embeddedcode (embeddedcode *s)
   if (s->code.find ("/* myproc-unprivileged */") != string::npos)
     o->newline() << "assert_is_myproc();";
   o->newline() << "{";
+
+  vector<vardecl*> read_defs;
+  vector<vardecl*> write_defs;
+  for (unsigned i = 0; i < session->globals.size(); i++)
+    {
+      vardecl* v = session->globals[i];
+      string name = v->tok->content;
+      if (s->code.find("/* pragma:read:" + name + " */") != string::npos)
+        {
+          c_global_read_def(v);
+          read_defs.push_back(v);
+        }
+      if (s->code.find("/* pragma:write:" + name + " */") != string::npos)
+        {
+          c_global_write_def(v);
+          write_defs.push_back(v);
+        }
+    }
+
   o->newline(1) << s->code;
-  o->newline(-1) << "}";
+  o->indent(-1);
+
+  for (vector<vardecl*>::const_iterator it = read_defs.begin(); it != read_defs.end(); ++it)
+    c_global_read_undef(*it);
+  for (vector<vardecl*>::const_iterator it = write_defs.begin(); it != write_defs.end(); ++it)
+    c_global_write_undef(*it);
+
+  o->newline() << "}";
 }
 
 
@@ -4435,6 +4541,30 @@ c_unparser::visit_literal_number (literal_number* e)
 void
 c_unparser::visit_embedded_expr (embedded_expr* e)
 {
+  bool has_defines = false;
+  vector<vardecl*> read_defs;
+  vector<vardecl*> write_defs;
+  for (unsigned i = 0; i < session->globals.size(); i++)
+    {
+      vardecl* v = session->globals[i];
+      string name = v->tok->content;
+      if (e->code.find("/* pragma:read:" + name + " */") != string::npos)
+        {
+          has_defines = true;
+          c_global_read_def(v);
+          read_defs.push_back(v);
+        }
+      if (e->code.find("/* pragma:write:" + name + " */") != string::npos)
+        {
+          has_defines = true;
+          c_global_write_def(v);
+          write_defs.push_back(v);
+        }
+    }
+
+  if (has_defines)
+    o->newline();
+
   o->line() << "(";
 
   // Automatically add a call to assert_is_myproc to any code tagged with
@@ -4450,6 +4580,14 @@ c_unparser::visit_embedded_expr (embedded_expr* e)
     throw SEMANTIC_ERROR (_("expected numeric or string type"), e->tok);
 
   o->line() << ")";
+
+  for (vector<vardecl*>::const_iterator it = read_defs.begin(); it != read_defs.end(); ++it)
+    c_global_read_undef(*it);
+  for (vector<vardecl*>::const_iterator it = write_defs.begin(); it != write_defs.end(); ++it)
+    c_global_write_undef(*it);
+
+  if (has_defines)
+    o->newline();
 }
 
 

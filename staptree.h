@@ -583,7 +583,7 @@ struct symboldecl // unique object per (possibly implicit)
 {
   const token* tok;
   const token* systemtap_v_conditional; //checking systemtap compatibility
-  interned_string name;
+  interned_string name; // mangled name, tok->content used for unmangling
   exp_type type;
   exp_type_ptr type_details;
   symboldecl ();

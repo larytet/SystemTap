@@ -1,0 +1,14 @@
+#! stap -gp4
+# type mismatch
+global var
+
+function write() %{
+  /* pragma:write:var */
+  STAP_GLOBAL_SET_var("test");
+%}
+
+probe begin {
+  var = 1
+  write()
+  println(var)
+}

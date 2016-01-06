@@ -1651,7 +1651,7 @@ value is not used by script code.
 means that the C code always has the same value (in any given probe handler
 invocation), so repeated calls may be automatically replaced by memoized
 values.  Such functions must take no parameters, and also be
-.IR pure .
+.I /* pure */.
 .TP
 .I /* unprivileged */
 means that the C code is so safe that even unprivileged users are permitted
@@ -1689,6 +1689,34 @@ in embedded-C expressions only, means that the expression has
 .I const char *
 type and should be treated as a string value, instead of
 the default long numeric.
+.PP
+Script level global variables may be accessed in embedded-C functions and
+blocks. To read or write the global variable
+.I var
+, the
+.I /* pragma:read:var */
+or
+.I /* pragma:write:var */
+marker must be first placed in the embedded-C function or block. This provides
+the macros
+.I STAP_GLOBAL_GET_*
+and
+.I STAP_GLOBAL_SET_*
+macros to allow reading and writing, respectively. For example:
+.SAMPLE
+global var
+global var2[100]
+function increment() %{
+    /* pragma:read:var */ /* pragma:write:var */
+    /* pragma:read:var2 */ /* pragma:write:var2 */
+    STAP_GLOBAL_SET_var(STAP_GLOBAL_GET_var()+1); //var++
+    STAP_GLOBAL_SET_var2(1, 1, STAP_GLOBAL_GET_var2(1, 1)+1); //var2[1,1]++
+%}
+.ESAMPLE
+Variables may be read and set in both embedded-C functions and expressions.
+Strings returned from embedded-C code are decayed to pointers. Variables must
+also be assigned at script level to allow for type inference. Map assignment
+does not return the value written, so chaining does not work.
 
 .SS BUILT-INS
 A set of builtin probe point aliases are provided

@@ -2401,6 +2401,25 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
 {
   assert (current_function); // only they get embedded code
 
+  /* We need to lock globals that are accessed through embedded C code */
+  for (unsigned i = 0; i < session.globals.size(); i++)
+    {
+      vardecl* v = session.globals[i];
+      string name = v->tok->content;
+      if (s->code.find("/* pragma:read:" + name + " */") != string::npos)
+        {
+          if (v->type == pe_stats)
+            throw SEMANTIC_ERROR(_("Aggregates not available in embedded-C"), s->tok);
+          read.insert(v);
+        }
+      if (s->code.find("/* pragma:write:" + name + " */") != string::npos)
+        {
+          if (v->type == pe_stats)
+            throw SEMANTIC_ERROR(_("Aggregates not available in embedded-C"), s->tok);
+          written.insert(v);
+        }
+    }
+
   // Don't allow embedded C functions in unprivileged mode unless
   // they are tagged with /* unprivileged */ or /* myproc-unprivileged */
   // or we're in a usermode runtime.
@@ -2443,6 +2462,25 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
 void
 varuse_collecting_visitor::visit_embedded_expr (embedded_expr *e)
 {
+  /* We need to lock globals that are accessed through embedded C code */
+  for (unsigned i = 0; i < session.globals.size(); i++)
+    {
+      vardecl* v = session.globals[i];
+      string name = v->tok->content;
+      if (e->code.find("/* pragma:read:" + name + " */") != string::npos)
+        {
+          if (v->type == pe_stats)
+            throw SEMANTIC_ERROR(_("Aggregates not available in embedded-C"), e->tok);
+          read.insert(v);
+        }
+      if (e->code.find("/* pragma:write:" + name + " */") != string::npos)
+        {
+          if (v->type == pe_stats)
+            throw SEMANTIC_ERROR(_("Aggregates not available in embedded-C"), e->tok);
+          written.insert(v);
+        }
+    }
+
   // Don't allow embedded C expressions in unprivileged mode unless
   // they are tagged with /* unprivileged */ or /* myproc-unprivileged */
   // or we're in a usermode runtime.

@@ -1,0 +1,221 @@
+set test "global_access"
+
+if {![installtest_p]} {untested $test; return}
+
+proc run_test {test script expected} {
+    set success 0
+    spawn stap -g -e $script
+    expect {
+        -timeout 30
+        -re "$expected" {pass $test}
+        default {fail $test}
+    }
+}
+
+set script1 {
+  global var
+
+  function read:long() %{
+    /* pragma:read:var */
+    STAP_RETURN(STAP_GLOBAL_GET_var());
+  %}
+
+  probe begin {
+    var = 111
+    println(read())
+    exit()
+  }
+}
+
+set script2 {
+  global var[100]
+
+  function read:long() %{
+    /* pragma:read:var */
+    STAP_RETURN(STAP_GLOBAL_GET_var(1, 1));
+  %}
+
+  probe begin {
+    var[1,1] = 222
+    println(read())
+    exit()
+  }
+}
+
+set script3 {
+  global var
+
+  probe begin {
+    var = 333
+    println(%{ /* pragma:read:var */ STAP_GLOBAL_GET_var() %})
+    exit()
+  }
+}
+
+set script4 {
+  global var[100]
+
+  probe begin {
+    var[1,1] = 444
+    println(%{ /* pragma:read:var */ STAP_GLOBAL_GET_var(1,1) %})
+    exit()
+  }
+}
+
+set script5 {
+  global var = 0
+
+  function write() %{
+    /* pragma:write:var */
+    STAP_GLOBAL_SET_var(555);
+  %}
+
+  probe begin {
+    write()
+    println(var)
+    exit()
+  }
+}
+
+set script6 {
+  global var[100]
+
+  function write() %{
+    /* pragma:write:var */
+    STAP_GLOBAL_SET_var(1,1,666);
+  %}
+
+  probe begin {
+    var[1,1] = 0
+    write()
+    println(var[1,1])
+    exit()
+  }
+}
+
+set script7 {
+  global var = 0
+
+  probe begin {
+    %{ /* pragma:write:var */ STAP_GLOBAL_SET_var(777) %}
+    println(var)
+    exit()
+  }
+}
+
+set script8 {
+  global var[100]
+
+  probe begin {
+    var[1,1] = 0
+    %{ /* pragma:write:var */ STAP_GLOBAL_SET_var(1,1,888) %}
+    println(var[1,1])
+    exit()
+  }
+}
+
+set script9 {
+  global var = ""
+
+  function write() %{
+    /* pragma:write:var */
+    STAP_GLOBAL_SET_var("hello");
+  %}
+
+  probe begin {
+    write()
+    println(var)
+    exit()
+  }
+}
+
+set script10 {
+  global var[100]
+
+  function write() %{
+    /* pragma:write:var */
+    STAP_GLOBAL_SET_var(1,1,"hello");
+  %}
+
+  probe begin {
+    var[1,1] = ""
+    write()
+    println(var[1,1])
+    exit()
+  }
+}
+
+set script11 {
+  global var = ""
+
+  probe begin {
+    %{ /* pragma:write:var */ STAP_GLOBAL_SET_var("hello") %}
+    println(var)
+    exit()
+  }
+}
+
+set script12 {
+  global var[100]
+
+  probe begin {
+    var[1,1] = ""
+    %{ /* pragma:write:var */ STAP_GLOBAL_SET_var(1,1,"hello") %}
+    println(var[1,1])
+    exit()
+  }
+}
+
+set script13 {
+  global var = "hello"
+  global var2 = ""
+
+  function write() %{
+    /* pragma:read:var */
+    /* pragma:write:var2 */
+    STAP_GLOBAL_SET_var2(STAP_GLOBAL_GET_var());
+  %}
+
+  probe begin {
+    write()
+    println(var2)
+    exit()
+  }
+}
+
+set script14 {
+  global var[100]
+  global var2[100]
+
+  function write() %{
+    /* pragma:read:var */
+    /* pragma:write:var2 */
+    STAP_GLOBAL_SET_var2(1,1,STAP_GLOBAL_GET_var(1,1));
+  %}
+
+  probe begin {
+    var[1,1] = "hello"
+    var2[1,1] = ""
+    write()
+    println(var2[1,1])
+    exit()
+  }
+}
+
+run_test function_read_scalar_integer $script1 111
+run_test function_read_map_integer $script2 222
+run_test block_read_scalar_integer $script3 333
+run_test block_read_map_integer $script4 444
+run_test function_write_scalar_integer $script5 555
+run_test function_write_map_integer $script6 666
+run_test block_write_scalar_integer $script7 777
+run_test block_write_map_integer $script8 888
+
+# Note: strings are decayed to pointers when returned from embedded-C
+# so we do not try to read them in embedded expressions
+run_test function_write_scalar_string $script9 "hello"
+run_test function_write_map_string $script10 "hello"
+run_test block_write_scalar_string $script11 "hello"
+run_test block_write_map_string $script12 "hello"
+run_test function_read_scalar_string $script13 "hello"
+run_test function_read_map_string $script14 "hello"

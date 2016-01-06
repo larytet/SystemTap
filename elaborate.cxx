@@ -1549,7 +1549,7 @@ semantic_pass_conditions (systemtap_session & sess)
 
 // This is only for pragmas that don't have any other side-effect than
 // needing some initialization at module init time. Currently handles
-// /* pragma:vma */ /* pragma:unwind */ /* pragma:symbol */
+// /* pragma:vma */ /* pragma:unwind */ /* pragma:symbols */ /* pragma:lines */
 
 // /* pragma:uprobes */ is handled during the typeresolution_info pass.
 // /* pure */, /* unprivileged */. /* myproc-unprivileged */ and /* guru */
