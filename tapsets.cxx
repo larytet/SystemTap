@@ -11392,15 +11392,16 @@ tracepoint_builder::init_dw(systemtap_session& s)
               endswith(header, "_event_types.h"))
             continue;
 
-          // With headers now plopped under arch/FOO/include/asm/*,
-          // the following logic miss some tracepoints.
-#if 0
-          // skip identical headers from the build and source trees.
+          // Skip identical headers from the build and source trees.
+          // NB: For the moment these are only compared by reduced path, since
+          // get_tracequery_modules and emit_module_decls also reduce the path
+          // like this for their #includes.  If we want to get fancier, like
+          // comparing file contents, then those functions will also have to be
+          // more precise in how they #include.
           size_t root_pos = header.rfind("include/");
           if (root_pos != string::npos &&
               !duped_headers.insert(header.substr(root_pos + 8)).second)
             continue;
-#endif
 
           system_headers.push_back(header);
         }
