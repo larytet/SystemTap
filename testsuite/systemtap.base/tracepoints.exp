@@ -24,18 +24,27 @@ pass "$test list [llength $tracepoints]"
 #    }
 #}
 
-# This tests all tracepoints all at once (much faster than the above)
-set script "probe begin {}"
+# This tests all tracepoints all at once (much faster than the
+# above). We need to save the script to a file, since on systems with
+# lots of tracepoints the script length can be greater than the
+# command line allows.
+set script "probe begin {}\n"
 foreach tp $tracepoints {
-	set script "$script probe $tp { println($\$system, $\$name, $\$vars) }"
+	set script "$script probe $tp { println($\$system, $\$name, $\$vars) }\n"
 }
-send_log "Trying stap -w -p4 -e $script\n"
-if {[catch {exec stap -w -p4 -e "$script"} res]} {
+set test_stppath "[pwd]/$test.stp"
+set test_fp [open $test_stppath "w"]
+puts $test_fp "$script"
+close $test_fp
+
+send_log "Trying stap -w -p4 $test_stppath\n"
+if {[catch {exec stap -w -p4 $test_stppath} res]} {
 	fail "$test - can't compile"
 	verbose -log "stap error: $res"
 } else {
 	pass "$test - compiled"
 }
+if { $verbose == 0 } { catch { exec rm -f $test_stppath } }
 
 proc test_tp {tp {filter ""} {num -1}} {
    global test

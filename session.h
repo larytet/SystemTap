@@ -165,6 +165,7 @@ public:
   std::string kernel_base_release;
   std::string kernel_build_tree;
   std::string kernel_source_tree;
+  std::vector<std::string> kernel_extra_cflags; 
   std::map<interned_string,interned_string> kernel_config;
   std::set<interned_string> kernel_exports;
   std::set<interned_string> kernel_functions;

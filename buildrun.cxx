@@ -311,6 +311,8 @@ compile_pass (systemtap_session& s)
   o << module_cflags << " += -Iinclude2/asm/mach-default" << endl;
   if (s.kernel_source_tree != "")
     o << module_cflags << " += -I" + s.kernel_source_tree << endl;
+  for (unsigned i = 0; i < s.kernel_extra_cflags.size(); i++)
+    o << module_cflags << " += " + s.kernel_extra_cflags[i] << endl;
 
   // NB: don't try
   // o << module_cflags << " += -Iusr/include" << endl;
@@ -885,6 +887,8 @@ make_tracequeries(systemtap_session& s, const map<string,string>& contents)
 
   if (s.kernel_source_tree != "")
     omf << "EXTRA_CFLAGS += -I" + s.kernel_source_tree << endl;
+  for (unsigned i = 0; i < s.kernel_extra_cflags.size(); i++)
+    omf << "EXTRA_CFLAGS += " + s.kernel_extra_cflags[i] << endl;
 
   omf << "obj-m := " << endl;
   // write out each header-specific source file into a separate file

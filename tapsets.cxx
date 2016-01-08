@@ -10524,9 +10524,37 @@ tracepoint_derived_probe::print_dupe_stamp(ostream& o)
 }
 
 
-static vector<string> tracepoint_extra_decls (systemtap_session& s, const string& header)
+static vector<string> tracepoint_extra_decls (systemtap_session& s,
+					      const string& header,
+					      const bool tracequery)
 {
   vector<string> they_live;
+
+  // Several headers end up including events/irq.h, events/kmem.h, and
+  // events/module.h on RHEL6 (since they include headers that include
+  // those headers). This causes stap to think the tracepoints from
+  // those files belong in multiple tracepoint subsystems. To get
+  // around this, we'll define the header guard macros for those
+  // tracepoints headers, troublesome header file, then undefine the
+  // macro. Then, later when a header includes linux/interrupt.h (for
+  // example), the events/irq.h file doesn't get included because of
+  // the header guard macro on linux/interrupt.h.
+  //
+  // Note that we only do this when building a tracequery module (to
+  // find all the tracepoints).
+  if (tracequery)
+    {
+      they_live.push_back ("#define _TRACE_KMEM_H");
+      they_live.push_back ("#define _TRACE_IRQ_H");
+      they_live.push_back ("#include <linux/interrupt.h>");
+      they_live.push_back ("#undef _TRACE_IRQ_H");
+      they_live.push_back ("#undef _TRACE_KMEM_H");
+
+      they_live.push_back ("#define _TRACE_MODULE_H");
+      they_live.push_back ("#include <linux/module.h>");
+      they_live.push_back ("#undef _TRACE_MODULE_H");
+    }
+
   // PR 9993
   // XXX: may need this to be configurable
   they_live.push_back ("#include <linux/skbuff.h>");
@@ -10551,15 +10579,19 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s, const string
     // error when the types don't match. So, we'll try to find the
     // xfs_types.h file in the kernel source tree.
     if (s.kernel_source_tree != "") {
-      // Sigh. xfs_types.h (no matter where it is), also needs
-      // xfs_linux.h. But, on newer kernels, xfs_linux.h includes
-      // xfs_types.h, but really needs a '-I' command to do so.
       if (file_exists(s.kernel_source_tree + "/fs/xfs/xfs_linux.h"))
 	they_live.push_back ("#include \"fs/xfs/xfs_linux.h\"");
       if (file_exists(s.kernel_source_tree + "/fs/xfs/libxfs/xfs_types.h"))
 	they_live.push_back ("#include \"fs/xfs/libxfs/xfs_types.h\"");
       else if (file_exists(s.kernel_source_tree + "/fs/xfs/xfs_types.h"))
 	they_live.push_back ("#include \"fs/xfs/xfs_types.h\"");
+
+      // Sigh. xfs_types.h (no matter where it is), also needs
+      // xfs_linux.h. But, on newer kernels, xfs_linux.h includes
+      // xfs_types.h, but really needs a '-I' command to do so. So,
+      // we'll have to add a custom '-I' command.
+      s.kernel_extra_cflags.push_back ("-I" + s.kernel_source_tree
+				       + "/fs/xfs/libxfs");
     }
 
     they_live.push_back ("struct xfs_mount;");
@@ -10604,7 +10636,8 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s, const string
     they_live.push_back ("struct rpc_wait_queue;");
   }
 
-  they_live.push_back ("#include <asm/cputime.h>");
+  if (header.find("timer") != string::npos)
+    they_live.push_back ("#include <asm/cputime.h>");
 
   // linux 3.0
   they_live.push_back ("struct cpu_workqueue_struct;");
@@ -10614,7 +10647,11 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s, const string
       they_live.push_back ("#include \"fs/ext4/ext4.h\""); // in kernel-source tree
 
   if (header.find("ext3") != string::npos)
-    they_live.push_back ("struct ext3_reserve_window_node;");
+  {
+      they_live.push_back ("struct ext3_reserve_window_node;");
+      they_live.push_back ("struct super_block;");
+      they_live.push_back ("struct dentry;");
+  }
 
   if (header.find("workqueue") != string::npos)
     {
@@ -10657,11 +10694,18 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s, const string
     }
 
   if (header.find("radeon") != string::npos)
-    they_live.push_back ("struct radeon_bo;");
+    {
+      they_live.push_back ("struct radeon_bo;");
+      they_live.push_back ("struct radeon_bo_va;");
+      they_live.push_back ("struct radeon_cs_parser;");
+      they_live.push_back ("struct radeon_semaphore;");
+    }
 
-  // argh, 3.11, i915_trace.h -> i915_drv.h -> i915_reg.h without -I
-  // also brcms_trace_events.h -> ... -> "types.h"
-  // XXX: need a way to add a temporary -I flag
+  // Argh, 3.11, i915_trace.h -> i915_drv.h -> i915_reg.h without
+  // -I. So, we have to add a custom -I flag.
+  if (header.find("i915_trace") != string::npos && s.kernel_source_tree != "")
+    s.kernel_extra_cflags.push_back ("-I" + s.kernel_source_tree
+				     + "/drivers/gpu/drm/i915");
 
   if (header.find("/ath/") != string::npos)
     they_live.push_back ("struct ath5k_hw;");
@@ -10679,13 +10723,6 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s, const string
   if (header.find("thermal_power_allocator") != string::npos)
     they_live.push_back ("struct thermal_zone_device;");
 
-  if (header.find("radeon_trace") != string::npos)
-    {
-      they_live.push_back ("struct radeon_cs_parser;");
-      they_live.push_back ("struct radeon_bo_va;");
-      they_live.push_back ("struct radeon_semaphore;");
-    }
-
   if (header.find("brcms_trace_brcmsmac") != string::npos)
     they_live.push_back ("struct brcms_timer;");
 
@@ -10694,6 +10731,32 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s, const string
 
   if (header.find("v4l2") != string::npos)
     they_live.push_back ("struct v4l2_buffer;");
+
+  if (header.find("pcm_trace") != string::npos)
+    {
+      they_live.push_back ("struct snd_pcm_substream;");
+      they_live.push_back ("#include <sound/asound.h>");
+    }
+
+  // Here we need the header file, since we need the migrate_mode enum.
+  if (header.find("migrate") != string::npos)
+    {
+      if (s.kernel_source_tree != "")
+	they_live.push_back ("#include <linux/migrate_mode.h>");
+    }
+
+  // include/trace/events/module.h is odd. If CREATE_TRACE_POINTS
+  // isn't defined, it doesn't define TRACE_SYSTEM, which means we
+  // we'll find the module tracepoints (like 'module_load'), but not
+  // realize they belong in the module subsystem (like
+  // 'module:module_load'). We'd like to define CREATE_TRACE_POINTS,
+  // but that causes compilation errors. So, we'll just define
+  // TRACE_SYSTEM ourselves.
+  if (header.find("events/module.h") != string::npos)
+    they_live.push_back ("#define TRACE_SYSTEM module");
+
+  if (header.find("events/net.h") != string::npos)
+    they_live.push_back ("struct ndmsg;");
 
   return they_live;
 }
@@ -10732,7 +10795,8 @@ tracepoint_derived_probe_group::emit_module_decls (systemtap_session& s)
 
           // PR9993: Add extra headers to work around undeclared types in individual
           // include/trace/foo.h files
-          const vector<string>& extra_decls = tracepoint_extra_decls (s, header);
+          const vector<string>& extra_decls = tracepoint_extra_decls (s, header,
+								      false);
           for (unsigned z=0; z<extra_decls.size(); z++)
             tpop->newline() << extra_decls[z] << "\n";
 
@@ -11191,7 +11255,7 @@ tracepoint_builder::get_tracequery_modules(systemtap_session& s,
 
       // PR9993: Add extra headers to work around undeclared types in individual
       // include/trace/foo.h files
-      vector<string> short_decls = tracepoint_extra_decls(s, header);
+      vector<string> short_decls = tracepoint_extra_decls(s, header, true);
 
       // add each requested tracepoint header
       size_t root_pos = header.rfind("include/");
@@ -11349,14 +11413,18 @@ tracepoint_builder::init_dw(systemtap_session& s)
   glob_suffixes.push_back("include/trace/events/*.h");
   glob_suffixes.push_back("include/trace/*.h");
   glob_suffixes.push_back("include/ras/*_event.h");
-  glob_suffixes.push_back("arch/x86/kvm/*trace.h");
+  glob_suffixes.push_back("arch/x86/entry/vsyscall/*trace.h");
   glob_suffixes.push_back("arch/x86/kernel/*trace.h");
   glob_suffixes.push_back("arch/*/include/asm/trace*.h");
   glob_suffixes.push_back("arch/*/include/asm/trace/*.h");
+  glob_suffixes.push_back("arch/*/kvm/*trace.h");
   glob_suffixes.push_back("fs/xfs/linux-*/xfs_tr*.h");
   glob_suffixes.push_back("fs/*/*trace*.h");
   glob_suffixes.push_back("net/*/*trace*.h");
+  glob_suffixes.push_back("sound/core/*_trace.h");
+  glob_suffixes.push_back("sound/hda/*trace*.h");
   glob_suffixes.push_back("sound/pci/hda/*_trace.h");
+  glob_suffixes.push_back("drivers/base/regmap/*trace*.h");
   glob_suffixes.push_back("drivers/gpu/drm/*_trace.h");
   glob_suffixes.push_back("drivers/gpu/drm/*/*_trace.h");
   glob_suffixes.push_back("drivers/net/wireless/*/*/*trace*.h");
@@ -11389,6 +11457,7 @@ tracepoint_builder::init_dw(systemtap_session& s)
           if (endswith(header, "/define_trace.h") ||
               endswith(header, "/ftrace.h")       ||
               endswith(header, "/trace_events.h") ||
+              endswith(header, "/perf.h") ||
               endswith(header, "_event_types.h"))
             continue;
 

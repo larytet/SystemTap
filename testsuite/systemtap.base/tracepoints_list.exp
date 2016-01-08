@@ -1,0 +1,101 @@
+set test "tracepoints_list"
+
+# Make sure we're root.
+set am_root [expr 0 == [exec id -u]]
+if {!$am_root} {
+    untested "${test} (running as non-root)"
+    return
+}
+
+# First, does 'perf' exist on this system?
+if {[catch { exec which perf } res]} {
+    untested "${test} (no perf)"
+    return
+}
+pass "$test found 'perf'"
+
+# Next, gather perf's tracepoint list. Note we need to set PAGER so
+# that perf won't try to page the output.
+set perf_tracepoints {}
+set env(PAGER) ""
+spawn perf list tracepoint
+expect {
+    -timeout 60
+    -re {^[ \t]+([^ \t]+:[^ \t]+)[ \t]+\[Tracepoint event\]\r\n} {
+	set tp $expect_out(1,string)
+	# Note that we're ignoring several tracepoints below.
+	switch -regexp $tp {
+	    {^syscalls:sys_(enter|exit)} {
+		# Skip virtual tracepoint unusable by stap.
+		exp_continue
+	    }
+	    {^ftrace:function$} {
+		# Skip virtual tracepoint unusable by stap.
+		exp_continue
+	    }
+	    {^powerpc:hcall_(entry|exit)$} {
+		# Skip ppc64-specific tracepoints on the blacklist.
+		exp_continue
+	    }
+	    default {
+		lappend perf_tracepoints $expect_out(1,string)
+		exp_continue
+	    }
+	}
+    }
+    -re {^[^\r\n]+\r\n} {
+	# ignore output we're not interested in
+	exp_continue
+    }
+    timeout {}
+    eof {}
+}
+catch {close}; catch {wait}
+if ([llength $perf_tracepoints]) {
+    pass "$test perf list ([llength $perf_tracepoints])"
+} else {
+    fail "$test perf list"
+    return
+}    
+
+# Now gather stap's tracepoint list.
+set stap_tracepoints {}
+spawn stap --disable-cache -l {kernel.trace("*")}
+expect {
+    -timeout 180
+    -re {^kernel.trace\("([^\r\n]+:[^\r\n]+)"\)\r\n} {
+        lappend stap_tracepoints $expect_out(1,string)
+	exp_continue
+    }
+    timeout {}
+    eof {}
+}
+catch {close}; catch {wait}
+if ([llength $stap_tracepoints]) {
+    pass "$test stap list ([llength $stap_tracepoints])"
+} else {
+    fail "$test stap list"
+    return
+}    
+
+# Sort both lists.
+set $perf_tracepoints [lsort -increasing $perf_tracepoints]
+set $stap_tracepoints [lsort -increasing $stap_tracepoints]
+
+# Look for perf tracepoints not found by stap. Note that stap will
+# find more tracepoints than perf, since stap will find tracepoints in
+# modules that aren't loaded.
+set tp_found 0
+foreach ptp $perf_tracepoints {
+    if {[lsearch -exact -sorted -increasing $stap_tracepoints $ptp] >= 0} {
+	incr tp_found
+    } else {
+	fail "$test: perf tracepoint $ptp not found by systemtap"
+    }
+}
+if {$tp_found > 0} {
+    pass "$test: $tp_found common tracepoints found by perf and systemtap"
+} else {
+    fail "$test: no common tracepoints found by perf and systemtap"
+}
+    

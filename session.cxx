@@ -289,6 +289,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
 {
   release = kernel_release = kern;
   kernel_build_tree = "/lib/modules/" + kernel_release + "/build";
+  kernel_extra_cflags = other.kernel_extra_cflags;
   architecture = machine = normalize_machine(arch);
   setup_kernel_release(kern.c_str());
   native_build = false; // assumed; XXX: could be computed as in check_options()

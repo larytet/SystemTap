@@ -18,13 +18,21 @@ tmp=`mktemp -d`
 echo made work directory $tmp
 trap 'rm -fr $tmp' 0 1 2 3 5 9 15
 
+# Notice we're ignoring several tracepoints:
+#  sys_enter_*/sys_exit_*: "virtual" tracepoints unusable by stap
+#  hcall_entry/hcall_exit: ppc64-specific tracepoints that are on the
+#    blacklist
+#  ftrace:function: "virtual" tracepoint unusable by stap
 echo gathering perf tracepoint list
 ${PERF-perf} list tracepoint | grep Tracepoint | egrep -v 'sys_(enter|exit)_' \
-     | awk '{print $1}' | sort > $tmp/perf
+    | egrep -v 'hcall_(entry|exit)'| egrep -v 'ftrace:function' \
+    | awk '{print $1}' | sort > $tmp/perf
 perf_tracepoints=`wc -l $tmp/perf | cut -f1 -d' '`
 echo "  perf found $perf_tracepoints tracepoints"
+
 echo gathering systemtap tracepoint list
-${STAP-stap} --poison-cache -L 'kernel.trace("*")' | cut -f2 -d'"' | sort > $tmp/stap
+${STAP-stap} --poison-cache -L 'kernel.trace("*")' | cut -f2 -d'"' \
+    | sort > $tmp/stap
 stap_tracepoints=`wc -l $tmp/stap | cut -f1 -d' '`
 echo "  stap found $stap_tracepoints tracepoints"
 
