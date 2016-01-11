@@ -7835,6 +7835,36 @@ resolve_library_by_path(base_query & q,
   return results_pre != finished_results.size();
 }
 
+static void
+handle_module_token(systemtap_session &sess, interned_string &module_token_val)
+{
+  // Do we have a fully resolved path to the module?
+  if (!is_fully_resolved(module_token_val, sess.sysroot, sess.sysenv))
+    {
+      // If the path isn't fully resolved, it might be a in-tree
+      // module name or a relative path. If it is a relative path,
+      // convert it to a full path.
+      if (module_token_val.find('/') != string::npos)
+        {
+	  string module_token_val2 = find_executable(module_token_val,
+						     sess.sysroot,
+						     sess.sysenv);
+	  module_token_val = module_token_val2;
+	}   
+      // If we're here, then it's an in-tree module. Replace any
+      // dashes with underscores.
+      else
+        {
+	  size_t dash_pos = 0;
+	  // copy out for replace operations
+	  string module_token_val2 = module_token_val;
+	  while ((dash_pos = module_token_val2.find('-')) != string::npos)
+	      module_token_val2.replace(int(dash_pos), 1, "_");
+	  module_token_val = module_token_val2;
+	}
+    }
+}
+
 void
 dwarf_builder::build(systemtap_session & sess,
 		     probe * base,
@@ -7857,17 +7887,8 @@ dwarf_builder::build(systemtap_session & sess,
     }
   else if (get_param (parameters, TOK_MODULE, module_name))
     {
-      // If not a full path was given, then it's an in-tree module. Replace any
-      // dashes with underscores.
-      if (!is_fully_resolved(module_name, sess.sysroot, sess.sysenv))
-        {
-          size_t dash_pos = 0;
-          string module_name2 = module_name; // copy out for replace operations
-          while((dash_pos=module_name2.find('-'))!=string::npos)
-            module_name2.replace(int(dash_pos),1,"_");
-          module_name = module_name2;
-          filled_parameters[TOK_MODULE] = new literal_string(module_name);
-        }
+      handle_module_token(sess, module_name);
+      filled_parameters[TOK_MODULE] = new literal_string(module_name);
 
       // NB: glob patterns get expanded later, during the offline
       // elfutils module listing.
@@ -9593,6 +9614,18 @@ kprobe_builder::build(systemtap_session & sess,
   has_path = get_param (parameters, TOK_PROCESS, path);
   has_library = get_param (parameters, TOK_LIBRARY, library);
 
+  if (has_module_str)
+    {
+      // The TOK_MODULE value can be a module name, relative path to a
+      // module filename, or an absolute path to a module
+      // filename. Handle all those details.
+      handle_module_token(sess, module_string_val);
+
+      // If we've got a fullpath to the kernel module, then get the
+      // simple name.
+      if (module_string_val[0] == '/')
+	module_string_val = modname_from_path(module_string_val);
+    }
   if (has_path)
     {
       path = find_executable (path, sess.sysroot, sess.sysenv);
