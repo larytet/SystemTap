@@ -651,6 +651,9 @@ private function three:long () { return 3 }
 \end{verbatim}
 \end{vindent}
 
+Functions terminating without reaching an explicit return statement will
+return an implicit 0 or \verb+""+, determined by type inference.
+
 \subsection{Embedded C\label{sub:Embedded-C}}
 \index{embedded C}
 SystemTap supports a \emph{guru\index{guru mode} mode} where script

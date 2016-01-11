@@ -1327,6 +1327,9 @@ a private function follows:
 private function three:long () { return 3 }
 .ESAMPLE
 
+Functions terminating without reaching an explicit return statement will
+return an implicit 0 or "", determined by type inference.
+
 .SS PRINTING
 There are a set of function names that are specially treated by the
 translator.  They format values for printing to the standard systemtap
