@@ -10633,6 +10633,7 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
     they_live.push_back ("struct xfs_bmbt_irec;");
     they_live.push_back ("struct xfs_trans;");
     they_live.push_back ("struct xfs_name;");
+    they_live.push_back ("struct xfs_icreate_log;");
   }
 
   if (header.find("nfs") != string::npos
@@ -10772,7 +10773,8 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
     }
 
   // Here we need the header file, since we need the migrate_mode enum.
-  if (header.find("migrate") != string::npos)
+  if (header.find("migrate") != string::npos
+      || header.find("compaction") != string::npos)
     {
       if (s.kernel_source_tree != "")
 	they_live.push_back ("#include <linux/migrate_mode.h>");
@@ -11462,6 +11464,7 @@ tracepoint_builder::init_dw(systemtap_session& s)
   glob_suffixes.push_back("drivers/gpu/drm/*/*_trace.h");
   glob_suffixes.push_back("drivers/net/wireless/*/*/*trace*.h");
   glob_suffixes.push_back("drivers/usb/host/*trace*.h");
+  glob_suffixes.push_back("virt/kvm/*/*trace*.h");
 
   // see also tracepoint_extra_decls above
 
