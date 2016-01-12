@@ -1,0 +1,19 @@
+# genload is used by stress test
+proc gen_load {} {
+    # if 'genload' from the ltp exists, use it to create a real load
+    catch {exec which genload 2>/dev/null} genload
+    if {![file executable $genload]} {
+        set genload {/usr/local/ltp/testcases/bin/genload}
+    }
+    if [file executable $genload] {
+        exec $genload -c 10 -i 10 -m 10 -t 10
+        #                               ^^^^^ run for 10 seconds
+        #                         ^^^^^ 10 procs spinning on malloc
+        #                   ^^^^^ 10 procs spinning on sync
+        #             ^^^^^ 10 procs spinning on sqrt
+    } else {
+        # sleep for a bit
+        wait_n_secs 10
+    }
+    return 0
+}
