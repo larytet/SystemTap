@@ -23,6 +23,15 @@ if {[catch {exec stap $cmd } res2]} {
    pass "$test"
 }
 
+# The "cond_timedwait" mark doesn't exist in some versions of glibc
+# (such as RHEL7 ppc64), so figure out if it exists in this
+# glibc. Notice that that probe is optional in the script below.
+set cmd [concat -L process(\"$res\").mark(\"cond_timedwait\")]
+set cond_timedwait_available 0
+if {![catch {exec stap $cmd } res2]} {
+   set cond_timedwait_available 1
+}
+
 # Now we exercise every probe available
 set script [subst {
   global cond_broadcast, cond_destroy, cond_init, cond_signal,
@@ -32,11 +41,12 @@ set script [subst {
     pthread_join_ret, pthread_start, rdlock_entry, rwlock_destroy,
     wrlock_entry
 
+  probe init { cond_timedwait = 0 }
   probe process("$res").mark("cond_broadcast") { cond_broadcast++ }
   probe process("$res").mark("cond_destroy") { cond_destroy++ }
   probe process("$res").mark("cond_init") { cond_init++ }
   probe process("$res").mark("cond_signal") { cond_signal++ }
-  probe process("$res").mark("cond_timedwait") { cond_timedwait++ }
+  probe process("$res").mark("cond_timedwait")? { cond_timedwait++ }
   probe process("$res").mark("cond_wait") { cond_wait++ }
   probe process("$res").mark("mutex_acquired") { mutex_acquired++ }
   probe process("$res").mark("mutex_destroy") { mutex_destroy++ }
@@ -132,9 +142,15 @@ foreach runtime [get_runtime_list] {
 	if  {[regexp {cond_signal=[1-9]} $line]} {
 	    set cond_signal_correct 1
 	}
-	if  {[regexp "cond_timedwait=1" $line]} {
-	    set cond_timedwait_correct 1
+
+	# Handle optional 'cond_timedwait'.
+	if  {[regexp {cond_timedwait=([01])} $line matched sub1]} {
+	    if  {[expr $cond_timedwait_available && $sub1] \
+		     || [expr !$cond_timedwait_available && !$sub1]} {
+		set cond_timedwait_correct 1
+	    }
 	}
+
 	if  {[regexp {cond_wait=[1-9]} $line]} {
 	    set cond_wait_correct 1
 	}
