@@ -119,6 +119,12 @@ The systemtap translator supports the following options.  Any other option
 prints a list of supported options.  Options may be given on the command line,
 as usual.  If the file $SYSTEMTAP_DIR/rc exist, options are also loaded from
 there and interpreted first.  ($SYSTEMTAP_DIR defaults to $HOME/.systemtap if unset.)
+
+.PP
+In some cases, the default value of an option depends on particular system
+configuration and thus can't be mentioned here directly.  In some of those
+cases running "stap \-\-help" might display the default.
+
 .TP
 .B \-
 Use standard input instead of a given FILENAME as probe language input,
@@ -179,7 +185,7 @@ Collect timing information on the number of times probe executes
 and average amount of time spent in each probe-point. Also shows 
 the derivation for each probe-point.
 .TP
-.BI \-s NUM
+.BI \-s " NUM"
 Use NUM megabyte buffers for kernel-to-user data transfer.  On a
 multiprocessor in bulk mode, this is a per-processor amount.
 .TP
@@ -213,6 +219,7 @@ This applies to scalar variables declared global in the script/tapset.
 .TP
 .BI \-R " DIR"
 Look for the systemtap runtime sources in the given directory.
+Your DIR default can be seen using "stap \-\-help".
 .TP
 .BI \-r " /DIR"
 Build for kernel in given build tree. Can also be set with the
@@ -238,7 +245,7 @@ even if they do not have an explicit probe placed into them.
 .TP
 .BI \-\-ldd
 Add symbol/unwind information for all user-space shared libraries suspected
-by ldd to be necessary for user-space binaries being probe or listed with
+by ldd to be necessary for user-space binaries being probed or listed with
 the \-d option.  Caution: this can make the probe modules considerably
 larger.  Note that this option does not deal with kernel-space modules:
 see instead \-\-all\-modules below.
@@ -404,7 +411,7 @@ with
 .I \-\-list\-servers
 and
 .I \-\-trust\-servers
-(see below). If no argument is
+(see below) for listing. If no argument is
 supplied, then the default in unprivileged mode (see
 .IR \-\-privilege )
 is to select compatible servers which are trusted as SSL peers and as
@@ -572,7 +579,7 @@ Dumps a list of all probe aliases found in library files and exits.
 
 .TP
 .BI \-\-dump-functions
-Dumps a list of all functions found in library files and exits. Also includes
+Dumps a list of all the public functions found in library files and exits. Also includes
 their parameters and types. A function of type 'unknown' indicates a function
 that does not return a value. Note that not all function/parameter types may be
 resolved (these are also shown by 'unknown'). This features is very
@@ -642,7 +649,7 @@ show abrt output, and ask before continuing download. No timeout will be set.
 .TP
 .BI <timeout>
 specify a timeout as a positive number to stop the download if it is taking 
-too long.
+longer than <timeout> seconds.
 .RE
 .IP
 
@@ -718,7 +725,7 @@ namespaces.
 Enables an interface to display status information about the module(uptime,
 module name, invoker uid, memory sizes, global variables, list of probes with
 their statistics). An optional argument INTERVAL can be supplied to set the
-refresh rate of the status window. The module can also be controlled by a list
+refresh rate in seconds of the status window. The module can also be controlled by a list
 of commands using the following keys:
 .RS
 .TP
@@ -944,7 +951,9 @@ defining a macro in a tapset does not make it available to the user of
 the tapset. Publically available library macros can be defined by
 including .stpm files on the tapset search path. These files may only
 contain @define constructs, which become visible across all tapsets
-and user scripts.
+and user scripts. Optionally, within the .stpm files, a public macro
+definition can be surrounded by a preprocessor conditional as described
+above.
 
 .SS VARIABLES
 Identifiers for variables and functions are an alphanumeric sequence,
@@ -972,7 +981,7 @@ on all identifiers, including array indexes and function parameters.
 Inconsistent type-related use of identifiers signals an error.
 .PP
 Variables may be declared global, so that they are shared amongst all
-probes and live as long as the entire systemtap session.  There is one
+probes and functions and live as long as the entire systemtap session.  There is one
 namespace for all global variables, regardless of which script file
 they are found within.  Concurrent access to global variables is
 automatically protected with locks, see the
@@ -1000,7 +1009,7 @@ user script file using private keyword. The global keyword is optional when
 defining a private global variable. Following declaration marks var1 and var2
 private globals.
 .SAMPLE
-.BR private global " var1=2"
+.BR private " global" " var1=2"
 .BR private " var2"
 .ESAMPLE
 .PP
@@ -1038,7 +1047,7 @@ context variables.
 Statements enable procedural control flow.  They may occur within
 functions and probe handlers.  The total number of statements executed
 in response to any single probe event is limited to some number
-defined by a macro in the translated C code, and is in the
+defined by the MAXACTION macro in the translated C code, and is in the
 neighbourhood of 1000.
 .TP
 EXP
@@ -1239,13 +1248,19 @@ of probe point.
 Probes may be decorated with an 
 .IR "arming condition" ,
 consisting of a simple boolean expression on read-only global script
-variables.  While disarmed (condition evaluates to false), some probe
+variables.  While disarmed (inactive, condition evaluates to false), some probe
 types reduce or eliminate their run-time overheads.  When an arming
 condition evaluates to true, probes will be
 .I soon
 re-armed, and their probe handlers will start getting called as the
 events fire.  (Some events may be lost during the arming interval.  If
 this is unacceptable, do not use arming conditions for those probes.)
+Example of the syntax:
+.SAMPLE
+probe timer.us(TIMER) if (enabled) {
+...
+}
+.ESAMPLE
 .PP
 New probe points may be defined using "aliases".  Probe point aliases
 look similar to probe definitions, but instead of activating a probe
@@ -1318,7 +1333,7 @@ function thatfn:string (arg1:long, arg2) {
 .ESAMPLE
 Functions may call others or themselves
 recursively, up to a fixed nesting limit.  This limit is defined by
-a macro in the translated C code and is in the neighbourhood of 10.
+the MAXNESTING macro in the translated C code and is in the neighbourhood of 10.
 
 Functions may be marked private using the private keyword to limit their scope
 to the tapset or user script file they are defined in. An example definition of
@@ -1331,9 +1346,13 @@ Functions terminating without reaching an explicit return statement will
 return an implicit 0 or "", determined by type inference.
 
 .SS PRINTING
-There are a set of function names that are specially treated by the
-translator.  They format values for printing to the standard systemtap
-output stream in a more convenient way.  The
+
+There are a set of function names that are specially treated by the translator.
+They format values for printing to the standard systemtap output stream in a
+more convenient way (note that data generated in the kernel module need to get
+transferred to user-space in order to get printed).
+
+  The
 .IR sprint*
 variants return the formatted string instead of printing it.
 .TP
@@ -1536,7 +1555,7 @@ other probes types.
 The translator can create its own module with type information from a header
 surrounded by angle brackets, in case normal debuginfo is not available.  For
 kernel headers, prefix it with "kernel" to use the appropriate build system.
-All other headers are build with default GCC parameters into a user module.
+All other headers are built with default GCC parameters into a user module.
 Multiple headers may be specified in sequence to resolve a codependency.
 .SAMPLE
 @cast(tv, "timeval", "<sys/time.h>")\->tv_sec
@@ -1572,7 +1591,7 @@ probe foo {
 .ESAMPLE
 
 .SS EMBEDDED C
-When in guru mode, the translator accepts embedded code in the
+When in guru mode, the translator accepts embedded C code in the
 top level of the script.  Such code is enclosed between
 .IR %{
 and
@@ -1654,7 +1673,7 @@ value is not used by script code.
 means that the C code always has the same value (in any given probe handler
 invocation), so repeated calls may be automatically replaced by memoized
 values.  Such functions must take no parameters, and also be
-.I /* pure */.
+.IR pure .
 .TP
 .I /* unprivileged */
 means that the C code is so safe that even unprivileged users are permitted
@@ -1864,7 +1883,7 @@ will be created with the interval set to 300 s.
 .SH SAFETY AND SECURITY
 
 .PP
-Systemtap is may be used as a powerful administrative tool.  It can
+Systemtap may be used as a powerful administrative tool.  It can
 expose kernel internal data structures and potentially private user
 information.  (In
 .BR dyninst
@@ -2029,7 +2048,7 @@ runtime unwinder as produced by the backtrace functions in the
 [u]context-unwind.stp tapsets, default 20.
 .TP
 MAXMAPENTRIES
-Default maximum number of rows in any single global array, default 2048.
+Maximum number of rows in any single global array, default 2048.
 Individual arrays may be declared with a larger or smaller limit instead:
 .SAMPLE
 global big[10000],little[5]
@@ -2070,7 +2089,7 @@ the module itself, plus any additional allocations.  This only tracks
 direct allocations by the systemtap runtime.  This does not track
 indirect allocations (as done by kprobes/uprobes/etc. internals).
 .TP
-STP_OVEROAD_THRESHOLD, STP_OVERLOAD_INTERVAL
+STP_OVERLOAD_THRESHOLD, STP_OVERLOAD_INTERVAL
 Maximum number of machine cycles spent in probes on any cpu per given
 interval, before an overload condition is declared and the script shut
 down.  The defaults are 500 million and 1 billion, so as to limit stap
