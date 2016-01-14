@@ -29,7 +29,7 @@ if 0 {
         set prefix "all_kernel_functions:"
         if [probe_ok $probepoint] {
             set script [format $systemtap_script $probepoint]
-            stap_run $prefix$probepoint genload $output_string -e $script
+            stap_run $prefix$probepoint gen_load $output_string -e $script
         } else {
             unsupported "$prefix no match for $probepoint"
         }
