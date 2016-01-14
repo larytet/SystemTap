@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: systemtap 3.0\n"
 "Report-Msgid-Bugs-To: systemtap@sourceware.org\n"
-"POT-Creation-Date: 2015-12-08 09:10-0500\n"
+"POT-Creation-Date: 2016-01-14 05:07-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,15 +17,15 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: buildrun.cxx:574
+#: buildrun.cxx:577
 msgid "Pass 4, preamble: (re)building SystemTap's version of uprobes."
 msgstr ""
 
-#: buildrun.cxx:620
+#: buildrun.cxx:623
 msgid "uprobes rebuild exit code: "
 msgstr ""
 
-#: buildrun.cxx:680
+#: buildrun.cxx:683
 msgid ""
 "user-space process-tracking facilities not available [man error::process-"
 "tracking]"
@@ -828,7 +828,7 @@ msgstr ""
 msgid "Tagged DFA support is not yet available"
 msgstr ""
 
-#: elaborate.cxx:6248 translate.cxx:4194
+#: elaborate.cxx:6248 translate.cxx:4300
 msgid "invalid operand of delete expression"
 msgstr ""
 
@@ -1310,81 +1310,81 @@ msgstr ""
 msgid "Could not initialize signing context."
 msgstr ""
 
-#: parse.cxx:368 parse.cxx:841
+#: parse.cxx:370 parse.cxx:843
 msgid "expected comparison operator"
 msgstr ""
 
-#: parse.cxx:456
+#: parse.cxx:458
 msgid "'@define' forbidden inside macro body"
 msgstr ""
 
-#: parse.cxx:463 parse.cxx:507 parse.cxx:2130 parse.cxx:2218 parse.cxx:2254
-#: parse.cxx:2341 parse.cxx:2389 parse.cxx:2947
+#: parse.cxx:465 parse.cxx:509 parse.cxx:2123 parse.cxx:2211 parse.cxx:2247
+#: parse.cxx:2334 parse.cxx:2382 parse.cxx:3018
 msgid "expected identifier"
 msgstr ""
 
-#: parse.cxx:488
+#: parse.cxx:490
 msgid "attempt to redefine '@define'"
 msgstr ""
 
-#: parse.cxx:524 parse.cxx:2420 parse.cxx:3825
+#: parse.cxx:526 parse.cxx:2413 parse.cxx:3896
 msgid "expected ',' or ')'"
 msgstr ""
 
-#: parse.cxx:534
+#: parse.cxx:536
 msgid "expected '%('"
 msgstr ""
 
-#: parse.cxx:536
+#: parse.cxx:538
 msgid "expected '%(' or '('"
 msgstr ""
 
-#: parse.cxx:542
+#: parse.cxx:544
 msgid "incomplete macro definition - missing '%)'"
 msgstr ""
 
-#: parse.cxx:627
+#: parse.cxx:629
 msgid "could not find end of macro invocation"
 msgstr ""
 
-#: parse.cxx:649
+#: parse.cxx:651
 msgid "expected ',' or ')' after macro parameter"
 msgstr ""
 
-#: parse.cxx:811 parse.cxx:872 parse.cxx:906 parse.cxx:926
+#: parse.cxx:813 parse.cxx:874 parse.cxx:908 parse.cxx:928
 msgid "expected string literal"
 msgstr ""
 
-#: parse.cxx:844
+#: parse.cxx:846
 msgid "wildcard not allowed with order comparison operators"
 msgstr ""
 
-#: parse.cxx:883 parse.cxx:898 parse.cxx:919 parse.cxx:943 parse.cxx:962
+#: parse.cxx:885 parse.cxx:900 parse.cxx:921 parse.cxx:945 parse.cxx:964
 msgid "expected '==' or '!='"
 msgstr ""
 
-#: parse.cxx:891 parse.cxx:1294 stapregex-parse.cxx:606
+#: parse.cxx:893 parse.cxx:1296 stapregex-parse.cxx:606
 msgid "expected number"
 msgstr ""
 
-#: parse.cxx:895
+#: parse.cxx:897
 msgid "expected 0 or 1"
 msgstr ""
 
-#: parse.cxx:1004
+#: parse.cxx:1006
 msgid ""
 "expected string, number literal or other CONFIG_... as right side operand"
 msgstr ""
 
-#: parse.cxx:1022
+#: parse.cxx:1024
 msgid "expected string literal as right value"
 msgstr ""
 
-#: parse.cxx:1025
+#: parse.cxx:1027
 msgid "expected number literal as right value"
 msgstr ""
 
-#: parse.cxx:1028
+#: parse.cxx:1030
 msgid ""
 "expected 'arch', 'kernel_v', 'kernel_vr', 'systemtap_v',\n"
 "             'runtime', 'systemtap_privilege', 'CONFIG_...', or\n"
@@ -1392,67 +1392,67 @@ msgid ""
 msgstr ""
 
 #. TRANSLATORS: 'conditional' meaning 'conditional preprocessing'
-#: parse.cxx:1057
+#: parse.cxx:1059
 msgid "incomplete conditional at end of file"
 msgstr ""
 
-#: parse.cxx:1064 parse.cxx:1070 parse.cxx:1086
+#: parse.cxx:1066 parse.cxx:1072 parse.cxx:1088
 msgid "incomplete conditional - missing '%('"
 msgstr ""
 
-#: parse.cxx:1072
+#: parse.cxx:1074
 msgid "invalid conditional - duplicate '%:'"
 msgstr ""
 
-#: parse.cxx:1107
+#: parse.cxx:1109
 msgid "incomplete condition after '%('"
 msgstr ""
 
-#: parse.cxx:1139
+#: parse.cxx:1141
 msgid "expected '%?' marker for conditional"
 msgstr ""
 
-#: parse.cxx:1189
+#: parse.cxx:1191
 msgid "unexpected end-of-file"
 msgstr ""
 
-#: parse.cxx:1243
+#: parse.cxx:1245
 msgid "expected "
 msgstr ""
 
-#: parse.cxx:1310 parse.cxx:2637
+#: parse.cxx:1312 parse.cxx:2708
 msgid "number invalid or out of range"
 msgstr ""
 
-#: parse.cxx:1747
+#: parse.cxx:1749
 msgid "possible erroneous closing '}%', use '%}'?"
 msgstr ""
 
-#: parse.cxx:1837
+#: parse.cxx:1839
 msgid "invalid nested substitution of command line arguments"
 msgstr ""
 
-#: parse.cxx:1844
+#: parse.cxx:1846
 msgid "Could not find matching closing quote"
 msgstr ""
 
-#: parse.cxx:1847
+#: parse.cxx:1849
 msgid "Could not find matching '%}' to close embedded function block"
 msgstr ""
 
-#: parse.cxx:1850
+#: parse.cxx:1852
 msgid "unknown junk token"
 msgstr ""
 
-#: parse.cxx:1902
+#: parse.cxx:1904
 msgid "expected 'probe', 'global', 'private', 'function', or '%{'"
 msgstr ""
 
-#: parse.cxx:1972
+#: parse.cxx:1974
 msgid "expected a single synthetic probe"
 msgstr ""
 
-#: parse.cxx:1994
+#: parse.cxx:1996
 msgid "expected 'probe'"
 msgstr ""
 
@@ -1460,209 +1460,225 @@ msgstr ""
 msgid "probe point alias name cannot be optional nor sufficient"
 msgstr ""
 
-#: parse.cxx:2040
+#: parse.cxx:2033
 msgid "expected probe point specifier"
 msgstr ""
 
-#: parse.cxx:2076
+#: parse.cxx:2069
 msgid "expected '%{'"
 msgstr ""
 
-#: parse.cxx:2079
+#: parse.cxx:2072
 msgid "embedded code in unprivileged script; need stap -g"
 msgstr ""
 
-#: parse.cxx:2095
+#: parse.cxx:2088
 msgid "expected '{'"
 msgstr ""
 
-#: parse.cxx:2185
+#: parse.cxx:2178
 msgid "expected statement"
 msgstr ""
 
-#: parse.cxx:2203
+#: parse.cxx:2196
 msgid "expected 'private'"
 msgstr ""
 
-#: parse.cxx:2229
+#: parse.cxx:2222
 msgid "expected 'function' or identifier"
 msgstr ""
 
-#: parse.cxx:2238
+#: parse.cxx:2231
 msgid "expected 'global' or 'private'"
 msgstr ""
 
-#: parse.cxx:2263
+#: parse.cxx:2256
 msgid "duplicate global name"
 msgstr ""
 
-#: parse.cxx:2265
+#: parse.cxx:2258
 msgid "global versus private variable declaration conflict"
 msgstr ""
 
-#: parse.cxx:2289
+#: parse.cxx:2282
 msgid "array size out of range"
 msgstr ""
 
-#: parse.cxx:2298
+#: parse.cxx:2291
 msgid "only scalar globals can be initialized"
 msgstr ""
 
-#: parse.cxx:2328
+#: parse.cxx:2321
 msgid "expected 'function'"
 msgstr ""
 
-#: parse.cxx:2350
+#: parse.cxx:2343
 msgid "duplicate function name"
 msgstr ""
 
-#: parse.cxx:2352
+#: parse.cxx:2345
 msgid "global versus private function declaration conflict"
 msgstr ""
 
-#: parse.cxx:2368 parse.cxx:2405
+#: parse.cxx:2361 parse.cxx:2398
 msgid "expected 'string' or 'long'"
 msgstr ""
 
-#: parse.cxx:2375 parse.cxx:2530 parse.cxx:2664 parse.cxx:2780 parse.cxx:2850
-#: parse.cxx:2887
+#: parse.cxx:2368 parse.cxx:2520 parse.cxx:2735 parse.cxx:2851 parse.cxx:2921
+#: parse.cxx:2958
 msgid "expected '('"
 msgstr ""
 
 #: parse.cxx:2446
-msgid "expected identifier or '*'"
+msgid "expected one of ', { } = +='"
 msgstr ""
 
-#: parse.cxx:2499 parse.cxx:2537 parse.cxx:2671 parse.cxx:2828 parse.cxx:2862
-#: parse.cxx:3590
+#: parse.cxx:2469
+msgid "'?', '!' or condition must only be specified in suffix"
+msgstr ""
+
+#: parse.cxx:2505
+msgid "'?' or '!' respecified"
+msgstr ""
+
+#: parse.cxx:2527
+msgid "condition respecified"
+msgstr ""
+
+#: parse.cxx:2533 parse.cxx:2619 parse.cxx:2742 parse.cxx:2899 parse.cxx:2933
+#: parse.cxx:3661
 msgid "expected ')'"
 msgstr ""
 
-#: parse.cxx:2548
-msgid "expected one of '. , ( ? ! { = +='"
+#: parse.cxx:2551
+msgid "expected identifier or '*' or '{'"
 msgstr ""
 
-#: parse.cxx:2595
+#: parse.cxx:2559
+msgid "expected '}'"
+msgstr ""
+
+#: parse.cxx:2666
 msgid "expected literal string"
 msgstr ""
 
-#: parse.cxx:2645
+#: parse.cxx:2716
 msgid "expected literal string or number"
 msgstr ""
 
-#: parse.cxx:2658
+#: parse.cxx:2729
 msgid "expected 'if'"
 msgstr ""
 
-#: parse.cxx:2695
+#: parse.cxx:2766
 msgid "expression statement expected"
 msgstr ""
 
-#: parse.cxx:2708
+#: parse.cxx:2779
 msgid "expected 'return'"
 msgstr ""
 
-#: parse.cxx:2710
+#: parse.cxx:2781
 msgid "found 'return' not in function context"
 msgstr ""
 
-#: parse.cxx:2723
+#: parse.cxx:2794
 msgid "expected 'delete'"
 msgstr ""
 
-#: parse.cxx:2736
+#: parse.cxx:2807
 msgid "expected 'next'"
 msgstr ""
 
-#: parse.cxx:2738
+#: parse.cxx:2809
 msgid "found 'next' not in probe context"
 msgstr ""
 
-#: parse.cxx:2750
+#: parse.cxx:2821
 msgid "expected 'break'"
 msgstr ""
 
-#: parse.cxx:2762
+#: parse.cxx:2833
 msgid "expected 'continue'"
 msgstr ""
 
-#: parse.cxx:2774
+#: parse.cxx:2845
 msgid "expected 'for'"
 msgstr ""
 
-#: parse.cxx:2795 parse.cxx:2812
+#: parse.cxx:2866 parse.cxx:2883
 msgid "expected ';'"
 msgstr ""
 
-#: parse.cxx:2844
+#: parse.cxx:2915
 msgid "expected 'while'"
 msgstr ""
 
-#: parse.cxx:2877
+#: parse.cxx:2948
 msgid "expected 'foreach'"
 msgstr ""
 
-#: parse.cxx:2958 parse.cxx:3046
+#: parse.cxx:3029 parse.cxx:3117
 msgid "multiple sort directives"
 msgstr ""
 
-#: parse.cxx:2978 parse.cxx:3019 parse.cxx:3293 parse.cxx:3876
+#: parse.cxx:3049 parse.cxx:3090 parse.cxx:3364 parse.cxx:3947
 msgid "expected ',' or ']'"
 msgstr ""
 
-#: parse.cxx:2986
+#: parse.cxx:3057
 msgid "expected 'in'"
 msgstr ""
 
-#: parse.cxx:3033
+#: parse.cxx:3104
 msgid "expected statistical operation"
 msgstr ""
 
-#: parse.cxx:3038
+#: parse.cxx:3109
 msgid "expected sort directive"
 msgstr ""
 
-#: parse.cxx:3129
+#: parse.cxx:3200
 msgid "expected ':'"
 msgstr ""
 
-#: parse.cxx:3316
+#: parse.cxx:3387
 msgid "unexpected comma-separated expression list"
 msgstr ""
 
-#: parse.cxx:3538
+#: parse.cxx:3609
 msgid "expected @cast, @var or $var"
 msgstr ""
 
-#: parse.cxx:3570
+#: parse.cxx:3641
 msgid "expected value"
 msgstr ""
 
-#: parse.cxx:3575
+#: parse.cxx:3646
 msgid "embedded expression code in unprivileged script; need stap -g"
 msgstr ""
 
-#: parse.cxx:3887
+#: parse.cxx:3958
 msgid "base histogram operator where expression expected"
 msgstr ""
 
-#: parse.cxx:3905
+#: parse.cxx:3976
 msgid "expected $var"
 msgstr ""
 
-#: parse.cxx:3923 parse.cxx:4000
+#: parse.cxx:3994 parse.cxx:4071
 msgid "expected non-empty string"
 msgstr ""
 
-#: parse.cxx:3933
+#: parse.cxx:4004
 msgid "expected @cast"
 msgstr ""
 
-#: parse.cxx:3964
+#: parse.cxx:4035
 msgid "expected @var"
 msgstr ""
 
-#: parse.cxx:4086
+#: parse.cxx:4157
 msgid "-> and [ are not accepted for a pretty-printing variable"
 msgstr ""
 
@@ -1794,204 +1810,204 @@ msgstr ""
 msgid "Incorrect parameter passed, please report this error."
 msgstr ""
 
-#: session.cxx:461
+#: session.cxx:460
 msgid "enabled features:"
 msgstr ""
 
-#: session.cxx:511
+#: session.cxx:510
 msgid "Try '--help' for more information."
 msgstr ""
 
-#: session.cxx:547 session.cxx:548 session.cxx:549 session.cxx:550
+#: session.cxx:546 session.cxx:547 session.cxx:548 session.cxx:549
 msgid " [set]"
 msgstr ""
 
-#: session.cxx:554 session.cxx:585
+#: session.cxx:553 session.cxx:584
 msgid ", in addition to"
 msgstr ""
 
-#: session.cxx:730
+#: session.cxx:729
 msgid "Invalid pass number (should be 1-5)."
 msgstr ""
 
-#: session.cxx:752
+#: session.cxx:751
 msgid "Data object (-d) cannot be empty."
 msgstr ""
 
-#: session.cxx:767
+#: session.cxx:766
 msgid "Only one script can be given on the command line."
 msgstr ""
 
-#: session.cxx:817
+#: session.cxx:816
 msgid "Module name cannot be empty."
 msgstr ""
 
-#: session.cxx:883
+#: session.cxx:882
 msgid "Invalid buffer size (should be 1-4095)."
 msgstr ""
 
-#: session.cxx:896
+#: session.cxx:895
 msgid "Empty CMD string invalid."
 msgstr ""
 
-#: session.cxx:907
+#: session.cxx:906
 msgid "Invalid target process ID number."
 msgstr ""
 
-#: session.cxx:942 session.cxx:957 session.cxx:1230 session.cxx:1241
-#: session.cxx:1253
+#: session.cxx:941 session.cxx:956 session.cxx:1229 session.cxx:1240
+#: session.cxx:1252
 msgid "ERROR: only one of the -l/-L/--dump-* switches may be specified"
 msgstr ""
 
-#: session.cxx:1000
+#: session.cxx:999
 msgid "Invalid --vp argument: it takes 1 to 5 digits."
 msgstr ""
 
-#: session.cxx:1032 session.cxx:1049
+#: session.cxx:1031 session.cxx:1048
 msgid "Privilege level may be set only once."
 msgstr ""
 
-#: session.cxx:1453
+#: session.cxx:1452
 msgid "Invalid process ID number for target namespaces."
 msgstr ""
 
-#: session.cxx:1465
+#: session.cxx:1464
 msgid "Invalid monitor interval."
 msgstr ""
 
-#: session.cxx:1497
+#: session.cxx:1496
 msgid "ERROR: --runtime=dyninst unavailable; this build lacks DYNINST feature"
 msgstr ""
 
-#: session.cxx:1503
+#: session.cxx:1502
 msgid "ERROR: --runtime=dyninst implies unprivileged mode only"
 msgstr ""
 
-#: session.cxx:1544
+#: session.cxx:1543
 msgid "Benchmark options are only for local use."
 msgstr ""
 
-#: session.cxx:1561
+#: session.cxx:1560
 msgid "A script must be specified."
 msgstr ""
 
-#: session.cxx:1566
+#: session.cxx:1565
 msgid "Cannot specify a script with -l/-L/--dump-* switches."
 msgstr ""
 
-#: session.cxx:1571
+#: session.cxx:1570
 msgid "Cannot specify -p with -l/-L/--dump-* switches."
 msgstr ""
 
-#: session.cxx:1631
+#: session.cxx:1630
 msgid ""
 "--privilege=stapsys was automatically selected because you are a member of "
 "the groups stapusr and stapsys.  [man stap]"
 msgstr ""
 
-#: session.cxx:1639
+#: session.cxx:1638
 msgid ""
 "--privilege=stapusr was automatically selected because you are a member of "
 "the group stapusr.  [man stap]"
 msgstr ""
 
-#: session.cxx:1645
+#: session.cxx:1644
 msgid ""
 "You are trying to run systemtap as a normal user.\n"
 "You should either be root, or be part of the group \"stapusr\" and possibly "
 "one of the groups \"stapsys\" or \"stapdev\".  [man stap]\n"
 msgstr ""
 
-#: session.cxx:1650
+#: session.cxx:1649
 msgid ""
 "Alternatively, you may specify --runtime=dyninst for userspace probing.\n"
 msgstr ""
 
-#: session.cxx:1735
+#: session.cxx:1734
 msgid ""
 "The kernel on your system requires modules to be signed for loading.\n"
 "The module created by compiling your script must be signed by a systemtap "
 "compile-server.  [man stap-server]"
 msgstr ""
 
-#: session.cxx:1916
+#: session.cxx:1915
 msgid "command contains illegal characters"
 msgstr ""
 
-#: session.cxx:1918
+#: session.cxx:1917
 msgid "command contains undefined shell variables"
 msgstr ""
 
-#: session.cxx:1920
+#: session.cxx:1919
 msgid "command contains command substitutions"
 msgstr ""
 
-#: session.cxx:1922
+#: session.cxx:1921
 msgid "out of memory"
 msgstr ""
 
-#: session.cxx:1924
+#: session.cxx:1923
 msgid "command contains shell syntax errors"
 msgstr ""
 
-#: session.cxx:1926
+#: session.cxx:1925
 msgid "unspecified wordexp failure"
 msgstr ""
 
-#: session.cxx:2054
+#: session.cxx:2053
 msgid "while registering probe alias"
 msgstr ""
 
-#: session.cxx:2121
+#: session.cxx:2120
 msgid "semantic error:"
 msgstr ""
 
-#: session.cxx:2129 session.cxx:2138
+#: session.cxx:2128 session.cxx:2137
 msgid "   thrown from: "
 msgstr ""
 
 #. TRANSLATORS: Here we are printing the source string of the error
-#: session.cxx:2175
+#: session.cxx:2174
 msgid "source: "
 msgstr ""
 
-#: session.cxx:2217
+#: session.cxx:2216
 msgid "\tin synthesized code from: "
 msgstr ""
 
-#: session.cxx:2219
+#: session.cxx:2218
 msgid "\tin expansion of macro: "
 msgstr ""
 
-#: session.cxx:2246 staprun/staprun.h:94
+#: session.cxx:2245 staprun/staprun.h:94
 msgid "WARNING:"
 msgstr ""
 
-#: session.cxx:2292 session.cxx:2297
+#: session.cxx:2291 session.cxx:2296
 msgid "parse error:"
 msgstr ""
 
-#: session.cxx:2306
+#: session.cxx:2305
 msgid "    at: "
 msgstr ""
 
-#: session.cxx:2311 session.cxx:2316
+#: session.cxx:2310 session.cxx:2315
 msgid "   saw: "
 msgstr ""
 
-#: session.cxx:2583
+#: session.cxx:2582
 msgid ""
 "Unable to request compilation by a compile-server\n"
 ".Without NSS, --use-server is not supported by this version systemtap."
 msgstr ""
 
-#: session.cxx:2603
+#: session.cxx:2602
 msgid ""
 "--use-server was automatically selected in order to request compilation by a "
 "compile-server."
 msgstr ""
 
-#: session.h:471
+#: session.h:470
 msgid "interrupt received"
 msgstr ""
 
@@ -2573,51 +2589,55 @@ msgstr ""
 msgid "Module name was not specified."
 msgstr ""
 
-#: staptree.cxx:181
+#: staptree.cxx:180
 msgid "inconsistent arity"
 msgstr ""
 
-#: staptree.cxx:226
+#: staptree.cxx:225
 msgid "internal error, joining a non-synthetic function"
 msgstr ""
 
-#: staptree.cxx:312
+#: staptree.cxx:311
 msgid "cannot write to pretty-printed variable"
 msgstr ""
 
-#: staptree.cxx:1035
+#: staptree.cxx:1034
 msgid "invalid or missing conversion specifier"
 msgstr ""
 
-#: staptree.cxx:1054
+#: staptree.cxx:1053
 msgid "trailing incomplete print format conversion"
 msgstr ""
 
-#: staptree.cxx:1391
+#: staptree.cxx:1390
 msgid "internal error: missing probe point component"
 msgstr ""
 
-#: staptree.cxx:1781
+#: staptree.cxx:1780
 msgid "Expecting symbol or histogram operator"
 msgstr ""
 
-#: staptree.cxx:1783
+#: staptree.cxx:1782
 msgid "Failed to classify indexable"
 msgstr ""
 
-#: staptree.cxx:2419
+#: staptree.cxx:2412 staptree.cxx:2418 staptree.cxx:2473 staptree.cxx:2479
+msgid "Aggregates not available in embedded-C"
+msgstr ""
+
+#: staptree.cxx:2437
 msgid "function may not be used unless -g is specified"
 msgstr ""
 
-#: staptree.cxx:2461
+#: staptree.cxx:2498
 msgid "embedded expression may not be used unless -g is specified"
 msgstr ""
 
-#: staptree.cxx:2612
+#: staptree.cxx:2649
 msgid "symbol without referent"
 msgstr ""
 
-#: staptree.cxx:2813
+#: staptree.cxx:2850
 msgid "invalid element"
 msgstr ""
 
@@ -2651,7 +2671,7 @@ msgid ""
 "expected"
 msgstr ""
 
-#: tapset-mark.cxx:447 translate.cxx:3020
+#: tapset-mark.cxx:447 translate.cxx:3052
 msgid "cannot expand unknown type"
 msgstr ""
 
@@ -2700,27 +2720,27 @@ msgstr ""
 msgid "can't create java end probe"
 msgstr ""
 
-#: tapset-netfilter.cxx:422
+#: tapset-netfilter.cxx:433
 msgid "cannot take address of netfilter hook context variable"
 msgstr ""
 
-#: tapset-netfilter.cxx:437
+#: tapset-netfilter.cxx:448
 msgid "unsupported context variable"
 msgstr ""
 
-#: tapset-netfilter.cxx:440
+#: tapset-netfilter.cxx:451
 msgid "write to netfilter parameter not permitted"
 msgstr ""
 
-#: tapset-netfilter.cxx:444
+#: tapset-netfilter.cxx:455
 msgid "write to netfilter verdict requires guru mode; need stap -g"
 msgstr ""
 
-#: tapset-netfilter.cxx:489
+#: tapset-netfilter.cxx:500
 msgid "missing hooknum"
 msgstr ""
 
-#: tapset-netfilter.cxx:492
+#: tapset-netfilter.cxx:503
 msgid "missing protocol family"
 msgstr ""
 
@@ -2749,7 +2769,7 @@ msgstr ""
 msgid "duplicate counter name"
 msgstr ""
 
-#: tapset-perfmon.cxx:353 tapsets.cxx:7854
+#: tapset-perfmon.cxx:353 tapsets.cxx:7914
 msgid "invalid -c command for unspecified process probe [man stapprobes]"
 msgstr ""
 
@@ -2812,221 +2832,221 @@ msgstr ""
 msgid "need read/write component"
 msgstr ""
 
-#: tapsets.cxx:1010
+#: tapsets.cxx:1049
 msgid ".callees(N) only acceptable for N >= 1"
 msgstr ""
 
-#: tapsets.cxx:1364
+#: tapsets.cxx:1403
 msgid "probe "
 msgstr ""
 
-#: tapsets.cxx:1366
+#: tapsets.cxx:1405
 msgid " kernel"
 msgstr ""
 
-#: tapsets.cxx:1368
+#: tapsets.cxx:1407
 msgid " module="
 msgstr ""
 
-#: tapsets.cxx:1370
+#: tapsets.cxx:1409
 msgid " process="
 msgstr ""
 
-#: tapsets.cxx:2008
+#: tapsets.cxx:2047
 msgid "filtered DIE lands on srcfile\n"
 msgstr ""
 
-#: tapsets.cxx:2171 tapsets.cxx:8334 tapsets.cxx:8390
+#: tapsets.cxx:2210 tapsets.cxx:8394 tapsets.cxx:8450
 msgid "Couldn't get elf header"
 msgstr ""
 
-#: tapsets.cxx:2302
+#: tapsets.cxx:2341
 msgid ""
 "For probing a particular line, use a .statement() probe, not .function()"
 msgstr ""
 
-#: tapsets.cxx:2643
+#: tapsets.cxx:2682
 msgid "module="
 msgstr ""
 
-#: tapsets.cxx:2751
+#: tapsets.cxx:2790
 msgid "deleting module_cache"
 msgstr ""
 
-#: tapsets.cxx:3062
+#: tapsets.cxx:3101
 msgid "cannot take address of pretty-printed variable"
 msgstr ""
 
-#: tapsets.cxx:3066
+#: tapsets.cxx:3105
 msgid "invalid target_symbol for pretty-print"
 msgstr ""
 
-#: tapsets.cxx:4045
+#: tapsets.cxx:4084
 msgid "unknown type to save in kretprobe"
 msgstr ""
 
-#: tapsets.cxx:4195 tapsets.cxx:10624
+#: tapsets.cxx:4234 tapsets.cxx:10316
 msgid "variable location problem [man error::dwarf]: "
 msgstr ""
 
-#: tapsets.cxx:4248
+#: tapsets.cxx:4287
 msgid "write to target variable not permitted; need stap -g"
 msgstr ""
 
-#: tapsets.cxx:4260
+#: tapsets.cxx:4299
 msgid "write to target variable not permitted in .return probes"
 msgstr ""
 
-#: tapsets.cxx:4269
+#: tapsets.cxx:4308
 msgid "cannot write to context variable"
 msgstr ""
 
-#: tapsets.cxx:4272 tapsets.cxx:6225 tapsets.cxx:10578
+#: tapsets.cxx:4311 tapsets.cxx:6264 tapsets.cxx:10270
 msgid "cannot take address of context variable"
 msgstr ""
 
 #. TRANSLATORS: Here we're using a cached module.
-#: tapsets.cxx:4570
+#: tapsets.cxx:4609
 msgid "Pass 2: using cached "
 msgstr ""
 
-#: tapsets.cxx:4594
+#: tapsets.cxx:4633
 msgid "write to @cast context variable not permitted; need stap -g"
 msgstr ""
 
-#: tapsets.cxx:4683
+#: tapsets.cxx:4722
 msgid "write not permitted; need stap -g"
 msgstr ""
 
-#: tapsets.cxx:4688 tapsets.cxx:10531
+#: tapsets.cxx:4727 tapsets.cxx:10223
 msgid "cannot take address of tracepoint variable"
 msgstr ""
 
-#: tapsets.cxx:4691
+#: tapsets.cxx:4730
 msgid "internal error: no-op autocast encountered"
 msgstr ""
 
-#: tapsets.cxx:4827
+#: tapsets.cxx:4866
 msgid "write to @var variable not permitted; need stap -g"
 msgstr ""
 
-#: tapsets.cxx:4885
+#: tapsets.cxx:4924
 msgid ", in "
 msgstr ""
 
-#: tapsets.cxx:4972
+#: tapsets.cxx:5011
 msgid ""
 "process probes not available without kernel CONFIG_UTRACE or "
 "CONFIG_TRACEPOINTS/CONFIG_ARCH_SUPPORTS_UPROBES/CONFIG_UPROBES"
 msgstr ""
 
-#: tapsets.cxx:5041
+#: tapsets.cxx:5075
 msgid "missing relocation basis"
 msgstr ""
 
-#: tapsets.cxx:5043
+#: tapsets.cxx:5077
 msgid "inconsistent relocation address"
 msgstr ""
 
-#: tapsets.cxx:6304
+#: tapsets.cxx:6343
 msgid "target-symbol requires debuginfo"
 msgstr ""
 
-#: tapsets.cxx:6651
+#: tapsets.cxx:6690
 msgid "can't retrieve symbol table"
 msgstr ""
 
-#: tapsets.cxx:6786
+#: tapsets.cxx:6825
 msgid "SDT asm not understood, requires debuginfo [man error::sdt]"
 msgstr ""
 
-#: tapsets.cxx:6801
+#: tapsets.cxx:6840
 msgid "cannot take address of sdt variable"
 msgstr ""
 
-#: tapsets.cxx:7260 tapsets.cxx:7319
+#: tapsets.cxx:7299 tapsets.cxx:7358
 msgid " (provider "
 msgstr ""
 
-#: tapsets.cxx:7319
+#: tapsets.cxx:7358
 msgid "saw .probes "
 msgstr ""
 
-#: tapsets.cxx:7360
+#: tapsets.cxx:7399
 msgid ", found at 0x"
 msgstr ""
 
-#: tapsets.cxx:7365
+#: tapsets.cxx:7404
 msgid ", not found"
 msgstr ""
 
-#: tapsets.cxx:7455
+#: tapsets.cxx:7494
 msgid "probe_type == uprobe1, use statement addr: 0x"
 msgstr ""
 
-#: tapsets.cxx:7459
+#: tapsets.cxx:7498
 msgid "probe_type == uprobe2, use statement addr: 0x"
 msgstr ""
 
-#: tapsets.cxx:7463
+#: tapsets.cxx:7502
 msgid "probe_type == uprobe3, use statement addr: 0x"
 msgstr ""
 
-#: tapsets.cxx:7851
+#: tapsets.cxx:7911
 msgid "invalid -x pid for unspecified process probe [man stapprobes]"
 msgstr ""
 
-#: tapsets.cxx:7858
+#: tapsets.cxx:7918
 msgid ""
 "unspecified process probe is invalid without a -c COMMAND or -x PID [man "
 "stapprobes]"
 msgstr ""
 
-#: tapsets.cxx:8114
+#: tapsets.cxx:8174
 msgid "process return probes not available [man error::inode-uprobes]"
 msgstr ""
 
-#: tapsets.cxx:8182 tapsets.cxx:10006
+#: tapsets.cxx:8242 tapsets.cxx:9696
 msgid "absolute statement probe in unprivileged script; need stap -g"
 msgstr ""
 
-#: tapsets.cxx:8511
+#: tapsets.cxx:8571
 msgid "Multiple 'sys_ni_syscall' symbols found.\n"
 msgstr ""
 
-#: tapsets.cxx:8546
+#: tapsets.cxx:8606
 msgid "Error: Cannot find vmlinux."
 msgstr ""
 
-#: tapsets.cxx:8725
+#: tapsets.cxx:8785
 msgid "absolute process probes not available [man error::inode-uprobes]"
 msgstr ""
 
-#: tapsets.cxx:10374
+#: tapsets.cxx:10066
 msgid "CONFIG_PERF_EVENTS not available on this kernel"
 msgstr ""
 
-#: tapsets.cxx:10377
+#: tapsets.cxx:10069
 msgid "CONFIG_HAVE_HW_BREAKPOINT not available on this kernel"
 msgstr ""
 
-#: tapsets.cxx:10507
+#: tapsets.cxx:10199
 msgid " (alternatives: "
 msgstr ""
 
-#: tapsets.cxx:11207
+#: tapsets.cxx:11050
 msgid "SYSTEM:TRACEPOINT syntax not supported with --compatible <= 2.6"
 msgstr ""
 
-#: tapsets.cxx:11216
+#: tapsets.cxx:11059
 msgid "invalid tracepoint string provided"
 msgstr ""
 
-#: tapsets.cxx:11374
+#: tapsets.cxx:11217
 msgid "tracepoint_builder releasing dwflpp"
 msgstr ""
 
-#: tapsets.cxx:11634
+#: tapsets.cxx:11482
 msgid "Checking tracepoint glob "
 msgstr ""
 
@@ -3136,342 +3156,342 @@ msgstr ""
 msgid "\"histogram index out of range\";"
 msgstr ""
 
-#: translate.cxx:664
+#: translate.cxx:670 translate.cxx:2992
 msgid "unknown type of map"
 msgstr ""
 
-#: translate.cxx:685
+#: translate.cxx:691
 msgid "index type mismatch"
 msgstr ""
 
-#: translate.cxx:701
+#: translate.cxx:707
 msgid "aggregating non-parallel map type"
 msgstr ""
 
-#: translate.cxx:709
+#: translate.cxx:715
 msgid "fetching aggregate of non-parallel map type"
 msgstr ""
 
-#: translate.cxx:727
+#: translate.cxx:733
 msgid "checking existence of an unsupported map type"
 msgstr ""
 
-#: translate.cxx:740
+#: translate.cxx:746
 msgid "getting a value from an unsupported map type"
 msgstr ""
 
-#: translate.cxx:751
+#: translate.cxx:757
 msgid "adding a value of an unsupported map type"
 msgstr ""
 
-#: translate.cxx:773
+#: translate.cxx:779
 msgid "setting a value of an unsupported map type"
 msgstr ""
 
-#: translate.cxx:863
+#: translate.cxx:869
 msgid "iterating over unknown reference type"
 msgstr ""
 
-#: translate.cxx:876
+#: translate.cxx:882
 msgid "inconsistent iterator type in itervar::start()"
 msgstr ""
 
-#: translate.cxx:887 translate.cxx:899
+#: translate.cxx:893 translate.cxx:905
 msgid "inconsistent iterator type in itervar::next()"
 msgstr ""
 
-#: translate.cxx:902
+#: translate.cxx:908
 msgid "deleting a value of an unsupported map type"
 msgstr ""
 
-#: translate.cxx:921
+#: translate.cxx:927
 msgid "illegal key type"
 msgstr ""
 
-#: translate.cxx:928
+#: translate.cxx:934
 msgid "inconsistent iterator value in itervar::get_value()"
 msgstr ""
 
-#: translate.cxx:940
+#: translate.cxx:946
 msgid "illegal value type"
 msgstr ""
 
-#: translate.cxx:1146
+#: translate.cxx:1152
 msgid "internal error translating printf"
 msgstr ""
 
-#: translate.cxx:2486 translate.cxx:2726
+#: translate.cxx:2492 translate.cxx:2732
 msgid "array locals not supported, missing global declaration?"
 msgstr ""
 
-#: translate.cxx:2735
+#: translate.cxx:2741
 msgid "unsupported local variable type"
 msgstr ""
 
-#: translate.cxx:2886
+#: translate.cxx:2892
 msgid " nothing"
 msgstr ""
 
-#: translate.cxx:2934 translate.cxx:2962
+#: translate.cxx:2940 translate.cxx:2968
 msgid "array type is neither string nor long"
 msgstr ""
 
-#: translate.cxx:2948
+#: translate.cxx:2954
 msgid "array key is neither string nor long"
 msgstr ""
 
-#: translate.cxx:3095
+#: translate.cxx:3176
 msgid "unknown lvalue type in assignment"
 msgstr ""
 
-#: translate.cxx:3182 translate.cxx:3202
+#: translate.cxx:3262 translate.cxx:3282
 msgid " type unsupported"
 msgstr ""
 
-#: translate.cxx:3231
+#: translate.cxx:3311
 msgid "post assignment on strings not supported"
 msgstr ""
 
-#: translate.cxx:3278
+#: translate.cxx:3358
 msgid "unknown macop for assignment"
 msgstr ""
 
-#: translate.cxx:3283
+#: translate.cxx:3363
 msgid "invalid post-mode operator"
 msgstr ""
 
-#: translate.cxx:3320
+#: translate.cxx:3400
 msgid "assignment type not yet implemented"
 msgstr ""
 
-#: translate.cxx:3407
+#: translate.cxx:3487
 msgid "unresolved symbol"
 msgstr ""
 
-#: translate.cxx:3409
+#: translate.cxx:3489
 msgid "unresolved symbol: "
 msgstr ""
 
-#: translate.cxx:3448
+#: translate.cxx:3528
 msgid "attempt to use scalar where map expected"
 msgstr ""
 
-#: translate.cxx:3741 translate.cxx:4833 translate.cxx:4845
+#: translate.cxx:3847 translate.cxx:4971 translate.cxx:4983
 msgid "expected numeric type"
 msgstr ""
 
-#: translate.cxx:4048 translate.cxx:4725 translate.cxx:4765
+#: translate.cxx:4154 translate.cxx:4863 translate.cxx:4903
 msgid "expected string types"
 msgstr ""
 
-#: translate.cxx:4056 translate.cxx:4462 translate.cxx:4521 translate.cxx:4550
-#: translate.cxx:4566 translate.cxx:4741
+#: translate.cxx:4162 translate.cxx:4600 translate.cxx:4659 translate.cxx:4688
+#: translate.cxx:4704 translate.cxx:4879
 msgid "expected numeric types"
 msgstr ""
 
-#: translate.cxx:4062 translate.cxx:4332 translate.cxx:4670 translate.cxx:4750
+#: translate.cxx:4168 translate.cxx:4438 translate.cxx:4808 translate.cxx:4888
 msgid "unexpected type"
 msgstr ""
 
-#: translate.cxx:4099 translate.cxx:5141
+#: translate.cxx:4205 translate.cxx:5279
 msgid "Invalid indexing of histogram"
 msgstr ""
 
-#: translate.cxx:4166
+#: translate.cxx:4272
 msgid "cannot 'return' from probe"
 msgstr ""
 
-#: translate.cxx:4169
+#: translate.cxx:4275
 msgid "return type mismatch"
 msgstr ""
 
-#: translate.cxx:4182
+#: translate.cxx:4288
 msgid "cannot 'next' from function"
 msgstr ""
 
-#: translate.cxx:4235
+#: translate.cxx:4341
 msgid "Cannot delete unknown expression type"
 msgstr ""
 
-#: translate.cxx:4365
+#: translate.cxx:4471
 msgid "cannot delete histogram bucket entries\n"
 msgstr ""
 
-#: translate.cxx:4383
+#: translate.cxx:4489
 msgid "cannot 'break' outside loop"
 msgstr ""
 
-#: translate.cxx:4394
+#: translate.cxx:4500
 msgid "cannot 'continue' outside loop"
 msgstr ""
 
-#: translate.cxx:4450
+#: translate.cxx:4580
 msgid "expected numeric or string type"
 msgstr ""
 
-#: translate.cxx:4512
+#: translate.cxx:4650
 msgid "operator not yet implemented"
 msgstr ""
 
-#: translate.cxx:4760
+#: translate.cxx:4898
 msgid "unexpected concatenation operator"
 msgstr ""
 
-#: translate.cxx:4783
+#: translate.cxx:4921
 msgid "expected numeric condition"
 msgstr ""
 
-#: translate.cxx:4788
+#: translate.cxx:4926
 msgid "expected matching types"
 msgstr ""
 
-#: translate.cxx:4806
+#: translate.cxx:4944
 msgid "non-number <<< expression"
 msgstr ""
 
-#: translate.cxx:4809
+#: translate.cxx:4947
 msgid "non-stats left operand to <<< expression"
 msgstr ""
 
-#: translate.cxx:4812
+#: translate.cxx:4950
 msgid "non-number right operand to <<< expression"
 msgstr ""
 
-#: translate.cxx:4818 translate.cxx:4820
+#: translate.cxx:4956 translate.cxx:4958
 msgid "type mismatch"
 msgstr ""
 
-#: translate.cxx:4859
+#: translate.cxx:4997
 msgid "invalid reference to array"
 msgstr ""
 
-#: translate.cxx:4903
+#: translate.cxx:5041
 msgid "need rvalue for assignment"
 msgstr ""
 
-#: translate.cxx:4915
+#: translate.cxx:5053
 msgid "unexpected reference to array"
 msgstr ""
 
-#: translate.cxx:4934
+#: translate.cxx:5072
 msgid "cannot translate general target-symbol expression"
 msgstr ""
 
-#: translate.cxx:4941
+#: translate.cxx:5079
 msgid "cannot translate general @var expression"
 msgstr ""
 
-#: translate.cxx:4948
+#: translate.cxx:5086
 msgid "cannot translate general @cast expression"
 msgstr ""
 
-#: translate.cxx:4955
+#: translate.cxx:5093
 msgid "cannot translate general dereference expression"
 msgstr ""
 
-#: translate.cxx:4962
+#: translate.cxx:5100
 msgid "cannot translate general @defined expression"
 msgstr ""
 
-#: translate.cxx:4969
+#: translate.cxx:5107
 msgid "cannot translate general @entry expression"
 msgstr ""
 
-#: translate.cxx:4976
+#: translate.cxx:5114
 msgid "cannot translate general @perf expression"
 msgstr ""
 
-#: translate.cxx:4997
+#: translate.cxx:5135
 msgid "invalid array reference"
 msgstr ""
 
-#: translate.cxx:5002
+#: translate.cxx:5140
 msgid "array index type mismatch"
 msgstr ""
 
-#: translate.cxx:5026
+#: translate.cxx:5164
 msgid "unexpected aggregate of non-statistic"
 msgstr ""
 
-#: translate.cxx:5042
+#: translate.cxx:5180
 msgid "unexpected aggregate of non-arrayindex"
 msgstr ""
 
-#: translate.cxx:5089
+#: translate.cxx:5227
 msgid "statistic-valued array in rvalue context"
 msgstr ""
 
-#: translate.cxx:5186
+#: translate.cxx:5324
 msgid "unexpected reference to scalar"
 msgstr ""
 
-#: translate.cxx:5252
+#: translate.cxx:5390
 msgid "cannot assign to histogram buckets"
 msgstr ""
 
-#: translate.cxx:5264
+#: translate.cxx:5402
 msgid "invalid length argument list"
 msgstr ""
 
-#: translate.cxx:5280 translate.cxx:5297
+#: translate.cxx:5418 translate.cxx:5435
 msgid "function argument type mismatch"
 msgstr ""
 
-#: translate.cxx:5289
+#: translate.cxx:5427
 msgid "function actual argument evaluation"
 msgstr ""
 
-#: translate.cxx:5400
+#: translate.cxx:5538
 msgid "cannot print unknown expression type"
 msgstr ""
 
-#: translate.cxx:5402
+#: translate.cxx:5540
 msgid "cannot print a raw stats object"
 msgstr ""
 
-#: translate.cxx:6009
+#: translate.cxx:6147
 msgid "unexpected build-id reloc section "
 msgstr ""
 
-#: translate.cxx:7113
+#: translate.cxx:7251
 msgid "Searching for vdso candidates: "
 msgstr ""
 
-#: translate.cxx:7123
+#: translate.cxx:7261
 msgid "vdso candidate: "
 msgstr ""
 
-#: translate.cxx:7305
+#: translate.cxx:7443
 msgid "missing unwind/symbol data for module '"
 msgstr ""
 
-#: translate.cxx:7352
+#: translate.cxx:7490
 #, c-format
 msgid ""
 "myproc-unprivileged tapset function called without is_myproc checking for "
 "pid %d (euid %d)"
 msgstr ""
 
-#: translate.cxx:7356
+#: translate.cxx:7494
 #, c-format
 msgid "read fault [man error::fault] at 0x%p (%s)"
 msgstr ""
 
-#: translate.cxx:7358
+#: translate.cxx:7496
 #, c-format
 msgid "write fault [man error::fault] at 0x%p (%s)"
 msgstr ""
 
-#: translate.cxx:7360
+#: translate.cxx:7498
 #, c-format
 msgid "divide by zero in DWARF operand (%s)"
 msgstr ""
 
-#: translate.cxx:7432
+#: translate.cxx:7570
 msgid " recursive"
 msgstr ""
 
-#: translate.cxx:7432
+#: translate.cxx:7570
 msgid " non-recursive"
 msgstr ""
 
