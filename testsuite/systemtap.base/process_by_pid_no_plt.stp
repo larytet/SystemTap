@@ -1,0 +1,51 @@
+global probed
+
+probe begin {
+  probed["function"] = 0;
+  probed["statement"] = 0;
+  probed["provider"] = 0;
+  probed["mark"] = 0;
+  printf("systemtap starting probe\n");
+}
+
+probe process($1).function("*") {
+  assert($1 == pid(), "failed in process(PID).function(\"*\")")
+  probed["function"] ++;
+}
+
+probe process($1).function("main").label("marker_here") ? {
+  assert($1 == pid(), "failed in process(PID).function(main).label(marker_here)")
+  // gcc may not provide enough information to for stap to see this point, hence
+  // why it's optional. since it's optional, don't keep track of whether it's
+  // been seen.
+}
+
+probe process($1).statement("*") {
+  assert($1 == pid(), "failed in process(PID).statement\"*\")")
+  probed["statement"]++;
+}
+
+probe process($1).provider("*").mark("*") {
+  assert($1 == pid(), "failed in process(PID).provider(\"*\").mark(\"*\")")
+  probed["provider"] ++;
+}
+
+probe process($1).mark("*") {
+  assert($1 == pid(), "failed in process(PID).mark(\"*\")")
+  probed["mark"] ++;
+}
+
+probe end {
+  printf("systemtap ending probe\n");
+  if (probed["function"] > 0 && probed["mark"] > 0
+      && probed["statement"] > 0 && probed["provider"] > 0)
+    printf("pass\n");
+  else
+    {
+      printf("fail: did not hit all probe points successfully.\n");
+      // print out some information to find out as to where the test failed
+      printf("Hit: function:%d, mark:%d, statement:%d, provider:%d",
+          probed["function"], probed["mark"], probed["statement"],
+          probed["provider"]);
+    }
+}
