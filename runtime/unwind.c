@@ -1512,7 +1512,7 @@ static int unwind(struct unwind_context *context, int user)
                 if (! module_name && (unsigned long)pc > PAGE_OFFSET)
                         module_name = "kernel";
                 _stp_warn ("Missing unwind data for a module, rerun with 'stap -d %s'\n",
-                           module_name ?: "(unknown; retry witn -DDEBUG_UNWIND)");
+                           module_name ?: "(unknown; retry with -DDEBUG_UNWIND)");
 		// Don't _stp_warn including the pc#, since it'll defeat warning deduplicator
 		dbug_unwind(1, "No module found for pc=%lx", pc);
 		return -EINVAL;
