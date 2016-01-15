@@ -371,10 +371,10 @@ isdoubleglob(interned_string str)
 bool
 match_key::globmatch(match_key const & other) const
 {
-  const char *other_str = other.name.c_str();
-  const char *name_str = name.c_str();
+  const string & name_str = name;
+  const string & other_str = other.name;
 
-  return ((fnmatch(name_str, other_str, FNM_NOESCAPE) == 0)
+  return ((fnmatch(name_str.c_str(), other_str.c_str(), FNM_NOESCAPE) == 0)
 	  && have_parameter == other.have_parameter
 	  && parameter_type == other.parameter_type);
 }
@@ -570,8 +570,8 @@ match_node::find_and_build (systemtap_session& s,
 	    {
 	      if (s.verbose > 2)
                 clog << _F("wildcard '%s' matched '%s'",
-                           loc->components[pos]->functor.c_str(),
-                           subkey.name.c_str()) << endl;
+                           loc->components[pos]->functor.to_string().c_str(),
+                           subkey.name.to_string().c_str()) << endl;
               
 	      // When we have a wildcard, we need to create a copy of
 	      // the probe point.  Then we'll create a copy of the
@@ -1197,7 +1197,7 @@ struct no_var_mutation_during_iteration_check
 		if (v == vd)
 		  {
                     string err = _F("variable '%s' modified during 'foreach' iteration",
-                                    v->name.c_str());
+                                    v->name.to_string().c_str());
 		    session.print_error (SEMANTIC_ERROR (err, e->tok));
 		  }
 	      }
@@ -1219,7 +1219,7 @@ struct no_var_mutation_during_iteration_check
 	    if (i->second->find (m) != i->second->end())
 	      {
                 string err = _F("function call modifies var '%s' during 'foreach' iteration",
-                                m->name.c_str());
+                                m->name.to_string().c_str());
 		session.print_error (SEMANTIC_ERROR (err, e->tok));
 	      }
 	  }
@@ -1306,7 +1306,8 @@ struct stat_decl_collector
 	    else
 	      {
 		// FIXME: Support multiple co-declared histogram types
-		semantic_error se(ERR_SRC, _F("multiple histogram types declared on '%s'", sym->name.c_str()), e->tok);
+		semantic_error se(ERR_SRC, _F("multiple histogram types declared on '%s'",
+                                              sym->name.to_string().c_str()), e->tok);
 		session.print_error (se);
 	      }
 	  }
@@ -1334,7 +1335,8 @@ semantic_pass_stats (systemtap_session & sess)
 
 	  if (sess.stat_decls.find(v->name) == sess.stat_decls.end())
 	    {
-              semantic_error se(ERR_SRC, _F("unable to infer statistic parameters for global '%s'", v->name.c_str()));
+              semantic_error se(ERR_SRC, _F("unable to infer statistic parameters for global '%s'",
+                                            v->name.to_string().c_str()));
 	      sess.print_error (se);
 	    }
 	}
@@ -1547,7 +1549,7 @@ semantic_pass_conditions (systemtap_session & sess)
 
 // This is only for pragmas that don't have any other side-effect than
 // needing some initialization at module init time. Currently handles
-// /* pragma:vma */ /* pragma:unwind */ /* pragma:symbol */
+// /* pragma:vma */ /* pragma:unwind */ /* pragma:symbols */ /* pragma:lines */
 
 // /* pragma:uprobes */ is handled during the typeresolution_info pass.
 // /* pure */, /* unprivileged */. /* myproc-unprivileged */ and /* guru */
@@ -1568,7 +1570,7 @@ public:
       {
 	if (session.verbose > 2)
           clog << _F("Turning on task_finder vma_tracker, pragma:vma found in %s",
-                     current_function->name.c_str()) << endl;
+                     current_function->name.to_string().c_str()) << endl;
 
 	// PR15052: stapdyn doesn't have VMA-tracking yet.
 	if (session.runtime_usermode_p())
@@ -1582,7 +1584,7 @@ public:
       {
 	if (session.verbose > 2)
 	  clog << _F("Turning on unwind support, pragma:unwind found in %s",
-		    current_function->name.c_str()) << endl;
+		    current_function->name.to_string().c_str()) << endl;
 	session.need_unwind = true;
       }
 
@@ -1591,7 +1593,7 @@ public:
       {
 	if (session.verbose > 2)
 	  clog << _F("Turning on symbol data collecting, pragma:symbols found in %s",
-		    current_function->name.c_str()) << endl;
+		    current_function->name.to_string().c_str()) << endl;
 	session.need_symbols = true;
       }
 
@@ -1600,7 +1602,7 @@ public:
       {
         if (session.verbose > 2)
 	  clog << _F("Turning on debug line data collecting, pragma:lines found in %s",
-		    current_function->name.c_str()) << endl;
+		    current_function->name.to_string().c_str()) << endl;
 	session.need_lines = true;
       }
   }
@@ -2011,6 +2013,258 @@ void add_global_var_display (systemtap_session& s)
     }
 }
 
+static void create_monitor_function(systemtap_session& s)
+{
+  functiondecl* fd = new functiondecl;
+  fd->synthetic = true;
+  fd->name = "__global___monitor_data_function_probes";
+  fd->type = pe_string;
+
+  vardecl* v = new vardecl;
+  v->type = pe_long;
+  v->name = "index";
+  fd->formal_args.push_back(v);
+
+  embeddedcode* ec = new embeddedcode;
+  string code;
+  code = "/* unprivileged */ /* pure */"
+         "const struct stap_probe *const p = &stap_probes[STAP_ARG_index];\n"
+         "if (likely (probe_timing(STAP_ARG_index))) {\n"
+         "struct stat_data *stats = _stp_stat_get (probe_timing(STAP_ARG_index), 0);\n"
+         "if (stats->count) {\n"
+         "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);\n"
+         "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
+         "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %lld, "
+         "\\\"min\\\": %lld, \\\"avg\\\": %lld, \\\"max\\\": %lld, \",\n"
+         "p->index, p->cond_enabled ? \"on\" : \"off\", (long long) stats->count,\n"
+         "(long long) stats->min, (long long) avg, (long long) stats->max);\n"
+         "} else {\n"
+         "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
+         "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %d, "
+         "\\\"min\\\": %d, \\\"avg\\\": %d, \\\"max\\\": %d, \",\n"
+         "p->index, p->cond_enabled ? \"on\" : \"off\", 0, 0, 0, 0);}}\n"
+         "STAP_RETURN(_monitor_buf);\n";
+  ec->code = code;
+  fd->body = ec;
+
+  s.functions[fd->name] = fd;
+}
+
+static void monitor_mode_init(systemtap_session& s)
+{
+  if (!s.monitor) return;
+
+  vardecl* v = new vardecl;
+  v->name = "__global___monitor_module_start";
+  v->set_arity(0, 0);
+  v->type = pe_long;
+  v->synthetic = true;
+  s.globals.push_back(v);
+
+  stringstream code;
+  code << "probe begin {" << endl;
+  code << "__monitor_module_start = jiffies()" << endl;
+  code << "}" << endl;
+
+  probe* p = parse_synthetic_probe(s, code, 0);
+  if (!p)
+    throw SEMANTIC_ERROR (_("can't create begin probe"), 0);
+
+  vector<derived_probe*> dps;
+  derive_probes (s, p, dps);
+
+  derived_probe* dp = dps[0];
+  s.probes.insert (s.probes.begin(), dp);
+  dp->join_group (s);
+
+  // Repopulate symbol info
+  symresolution_info sym (s);
+  sym.current_function = 0;
+  sym.current_probe = dp;
+  dp->body->visit (&sym);
+
+  embeddedcode* ec = new embeddedcode;
+  ec->code = "#define STAP_MONITOR_READ 8192\n"
+             "static char _monitor_buf[STAP_MONITOR_READ];";
+  s.embeds.push_back(ec);
+
+  create_monitor_function(s);
+}
+
+static void monitor_mode_read(systemtap_session& s)
+{
+  if (!s.monitor) return;
+
+  stringstream code;
+
+  code << "probe procfs(\"monitor_status\").read.maxsize(8192) {" << endl;
+  code << "elapsed = (jiffies()-__monitor_module_start)/HZ()" << endl;
+  code << "hrs = elapsed/3600; mins = elapsed%3600/60; secs = elapsed%3600%60;" << endl;
+  code << "$value .= sprintf(\"{\\n\")" << endl;
+  code << "$value .= sprintf(\"\\\"uptime\\\": \\\"%02d:%02d:%02d\\\",\\n\", hrs, mins, secs)" << endl;
+  code << "$value .= sprintf(\"\\\"uid\\\": \\\"%d\\\",\\n\", uid())" << endl;
+  code << "$value .= sprintf(\"\\\"memory\\\": \\\"%s\\\",\\n\", module_size())" << endl;
+  code << "$value .= sprintf(\"\\\"module_name\\\": \\\"%s\\\",\\n\", module_name())" << endl;
+
+  code << "$value .= sprintf(\"\\\"globals\\\": {\\n\")" << endl;
+  for (vector<vardecl*>::const_iterator it = s.globals.begin();
+      it != s.globals.end(); ++it)
+    {
+      if ((*it)->synthetic) continue;
+
+      if (it != s.globals.begin())
+        code << "$value .= sprintf(\",\\n\")" << endl;
+
+      code << "$value .= sprintf(\"\\\"%s\\\"\", \"" << (*it)->tok->content << "\")" << endl;
+      if ((*it)->arity == 0)
+        code << "$value .= sprint(\": \", " << (*it)->name << ", \"\")" << endl;
+      else if ((*it)->arity > 0)
+        code << "$value .= sprintf(\": \\\"(%d)\\\"\", " << (*it)->maxsize << ")" << endl;
+    }
+  code << "$value .= sprintf(\"\\n},\\n\")" << endl;
+
+  code << "$value .= sprintf(\"\\\"probes\\\": [\\n\")" << endl;
+  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
+      it != s.probes.end(); ++it)
+    {
+      if (it != s.probes.begin())
+        code << "$value .= sprintf(\",\\n\")" << endl;
+
+      istringstream probe_point((*it)->sole_location()->str());
+      string name;
+      probe_point >> name;
+      /* Escape quotes once for systemtap parser and once more for json parser */
+      name = lex_cast_qstring(lex_cast_qstring(name));
+
+      code << "$value .= sprintf(\"{%s\", __monitor_data_function_probes("
+           << it-s.probes.begin() << "))" << endl;
+      code << "$value .= sprintf(\"\\\"name\\\": %s}\", " << name << ")" << endl;
+    }
+  code << "$value .= sprintf(\"\\n]\\n\")" << endl;
+
+  code << "$value .= sprintf(\"}\\n\")" << endl;
+
+  code << "}" << endl;
+
+  probe* p = parse_synthetic_probe(s, code, 0);
+  if (!p)
+    throw SEMANTIC_ERROR (_("can't create procfs probe"), 0);
+
+  vector<derived_probe*> dps;
+  derive_probes (s, p, dps);
+
+  derived_probe* dp = dps[0];
+  s.probes.push_back (dp);
+  dp->join_group (s);
+
+  // Repopulate symbol and type info
+  symresolution_info sym (s);
+  sym.current_function = 0;
+  sym.current_probe = dp;
+  dp->body->visit (&sym);
+}
+
+static void monitor_mode_write(systemtap_session& s)
+{
+  if (!s.monitor) return;
+
+  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
+      it != s.probes.end(); ++it)
+    {
+      vardecl* v = new vardecl;
+      v->name = "__global___monitor_" + lex_cast(it-s.probes.begin()) + "_enabled";
+      v->tok = (*it)->tok;
+      v->set_arity(0, (*it)->tok);
+      v->type = pe_long;
+      v->init = new literal_number(1);
+      v->synthetic = true;
+      s.globals.push_back(v);
+
+      symbol* sym = new symbol;
+      sym->name = v->name;
+      sym->tok = v->tok;
+      sym->type = pe_long;
+      sym->referent = v;
+
+      if ((*it)->sole_location()->condition)
+        {
+          logical_and_expr *e = new logical_and_expr;
+          e->tok = v->tok;
+          e->left = sym;
+          e->op = "&&";
+          e->type = pe_long;
+          e->right = (*it)->sole_location()->condition;
+          (*it)->sole_location()->condition = e;
+        }
+      else
+        {
+          (*it)->sole_location()->condition = sym;
+        }
+    }
+
+  stringstream code;
+
+  code << "probe procfs(\"monitor_control\").write {" << endl;
+
+  code << "  if ($value == \"exit\") { exit()";
+
+  code << "  } else if ($value == \"reset\") {";
+  for (vector<vardecl*>::const_iterator it = s.globals.begin();
+      it != s.globals.end(); ++it)
+    {
+      vardecl* v = *it;
+
+      if (v->synthetic) continue;
+
+      if (v->arity == 0 && v->init)
+        {
+          if (v->type == pe_long)
+            {
+              literal_number* ln = dynamic_cast<literal_number*>(v->init);
+              code << v->name << " = " << ln->value << endl;
+            }
+          else if (v->type == pe_string)
+            {
+              literal_string* ln = dynamic_cast<literal_string*>(v->init);
+              code << v->name << " = " << lex_cast_qstring(ln->value) << endl;
+            }
+        }
+      else
+        {
+          // For scalar elements with no initial values, we reset to 0 or empty as
+          // done with arrays and aggregates.
+          code << "delete " << v->name << endl;
+        }
+    }
+  code << "}" << endl;
+
+  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
+      it != s.probes.end(); ++it)
+    {
+      code << "  if ($value == \"" << it-s.probes.begin() << "\")"
+           << "  __monitor_" << it-s.probes.begin() << "_enabled" << " ^= 1" << endl;
+    }
+
+  code << "}" << endl;
+
+  probe* p = parse_synthetic_probe(s, code, 0);
+  if (!p)
+    throw SEMANTIC_ERROR (_("can't create procfs probe"), 0);
+
+  vector<derived_probe*> dps;
+  derive_probes (s, p, dps);
+
+  derived_probe* dp = dps[0];
+  s.probes.push_back (dp);
+  dp->join_group (s);
+
+  // Repopulate symbol and type info
+  symresolution_info sym (s);
+  sym.current_function = 0;
+  sym.current_probe = dp;
+  dp->body->visit (&sym);
+}
+
 int
 semantic_pass (systemtap_session& s)
 {
@@ -2026,6 +2280,9 @@ semantic_pass (systemtap_session& s)
       register_standard_tapsets(s);
 
       if (rc == 0) rc = semantic_pass_symbols (s);
+      if (rc == 0) monitor_mode_init (s);
+      if (rc == 0) monitor_mode_read (s);
+      if (rc == 0) monitor_mode_write (s);
       if (rc == 0) rc = semantic_pass_conditions (s);
       if (rc == 0) rc = semantic_pass_optimize1 (s);
       if (rc == 0) rc = semantic_pass_types (s);
@@ -2124,7 +2381,7 @@ symresolution_info::visit_foreach_loop (foreach_loop* e)
 	    {
 	      stringstream msg;
               msg << _F("unresolved arity-%zu global array %s, missing global declaration?",
-                        e->indexes.size(), array->name.c_str());
+                        e->indexes.size(), array->name.to_string().c_str());
 	      throw SEMANTIC_ERROR (msg.str(), array->tok);
 	    }
 	}
@@ -2133,7 +2390,7 @@ symresolution_info::visit_foreach_loop (foreach_loop* e)
         {
           stringstream msg;
           msg << _F("unresolved arity-%zu global array %s, missing global declaration?",
-                    e->array_slice.size(), array->name.c_str());
+                    e->array_slice.size(), array->name.to_string().c_str());
           throw SEMANTIC_ERROR (msg.str(), array->tok);
         }
     }
@@ -2265,7 +2522,7 @@ symresolution_info::visit_arrayindex (arrayindex* e, bool wildcard_ok)
 	{
 	  stringstream msg;
           msg << _F("unresolved arity-%zu global array %s, missing global declaration?",
-                    e->indexes.size(), array->name.c_str());
+                    e->indexes.size(), array->name.to_string().c_str());
 	  throw SEMANTIC_ERROR (msg.str(), e->tok);
 	}
     }
@@ -2303,7 +2560,10 @@ symresolution_info::visit_functioncall (functioncall* e)
 
   functiondecl* d = find_function (e->function, e->args.size (), e->tok);
   if (d)
+  {
     e->referent = d;
+    e->function = d->name;
+  }
   else
     {
       string sugs = levenshtein_suggest(e->function, collect_functions(), 5); // print 5 funcs
@@ -2311,6 +2571,12 @@ symresolution_info::visit_functioncall (functioncall* e)
                               sugs.empty() ? "" : (_(" (similar: ") + sugs + ")").c_str()),
                            e->tok);
     }
+
+  // In monitor mode, tapset functions used in the synthetic probe are not resolved and added
+  // to the master list at the same time as the other functions so we must add them here to
+  // allow the translator to generate the functions in the module.
+  if (session.monitor && session.functions.find(e->function) == session.functions.end())
+    session.functions[e->function] = d;
 }
 
 /*find_var will return an argument other than zero if the name matches the var
@@ -2349,7 +2615,7 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
   string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
   for (unsigned i=0; i<session.globals.size(); i++)
   {
-    if ((session.globals[i]->name == name && name.substr(0, 9) == "__global_") ||
+    if ((session.globals[i]->name == name && startswith(name, "__global_")) ||
         (session.globals[i]->name == gname) ||
         (session.globals[i]->name == pname))
       {
@@ -2358,7 +2624,7 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
             vardecl* v = session.globals[i];
 	    stapfile* f = tok->location.file;
             // clog << "resolved " << *tok << " to global " << *v->tok << endl;
-            if (v->tok->location.file != f && !f->synthetic)
+            if (v->tok && v->tok->location.file != f && !f->synthetic)
               {
                 session.print_warning (_F("cross-file global variable reference to %s from",
                                           lex_cast(*v->tok).c_str()), tok);
@@ -2397,11 +2663,40 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
 functiondecl*
 symresolution_info::find_function (const string& name, unsigned arity, const token *tok)
 {
+  string gname = "__global_" + string(name);
+  string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
+
   // the common path
-  if (session.functions.find(name) != session.functions.end())
+
+  // internal global functions bypassing the parser, such as __global_dwarf_tvar_[gs]et
+  if ((session.functions.find(name) != session.functions.end()) && startswith(name, "__private_"))
     {
       functiondecl* fd = session.functions[name];
       assert (fd->name == name);
+      if (fd->formal_args.size() == arity)
+        return fd;
+
+      throw SEMANTIC_ERROR(_F("arity mismatch found (function '%s' takes %zu args)",
+                              name.c_str(), fd->formal_args.size()), tok, fd->tok);
+    }
+
+  // tapset or user script global functions coming from the parser
+  if (session.functions.find(gname) != session.functions.end())
+    {
+      functiondecl* fd = session.functions[gname];
+      assert (fd->name == gname);
+      if (fd->formal_args.size() == arity)
+        return fd;
+
+      throw SEMANTIC_ERROR(_F("arity mismatch found (function '%s' takes %zu args)",
+                              name.c_str(), fd->formal_args.size()), tok, fd->tok);
+    }
+
+  // tapset or user script private functions coming from the parser
+  if (session.functions.find(pname) != session.functions.end())
+    {
+      functiondecl* fd = session.functions[pname];
+      assert (fd->name == pname);
       if (fd->formal_args.size() == arity)
         return fd;
 
@@ -2415,8 +2710,7 @@ symresolution_info::find_function (const string& name, unsigned arity, const tok
       stapfile* f = session.library_files[i];
       for (unsigned j=0; j<f->functions.size(); j++)
       {
-        string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
-        if ((f->functions[j]->name == name) ||
+        if ((f->functions[j]->name == gname) ||
             (f->functions[j]->name == pname))
           {
             if (f->functions[j]->formal_args.size() == arity)
@@ -2486,7 +2780,8 @@ void semantic_pass_opt1 (systemtap_session& s, bool& relaxed_p)
       if (ftv.seen.find(fd) == ftv.seen.end())
         {
           if (! fd->synthetic && s.is_user_file(fd->tok->location.file->name))
-            s.print_warning (_F("Eliding unused function '%s'", fd->name.c_str()), fd->tok);
+            s.print_warning (_F("Eliding unused function '%s'",
+                                fd->name.to_string().c_str()), fd->tok);
           // s.functions.erase (it); // NB: can't, since we're already iterating upon it
           new_unused_functions.push_back (fd);
           relaxed_p = false;
@@ -2541,7 +2836,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
             vut.written.find (l) == vut.written.end())
           {
             if (s.is_user_file(l->tok->location.file->name))
-              s.print_warning (_F("Eliding unused variable '%s'", l->name.c_str()), l->tok);
+              s.print_warning (_F("Eliding unused variable '%s'",
+                                  l->name.to_string().c_str()), l->tok);
 	    if (s.tapset_compile_coverage) {
 	      s.probes[i]->unused_locals.push_back
 		      (s.probes[i]->locals[j]);
@@ -2565,7 +2861,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
                   vars.erase(l->name);
                   string sugs = levenshtein_suggest(l->name, vars, 5); // suggest top 5 vars
                   s.print_warning (_F("never-assigned local variable '%s'%s",
-                                      l->name.c_str(), (sugs.empty() ? "" :
+                                      l->name.to_string().c_str(), (sugs.empty() ? "" :
                                       (_(" (similar: ") + sugs + ")")).c_str()), l->tok);
                 }
             j++;
@@ -2582,7 +2878,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
               vut.written.find (l) == vut.written.end())
             {
               if (s.is_user_file(l->tok->location.file->name))
-                s.print_warning (_F("Eliding unused variable '%s'", l->name.c_str()), l->tok);
+                s.print_warning (_F("Eliding unused variable '%s'",
+                                    l->name.to_string().c_str()), l->tok);
               if (s.tapset_compile_coverage) {
                 fd->unused_locals.push_back (fd->locals[j]);
               }
@@ -2608,7 +2905,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
                     vars.erase(l->name);
                     string sugs = levenshtein_suggest(l->name, vars, 5); // suggest top 5 vars
                     s.print_warning (_F("never-assigned local variable '%s'%s",
-                                        l->name.c_str(), (sugs.empty() ? "" :
+                                        l->name.to_string().c_str(), (sugs.empty() ? "" :
                                         (_(" (similar: ") + sugs + ")")).c_str()), l->tok);
                   }
 
@@ -2623,7 +2920,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
           vut.written.find (l) == vut.written.end())
         {
           if (s.is_user_file(l->tok->location.file->name)) 
-            s.print_warning (_F("Eliding unused variable '%s'", l->name.c_str()), l->tok);
+            s.print_warning (_F("Eliding unused variable '%s'",
+                                l->name.to_string().c_str()), l->tok);
 	  if (s.tapset_compile_coverage) {
 	    s.unused_globals.push_back(s.globals[i]);
 	  }
@@ -2644,7 +2942,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
 
                 string sugs = levenshtein_suggest(l->name, vars, 5); // suggest top 5 vars
                 s.print_warning (_F("never-assigned global variable '%s'%s",
-                                    l->name.c_str(), (sugs.empty() ? "" :
+                                    l->name.to_string().c_str(), (sugs.empty() ? "" :
                                     (_(" (similar: ") + sugs + ")")).c_str()), l->tok);
               }
 
@@ -2760,7 +3058,8 @@ dead_assignment_remover::visit_assignment (assignment* e)
               else
               */
               if (session.is_user_file(e->left->tok->location.file->name)) 
-                session.print_warning(_F("Eliding assignment to '%s'", leftvar->name.c_str()), e->tok);
+                session.print_warning(_F("Eliding assignment to '%s'",
+                                         leftvar->name.to_string().c_str()), e->tok);
               provide (e->right); // goodbye assignment*
               relaxed_p = false;
               return;
@@ -2782,7 +3081,7 @@ dead_assignment_remover::visit_try_block (try_block *s)
         {
           if (session.verbose>2)
             clog << _F("Eliding unused error string catcher %s at %s",
-                      errvar->name.c_str(), lex_cast(*s->tok).c_str()) << endl;
+                      errvar->name.to_string().c_str(), lex_cast(*s->tok).c_str()) << endl;
           s->catch_error_var = 0;
         }
     }
@@ -3072,7 +3371,8 @@ void semantic_pass_opt4 (systemtap_session& s, bool& relaxed_p)
         {
           if (! s.timing && // PR10070
               !(p->base->tok->location.file->synthetic)) // don't warn for synthetic probes
-            s.print_warning (_F("side-effect-free probe '%s'", p->name.c_str()), p->tok);
+            s.print_warning (_F("side-effect-free probe '%s'",
+                                p->name().c_str()), p->tok);
 
           p->body = new null_statement(p->tok);
 
@@ -3095,7 +3395,8 @@ void semantic_pass_opt4 (systemtap_session& s, bool& relaxed_p)
       duv.replace (fn->body, true);
       if (fn->body == 0)
         {
-          s.print_warning (_F("side-effect-free function '%s'", fn->name.c_str()), fn->tok);
+          s.print_warning (_F("side-effect-free function '%s'",
+                              fn->name.to_string().c_str()), fn->tok);
 
           fn->body = new null_statement(fn->tok);
 
@@ -4213,7 +4514,8 @@ duplicate_function_remover::visit_functioncall (functioncall *e)
     {
       if (s.verbose>2)
           clog << _F("Changing %s reference to %s reference\n",
-                     e->referent->name.c_str(), duplicate_function_map[e->referent]->name.c_str());
+                     e->referent->name.to_string().c_str(),
+                     duplicate_function_map[e->referent]->name.to_string().c_str());
       e->tok = duplicate_function_map[e->referent]->tok;
       e->function = duplicate_function_map[e->referent]->name;
       e->referent = duplicate_function_map[e->referent];
@@ -4399,7 +4701,7 @@ struct stable_functioncall_visitor: public update_visitor
   block* curr_scope;
   stable_functioncall_visitor(systemtap_session& s, set<string>& sfc):
     session(s), current_function(0), current_probe(0), stable_fcs(sfc),
-    loop_depth(0), top_scope(0) {};
+    loop_depth(0), top_scope(0), curr_scope(0) {};
 
   statement* convert_stmt(statement* s);
   void visit_block (block* s);
@@ -4797,7 +5099,7 @@ struct autocast_expanding_visitor: public var_expanding_visitor
           if (!inserted.second && inserted.first->second != fd)
             throw SEMANTIC_ERROR
               (_F("resolved function '%s' conflicts with an existing function",
-                  fd->name.c_str()), fc->tok);
+                  fd->name.to_string().c_str()), fc->tok);
         }
     }
 
@@ -4975,7 +5277,7 @@ semantic_pass_types (systemtap_session& s)
         catch (const semantic_error& e)
           {
             throw SEMANTIC_ERROR(_F("while processing function %s",
-                                    it->second->name.c_str())).set_chain(e);
+                                    it->second->name.to_string().c_str())).set_chain(e);
           }
       
       for (unsigned j=0; j<s.probes.size(); j++)
@@ -5444,7 +5746,7 @@ typeresolution_info::visit_symbol (symbol* e)
 {
   if (e->referent == 0)
     throw SEMANTIC_ERROR (_F("internal error: unresolved symbol '%s'",
-                             e->name.c_str()), e->tok);
+                             e->name.to_string().c_str()), e->tok);
 
   resolve_2types (e, e->referent, this, t);
 
@@ -5561,7 +5863,8 @@ typeresolution_info::visit_cast_op (cast_op* e)
     throw (* (e->saved_conversion_error));
   else
     throw SEMANTIC_ERROR(_F("type definition '%s' not found in '%s'",
-                            e->type_name.c_str(), e->module.c_str()), e->tok);
+                            e->type_name.to_string().c_str(),
+                            e->module.to_string().c_str()), e->tok);
 }
 
 
@@ -5679,7 +5982,7 @@ typeresolution_info::visit_functioncall (functioncall* e)
 {
   if (e->referent == 0)
     throw SEMANTIC_ERROR (_F("internal error: unresolved function call to '%s'",
-                             e->function.c_str()), e->tok);
+                             e->function.to_string().c_str()), e->tok);
 
   resolve_2types (e, e->referent, this, t, true); // accept unknown type
 

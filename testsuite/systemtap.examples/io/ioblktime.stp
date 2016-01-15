@@ -18,8 +18,8 @@ probe ioblock.end
 }
 
 /* for time being delete things that get merged with others */
-probe kernel.trace("block_bio_frontmerge"),
-      kernel.trace("block_bio_backmerge")
+probe kernel.{trace("block_bio_frontmerge"),
+              trace("block_bio_backmerge")}
 {
   delete req_time[$bio]
 }

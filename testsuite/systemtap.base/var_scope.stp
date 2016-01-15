@@ -1,0 +1,42 @@
+/*
+ * var_scope.stp
+ *
+ * Check variables scope
+ */
+global var_global=2015;
+
+probe begin {
+    println("systemtap starting probe")
+    var_probe=2015
+}
+
+function changevar()
+{
+    var_local=2014
+}
+
+probe end
+{
+    println("systemtap ending probe")
+
+    ret=0
+    if (var_global != 2015) {
+        ret=1
+        printf("systemtap test failure - var_global:%d != 2015\n", var_global)
+    }
+
+    var_local=2015
+    changevar()
+    if (var_local != 2015) {
+        ret=1
+        printf("systemtap test failure - var_local:%d != 2015\n", var_local)
+    }
+
+    if (var_probe == 2015) {
+        ret=1
+        printf("systemtap test failure - var_probe:%d == 2015\n", var_probe)
+    }
+
+    if (ret == 0)
+        println("systemtap test success")
+}

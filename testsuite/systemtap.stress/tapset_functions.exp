@@ -28,6 +28,12 @@ set my_strings {{"tst"} {""}}
 
 set debugmode 0
 
+# Stap 3.0 comes with private functions concept. That prevents user scripts 
+# (and this testcase too) to access internal tapset private functions. To be
+# able to test them too, --compatible=2.9 is used as a workaround.
+
+set opts "--compatible=2.9"
+
 # Blacklist. Following functions must not be tested:
 set blacklist {}
 lappend blacklist mdelay
@@ -76,11 +82,11 @@ proc list_values { argtype } {
 }
 
 # Get list of functions to test.
-if {[catch {exec bash -c "stap --dump-functions -v" 2>/dev/null} outputv]} {
-    fail "$test (can't get output of stap -v --dump-functions)"
+if {[catch {exec bash -c "stap --dump-functions -v $opts" 2>/dev/null} outputv]} {
+    fail "$test (can't get output of stap --dump-functions)"
     return
 } else {
-    pass "$test (got output of stap -v --dump-functions)"
+    pass "$test (got output of stap --dump-functions)"
 }
 
 # Get function name from line, e.g. 'AF_INET' for
@@ -243,7 +249,7 @@ foreach line [split $outputv "\n"] {
                 close $testscript
                 # Debug-mode test
                 verbose -log "testing ${fname}(${fargs})"
-                set rc [as_root "stap -g testscript.stp 2>errors.txt"]
+                set rc [as_root "stap -g $opts testscript.stp 2>errors.txt"]
                 if {$rc == 0} {
                     pass "testscript (${fname}(${fargs}))"
                 } else {
@@ -263,7 +269,7 @@ if { !$debugmode } {
     close $testscript
     # Non-debug-mode test
     dmesg_snap
-    set rc [as_root "stap -g testscript.stp 2>errors.txt"]
+    set rc [as_root "stap -g $opts testscript.stp 2>errors.txt"]
     if {$rc == 0} {
         pass "testscript"
     } else {

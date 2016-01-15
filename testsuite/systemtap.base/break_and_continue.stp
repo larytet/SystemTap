@@ -1,0 +1,78 @@
+/*
+ * break_and_continue.stp
+ *
+ * Check break and continue in for, foreach and while work correctly
+ */
+
+global a
+
+probe begin
+{
+	println("systemtap starting probe")
+	exit()
+}
+
+probe end
+{
+	a[1]=1
+	a[2]=2
+	a[3]=3
+	i=1
+	ret=0
+	println("systemtap ending probe")
+	for(i=1;i<3;i++)
+	{
+		break;
+		ret=1
+	}
+	if (i!=1)
+		ret=1
+
+	foreach(i in a)
+	{
+		break;
+		ret=1
+	}
+	if (i!=1)
+		ret=1
+
+	i=0
+	while(i<3)
+	{
+		i++
+		break;
+		ret=1
+	}
+	if (i!=1)
+		ret=1
+
+	for(i=1;i<3;i++)
+	{
+		continue;
+		ret=1
+	}
+	if (i!=3)
+		ret=1
+
+	foreach(i in a)
+	{
+		continue;
+		ret=1
+	}
+	if (i!=3)
+		ret=1
+
+	i=0
+	while(i<3)
+	{
+		i++
+		continue;
+		ret=1
+	}
+	if (i!=3)
+		ret=1
+
+
+	if (ret == 0)
+		println("systemtap test success")
+}

@@ -1,0 +1,18 @@
+# Test of sprintln()
+
+probe begin {
+	a = "hello"
+	b = "world"
+	c = sprintln(12345678)
+	print(sprintln(a))
+	print(sprintln(a.b))
+	print(c)
+	print(sprintln(0))
+	print(sprintln(100))
+	print(sprintln(-42))
+	print(sprintln(0x42))
+	print(sprintln("0x42"))
+
+	exit()
+}
+

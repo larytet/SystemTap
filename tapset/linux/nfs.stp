@@ -16,7 +16,7 @@
 %}
 
 /* Get cache_validity flag from struct inode */
-function __nfsi_cache_valid:long (inode:long)
+@__private30 function __nfsi_cache_valid:long (inode:long)
 {
     if (inode == 0)	
         return -1
@@ -24,7 +24,7 @@ function __nfsi_cache_valid:long (inode:long)
 }
 
 /* Get read_cache_jiffies from struct inode */
-function __nfsi_rcache_time:long (inode:long)
+@__private30 function __nfsi_rcache_time:long (inode:long)
 {
     if (inode == 0)	
         return -1
@@ -32,7 +32,7 @@ function __nfsi_rcache_time:long (inode:long)
 }
 
 /* Get attrtimeo from struct inode */
-function __nfsi_attr_time :long (inode:long)
+@__private30 function __nfsi_attr_time :long (inode:long)
 {
     if (inode == 0)	
         return -1
@@ -40,7 +40,7 @@ function __nfsi_attr_time :long (inode:long)
 }
 
 /* Get ndirty from struct inode */
-function __nfsi_ndirty:long (inode:long)
+@__private30 function __nfsi_ndirty:long (inode:long)
 {
     if (inode == 0)	
         return -1
@@ -48,7 +48,7 @@ function __nfsi_ndirty:long (inode:long)
 }
 
 /* Get rsize from struct inode */
-function __nfs_server_rsize:long (inode:long)
+@__private30 function __nfs_server_rsize:long (inode:long)
 {
     if (inode == 0)	
         return -1
@@ -64,7 +64,7 @@ function __nfs_version:long (inode:long)
 }
 
 /* Get wsize from struct inode */
-function __nfs_server_wsize:long (inode:long)
+@__private30 function __nfs_server_wsize:long (inode:long)
 {
     if (inode == 0)	
         return -1
@@ -72,7 +72,7 @@ function __nfs_server_wsize:long (inode:long)
 }
 
 /* Get rpages from struct inode */
-function __nfs_rpages:long (inode:long)
+@__private30 function __nfs_rpages:long (inode:long)
 {
     if (inode == 0)	
         return -1
@@ -80,7 +80,7 @@ function __nfs_rpages:long (inode:long)
 }
 
 /* Get wpages from struct inode */
-function __nfs_wpages:long (inode:long)
+@__private30 function __nfs_wpages:long (inode:long)
 {
     if (inode == 0)	
         return -1
@@ -88,7 +88,7 @@ function __nfs_wpages:long (inode:long)
 }
 
 /* Get struct inode from struct page */
-function __p2i :long (page:long)
+@__private30 function __p2i :long (page:long)
 {
     mapping = page? @cast(page, "page", "kernel:nfs")->mapping : 0
     if (mapping == 0)
@@ -97,7 +97,7 @@ function __p2i :long (page:long)
 }
 
 /* Get i_flags from struct page */
-function __p2i_flag : long (page:long)
+@__private30 function __p2i_flag : long (page:long)
 {
     host = __p2i(page)
     if (host == 0)
@@ -106,7 +106,7 @@ function __p2i_flag : long (page:long)
 }
 
 /* Get i_state from struct page */
-function __p2i_state :long (page:long)
+@__private30 function __p2i_state :long (page:long)
 {
     host = __p2i(page)
     if (host == 0)
@@ -115,7 +115,7 @@ function __p2i_state :long (page:long)
 }
 
 /* Get i_size from struct page */
-function __p2i_size :long (page:long)
+@__private30 function __p2i_size :long (page:long)
 {
     host = __p2i(page)
     if (host == 0)
@@ -124,7 +124,7 @@ function __p2i_size :long (page:long)
 }
 
 /* Get s_flags from struct page */
-function __p2sb_flag:long (page:long)
+@__private30 function __p2sb_flag:long (page:long)
 {
     host = __p2i(page)
     i_sb = host? @cast(host, "inode", "kernel:nfs")->i_sb : 0
@@ -144,7 +144,7 @@ function __file_inode:long (file:long)
     return @cast(dentry, "dentry", "kernel:nfs")->d_inode
 }
 
-function __file_id:long (file:long)
+@__private30 function __file_id:long (file:long)
 {
     d_inode = __file_inode(file)
     if (d_inode == 0)
@@ -152,7 +152,7 @@ function __file_id:long (file:long)
     return @cast(d_inode, "inode", "kernel:nfs")->i_sb->s_id
 }
 
-function __file_mode:long (file:long)
+@__private30 function __file_mode:long (file:long)
 {
     d_inode = __file_inode(file)
     if (d_inode == 0)
@@ -160,7 +160,7 @@ function __file_mode:long (file:long)
     return @cast(d_inode, "inode", "kernel:nfs")->i_mode
 }
 
-function __file_parentname:string (file:long)
+@__private30 function __file_parentname:string (file:long)
 {
     dentry = file
 	? @choose_defined(@cast(file, "file", "kernel:nfs")->f_path->dentry,

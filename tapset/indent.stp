@@ -7,9 +7,9 @@
  * </tapsetdescription>
  */
 
-global _indent_counters, _indent_timestamps
+@__private30 global _indent_counters, _indent_timestamps
 
-function _generic_indent_depth:long (idx, delta)
+@__private30 function _generic_indent_depth:long (idx, delta)
 {
   # pre-increment for positive delta and post-decrement for negative delta
   x = _indent_counters[idx] + (delta > 0 ? delta : 0)
@@ -18,7 +18,7 @@ function _generic_indent_depth:long (idx, delta)
   return (x>0 ? x-1 : 0)
 }
 
-function _generic_indent (idx, desc, delta) 
+@__private30 function _generic_indent (idx, desc, delta) 
 {
   ts = __indent_timestamp ()
   if (! _indent_counters[idx]) _indent_timestamps[idx] = ts

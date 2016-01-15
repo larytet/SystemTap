@@ -221,6 +221,13 @@ void parse_modpath(const char *);
 void setup_signals(void);
 int set_clexec(int fd);
 
+/* monitor.c function */
+void monitor_winch(int signum);
+void monitor_setup(void);
+void monitor_cleanup(void);
+void monitor_render(void);
+void monitor_input(void);
+
 /*
  * variables
  */
@@ -228,6 +235,9 @@ extern int control_channel;
 extern int ncpus;
 extern int initialized;
 extern int kernel_ptr_size;
+extern int monitor_pfd[2];
+extern int monitor_set;
+extern int monitor_end;
 
 /* flags */
 extern int verbose;
@@ -255,6 +265,8 @@ extern int remote_id;
 extern const char *remote_uri;
 extern int relay_basedir_fd;
 extern int color_errors;
+extern int monitor;
+extern int monitor_interval;
 
 typedef enum {color_never, color_auto, color_always} color_modes;
 extern color_modes color_mode;

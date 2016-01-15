@@ -1,0 +1,44 @@
+systemtap monitor mode manual testing guide
+
+Requirements:
+
+Systemtap must be compiled with json-c and ncurses development
+libraries present for this feature to work.
+
+Testing steps:
+
+1. Fire up a basic script:
+  # stap --monitor -ve 'global x = 0; probe timer.s(1) {println(x++)}'
+
+  - Check that the top window displays the module status and the bottom
+    window contains the module output. Make sure that the status window
+    displays the following information: uptime, uid, memory, module name,
+    the global variable x and its current value, and the current list of
+    probes.
+
+  - Manually resize the terminal to check that each of the ncurses windows
+    are also resized to take up 50% of the height of the terminal.
+
+  - Test all of the commands listed in the help page by pressing h:
+    - Pressing r should reset the global variable x to 0, the module
+      output should change too.
+
+    - Pressing s repeatedly should change the sorting attribute and
+      reorder the probe list accordingly.
+
+    - Pressing t will bring up the prompt to enter a probe index to
+      toggle. Enter the index for the timer probe we have created
+      and the probe's state should change to "off"; the module output
+      should also stop. Toggle to probe again to reactivate it.
+
+    - Pressing the u/d/pageup/pagedown keys should scroll the module
+      output.
+
+    - Pressing the j/k/down/up keys should scroll the probe list.
+
+    - Press q to quit the script and make sure nothing crashes.
+
+2. Fire up a script with high activity:
+  # stap --monitor -ve 'probe vfs.read {println(1)}'
+
+  - Make sure nothing crashes and exit the script.

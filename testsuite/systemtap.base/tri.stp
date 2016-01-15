@@ -14,6 +14,7 @@ probe begin
 
 probe end
 {
+	rc = 0
 	println("systemtap ending probe")
 	x4 = x1 ? 9: 10;
 	x5 = x2 ? 99: 100;
@@ -21,16 +22,21 @@ probe end
 	if (x4 != 10 ) {
 		println("systemtap test failure");
 	} else {
-		println("systemtap test success");
+		rc += 1
 	}
 	if (x5 != 99 ) {
 		println("systemtap test failure");
 	} else {
-		println("systemtap test success");
+		rc += 1
 	}
 	if (x6 != 999 ) {
 		println("systemtap test failure");
 	} else {
-		println("systemtap test success");
+		rc += 1
 	}
+
+	if (rc == 3)
+		println("systemtap test success")
+	else
+		printf("systemtap test failure (%d passes)\n", rc)
 }

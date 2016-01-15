@@ -18,9 +18,9 @@ probe begin {
 
   printf("systemtap ending probe\n");
   if (num == 5)
-    printf("passed the test\n");
+    printf("pass\n");
   else
-    printf("failed the test\n");
+    printf("fail\n");
   exit();
 }
 

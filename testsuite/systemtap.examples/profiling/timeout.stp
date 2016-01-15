@@ -7,7 +7,7 @@ global process, timeout_count, to
 global poll_timeout, epoll_timeout, select_timeout, itimer_timeout
 global nanosleep_timeout, futex_timeout, signal_timeout
 
-probe syscall.poll, syscall.epoll_wait {
+probe syscall.{poll,epoll_wait} {
   if (timeout) to[pid()]=timeout
 }
 

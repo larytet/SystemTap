@@ -28,6 +28,7 @@ static const string TOK_PERF("perf");
 static const string TOK_TYPE("type");
 static const string TOK_CONFIG("config");
 static const string TOK_SAMPLE("sample");
+static const string TOK_HZ("hz");
 static const string TOK_PROCESS("process");
 static const string TOK_COUNTER("counter");
 
@@ -45,10 +46,11 @@ struct perf_derived_probe: public derived_probe
   int64_t interval;
   bool has_process;
   bool has_counter;
+  bool has_freq;
   string process_name;
   string counter;
   perf_derived_probe (probe* p, probe_point* l, int64_t type, int64_t config,
-		      int64_t i, bool pp, bool cp, string pn, string cv);
+		      int64_t i, bool pp, bool cp, bool freq, string pn, string cv);
   virtual void join_group (systemtap_session& s);
 };
 
@@ -67,13 +69,14 @@ perf_derived_probe::perf_derived_probe (probe* p, probe_point* l,
                                         int64_t i,
 					bool process_p,
 					bool counter_p,
+					bool freq,
 					string process_n,
 					string counter):
   
   derived_probe (p, l, true /* .components soon rewritten */),
   event_type (type), event_config (config), interval (i),
-  has_process (process_p), has_counter (counter_p), process_name (process_n),
-  counter (counter)
+  has_process (process_p), has_counter (counter_p), has_freq(freq),
+  process_name (process_n), counter (counter)
 {
   vector<probe_point::component*>& comps = this->sole_location()->components;
   comps.clear();
@@ -165,8 +168,17 @@ perf_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline() << "{";
       s.op->newline(1) << ".attr={ "
                        << ".type=" << probes[i]->event_type << "ULL, "
-                       << ".config=" << probes[i]->event_config << "ULL, "
-                       << "{ .sample_period=" << probes[i]->interval << "ULL }},";
+                       << ".config=" << probes[i]->event_config << "ULL, ";
+      if (probes[i]->has_freq)
+        {
+          s.op->line() << "{ .sample_freq=" << probes[i]->interval << "ULL }, ";
+          s.op->line() << ".freq=1, ";
+        }
+      else
+        {
+          s.op->line() << "{ .sample_period=" << probes[i]->interval << "ULL }, ";
+        }
+      s.op->line() << "},";
       s.op->newline() << ".callback=enter_perf_probe_" << i << ", ";
       s.op->newline() << ".probe=" << common_probe_init (probes[i]) << ", ";
 
@@ -300,6 +312,9 @@ perf_builder::build(systemtap_session & sess,
     throw SEMANTIC_ERROR(_("invalid perf sample period ") + lex_cast(period),
                          parameters.find(TOK_SAMPLE)->second->tok);
 
+  int64_t freq;
+  bool has_freq = get_param(parameters, TOK_HZ, freq);
+
   interned_string var;
   bool has_counter = get_param(parameters, TOK_COUNTER, var);
   if (var.find_first_of("*?[") != string::npos)
@@ -348,8 +363,9 @@ perf_builder::build(systemtap_session & sess,
     proc_n = find_executable (proc_n, sess.sysroot, sess.sysenv);
 
   if (sess.verbose > 1)
-    clog << _F("perf probe type=%" PRId64 " config=%" PRId64 " period=%" PRId64 " process=%s counter=%s",
-	       type, config, period, proc_n.c_str(), var.c_str()) << endl;
+    clog << _F("perf probe type=%" PRId64 " config=%" PRId64 " %s=%" PRId64 " process=%s counter=%s",
+	       type, config, has_freq ? "freq" : "period", has_freq ? freq : period,
+               proc_n.to_string().c_str(), var.to_string().c_str()) << endl;
 
   // The user-provided pp is already well-formed. Let's add a copy on the chain
   // and set it as the new base
@@ -358,8 +374,9 @@ perf_builder::build(systemtap_session & sess,
   probe *new_base = new probe(base, new_location);
 
   finished_results.push_back
-    (new perf_derived_probe(new_base, location, type, config, period, proc_p,
-			    has_counter, proc_n, var));
+    (new perf_derived_probe(new_base, location, type, config,
+                            has_freq ? freq : period, proc_p,
+			    has_counter, has_freq, proc_n, var));
   if (!var.empty())
     sess.perf_counters.push_back(make_pair (var, proc_n));
 }
@@ -376,6 +393,7 @@ register_tapset_perf(systemtap_session& s)
   match_node* event = perf->bind_num(TOK_TYPE)->bind_num(TOK_CONFIG);
   event->bind(builder);
   event->bind_num(TOK_SAMPLE)->bind(builder);
+  event->bind_num(TOK_HZ)->bind(builder);
   event->bind_str(TOK_PROCESS)->bind(builder);
   event->bind(TOK_PROCESS)->bind(builder);
   event->bind_str(TOK_COUNTER)->bind(builder);

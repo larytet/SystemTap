@@ -10,7 +10,7 @@
 //  This family of probe points is used to probe process-related activities.
 // </tapsetdescription>
 
-function _IS_ERR:long(ptr:long) %{ /* pure */
+@__private30 function _IS_ERR:long(ptr:long) %{ /* pure */
     STAP_RETVALUE = IS_ERR((const void *)(long)STAP_ARG_ptr);
 %}
 

@@ -72,8 +72,7 @@ systemtap_session::systemtap_session ():
   dfa_maxtag (0),
   need_tagged_dfa (false),
   be_derived_probes(0),
-  dwarf_derived_probes(0),
-  kprobe_derived_probes(0),
+  generic_kprobe_derived_probes(0),
   hwbkpt_derived_probes(0),
   perf_derived_probes(0),
   uprobe_derived_probes(0),
@@ -135,6 +134,8 @@ systemtap_session::systemtap_session ():
   stapconf_name = "stapconf_" + lex_cast(getpid()) + ".h";
   output_file = ""; // -o FILE
   tmpdir_opt_set = false;
+  monitor = false;
+  monitor_interval = 1;
   save_module = false;
   save_uprobes = false;
   modname_given = false;
@@ -261,8 +262,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   dfa_maxtag (0),
   need_tagged_dfa(other.need_tagged_dfa),
   be_derived_probes(0),
-  dwarf_derived_probes(0),
-  kprobe_derived_probes(0),
+  generic_kprobe_derived_probes(0),
   hwbkpt_derived_probes(0),
   perf_derived_probes(0),
   uprobe_derived_probes(0),
@@ -292,6 +292,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
 {
   release = kernel_release = kern;
   kernel_build_tree = "/lib/modules/" + kernel_release + "/build";
+  kernel_extra_cflags = other.kernel_extra_cflags;
   architecture = machine = normalize_machine(arch);
   setup_kernel_release(kern.c_str());
   native_build = false; // assumed; XXX: could be computed as in check_options()
@@ -321,6 +322,8 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   stapconf_name = other.stapconf_name;
   output_file = other.output_file; // XXX how should multiple remotes work?
   tmpdir_opt_set = false;
+  monitor = other.monitor;
+  monitor_interval = other.monitor_interval;
   save_module = other.save_module;
   save_uprobes = other.save_uprobes;
   modname_given = other.modname_given;
@@ -597,7 +600,7 @@ systemtap_session::usage (int exitcode)
       cout << "              " << syms[i].c_str() << endl;
   }
   cout
-    << _F("   --ldd      add unwind/symbol data for all referenced object files.\n"
+    << _F("   --ldd      add unwind/symbol data for referenced user-space objects.\n"
     "   --all-modules\n"
     "              add unwind/symbol data for all loaded kernel objects.\n"
     "   -t         collect probe timing information\n"
@@ -663,6 +666,10 @@ systemtap_session::usage (int exitcode)
     "              save uprobes.ko to current directory if it is built from source\n"
     "   --target-namesapce=PID\n"
     "              sets the target namespaces pid to PID\n"
+#if HAVE_MONITOR_LIBS
+    "   --monitor=INTERVAL\n"
+    "              enables monitor interfaces\n"
+#endif
     , compatible.c_str()) << endl
   ;
 
@@ -1466,6 +1473,19 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
             }
           break;
 
+        case LONG_OPT_MONITOR:
+          monitor = true;
+          if (optarg)
+            {
+              monitor_interval = (int) strtoul(optarg, &num_endptr, 10);
+              if (*num_endptr != '\0' || monitor_interval < 1)
+                {
+                  cerr << _("Invalid monitor interval.") << endl;
+                  return 1;
+                }
+            }
+          break;
+
 	case '?':
 	  // Invalid/unrecognized option given or argument required, but
 	  // not given. In both cases getopt_long() will have printed the
@@ -1591,6 +1611,14 @@ systemtap_session::check_options (int argc, char * const argv [])
     {
       print_warning("--trust-servers is not supported by this version of systemtap");
       server_trust_spec.clear ();
+    }
+#endif
+
+#if ! HAVE_MONITOR_LIBS
+  if (monitor)
+    {
+      print_warning("Monitor mode is not supported by this version of systemtap");
+      exit(1);
     }
 #endif
 
@@ -2037,7 +2065,7 @@ systemtap_session::register_library_aliases()
                       // XXX: alias parameters
                       if (comp->arg)
                         throw SEMANTIC_ERROR(_F("alias component %s contains illegal parameter",
-                                                comp->functor.c_str()));
+                                                comp->functor.to_string().c_str()));
                       mn = mn->bind(comp->functor);
                     }
 		  // PR 12916: All probe aliases are OK for all users. The actual
@@ -2283,10 +2311,11 @@ systemtap_session::build_error_msg (const parse_error& pe,
 
   // print either pe.what() or a deferred error from the lexer
   bool found_junk = false;
-  if (tok && tok->type == tok_junk && tok->msg != "")
+  if (tok && tok->type == tok_junk && tok->junk_type != tok_junk_unknown)
     {
       found_junk = true;
-      message << colorize(_("parse error:"), "error") << ' ' << tok->msg << endl;
+      message << colorize(_("parse error:"), "error") << ' '
+              << tok->junk_message(*this) << endl;
     }
   else
     {

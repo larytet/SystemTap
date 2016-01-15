@@ -393,7 +393,7 @@ struct dwflpp
   template<typename T>
   void iterate_over_callees (Dwarf_Die *begin_die,
                              const std::string& sym,
-                             long recursion_depth,
+                             int64_t recursion_depth,
                              T *data,
                              void (* callback)(base_func_info&,
                                                base_func_info&,
@@ -762,7 +762,7 @@ dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
 template<> void
 dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
                                    const std::string& sym,
-                                   long recursion_depth,
+                                   int64_t recursion_depth,
                                    void *data,
                                    void (* callback)(base_func_info&,
                                                      base_func_info&,

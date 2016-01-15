@@ -34,7 +34,7 @@ function task_current:long () {
     return & @task(%{ /* pure */ (unsigned long)current %})
 }
 
-function _task_rlimit_cur:long (task:long, nd_limit:long)
+@__private30 function _task_rlimit_cur:long (task:long, nd_limit:long)
 {
     if (nd_limit < 0 || nd_limit >= %{ /* pure */ RLIM_NLIMITS %}) {
         return -1;

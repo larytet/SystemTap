@@ -1,0 +1,4 @@
+#! stap -p2
+
+probe begin { foo = "bar" ; foo = 1 ; print(foo) } 
+

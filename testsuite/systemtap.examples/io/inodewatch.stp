@@ -1,6 +1,6 @@
 #! /usr/bin/env stap
 
-probe vfs.write, vfs.read
+probe vfs.{write,read}
 {
   # dev and ino are defined by vfs.write and vfs.read
   if (dev == MKDEV($1,$2) # major/minor device

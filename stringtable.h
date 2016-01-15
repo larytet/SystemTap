@@ -26,12 +26,14 @@ struct interned_string: public boost::string_ref
 {
   // all these construction operations intern the incoming string
   interned_string(): boost::string_ref() {}
-  interned_string(const char* value);
-  interned_string(const std::string& value);
-  interned_string(const boost::string_ref& value): boost::string_ref(value) {}
-  interned_string(const interned_string& value): boost::string_ref(value) {}
-  interned_string& operator = (const std::string& value);
-  interned_string& operator = (const char* value);
+  interned_string(const char* value):
+    boost::string_ref(intern(value)) {}
+  interned_string(const std::string& value):
+    boost::string_ref(intern(value)) {}
+  interned_string& operator = (const std::string& value)
+    { return *this = intern(value); }
+  interned_string& operator = (const char* value)
+    { return *this = intern(value); }
 
 #if BOOST_VERSION < 105400
   std::string to_string () const { return std::string(this->data(), this->size()); }
@@ -65,23 +67,17 @@ struct interned_string: public boost::string_ref
   // easy out-conversion operators
   operator std::string () const { return this->to_string(); }
 
-  // NB: this is OK because we always use a std::string as a backing
-  // store, and as of c++0x, those always store a \0 in their data().
-  const char* c_str() const { return this->size() ? (const char*)this->data() : ""; }
-  // NB: the above property holds only if we don't expose the efficient
-  // boost::string_ref substrings.  We can either have efficient
-  // substrings -xor- implicit \0 terminators - not both.
+  // return an efficient substring reference
   interned_string substr(size_t pos = 0, size_t len = npos) const
   {
-    boost::string_ref sub = boost::string_ref::substr(pos, len);
-    return interned_string::intern (std::string(sub.data(), sub.size()));
+    return boost::string_ref::substr(pos, len);
   }
 
   // boost oversights
   template <typename F>
   size_t find (const F& f, size_t start_pos)
   {
-    size_t x = this->boost::string_ref::substr(start_pos).find(f); // don't intern substring unnecessarily
+    size_t x = this->substr(start_pos).find(f);
     if (x == boost::string_ref::npos)
       return x;
     else
@@ -102,6 +98,11 @@ struct interned_string: public boost::string_ref
   
 private:
   static interned_string intern(const std::string& value);
+  static interned_string intern(const char* value);
+  static interned_string intern(char value);
+
+  // This is private so we can be sure of ownership, from our interned string table.
+  interned_string(const boost::string_ref& value): boost::string_ref(value) {}
 };
 #else /* !defined(HAVE_BOOST_UTILITY_STRING_REF_HPP) */
 
@@ -124,6 +125,11 @@ struct interned_string : public std::string {
   {
     return (this->compare(0, value.length(), value) == 0);
   }
+
+private:
+  // c_str is not allowed on boost::string_ref, so add a private unimplemented
+  // declaration here to prevent the use of string::c_str accidentally.
+  const char* c_str() const;
 };
 
 #endif /* defined(HAVE_BOOST_UTILITY_STRING_REF_HPP) */

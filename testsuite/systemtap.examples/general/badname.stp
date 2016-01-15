@@ -15,9 +15,9 @@ global squash_inode_permission
 # always inlined, and stap can't find its arguments. So, we have to
 # probe may_create()'s callers.
 
-probe kernel.function("vfs_create"), kernel.function("vfs_mknod"),
-      kernel.function("vfs_mkdir"), kernel.function("vfs_symlink"),
-      kernel.function("vfs_link"), kernel.function("vfs_rename")
+probe kernel.{function("vfs_create"), function("vfs_mknod"),
+              function("vfs_mkdir"), function("vfs_symlink"),
+              function("vfs_link"), function("vfs_rename")}
 {
   # screen out the conditions which may_create will fail anyway
   if (@choose_defined($dentry->d_inode, $new_dentry->d_inode)

@@ -17,25 +17,31 @@ probe begin
 
 probe end
 {
+	rc = 0
 	println("systemtap ending probe")
 	if (x1_0 && x3_0 ) {
 		println("systemtap test failure");
 	} else {
-		println("systemtap test success");
+		rc += 1
 	}
 	if (x2_1 && x3_0 ) {
 		println("systemtap test failure");
 	} else {
-		println("systemtap test success");
+		rc += 1
 	}
 	if (x1_0 && x4_1 ) {
 		println("systemtap test failure");
 	} else {
-		println("systemtap test success");
+		rc += 1
 	}
 	if (x2_1 && x4_1 ) {
-		println("systemtap test success");
+		rc += 1
 	} else {
 		println("systemtap test failure");
 	}
+
+	if (rc == 4)
+		println("systemtap test success")
+	else
+		printf("systemtap test failure (%d passes)\n", rc)
 }

@@ -478,7 +478,7 @@ function _struct_compat_itimerval_u:string(uaddr:long)
 %}
 
 %{
-// Needed for function _struct_sockaddr_u_impl. Unfortunately cannot be
+// Needed for @__private30 function _struct_sockaddr_u_impl. Unfortunately cannot be
 // inlined into the function since these header files define static
 // functions themselves.
 #include <linux/socket.h>
@@ -508,7 +508,7 @@ function _struct_sockaddr_u_tcp_port:string(uaddr:long, len:long)
     return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_TCP_PORT %});
 }
 
-function _struct_sockaddr_u_ip_addr_tcp_port:string(uaddr:long, len:long)
+@__private30 function _struct_sockaddr_u_ip_addr_tcp_port:string(uaddr:long, len:long)
 {
     return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IP_ADDR | SA_TCP_PORT %});
 }
@@ -537,7 +537,7 @@ function _struct_sockaddr_u:string(uaddr:long, len:long)
 #define STAP_NEED_CONTEXT_SOCKADDR_BIG_BUFFERS 1
 %}
 
-function _struct_sockaddr_u_impl:string(uaddr:long, len:long, what:long)
+@__private30 function _struct_sockaddr_u_impl:string(uaddr:long, len:long, what:long)
 %{ /* pure */
 
 
@@ -868,7 +868,7 @@ function __sem_flags:string(semflg:long)
 	}
 %}
 
-function __user_pointer:long (addr:long)
+@__private30 function __user_pointer:long (addr:long)
  %{ /* pure */ /* myproc-unprivileged */
 #ifdef CONFIG_COMPAT
 	if (_stp_is_compat_task()) {
@@ -1391,7 +1391,7 @@ function _access_mode_str:string(mode:long)
 %}
 
 /* `man 2 open` for more information */
-function _sys_open_mode_str(f) {
+@__private30 function _sys_open_mode_str(f) {
    if((f & %{ /* pure */ S_IRWXU %}) == %{ /* pure */ S_IRWXU %}) bs="S_IRWXU|".bs
    else {
         if(f & %{ /* pure */ S_IRUSR %}) bs="S_IRUSR|" . bs
@@ -1503,11 +1503,11 @@ function WEXITSTATUS(f) {
   return (f & 0xff00) >> 8
 }
 
-function WIFSIGNALED(f) {
+@__private30 function WIFSIGNALED(f) {
   return (f & 0x7f) != 0 && (f & 0x7f) != 0x7f
 }
 
-function WCOREDUMP(f) {
+@__private30 function WCOREDUMP(f) {
   return f & 0x80
 }
 
@@ -1515,19 +1515,19 @@ function WTERMSIG(f) {
   return f & 0x7f
 }
 
-function WIFSTOPPED(f) {
+@__private30 function WIFSTOPPED(f) {
   return (f & 0xff) == 0x7f
 }
 
-function WSTOPSIG(f) {
+@__private30 function WSTOPSIG(f) {
   return (f & 0xff00) >> 8
 }
 
-function WIFCONTINUED(f) {
+@__private30 function WIFCONTINUED(f) {
   return f == 0xffff
 }
 
-function _ptrace_event_name(f)
+@__private30 function _ptrace_event_name(f)
 {
   if (f == %{ /* pure */ PTRACE_EVENT_FORK %})
     return "PTRACE_EVENT_FORK"
@@ -3540,7 +3540,7 @@ function irqflags_str:string(f:long)
 	_stp_lookup_or_str(_stp_irq_list, STAP_ARG_f, STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
-function _stp_struct_iovec_u:string(iov_uaddr:long)
+@__private30 function _stp_struct_iovec_u:string(iov_uaddr:long)
 %{ /* pure */
 	char *iov_uaddr = (void *)(intptr_t)STAP_ARG_iov_uaddr;
 	struct iovec iov;
@@ -3559,7 +3559,7 @@ function _stp_struct_iovec_u:string(iov_uaddr:long)
 	}
 %}
 
-function _stp_struct_compat_iovec_u:string(iov_uaddr:long)
+@__private30 function _stp_struct_compat_iovec_u:string(iov_uaddr:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
 	char *iov_uaddr = (void *)(intptr_t)STAP_ARG_iov_uaddr;
@@ -3703,7 +3703,7 @@ static const _stp_val_array const _stp_elf_notes_list[] = {
 };
 %}
 
-function _stp_elf_notes_str:string(value:long)
+@__private30 function _stp_elf_notes_str:string(value:long)
 %{ /* pure */
 	_stp_lookup_str(_stp_elf_notes_list, (unsigned long)STAP_ARG_value,
 			STAP_RETVALUE, MAXSTRINGLEN);
@@ -3768,7 +3768,7 @@ static const _stp_val_array const _stp_ptrace_request_list[] = {
 };
 %}
 
-function __ptrace_request_str:string(request:long)
+@__private30 function __ptrace_request_str:string(request:long)
 %{ /* pure */
 	_stp_lookup_str(_stp_ptrace_request_list,
 			(unsigned long)STAP_ARG_request, STAP_RETVALUE,
@@ -3875,7 +3875,7 @@ function _swapon_flags_str:string(flags:long)
 %}
 
 /* do_fork helper function to determine fork type. */
-function __is_user_regs:long (regs:long)
+@__private30 function __is_user_regs:long (regs:long)
 %{
 	/* pure */
 	struct pt_regs * regs = (void *)((unsigned long)STAP_ARG_regs);
@@ -4332,6 +4332,7 @@ function _stp_keyctl_default_keyrings_str:string(id:long)
 #include <linux/key.h>
 
 static const _stp_val_array const _stp_keyctl_perm_list[] = {
+#if defined(CONFIG_KEYS)
 	V(KEY_POS_VIEW),
 	V(KEY_POS_READ),
 	V(KEY_POS_WRITE),
@@ -4360,6 +4361,7 @@ static const _stp_val_array const _stp_keyctl_perm_list[] = {
 	V(KEY_OTH_LINK),
 	V(KEY_OTH_SETATTR),
 	V(KEY_OTH_ALL),
+#endif /* CONFIG_KEYS */
 	{0, NULL}
 };
 %}
@@ -5603,6 +5605,7 @@ function _struct_sysinfo_u:string(uaddr:long)
 %{
 #include <linux/kexec.h>
 static const _stp_val_array const _stp_kexec_flags_list[] = {
+#if defined(CONFIG_KEXEC)
 	V(KEXEC_ON_CRASH),
 #ifdef KEXEC_PRESERVE_CONTEXT
 	V(KEXEC_PRESERVE_CONTEXT),
@@ -5624,6 +5627,7 @@ static const _stp_val_array const _stp_kexec_flags_list[] = {
 #ifdef KEXEC_ARCH_MIPS
 	V(KEXEC_ARCH_MIPS),
 #endif
+#endif /* CONFIG_KEXEC */
 	{0, NULL}
 };
 

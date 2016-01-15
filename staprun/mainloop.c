@@ -16,6 +16,10 @@
 #include <sys/select.h>
 #include <search.h>
 #include <wordexp.h>
+#if HAVE_MONITOR_LIBS
+#include <json-c/json.h>
+#include <curses.h>
+#endif
 
 
 #define WORKAROUND_BZ467568 1  /* PR 6964; XXX: autoconf when able */
@@ -135,6 +139,14 @@ static void setup_main_signals(void)
   /* This is to notify when our child process (-c) ends. */
   sa.sa_handler = chld_proc;
   sigaction(SIGCHLD, &sa, NULL);
+
+#if HAVE_MONITOR_LIBS
+  if (monitor)
+    {
+      sa.sa_handler = monitor_winch;
+      sigaction(SIGWINCH, &sa, NULL);
+    }
+#endif
 
   /* This signal handler is notified from the signal_thread
      whenever a interruptable event is detected. It will
@@ -448,6 +460,11 @@ void cleanup_and_exit(int detach, int rc)
   int rstatus;
   struct sigaction sa;
 
+#if HAVE_MONITOR_LIBS
+  if (monitor)
+    monitor_cleanup();
+#endif
+
   if (exiting)
     return;
   exiting = 1;
@@ -563,7 +580,12 @@ int stp_main_loop(void)
   int flags;
   int res;
   int rc;
+  int maxfd;
   struct timeval tv;
+#if HAVE_MONITOR_LIBS
+  struct timespec ts;
+#endif
+  struct timespec *timeout = NULL;
   fd_set fds;
   sigset_t blockset, mainset;
 
@@ -600,9 +622,28 @@ int stp_main_loop(void)
     pthread_sigmask(SIG_BLOCK, &blockset, &mainset);
   }
 
+#if HAVE_MONITOR_LIBS
+  /* In monitor mode, we must timeout pselect to poll the monitor
+   * interface. */
+  if (monitor)
+    {
+      monitor_setup();
+      ts.tv_sec = 0;
+      ts.tv_nsec = 500*1000*1000;
+      timeout = &ts;
+    }
+#endif
 
   /* handle messages from control channel */
   while (1) {
+#if HAVE_MONITOR_LIBS
+    if (monitor)
+      {
+        monitor_input();
+        monitor_render();
+      }
+#endif
+
     if (pending_interrupts) {
          int btype = STP_EXIT;
          int rc = write(control_channel, &btype, sizeof(btype));
@@ -637,7 +678,16 @@ int stp_main_loop(void)
       } else {
 	FD_ZERO(&fds);
 	FD_SET(control_channel, &fds);
-	res = pselect(control_channel + 1, &fds, NULL, NULL, NULL, &mainset);
+        maxfd = control_channel;
+#if HAVE_MONITOR_LIBS
+	if (monitor) {
+	  FD_SET(STDIN_FILENO, &fds);
+	  FD_SET(monitor_pfd[0], &fds);
+	  if (monitor_pfd[0] > maxfd)
+	    maxfd = monitor_pfd[0];
+	}
+#endif
+	res = pselect(maxfd + 1, &fds, NULL, NULL, timeout, &mainset);
 	if (res < 0 && errno != EINTR)
 	  {
 	    _perr(_("Unexpected error in select"));

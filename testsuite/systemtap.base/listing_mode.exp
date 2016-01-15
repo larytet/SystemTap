@@ -25,11 +25,12 @@ if {[info exists ::env(LISTING_MODE_SUBTEST)]} {
 # of it is treated as a regular expression.  If $nlines_exp is not -1, then
 # exactly $nlines_exp lines are expected.
 proc stap_list {pp {exp ""} {nlines_exp 1} {arguments ""}} {
-   global test TARGET_SUBTEST exefullpath sofullpath
+   global test TARGET_SUBTEST exefullpath sofullpath valid_pid
 
    set subtest "$test ($pp $arguments)"
    set subtest [regsub -all $exefullpath $subtest EXEFULLPATH]
    set subtest [regsub -all $sofullpath $subtest SOFULLPATH]
+   set subtest [regsub -all $valid_pid $subtest VALIDPID]
 
    if {$TARGET_SUBTEST != ""} {
       if {![string match $TARGET_SUBTEST $pp]} {
@@ -359,7 +360,8 @@ proc report_untested_probes {} {
          perf.type(number).config(number).process -
          perf.type(number).config(number).process(string) -
          perf.type(number).config(number).process(string).counter(string) -
-         perf.type(number).config(number).sample(number)
+         perf.type(number).config(number).sample(number) -
+         perf.type(number).config(number).hz(number)
          {
             if {![perf_probes_p]} {
                setup_kfail PERF *-*-*
@@ -756,6 +758,10 @@ if {[perf_probes_p]} {
    testing_probe {perf.type(number).config(number).sample(number)}
 
    stap_list {perf.type(1).config(1).sample(1000)}
+
+   testing_probe {perf.type(number).config(number).hz(number)}
+
+   stap_list {perf.type(1).config(1).hz(1000)}
 }
 
 testing_probe {process.begin}

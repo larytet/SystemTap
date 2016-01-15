@@ -1,5 +1,50 @@
 * What's new in version 3.0
 
+- Embedded-C functions and blocks may now access script level global variables
+  using the STAP_GLOBAL_GET_* and STAP_GLOBAL_SET_* macros.
+
+  To read or write the script global var, the /* pragma:read:var */ or
+  /* pragma:write:var */ marker must be placed in the embedded-C function or block.
+  The written type must match the type inferred at script level.
+
+  Scalars:
+    STAP_GLOBAL_SET_var(STAP_GLOBAL_GET_var()+1) -> increments script global var by 1
+    STAP_GLOBAL_SET_var("hello")
+
+  Associative arrays:
+    STAP_GLOBAL_GET_var(index-1, ..., index-n)
+    STAP_GLOBAL_SET_var(index-1, ..., index-n, new value)
+
+- Probe point brace expansion is now supported to improve brevity in
+  specifying probe points. For example,
+
+  process.{function("a"), function("b").{call,return}}
+  => process.function("a"), process.function("b").call, process.function("b").return
+
+  process.{function("*").callees,plt}?
+  => process.function("*").callees?, process.plt?
+
+  {kernel,module("nfs")}.function("nfs*")!
+  => kernel.function("nfs*")!, module("nfs").function("nfs*")!
+
+- Profiling timers at arbitrary frequencies are now provided and perf probes
+  now support a frequency field as an alternative to sampling counts.
+
+  probe timer.profile.freq.hz(N)
+  probe perf.type(N).config(M).hz(X)
+
+  The specified frequency is only accurate up to around 100hz. You may
+  need to provide a higher value to achieve the desired rate.
+
+- New --monitor[=INTERVAL] option similar to unix "top". This allows users to
+  see statistics about the running module(uptime, module name, invoker uid,
+  memory sizes, global variables, and the current probe list along with
+  their statistics).
+
+  An interface is also provided to allow control over the running
+  module(resetting global variables, sorting the list of probes, deactivating
+  and reactivating probes).
+
 - Added support for private global variables and private functions. The scope
   of these is limited to the tapset file they are defined in (PR19136).
 

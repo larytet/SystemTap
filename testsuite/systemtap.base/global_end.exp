@@ -4,14 +4,15 @@ set test "global_end"
 
 if {![installtest_p]} {untested $test; return}
 
+foreach private {0 1} {
 foreach runtime [get_runtime_list] {
     set test "global_end"
 
     if {$runtime != ""} {
 	set test "${test}_${runtime}"
-	spawn stap $srcdir/$subdir/global_end.stp --runtime=$runtime
+	spawn stap $srcdir/$subdir/global_end.stp $private --runtime=$runtime
     } else {
-	spawn stap $srcdir/$subdir/global_end.stp
+	spawn stap $srcdir/$subdir/global_end.stp $private
     }
     set ok 0
     expect {
@@ -55,9 +56,9 @@ foreach runtime [get_runtime_list] {
     set test "global_end_var"
     if {$runtime != ""} {
 	set test "${test}_${runtime}"
-	spawn stap $srcdir/$subdir/global_end_var.stp --runtime=$runtime
+	spawn stap $srcdir/$subdir/global_end_var.stp $private --runtime=$runtime
     } else {
-	spawn stap $srcdir/$subdir/global_end_var.stp
+	spawn stap $srcdir/$subdir/global_end_var.stp $private
     }
     set ok 0
     expect {
@@ -79,9 +80,9 @@ foreach runtime [get_runtime_list] {
     set test "global_end_var_used"
     if {$runtime != ""} {
 	set test "${test}_${runtime}"
-	spawn stap $srcdir/$subdir/global_end_var_used.stp --runtime=$runtime
+	spawn stap $srcdir/$subdir/global_end_var_used.stp $private --runtime=$runtime
     } else {
-	spawn stap $srcdir/$subdir/global_end_var_used.stp
+	spawn stap $srcdir/$subdir/global_end_var_used.stp $private
     }
     set ok 0
     # strictly look for "hello". if anything else is printed it's a fail.
@@ -94,4 +95,5 @@ foreach runtime [get_runtime_list] {
     catch {close}; catch {wait}
 
     if {$ok == 1} { pass "$test ($ok)" } { fail "$test ($ok)" }
+}
 }

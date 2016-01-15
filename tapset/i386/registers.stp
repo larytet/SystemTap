@@ -5,7 +5,7 @@
 #endif
 %}
 
-global _reg_offsets[34], _sp_offset, _ss_offset
+@__private30 global _reg_offsets[34], _sp_offset, _ss_offset
 
 function test_x86_fs:long() %{ /* pure */
 #if defined(STAPCONF_X86_XFS) || defined (STAPCONF_X86_FS)

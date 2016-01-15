@@ -14,7 +14,7 @@ proc sleep_twenty_secs {} {
 }
 
 # expected output
-set output_string "pass"
+set output_string "pass\r\n"
 
 # running multiple instances of the test program
 # the idea behind this is that in the stap script, it will check the pid it is
@@ -25,20 +25,28 @@ set pid1 [exec ./$test_name &]
 set pid2 [exec ./$test_name &]
 set pid3 [exec ./$test_name &]
 
+# There are two different versions of the test script. One for
+# platforms that support .plt probes (process_by_pid.stp) and one for
+# platforms that don't support .plt probes
+# (process_by_pid_no_plt.stp).
+if {[plt_probes_p]} {
+    set test_script "${test_name}.stp"
+} else {
+    set test_script "${test_name}_no_plt.stp"
+}
+
 # running the script
 foreach runtime [get_runtime_list] {
     verbose -log "starting the stap script"
     if {$runtime != ""} {
         if {$runtime == "dyninst"} {
-            # PR18971 + references:
-            #   PR17359 (dyninst: PLT probes not being hit)
-            #   PR17352 (dyninst: process probes require a target -c/-x)
-            setup_kfail 18971 "*-*-*"
+            # PR17352 (dyninst: process probes require a target -c/-x)
+            setup_kfail 17352 "*-*-*"
         }
         set cur_test_name "$test_name ($runtime)"
-        stap_run $cur_test_name sleep_twenty_secs $output_string --runtime=$runtime $srcdir/$subdir/$test_name.stp $pid2
+        stap_run $cur_test_name sleep_twenty_secs $output_string --runtime=$runtime $srcdir/$subdir/${test_script} $pid2
     } elseif {[uprobes_p]} {
-        stap_run $test_name sleep_twenty_secs $output_string $srcdir/$subdir/$test_name.stp $pid2        
+        stap_run $test_name sleep_twenty_secs $output_string $srcdir/$subdir/${test_script} $pid2        
     } else {
         untested $test_name
         continue

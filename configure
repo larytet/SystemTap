@@ -643,6 +643,12 @@ HAVE_SELINUX_TRUE
 selinux_LIBS
 selinux_CFLAGS
 support_section_question
+HAVE_MONITOR_LIBS_FALSE
+HAVE_MONITOR_LIBS_TRUE
+ncurses_LIBS
+ncurses_CFLAGS
+jsonc_LIBS
+jsonc_CFLAGS
 BUILD_VIRT_FALSE
 BUILD_VIRT_TRUE
 HAVE_LIBXML2_FALSE
@@ -892,6 +898,10 @@ libvirt_CFLAGS
 libvirt_LIBS
 libxml2_CFLAGS
 libxml2_LIBS
+jsonc_CFLAGS
+jsonc_LIBS
+ncurses_CFLAGS
+ncurses_LIBS
 selinux_CFLAGS
 selinux_LIBS'
 ac_subdirs_all='testsuite'
@@ -1598,6 +1608,13 @@ Some influential environment variables:
               C compiler flags for libxml2, overriding pkg-config
   libxml2_LIBS
               linker flags for libxml2, overriding pkg-config
+  jsonc_CFLAGS
+              C compiler flags for jsonc, overriding pkg-config
+  jsonc_LIBS  linker flags for jsonc, overriding pkg-config
+  ncurses_CFLAGS
+              C compiler flags for ncurses, overriding pkg-config
+  ncurses_LIBS
+              linker flags for ncurses, overriding pkg-config
   selinux_CFLAGS
               C compiler flags for selinux, overriding pkg-config
   selinux_LIBS
@@ -11210,6 +11227,161 @@ fi
 
 
 
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for jsonc" >&5
+$as_echo_n "checking for jsonc... " >&6; }
+
+if test -n "$jsonc_CFLAGS"; then
+    pkg_cv_jsonc_CFLAGS="$jsonc_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"json-c\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "json-c") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_jsonc_CFLAGS=`$PKG_CONFIG --cflags "json-c" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$jsonc_LIBS"; then
+    pkg_cv_jsonc_LIBS="$jsonc_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"json-c\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "json-c") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_jsonc_LIBS=`$PKG_CONFIG --libs "json-c" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        jsonc_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "json-c" 2>&1`
+        else
+	        jsonc_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "json-c" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$jsonc_PKG_ERRORS" >&5
+
+	have_jsonc=no
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	have_jsonc=no
+else
+	jsonc_CFLAGS=$pkg_cv_jsonc_CFLAGS
+	jsonc_LIBS=$pkg_cv_jsonc_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	have_jsonc=yes
+fi
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ncurses" >&5
+$as_echo_n "checking for ncurses... " >&6; }
+
+if test -n "$ncurses_CFLAGS"; then
+    pkg_cv_ncurses_CFLAGS="$ncurses_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"ncurses\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "ncurses") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_ncurses_CFLAGS=`$PKG_CONFIG --cflags "ncurses" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$ncurses_LIBS"; then
+    pkg_cv_ncurses_LIBS="$ncurses_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"ncurses\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "ncurses") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_ncurses_LIBS=`$PKG_CONFIG --libs "ncurses" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        ncurses_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "ncurses" 2>&1`
+        else
+	        ncurses_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "ncurses" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$ncurses_PKG_ERRORS" >&5
+
+	have_ncurses=no
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	have_ncurses=no
+else
+	ncurses_CFLAGS=$pkg_cv_ncurses_CFLAGS
+	ncurses_LIBS=$pkg_cv_ncurses_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	have_ncurses=yes
+fi
+ if test "${have_jsonc}" == "yes" -a "${have_ncurses}" == "yes"; then
+  HAVE_MONITOR_LIBS_TRUE=
+  HAVE_MONITOR_LIBS_FALSE='#'
+else
+  HAVE_MONITOR_LIBS_TRUE='#'
+  HAVE_MONITOR_LIBS_FALSE=
+fi
+
+if test "${have_jsonc}" == "yes" -a "${have_ncurses}" == yes; then
+
+$as_echo "#define HAVE_MONITOR_LIBS 1" >>confdefs.h
+
+fi
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for assembler .section \"?\" flags support" >&5
 $as_echo_n "checking for assembler .section \"?\" flags support... " >&6; }
 if ${stap_cv_sectionq+:} false; then :
@@ -11873,6 +12045,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${BUILD_VIRT_TRUE}" && test -z "${BUILD_VIRT_FALSE}"; then
   as_fn_error $? "conditional \"BUILD_VIRT\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_MONITOR_LIBS_TRUE}" && test -z "${HAVE_MONITOR_LIBS_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_MONITOR_LIBS\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_SELINUX_TRUE}" && test -z "${HAVE_SELINUX_FALSE}"; then

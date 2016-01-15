@@ -1,17 +1,24 @@
 // None of these global vars should be
 // autoprinted because they are all used
 
-global a // if condition
-global b // function arg
+@define __emitpriv
+%(
+    %( $1 == 1 %?
+        private
+    %)
+%)
 
-global arr // used in foreach
-global c // foreach array slice
-global d // foreach limit
+@__emitpriv global a // if condition
+@__emitpriv global b // function arg
 
-global e // return value
-global f // ternary cond
-global g // while condition
-global h // arrayindex index
+@__emitpriv global arr // used in foreach
+@__emitpriv global c // foreach array slice
+@__emitpriv global d // foreach limit
+
+@__emitpriv global e // return value
+@__emitpriv global f // ternary cond
+@__emitpriv global g // while condition
+@__emitpriv global h // arrayindex index
 
 function foo(b) {
    if (b)

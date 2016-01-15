@@ -4,7 +4,7 @@
 % Public License (GPL); either version 2, or (at your option) any
 % later version.
 
-\documentclass{article}
+\documentclass[compatible]{article}
 \usepackage{html}
 \usepackage{graphicx}
 % \usepackage{moreverb}
@@ -12,7 +12,7 @@
 \usepackage{listings}
 \usepackage{fullpage}
 \usepackage{fancybox}
-\usepackage[compatible]{nomencl}
+% \usepackage{nomencl}
 % \usepackage{geometry}
 % \geometry{letterpaper,text={7in,8.5in}}
 \usepackage{charter}
@@ -21,9 +21,7 @@
     {\begin{makeimage}\begin{center}\begin{Sbox}\begin{minipage}}%
     {\end{minipage}\end{Sbox}\fbox{\TheSbox}\end{center}\end{makeimage}}
 
-\begin{htmlonly}
-\renewcommand{\nomenclature}[2]{}
-\end{htmlonly}
+\newcommand{\nomenclature}[2]{}
 
 % \usepackage{draftcopy} % ugly
 \bibliographystyle{plain}
@@ -1109,11 +1107,11 @@ and a live GIT source repository.  Come join us!
 \appendix
 
 \section{Glossary}
-\renewcommand{\nomname}{}
-\printglossary
-\begin{htmlonly}
-{\em Sorry, not available in HTML.}
-\end{htmlonly}
+% \renewcommand{\nomname}{}
+% \printglossary
+% \begin{htmlonly}
+{\em Sorry, no glossary available.}
+% \end{htmlonly}
 
 \section{Errors}
 

@@ -110,7 +110,7 @@ probe sunrpc.clnt.create_client =
  * have the real arguments to that inline function).
  */
 
-global __rpc_create_args
+@__private30 global __rpc_create_args
 
 probe kernel.function("rpc_create").call !,
 	module("sunrpc").function("rpc_create").call ?
@@ -131,7 +131,7 @@ probe kernel.function("rpc_create").return !,
  * IPPROTO_{UDP,TCP}.  So, do it all in embedded-C.
  */
 
-function __rpc_prot_from_protocol:long(protocol:long)
+@__private30 function __rpc_prot_from_protocol:long(protocol:long)
 %{
 	switch (STAP_ARG_protocol) {
 #ifdef XPRT_TRANSPORT_BC
@@ -1230,7 +1230,7 @@ function addr_from_rqst_str:string(rqstp:long)
 #include <linux/in6.h>
 %}
 
-function __rpc_format_servername:string(servername:long, address:long)
+@__private30 function __rpc_format_servername:string(servername:long, address:long)
 {
 	printf("__rpc_format_servername: %p\n", servername)
 	if (servername != 0)

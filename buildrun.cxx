@@ -1,5 +1,5 @@
 // build/run probes
-// Copyright (C) 2005-2015 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -311,6 +311,8 @@ compile_pass (systemtap_session& s)
   o << module_cflags << " += -Iinclude2/asm/mach-default" << endl;
   if (s.kernel_source_tree != "")
     o << module_cflags << " += -I" + s.kernel_source_tree << endl;
+  for (unsigned i = 0; i < s.kernel_extra_cflags.size(); i++)
+    o << module_cflags << " += " + s.kernel_extra_cflags[i] << endl;
 
   // NB: don't try
   // o << module_cflags << " += -Iusr/include" << endl;
@@ -388,8 +390,8 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "proc_create_data", "STAPCONF_PROC_CREATE_DATA");
   output_exportconf(s, o, "PDE_DATA", "STAPCONF_PDE_DATA");
   output_autoconf(s, o, "autoconf-module-sect-attrs.c", "STAPCONF_MODULE_SECT_ATTRS", NULL);
+
   output_autoconf(s, o, "autoconf-utrace-via-tracepoints.c", "STAPCONF_UTRACE_VIA_TRACEPOINTS", NULL);
-  output_autoconf(s, o, "autoconf-module-tracepoints.c", "STAPCONF_MODULE_TRACEPOINT", NULL);
   output_autoconf(s, o, "autoconf-task_work-struct.c", "STAPCONF_TASK_WORK_STRUCT", NULL);
   output_autoconf(s, o, "autoconf-vm-area-pte.c", "STAPCONF_VM_AREA_PTE", NULL);
   output_autoconf(s, o, "autoconf-relay-umode_t.c", "STAPCONF_RELAY_UMODE_T", NULL);
@@ -398,6 +400,7 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-netfilter.c", "STAPCONF_NETFILTER_V313", NULL);
   output_autoconf(s, o, "autoconf-netfilter-313b.c", "STAPCONF_NETFILTER_V313B", NULL);
   output_autoconf(s, o, "autoconf-netfilter-4_1.c", "STAPCONF_NETFILTER_V41", NULL);
+  output_autoconf(s, o, "autoconf-netfilter-4_4.c", "STAPCONF_NETFILTER_V44", NULL);
   output_autoconf(s, o, "autoconf-smpcall-5args.c", "STAPCONF_SMPCALL_5ARGS", NULL);
   output_autoconf(s, o, "autoconf-smpcall-4args.c", "STAPCONF_SMPCALL_4ARGS", NULL);
 
@@ -834,6 +837,12 @@ make_run_command (systemtap_session& s, const string& remotedir,
         staprun_cmd.push_back("never");
     }
 
+  if (s.monitor)
+    {
+      staprun_cmd.push_back("-M");
+      staprun_cmd.push_back(lex_cast(s.monitor_interval));
+    }
+
   staprun_cmd.push_back((remotedir.empty() ? s.tmpdir : remotedir)
                         + "/" + s.module_filename());
 
@@ -878,6 +887,8 @@ make_tracequeries(systemtap_session& s, const map<string,string>& contents)
 
   if (s.kernel_source_tree != "")
     omf << "EXTRA_CFLAGS += -I" + s.kernel_source_tree << endl;
+  for (unsigned i = 0; i < s.kernel_extra_cflags.size(); i++)
+    omf << "EXTRA_CFLAGS += " + s.kernel_extra_cflags[i] << endl;
 
   omf << "obj-m := " << endl;
   // write out each header-specific source file into a separate file

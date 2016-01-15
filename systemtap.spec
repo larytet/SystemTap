@@ -1,5 +1,6 @@
 %{!?with_sqlite: %global with_sqlite 1}
 %{!?with_docs: %global with_docs 1}
+%{!?with_monitor: %global with_monitor 1}
 # crash is not available
 %ifarch ppc ppc64 %{sparc} aarch64 ppc64le
 %{!?with_crash: %global with_crash 0}
@@ -105,6 +106,9 @@ BuildRequires: libselinux-devel
 %if %{with_sqlite}
 BuildRequires: sqlite-devel
 %endif
+%if %{with_monitor}
+BuildRequires: json-c-devel ncurses-devel
+%endif
 # Needed for libstd++ < 4.0, without <tr1/memory>
 %if %{with_boost}
 BuildRequires: boost-devel
@@ -126,7 +130,7 @@ BuildRequires: elfutils-devel >= %{elfutils_version}
 %if %{with_docs}
 BuildRequires: /usr/bin/latex /usr/bin/dvips /usr/bin/ps2pdf
 %if 0%{?fedora} >= 18 || 0%{?rhel} >= 7
-BuildRequires: tex(fullpage.sty) tex(fancybox.sty) tex(bchr7t.tfm) tex(nomencl.sty) tex(graphicx.sty)
+BuildRequires: tex(fullpage.sty) tex(fancybox.sty) tex(bchr7t.tfm) tex(graphicx.sty)
 %endif
 # For the html.sty mentioned in the .tex files, even though latex2html is
 # not run during the build, only during manual scripts/update-docs runs:
@@ -476,7 +480,7 @@ cd ..
 %if %{with_dracut}
 %global dracut_config --with-dracutstap=%{dracutstap}
 %else
-%global dracut_config
+%global dracut_config %{nil}
 %endif
 
 %if %{with_python3}
@@ -484,6 +488,8 @@ cd ..
 %else
 %global python3_config --without-python3
 %endif
+# We don't ship compileworthy python code, just oddball samples
+%global py_auto_byte_compile 0
 
 %configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{rpm_config} %{java_config} %{virt_config} %{dracut_config} %{python3_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
 make %{?_smp_mflags}
@@ -503,8 +509,8 @@ make DESTDIR=$RPM_BUILD_ROOT install
 # %doc directive.
 mv $RPM_BUILD_ROOT%{_datadir}/doc/systemtap/examples examples
 
-# Fix paths in the example & testsuite scripts
-find examples testsuite -type f -name '*.stp' -print0 | xargs -0 sed -i -r -e '1s@^#!.+stap@#!%{_bindir}/stap@'
+# Fix paths in the example scripts.
+find examples -type f -name '*.stp' -print0 | xargs -0 sed -i -r -e '1s@^#!.+stap@#!%{_bindir}/stap@'
 
 # To make rpmlint happy, remove any .gitignore files in the testsuite.
 find testsuite -type f -name '.gitignore' -print0 | xargs -0 rm -f

@@ -15,11 +15,11 @@
 // </tapsetdescription>
 
 
-global __json_prefix
-global __json_metric_type, __json_metric_desc
-global __json_metric_units, __json_metric_pointer
-global __json_array_metric_type, __json_array_metric_desc
-global __json_array_metric_units, __json_array_metric_pointer
+@__private30 global __json_prefix
+@__private30 global __json_metric_type, __json_metric_desc
+@__private30 global __json_metric_units, __json_metric_pointer
+@__private30 global __json_array_metric_type, __json_array_metric_desc
+@__private30 global __json_array_metric_units, __json_array_metric_pointer
 global __json_metric_output, __json_array_output
 
 probe init

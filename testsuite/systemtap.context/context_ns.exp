@@ -6,7 +6,7 @@ if {! [installtest_p]} {
 
 # can't really test user_ns right now since we don't know other uids
 set ns_tests { pid_ns }
-set output_string "END"
+set output_string "END\r\n"
 
 # before we can even run the test, check that unshare is available
 # probably only available in kernels >= 2.6.16
@@ -21,6 +21,12 @@ if {![min_kernel_vers_p 3.7]} {
   return
 }
 
+# Note we have to be root to run "unshare".
+set effective_uid [exec /usr/bin/id -u]
+if {$effective_uid != 0} {
+  untested "$test_name (must be root)"
+  return
+}
 
 # use unshare to generate new namespaces to use
 # the returned pid is not the new proc's pid (as seen in the root ns)

@@ -1,0 +1,11 @@
+#! stap -p2
+
+global array
+
+probe begin
+{
+	array[3] = 2015
+	array[5] = "2015"
+	print(array[3])
+	print(array[5])
+}

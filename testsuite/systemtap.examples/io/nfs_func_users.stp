@@ -6,8 +6,7 @@ probe begin {
   printf("Collecting top NFSD procs...\n")
 }
 
-probe kernel.function("*@fs/nfs/*proc.c") ?,
-      module("nfs").function("*@fs/nfs/*proc.c") ? {
+probe {kernel,module("nfs")}.function("*@fs/nfs/*proc.c") ? {
   nfsdcalls[execname(), pid()]++
 }
 

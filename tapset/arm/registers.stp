@@ -44,7 +44,7 @@ _stp_regs_get_kernel_stack_nth_addr(struct pt_regs *regs, unsigned int n)
 }
 %}
 
-global _reg_offsets[30]
+@__private30 global _reg_offsets[30]
 
 probe init {
 

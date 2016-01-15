@@ -5,7 +5,7 @@
 #endif
 %}
 
-global _reg_offsets[34], _r32_offsets[10]
+@__private30 global _reg_offsets[34], _r32_offsets[10]
 
 probe init {
 	/* Same order as pt_regs */

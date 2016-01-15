@@ -3,22 +3,6 @@
 
 set test "current"
 
-proc current_load {} {
-    # if 'genload' from the ltp exists, use it to create a real load
-    set genload {/usr/local/ltp/testcases/bin/genload}
-    if [file executable $genload] {
-        exec $genload -c 10 -i 10 -m 10 -t 10
-        #                               ^^^^^ run for 10 seconds
-        #                         ^^^^^ 10 procs spinning on malloc
-        #                   ^^^^^ 10 procs spinning on sync
-        #             ^^^^^ 10 procs spinning on sqrt
-    } else {
-        # sleep for a bit
-        wait_n_secs 10
-    }
-    return 0
-}
+set output_string "(\\w+ = \\d+\r\n){5}(${all_pass_string}){2}(WARNING.*skipped.*)?"
 
-set output_string "(\\w+ = \\d+\r\n){5}${all_pass_string}(WARNING.*skipped.*)?"
-
-stap_run $srcdir/$subdir/$test.stp current_load $output_string -g -w
+stap_run $srcdir/$subdir/$test.stp gen_load $output_string -g -w

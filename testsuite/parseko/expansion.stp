@@ -1,0 +1,7 @@
+#! stap -p1
+
+# prefix '!'
+probe {a!}.{b,c}? {}
+
+# prefix condition
+probe {a if (1)}.{b,c} {}

@@ -1,0 +1,8 @@
+#! stap -p1
+
+# Numeric values can't end with an alpha character.
+probe begin
+{
+	var=2015a
+	exit()
+}

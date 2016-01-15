@@ -10,6 +10,8 @@
 #include "stringtable.h"
 #include "unordered.h"
 
+#include "stap-probe.h"
+
 #include <string>
 #include <cstring>
 #include <fstream>
@@ -21,7 +23,7 @@ using namespace boost;
 
 
 #if INTERNED_STRING_INSTRUMENT
-bool whitespace_p (char c)
+static bool whitespace_p (char c)
 {
   return isspace(c);
 }
@@ -76,7 +78,8 @@ typedef unordered_set<std::string> stringtable_t;
 #endif
 
 
-stringtable_t stringtable;
+static char chartable[256];
+static stringtable_t stringtable;
 // XXX: set a larger initial size?  For reference, a
 //
 //    probe kernel.function("*") {}
@@ -94,8 +97,16 @@ stringtable_t stringtable;
 // static
 interned_string interned_string::intern(const string& value)
 {
-  stringtable_t::iterator it = (stringtable.insert(value)).first; // persistent iterator!
-  return interned_string (string_ref (it->data(), it->length())); // hope for RVO/elision
+  if (value.empty())
+    return interned_string ();
+
+  if (value.size() == 1)
+    return intern(value[0]);
+
+  pair<stringtable_t::iterator,bool> result = stringtable.insert(value);
+  PROBE2(stap, intern_string, value.c_str(), result.second);
+  stringtable_t::iterator it = result.first; // persistent iterator!
+  return string_ref (it->data(), it->length()); // hope for RVO/elision
 
   // XXX: for future consideration, consider searching the stringtable
   // for instances where 'value' is a substring.  We could string_ref
@@ -104,25 +115,29 @@ interned_string interned_string::intern(const string& value)
   // mucho CPU.
 }
 
+// static
+interned_string interned_string::intern(const char* value)
+{
+  if (!value || !value[0])
+    return interned_string ();
 
-interned_string::interned_string(const char* value): string_ref(intern(value ?: ""))
-{
-}
-                                                                
-interned_string::interned_string(const string& value): string_ref(intern(value))
-{
-}
+  if (!value[1])
+    return intern(value[0]);
 
-interned_string& interned_string::operator = (const std::string& value)
-{
-  *this = intern(value);
-  return *this;
+  return intern(string(value));
 }
 
-interned_string& interned_string::operator = (const char* value)
+// static
+interned_string interned_string::intern(char value)
 {
-  *this = intern(value ?: "");
-  return *this;
+  if (!value)
+    return interned_string ();
+
+  size_t i = (unsigned char) value;
+  if (!chartable[i]) // lazy init
+    chartable[i] = value;
+
+  return string_ref (&chartable[i], 1);
 }
 
 #if INTERNED_STRING_FIND_MEMMEM

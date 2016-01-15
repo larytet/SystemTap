@@ -584,6 +584,13 @@ dnl See if we have enough libraries and tools to build the virt server
 fi
 AM_CONDITIONAL([BUILD_VIRT], [test "${have_libvirt}" == "yes" -a "${have_libxml2}" == "yes" -a "$enable_virt" != "no"])
 
+dnl Check for presence of json-c and ncurses for use in monitor mode
+PKG_CHECK_MODULES([jsonc], [json-c], [have_jsonc=yes], [have_jsonc=no])
+PKG_CHECK_MODULES([ncurses], [ncurses], [have_ncurses=yes], [have_ncurses=no])
+AM_CONDITIONAL([HAVE_MONITOR_LIBS], [test "${have_jsonc}" == "yes" -a "${have_ncurses}" == "yes"])
+if test "${have_jsonc}" == "yes" -a "${have_ncurses}" == yes; then
+  AC_DEFINE([HAVE_MONITOR_LIBS],[1],[Define to 1 if json-c and ncurses libraries are installed])
+fi
 
 AC_CACHE_CHECK([for assembler .section "?" flags support], stap_cv_sectionq, [
 old_CFLAGS="$CFLAGS"

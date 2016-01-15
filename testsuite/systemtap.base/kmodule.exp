@@ -2,6 +2,7 @@
 # function, install it, and get some output.
 
 set test "kmodule"
+set test2 "kprobe_module"
 if {![installtest_p]} {
     untested $test
     return
@@ -19,8 +20,8 @@ proc build_and_install_module {} {
 	verbose -log "Failed to create temporary directory: $build_dir"
 	return 0
     }
-    exec cp $srcdir/$subdir/stap_kmodule.c $build_dir/
-    exec cp -p $srcdir/$subdir/stap_kmodule.Makefile $build_dir/Makefile
+    catch {exec cp $srcdir/$subdir/stap_kmodule.c $build_dir/}
+    catch {exec cp -p $srcdir/$subdir/stap_kmodule.Makefile $build_dir/Makefile }
 
     # Build the module
     if {[catch {exec make -C $build_dir clean} res]} {
@@ -59,9 +60,39 @@ proc cleanup_module {} {
 proc kmodule_load {} {
     # Trigger the test module
     if {[file exists /proc/stap_kmodule_cmd]} {
-	exec echo 0 > /proc/stap_kmodule_cmd
+	catch {exec echo 0 > /proc/stap_kmodule_cmd}
 	return 0
     } else {
+	return 1
+    }
+}
+
+proc kmodule_load2 {} {
+    global build_dir
+
+    # Unload the test module (in case it was leftover from a previous
+    # run).
+    as_root [list /sbin/rmmod stap_kmodule]
+
+    # Load the test module
+    set res [as_root [list /sbin/insmod $build_dir/stap_kmodule.ko]]
+    if { $res != 0 } {
+	verbose -log "$res"
+	return 1
+    }
+
+    # Trigger the test module
+    if {[file exists /proc/stap_kmodule_cmd]} {
+	catch {exec echo 0 > /proc/stap_kmodule_cmd}
+	return 0
+    } else {
+	return 1
+    }
+
+    # Unload the test module
+    set res [as_root [list /sbin/rmmod stap_kmodule]]
+    if { $res != 0 } {
+	verbose -log "$res"
 	return 1
     }
 }
@@ -80,6 +111,27 @@ if {[build_and_install_module] == 0} {
 stap_run $srcdir/$subdir/$test.stp kmodule_load $output_string
 
 # Test 'kprobe.module("foo").function("bar")
-stap_run $srcdir/$subdir/kprobe_module.stp kmodule_load $output_string
+stap_run $srcdir/$subdir/$test2.stp kmodule_load $output_string
+
+# Now let's test and see if the same scripts work when the test module
+# is loaded *after* the systemtap script starts.
+set test_suffix "(loaded after)"
+if {![module_refresh_p]} {
+    untested "$subdir/$test.stp $test_suffix"
+    untested "$subdir/$test2.stp $test_suffix"
+    cleanup_module
+    return
+}
+as_root [list /sbin/rmmod stap_kmodule]
+
+# Test 'module("foo").function("bar")
+set test_file "$subdir/$test.stp"
+stap_run "$test_file $test_suffix" kmodule_load2 \
+    $output_string $srcdir/$test_file
+
+# Test 'kprobe.module("foo").function("bar")
+set test_file "$subdir/$test2.stp"
+stap_run "$test_file $test_suffix" kmodule_load2 \
+    $output_string $srcdir/$test_file
 
 cleanup_module

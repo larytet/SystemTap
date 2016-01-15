@@ -851,7 +851,9 @@ passes_0_4 (systemtap_session &s)
           functiondecl& curfunc = *func->second;
           if (curfunc.synthetic)
             continue;
-          if (!s.verbose && startswith(curfunc.name, "_"))
+          if (!startswith(curfunc.name, "__global_"))
+            continue;
+          if (!s.verbose && startswith(curfunc.name, "__global__"))
             continue;
           curfunc.printsigtags(cout, s.verbose>0 /* all_tags */ );
           cout << endl;

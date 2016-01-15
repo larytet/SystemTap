@@ -380,8 +380,8 @@ mok_dir_valid_p (string mok_fingerprint, bool verbose)
 
 	  // If the filesystem doesn't support d_type, we'll have to
 	  // call stat().
-	  stat((mok_dir + "/" + direntp->d_name).c_str (), &tmpstat);
-	  if (S_ISREG(tmpstat.st_mode))
+	  int rc = stat((mok_dir + "/" + direntp->d_name).c_str (), &tmpstat);
+	  if (rc == 0 && S_ISREG(tmpstat.st_mode))
 	      reg_file = true;
         }
       
@@ -479,8 +479,8 @@ get_server_mok_fingerprints(vector<string> &mok_fingerprints, bool verbose,
               // If the filesystem doesn't support d_type, we'll have to
               // call stat().
               struct stat tmpstat;
-              stat((mok_path + "/" + direntp->d_name).c_str (), &tmpstat);
-              if (!S_ISDIR(tmpstat.st_mode))
+              int rc = stat((mok_path + "/" + direntp->d_name).c_str (), &tmpstat);
+              if (rc || !S_ISDIR(tmpstat.st_mode))
                 continue;
             }
           else

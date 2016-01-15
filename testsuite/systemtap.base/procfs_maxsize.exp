@@ -342,5 +342,5 @@ exec /bin/rm -f ${test}.ko
 
 # Buffer is exactly large enough to hold contents
 set test "PROCFS_BUFFER9"
-stap_run $test proc_read_write_46 "" -DSTP_PROCFS_BUFSIZE=46 -e $script5 -m $test
+stap_run $test proc_read_write_46 "\r\n" -DSTP_PROCFS_BUFSIZE=46 -e $script5 -m $test
 exec /bin/rm -f ${test}.ko

@@ -42,8 +42,7 @@ struct token;
 struct functiondecl;
 struct derived_probe;
 struct be_derived_probe_group;
-struct dwarf_derived_probe_group;
-struct kprobe_derived_probe_group;
+struct generic_kprobe_derived_probe_group;
 struct hwbkpt_derived_probe_group;
 struct perf_derived_probe_group;
 struct uprobe_derived_probe_group;
@@ -166,6 +165,7 @@ public:
   std::string kernel_base_release;
   std::string kernel_build_tree;
   std::string kernel_source_tree;
+  std::vector<std::string> kernel_extra_cflags; 
   std::map<interned_string,interned_string> kernel_config;
   std::set<interned_string> kernel_exports;
   std::set<interned_string> kernel_functions;
@@ -217,6 +217,8 @@ public:
   bool privilege_set;
   bool systemtap_v_check;
   bool tmpdir_opt_set;
+  bool monitor;
+  int monitor_interval;
 
   enum
    { dump_none,               // no dumping requested
@@ -352,8 +354,7 @@ public:
   // Every probe in these groups must also appear in the
   // session.probes vector.
   be_derived_probe_group* be_derived_probes;
-  dwarf_derived_probe_group* dwarf_derived_probes;
-  kprobe_derived_probe_group* kprobe_derived_probes;
+  generic_kprobe_derived_probe_group* generic_kprobe_derived_probes;
   hwbkpt_derived_probe_group* hwbkpt_derived_probes;
   perf_derived_probe_group* perf_derived_probes;
   uprobe_derived_probe_group* uprobe_derived_probes;

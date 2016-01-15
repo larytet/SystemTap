@@ -170,7 +170,6 @@ struct literal_string: public literal
 {
   interned_string value;
   literal_string (interned_string v);
-  literal_string (const std::string& v);
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };
@@ -433,7 +432,6 @@ struct functioncall: public expression
   functioncall ();
   void print (std::ostream& o) const;
   void visit (visitor* u);
-  interned_string var_assigned_to_retval;
 };
 
 
@@ -487,13 +485,13 @@ struct print_format: public expression
 
   struct format_component
   {
-    unsigned long flags;
     unsigned base;
     unsigned width;
     unsigned precision;
-    width_type widthtype;
-    precision_type prectype;
-    conversion_type type;
+    unsigned flags : 8;
+    width_type widthtype : 8;
+    precision_type prectype : 8;
+    conversion_type type : 8;
     interned_string literal_string;
     bool is_empty() const
     {
@@ -521,12 +519,12 @@ struct print_format: public expression
 
   std::string raw_components;
   std::vector<format_component> components;
-  format_component delimiter;
+  interned_string delimiter;
   std::vector<expression*> args;
   hist_op *hist;
 
   static std::string components_to_string(std::vector<format_component> const & components);
-  static std::vector<format_component> string_to_components(interned_string str);
+  static std::vector<format_component> string_to_components(std::string const & str);
   static print_format* create(const token *t, const char *n = NULL);
 
   void print (std::ostream& o) const;
@@ -534,7 +532,7 @@ struct print_format: public expression
 
 private:
   interned_string print_format_type;
-  print_format(bool stream, bool format, bool delim, bool newline, bool _char, std::string type):
+  print_format(bool stream, bool format, bool delim, bool newline, bool _char, interned_string type):
     print_to_stream(stream), print_with_format(format),
     print_with_delim(delim), print_with_newline(newline),
     print_char(_char), hist(NULL), print_format_type(type)
@@ -585,7 +583,7 @@ struct symboldecl // unique object per (possibly implicit)
 {
   const token* tok;
   const token* systemtap_v_conditional; //checking systemtap compatibility
-  interned_string name;
+  interned_string name; // mangled name, tok->content used for unmangling
   exp_type type;
   exp_type_ptr type_details;
   symboldecl ();
@@ -823,6 +821,8 @@ std::ostream& operator << (std::ostream& o, const probe_point& k);
 
 struct probe
 {
+  static unsigned last_probeidx;
+
   std::vector<probe_point*> locations;
   statement* body;
   struct probe* base;
@@ -830,18 +830,24 @@ struct probe
   const token* systemtap_v_conditional; //checking systemtap compatibility
   std::vector<vardecl*> locals;
   std::vector<vardecl*> unused_locals;
-  static unsigned last_probeidx;
+  bool privileged;
+  unsigned id;
+
   probe ();
   probe (probe* p, probe_point *l);
   void print (std::ostream& o) const;
+  std::string name () const;
   virtual void printsig (std::ostream &o) const;
   virtual void collect_derivation_chain (std::vector<probe*> &probes_list) const;
   virtual void collect_derivation_pp_chain (std::vector<probe_point*> &) const;
   virtual const probe_alias *get_alias () const { return 0; }
   virtual probe_point *get_alias_loc () const { return 0; }
   virtual ~probe() {}
-  bool privileged;
-  interned_string name;
+
+private:
+
+  probe (const probe&);
+  probe& operator = (const probe&);
 };
 
 struct probe_alias: public probe
@@ -905,6 +911,55 @@ struct visitor
   virtual void visit_defined_op (defined_op* e) = 0;
   virtual void visit_entry_op (entry_op* e) = 0;
   virtual void visit_perf_op (perf_op* e) = 0;
+};
+
+
+// A NOP visitor doesn't do anything.  It's a useful base class if you need to
+// take action only for specific types, without even traversing the rest.
+struct nop_visitor: public visitor
+{
+  virtual ~nop_visitor () {}
+  virtual void visit_block (block *s) {};
+  virtual void visit_try_block (try_block *s) {};
+  virtual void visit_embeddedcode (embeddedcode *s) {};
+  virtual void visit_null_statement (null_statement *s) {};
+  virtual void visit_expr_statement (expr_statement *s) {};
+  virtual void visit_if_statement (if_statement* s) {};
+  virtual void visit_for_loop (for_loop* s) {};
+  virtual void visit_foreach_loop (foreach_loop* s) {};
+  virtual void visit_return_statement (return_statement* s) {};
+  virtual void visit_delete_statement (delete_statement* s) {};
+  virtual void visit_next_statement (next_statement* s) {};
+  virtual void visit_break_statement (break_statement* s) {};
+  virtual void visit_continue_statement (continue_statement* s) {};
+  virtual void visit_literal_string (literal_string* e) {};
+  virtual void visit_literal_number (literal_number* e) {};
+  virtual void visit_embedded_expr (embedded_expr* e) {};
+  virtual void visit_binary_expression (binary_expression* e) {};
+  virtual void visit_unary_expression (unary_expression* e) {};
+  virtual void visit_pre_crement (pre_crement* e) {};
+  virtual void visit_post_crement (post_crement* e) {};
+  virtual void visit_logical_or_expr (logical_or_expr* e) {};
+  virtual void visit_logical_and_expr (logical_and_expr* e) {};
+  virtual void visit_array_in (array_in* e) {};
+  virtual void visit_regex_query (regex_query* e) {};
+  virtual void visit_comparison (comparison* e) {};
+  virtual void visit_concatenation (concatenation* e) {};
+  virtual void visit_ternary_expression (ternary_expression* e) {};
+  virtual void visit_assignment (assignment* e) {};
+  virtual void visit_symbol (symbol* e) {};
+  virtual void visit_target_symbol (target_symbol* e) {};
+  virtual void visit_arrayindex (arrayindex* e) {};
+  virtual void visit_functioncall (functioncall* e) {};
+  virtual void visit_print_format (print_format* e) {};
+  virtual void visit_stat_op (stat_op* e) {};
+  virtual void visit_hist_op (hist_op* e) {};
+  virtual void visit_cast_op (cast_op* e) {};
+  virtual void visit_autocast_op (autocast_op* e) {};
+  virtual void visit_atvar_op (atvar_op* e) {};
+  virtual void visit_defined_op (defined_op* e) {};
+  virtual void visit_entry_op (entry_op* e) {};
+  virtual void visit_perf_op (perf_op* e) {};
 };
 
 

@@ -3,7 +3,7 @@ set test_names {"stmt_counting_recursion" "stmt_counting_loops" "stmt_counting_s
 foreach test_name $test_names {
     set test_val 6
     # Expected output
-    set output_string "pass"
+    set output_string "pass\r\n"
     if {! [installtest_p]} { 
         untested $test_name 
         return      

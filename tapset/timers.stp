@@ -19,3 +19,6 @@
  * functionality. In those cases, timer.profile falls back to using
  * perf.sw.cpu_clock. */
 probe timer.profile = timer.profile.tick ! , perf.sw.cpu_clock.sample(1000000) {}
+
+// This is used to pattern match for a .hz extension
+probe timer.profile.freq = perf.sw.cpu_clock {}

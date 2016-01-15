@@ -64,16 +64,16 @@ probe kernel.trace("mm_pagereclaim_pgout")? {
   t_pgout <<< 1
 }
 
-probe kernel.trace("mm_pagereclaim_shrinkactive_a2a")?,
-      kernel.trace("mm_pagereclaim_shrinkinactive_i2a")? {
+probe kernel.{trace("mm_pagereclaim_shrinkactive_a2a"),
+              trace("mm_pagereclaim_shrinkinactive_i2a")}? {
   if (!log_event()) next
   old_set_hits <<< 1
   reactivate[pid()] <<< 1
   t_reactivate <<< 1
 }
 
-probe kernel.trace("mm_pagereclaim_shrinkactive_a2i")?,
-      kernel.trace("mm_pagereclaim_shrinkinactive_i2i")? {
+probe kernel.{trace("mm_pagereclaim_shrinkactive_a2i"),
+              trace("mm_pagereclaim_shrinkinactive_i2i")}? {
   if (!log_event()) next
   old_set_hits <<< 1
   deactivate[pid()] <<< 1

@@ -1,0 +1,59 @@
+set test "parallel execute"
+
+set process_num 10
+
+set script {
+	probe syscall.open
+	{
+		if (pid() != target()) next
+		log("open")
+	}
+
+	probe syscall.close
+	{
+		if (pid() != target()) next
+		log("close")
+	}
+}
+
+# 'num' is the number of '(open|close)' lines output by 1 systemtap
+# process.
+#
+# Note that executing this here preloads the cache with the script for
+# the stap invocations in the loop below.
+set num [exec stap -e "$script" -c "cat /etc/hosts > /dev/null" | grep {\(open\|close\)} | wc -l]
+
+set spawn_ids {}
+for { set i 0 } { $i < $process_num } { incr i } {
+        spawn stap -e "$script" -c "cat /etc/hosts > /dev/null"
+	lappend spawn_ids $spawn_id
+}
+
+if {[gen_load] == 0} then {
+	pass "$test - load generation"
+} else {
+	fail "$test - load generation"
+}
+
+# 'num_sum' is the number of '(open|close)' lines output by
+# all the spawned systemtap processes.
+set num_sum 0
+foreach id $spawn_ids {
+	expect {
+		-i $id -timeout 60
+		-i $id -re {^(open|close)\r\n} {
+			incr num_sum
+			exp_continue
+		}
+	}
+	catch {close -i $id}; catch {wait -i $id}
+}
+
+# If we got all the output, 'num' (output lines by 1 process) *
+# 'process_num' (number of processes) should equal 'num_sum' (output
+# lines by all processes)
+if {$num * $process_num != $num_sum} {
+	fail "$test - ($num * $process_num) != $num_sum"
+} else {
+	pass $test
+}

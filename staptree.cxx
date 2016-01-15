@@ -124,26 +124,29 @@ probe_point::from_globby_comp(const std::string& comp)
 unsigned probe::last_probeidx = 0;
 
 probe::probe ():
-  body (0), base (0), tok (0), systemtap_v_conditional (0), privileged (false)
+  body (0), base (0), tok (0), systemtap_v_conditional (0), privileged (false),
+  id (last_probeidx ++)
 {
-  this->name = string ("probe_") + lex_cast(last_probeidx ++);
 }
 
 
 // Copy constructor, but with overriding probe-point.  To be used when
 // mapping script-level probe points to another one, early during pass
 // 2.  There should be no symbol resolution done yet.
-probe::probe(probe* p, probe_point* l)
+probe::probe(probe* p, probe_point* l):
+  locations (1, l), body (deep_copy_visitor::deep_copy (p->body)),
+  base (p), tok (p->tok), systemtap_v_conditional (p->systemtap_v_conditional),
+  privileged (p->privileged), id (last_probeidx ++)
 {
-  this->base = p;
-  this->name = string ("probe_") + lex_cast(last_probeidx ++);
-  this->tok = p->tok;
-  this->locations.push_back(l);
-  this->body = deep_copy_visitor::deep_copy(p->body);
-  this->privileged = p->privileged;
-  this->systemtap_v_conditional = p->systemtap_v_conditional;
   assert (p->locals.size() == 0);
   assert (p->unused_locals.size() == 0);
+}
+
+
+string
+probe::name () const
+{
+  return string ("probe_") + lex_cast(id);
 }
 
 
@@ -222,7 +225,7 @@ functiondecl::join (systemtap_session& s)
     throw SEMANTIC_ERROR (_("internal error, joining a non-synthetic function"), tok);
   if (!s.functions.insert (make_pair (name, this)).second)
     throw SEMANTIC_ERROR (_F("synthetic function '%s' conflicts with an existing function",
-                             name.c_str()), tok);
+                             name.to_string().c_str()), tok);
   tok->location.file->functions.push_back (this);
 }
 
@@ -236,12 +239,6 @@ literal_number::literal_number (int64_t v, bool hex)
 
 
 literal_string::literal_string (interned_string v)
-{
-  value = v;
-  type = pe_string;
-}
-
-literal_string::literal_string (const string& v)
 {
   value = v;
   type = pe_string;
@@ -269,6 +266,7 @@ target_symbol::assert_no_components(const std::string& tapset, bool pretty_ok)
   if (components.empty())
     return;
 
+  const string& name = this->name;
   switch (components[0].type)
     {
     case comp_literal_array_index:
@@ -575,7 +573,7 @@ void functiondecl::print (ostream& o) const
 
 void functiondecl::printsig (ostream& o) const
 {
-  o << name << ":" << type << " (";
+  o << (tok ? tok->content : name) << ":" << type << " (";
   for (unsigned i=0; i<formal_args.size(); i++)
     o << (i>0 ? ", " : "")
       << *formal_args[i]
@@ -666,8 +664,17 @@ print_format*
 print_format::create(const token *t, const char *n)
 {
   bool stream, format, delim, newline, _char;
-  if (n == NULL) n = t->content.c_str();
-  const char *o = n;
+  interned_string type;
+  string str_type;
+
+  if (n == NULL)
+    {
+      type = t->content;
+      str_type = type;
+      n = str_type.c_str();
+    }
+  else
+    type = n;
 
   stream = true;
   format = delim = newline = _char = false;
@@ -710,7 +717,7 @@ print_format::create(const token *t, const char *n)
 	return NULL;
     }
 
-  print_format *pf = new print_format(stream, format, delim, newline, _char, o);
+  print_format *pf = new print_format(stream, format, delim, newline, _char, type);
   pf->tok = t;
   return pf;
 }
@@ -821,14 +828,14 @@ print_format::components_to_string(vector<format_component> const & components)
 }
 
 vector<print_format::format_component>
-print_format::string_to_components(interned_string str)
+print_format::string_to_components(string const & str)
 {
   format_component curr;
   vector<format_component> res;
 
   curr.clear();
 
-  interned_string::const_iterator i = str.begin();
+  string::const_iterator i = str.begin();
   string literal_str;
   
   while (i != str.end())
@@ -1056,7 +1063,7 @@ void print_format::print (ostream& o) const
   if (print_with_format)
     o << lex_cast_qstring (raw_components);
   if (print_with_delim)
-    o << lex_cast_qstring (delimiter.literal_string);
+    o << lex_cast_qstring (delimiter);
   if (hist)
     hist->print(o);
   for (vector<expression*>::const_iterator i = args.begin();
@@ -2394,6 +2401,25 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
 {
   assert (current_function); // only they get embedded code
 
+  /* We need to lock globals that are accessed through embedded C code */
+  for (unsigned i = 0; i < session.globals.size(); i++)
+    {
+      vardecl* v = session.globals[i];
+      string name = v->tok->content;
+      if (s->code.find("/* pragma:read:" + name + " */") != string::npos)
+        {
+          if (v->type == pe_stats)
+            throw SEMANTIC_ERROR(_("Aggregates not available in embedded-C"), s->tok);
+          read.insert(v);
+        }
+      if (s->code.find("/* pragma:write:" + name + " */") != string::npos)
+        {
+          if (v->type == pe_stats)
+            throw SEMANTIC_ERROR(_("Aggregates not available in embedded-C"), s->tok);
+          written.insert(v);
+        }
+    }
+
   // Don't allow embedded C functions in unprivileged mode unless
   // they are tagged with /* unprivileged */ or /* myproc-unprivileged */
   // or we're in a usermode runtime.
@@ -2436,6 +2462,25 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
 void
 varuse_collecting_visitor::visit_embedded_expr (embedded_expr *e)
 {
+  /* We need to lock globals that are accessed through embedded C code */
+  for (unsigned i = 0; i < session.globals.size(); i++)
+    {
+      vardecl* v = session.globals[i];
+      string name = v->tok->content;
+      if (e->code.find("/* pragma:read:" + name + " */") != string::npos)
+        {
+          if (v->type == pe_stats)
+            throw SEMANTIC_ERROR(_("Aggregates not available in embedded-C"), e->tok);
+          read.insert(v);
+        }
+      if (e->code.find("/* pragma:write:" + name + " */") != string::npos)
+        {
+          if (v->type == pe_stats)
+            throw SEMANTIC_ERROR(_("Aggregates not available in embedded-C"), e->tok);
+          written.insert(v);
+        }
+    }
+
   // Don't allow embedded C expressions in unprivileged mode unless
   // they are tagged with /* unprivileged */ or /* myproc-unprivileged */
   // or we're in a usermode runtime.

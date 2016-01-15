@@ -6,7 +6,7 @@
 // Public License (GPL); either version 2, or (at your option) any
 // later version.
 
-global _stopwatch_starttime, _stopwatch_acc
+@__private30 global _stopwatch_starttime, _stopwatch_acc
 
 /*
  * Description of the stopwatch states:

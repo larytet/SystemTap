@@ -256,6 +256,7 @@ set restricted_probe_types [list \
   "module(string).statement(string).nearest" \
   "perf.type(number).config(number)" \
   "perf.type(number).config(number).sample(number)" \
+  "perf.type(number).config(number).hz(number)" \
   "perf.type(number).config(number).counter(string)" \
   "perf.type(number).config(number).process" \
   "perf.type(number).config(number).process(string)" \

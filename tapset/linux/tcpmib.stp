@@ -234,12 +234,12 @@ tcpmib.OutRsts = __tcpmib.OutRsts.*
 {
 }
 
-function _rtn_local:long ()
+@__private30 function _rtn_local:long ()
 %{
         STAP_RETVALUE = RTN_LOCAL;
 %}
 
-function _is_reset:long (skb:long)
+@__private30 function _is_reset:long (skb:long)
 %{ /* pure */
         struct tcphdr *th;
         struct sk_buff *skb = (struct sk_buff *)(long)STAP_ARG_skb;
@@ -267,7 +267,7 @@ function _is_reset:long (skb:long)
         CATCH_DEREF_FAULT();
 %}
 
-function _tcpmib_input_route_type:long (skb:long)
+@__private30 function _tcpmib_input_route_type:long (skb:long)
 %{ /* pure */
 	struct rtable *rt;
 	struct sk_buff *skb = (struct sk_buff *)(long)STAP_ARG_skb;

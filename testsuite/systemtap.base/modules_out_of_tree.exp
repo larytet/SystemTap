@@ -6,7 +6,11 @@ set am_root [expr 0 == [exec id -u]]
 # listing and probing it.
 
 # Create the temporary directory.
-if {[catch {exec mktemp -d -t staptestXXXXXX} tmpdir]} {
+#
+# Notice we're using a '-' in the directory name. This will help test
+# the problem noted in PR19265 comment #1, where systemtap can't find
+# out-of-tree modules when the directory has a '-' in the name.
+if {[catch {exec mktemp -d -t staptest-XXXXXX} tmpdir]} {
     verbose -log "Failed to create temporary directory: $tmpdir"
     return
 }
@@ -61,19 +65,20 @@ write_to_file "Makefile" {
 	make -C /lib/modules/$(shell uname -r)/build M=$$PWD
 }
 
-set modpath ${tmpdir}/stap_$test
+set modname "stap_${test}.ko"
+set modpath "${tmpdir}/${modname}"
 
 set subtest "compilation"
-if {[catch {exec make} err] || ![file exists ${modpath}.ko]} {
+if {[catch {exec make} err] || ![file exists ${modpath}]} {
    fail "$test ($subtest)"
    test_cleanup
    return
 }
 pass "$test ($subtest)"
 
-set pp "module(\"${modpath}.ko\").function(\"stap_${test}_init\")"
-set reg "^module\\\(\"${modpath}.ko\"\\\)"
-set reg "$reg\\\.function\\\(\"stap_${test}_init@${modpath}.c:8\"\\\)$"
+set pp "module(\"${modpath}\").function(\"stap_${test}_init\")"
+set reg "^module\\\(\"${modpath}\"\\\)"
+set reg "$reg\\\.function\\\(\"stap_${test}_init@${tmpdir}/stap_${test}.c:8\"\\\)$"
 
 # Let's try listing a function first
 set subtest "listing"
@@ -86,35 +91,121 @@ pass "$test ($subtest)"
 
 # OK now let's actually go for a run
 set subtest "probing"
-
 if {![installtest_p] || !$am_root || ![module_refresh_p]} {
-   untested "$test ($subtest)"
-   test_cleanup
-   return
-}
-
-set script "probe $pp { println(\"hit\") }"
-set command "insmod ${modpath}.ko && rmmod ${modpath}.ko"
-
-# Spawn stap
-set failed 1
-spawn stap -e $script -c $command
-expect {
-   -timeout 30
-   hit {
-      set failed 0
-   }
-   timeout {
-      verbose -log "$test timed out"
-      kill -INT -[exp_pid] 2
-   }
-}
-catch {close}; catch {wait}
-
-if {$failed} {
-   fail "$test ($subtest)"
+    untested "$test ($subtest)"
 } else {
-   pass "$test ($subtest)"
+    set script_template "probe %s { println(\"hit\") }"
+    set command "insmod ${modpath} && rmmod ${modpath}"
+
+    # Spawn stap
+    set failed 1
+    set script [format $script_template $pp]
+    spawn stap -e $script -c $command
+    expect {
+	-timeout 30
+	hit {
+	    set failed 0
+	}
+	timeout {
+	    verbose -log "$test timed out"
+	    kill -INT -[exp_pid] 2
+	}
+    }
+    catch {close}; catch {wait}
+    
+    if {$failed} {
+	fail "$test ($subtest)"
+    } else {
+	pass "$test ($subtest)"
+    }
+}
+
+# Now let's try the same thing, but with dwarfless-probing.
+set subtest "dwarfless probing"
+set pp "kprobe.module(\"${modpath}\").function(\"stap_${test}_init\")"
+if {![installtest_p] || !$am_root || ![module_refresh_p]} {
+    untested "$test ($subtest)"
+} else {
+    # Spawn stap
+    set failed 1
+    set script [format $script_template $pp]
+    spawn stap -e $script -c $command
+    expect {
+	-timeout 30
+	hit {
+	    set failed 0
+	}
+	timeout {
+	    verbose -log "$test timed out"
+	    kill -INT -[exp_pid] 2
+	}
+    }
+    catch {close}; catch {wait}
+    
+    if {$failed} {
+	fail "$test ($subtest)"
+    } else {
+	pass "$test ($subtest)"
+    }
+}
+
+# Now let's try with a relative path (instead of an absolute path).
+set subtest "relative-path probing"
+set pp "module(\"./${modname}\").function(\"stap_${test}_init\")"
+if {![installtest_p] || !$am_root || ![module_refresh_p]} {
+    untested "$test ($subtest)"
+} else {
+    # Spawn stap
+    set failed 1
+    set script [format $script_template $pp]
+    spawn stap -e $script -c $command
+    expect {
+	-timeout 30
+	hit {
+	    set failed 0
+	}
+	timeout {
+	    verbose -log "$test timed out"
+	    kill -INT -[exp_pid] 2
+	}
+    }
+    catch {close}; catch {wait}
+    
+    if {$failed} {
+	fail "$test ($subtest)"
+    } else {
+	pass "$test ($subtest)"
+    }
+}
+
+# Now let's try dwarfless probing with a relative path (instead of an
+# absolute path).
+set subtest "dwarfless relative-path probing"
+set pp "kprobe.module(\"./${modname}\").function(\"stap_${test}_init\")"
+if {![installtest_p] || !$am_root || ![module_refresh_p]} {
+    untested "$test ($subtest)"
+} else {
+    # Spawn stap
+    set failed 1
+    set script [format $script_template $pp]
+    spawn stap -e $script -c $command
+    expect {
+	-timeout 30
+	hit {
+	    set failed 0
+	}
+	timeout {
+	    verbose -log "$test timed out"
+	    kill -INT -[exp_pid] 2
+	}
+    }
+    catch {close}; catch {wait}
+    
+    if {$failed} {
+	fail "$test ($subtest)"
+    } else {
+	pass "$test ($subtest)"
+    }
 }
 
 test_cleanup

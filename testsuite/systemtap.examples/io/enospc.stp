@@ -28,48 +28,42 @@ function warnlog(fsname:string, dev:long) {
 }
 
 /* Catch ENOSPC in ext4 file system */
-probe kernel.function("ext4_should_retry_alloc").return ? ,
-      module("ext4").function("ext4_should_retry_alloc").return ?
+probe {kernel,module("ext4")}.function("ext4_should_retry_alloc").return ?
 {
 	if (0 == $return)
 		warnlog("ext4", $sb->s_dev);
 }
 
 /* Catch ENOSPC in ext3 file system */
-probe kernel.function("ext3_should_retry_alloc").return ? ,
-      module("ext3").function("ext3_should_retry_alloc").return ?
+probe {kernel,module("ext3")}.function("ext3_should_retry_alloc").return ?
 {
 	if (0 == $return)
 		warnlog("ext3", $sb->s_dev);
 }
 
 /* Catch ENOSPC in xfs file system on write */
-probe kernel.function("xfs_file_aio_write").return ? ,
-      module("xfs").function("xfs_file_aio_write").return ?
+probe {kernel,module("xfs")}.function("xfs_file_aio_write").return ?
 {
 	if (-28 == $return)
 		warnlog("xfs", $iocb->ki_filp->f_mapping->host->i_sb->s_dev);
 }
 
 /* Catch ENOSPC in xfs file system on inode creation */
-probe kernel.function("xfs_vn_mknod").return ? ,
-      module("xfs").function("xfs_vn_mknod").return ?
+probe {kernel,module("xfs")}.function("xfs_vn_mknod").return ?
 {
 	if (-28 == $return)
 		warnlog("xfs", $dir->i_sb->s_dev);
 }
 
 /* Catch ENOSPC in xfs file system on fallocate */
-probe kernel.function("xfs_vn_fallocate").return ? ,
-      module("xfs").function("xfs_vn_fallocate").return ?
+probe {kernel,module("xfs")}.function("xfs_vn_fallocate").return ?
 {
 	if (-28 == $return)
 		warnlog("xfs", $inode->i_sb->s_dev);
 }
 
 /* Catch ENOSPC in btrfs file system */
-probe kernel.function("btrfs_check_data_free_space").return ? ,
-      module("btrfs").function("btrfs_check_data_free_space").return ?
+probe {kernel,module("btrfs")}.function("btrfs_check_data_free_space").return ?
 {
 	if (-28 == $return)
 		warnlog("btrfs", $inode->i_sb->s_dev);

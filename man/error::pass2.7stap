@@ -64,6 +64,9 @@ expression to test for the resolvability of a context variable expression.
 Consider using the
 .IR "stap \-\-skip\-badvars"
 option to silently replace misbehaving context variable expressions with zero.
+Experiment with the
+.IR "stap \-\-prologue\-searching"
+option.
 
 .TP
 module cache inconsistencies

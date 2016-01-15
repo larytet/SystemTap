@@ -11,6 +11,6 @@ proc sleep_ten_secs {} {
 #check to see whether get the marker indicating the probe is loaded and running
 #should check to see whether exited for some reason
 #should be error is something else is printed.
-set output_string "(\\w+ = \\d+\r\n){7}${all_pass_string}(WARNING.*skipped.*)?"
+set output_string "(\\w+ = \\d+\r\n){17}(${all_pass_string}){10}(WARNING.*skipped.*)?"
 
 stap_run $srcdir/$subdir/$test.stp sleep_ten_secs $output_string

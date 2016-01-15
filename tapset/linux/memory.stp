@@ -125,7 +125,7 @@ function addr_to_node:long(addr:long) %{ /* pure */
 %}
 
 // Return whether a page to be copied is a zero page.
-function _IS_ZERO_PAGE:long(from:long, vaddr:long) %{ /* pure */
+@__private30 function _IS_ZERO_PAGE:long(from:long, vaddr:long) %{ /* pure */
     STAP_RETVALUE = (STAP_ARG_from == (long) ZERO_PAGE(STAP_ARG_vaddr));
 %}
 
@@ -245,12 +245,12 @@ probe vm.oom_kill = kernel.function("oom_kill_process") !,
     task = $p
 }
 
-function GFP_KERNEL:long()
+@__private30 function GFP_KERNEL:long()
 %{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = GFP_KERNEL;
 %}
 
-function __gfp_flag_str:string(gfp_flag:long)
+@__private30 function __gfp_flag_str:string(gfp_flag:long)
 %{
 	long gfp_flag = STAP_ARG_gfp_flag;
 	STAP_RETVALUE[0] = '\0';

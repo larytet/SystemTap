@@ -31,7 +31,7 @@ function poly (val) %{ /* unprivileged */
   for (root = 1; root < __LONG_MAX__; root *= 10)
      if (root > j)
 	{
-	  STAP_RETURN ((root/10) * (j / (root/10)))
+	  STAP_RETURN ((root/10) * (j / (root/10)));
 	}
   STAP_RETURN(0);
   %}

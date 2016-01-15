@@ -1,4 +1,11 @@
-global alpha, beta, gamma, iota, epsilon, phi
+@define __emitpriv
+%(
+    %( $1 == 1 %?
+        private
+    %)
+%)
+
+@__emitpriv global alpha, beta, gamma, iota, epsilon, phi
 
 probe begin {
  gamma = "abcdefghijklmnopqrstuvwxyz"

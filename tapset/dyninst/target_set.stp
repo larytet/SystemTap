@@ -1,6 +1,6 @@
 // NB: functionally equivalent to linux/target_set.stp
 
-global _target_set # map: target-set-pid -> ancestor-pid
+@__private30 global _target_set # map: target-set-pid -> ancestor-pid
 
 function target_set_pid (pid)
 {

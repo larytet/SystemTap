@@ -74,12 +74,11 @@ public:
 
 struct mark_var_expanding_visitor: public var_expanding_visitor
 {
-  mark_var_expanding_visitor(systemtap_session& s, const string& pn,
+  mark_var_expanding_visitor(systemtap_session& s,
                              vector <struct mark_arg *> &mark_args):
-    sess (s), probe_name (pn), mark_args (mark_args),
+    sess (s), mark_args (mark_args),
     target_symbol_seen (false) {}
   systemtap_session& sess;
-  string probe_name;
   vector <struct mark_arg *> &mark_args;
   bool target_symbol_seen;
 
@@ -219,7 +218,7 @@ mark_derived_probe::mark_derived_probe (systemtap_session &s,
   parse_probe_format();
 
   // Now expand the local variables in the probe body
-  mark_var_expanding_visitor v (sess, name, mark_args);
+  mark_var_expanding_visitor v (sess, mark_args);
   v.replace (this->body);
   target_symbol_seen = v.target_symbol_seen;
   if (target_symbol_seen)
@@ -235,7 +234,7 @@ mark_derived_probe::mark_derived_probe (systemtap_session &s,
       }
 
   if (sess.verbose > 2)
-    clog << "marker-based " << name << " mark=" << probe_name << " fmt='" << probe_format
+    clog << "marker-based " << name() << " mark=" << probe_name << " fmt='" << probe_format
          << "'" << endl;
 }
 
@@ -700,17 +699,19 @@ mark_builder::build(systemtap_session & sess,
   unsigned results_pre = finished_results.size();
 
   // Search marker list for matching markers
+  const string& str_val = mark_str_val;
+  const string& format_val = mark_format_val;
   for (mark_cache_const_iterator_t it = mark_cache.begin();
        it != mark_cache.end(); it++)
     {
       // Below, "rc" has negative polarity: zero iff matching.
-      int rc = fnmatch(mark_str_val.c_str(), it->first.c_str(), 0);
+      int rc = fnmatch(str_val.c_str(), it->first.c_str(), 0);
       if (! rc)
         {
 	  bool add_result = true;
 
 	  // Match format strings (if the user specified one)
-	  if (has_mark_format && fnmatch(mark_format_val.c_str(),
+	  if (has_mark_format && fnmatch(format_val.c_str(),
 					 it->second.c_str(), 0))
 	    add_result = false;
 

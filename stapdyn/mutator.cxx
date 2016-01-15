@@ -35,12 +35,23 @@ static vector<mutator*> g_mutators;
 
 static void
 g_dynamic_library_callback(BPatch_thread *thread,
-                           BPatch_module *module,
+                           BPatch_object *object,
                            bool load)
 {
   for (size_t i = 0; i < g_mutators.size(); ++i)
-    g_mutators[i]->dynamic_library_callback(thread, module, load);
+    g_mutators[i]->dynamic_library_callback(thread, object, load);
 }
+
+#ifndef DYNINST_9_1
+static void
+g_dynamic_module_callback(BPatch_thread *thread,
+                          BPatch_module *module,
+                          bool load)
+{
+  g_dynamic_library_callback(thread, module->getObject(), load);
+}
+#define g_dynamic_library_callback g_dynamic_module_callback
+#endif
 
 
 static void
@@ -330,7 +341,7 @@ mutator::init_modoptions()
           staperror() << "Could not parse module option '" << modoption << "'" << endl;
           return false; // XXX: perhaps ignore the option instead?
         }
-      string name = "__global_" + modoption.substr(0, separator);
+      string name = modoption.substr(0, separator);
       string value = modoption.substr(separator+1);
 
       int rc = global_setter(name.c_str(), value.c_str());
@@ -585,16 +596,22 @@ mutator::run ()
       // mask signals while we're preparing to poll
       stap_sigmasker masked(g_signal_mask);
 
+      pollfd pfd;
+      pfd.fd = patch.getNotificationFD();
+      pfd.events = POLLIN;
+      pfd.revents = 0;
+
       // Polling with a notification FD lets us wait on Dyninst while still
       // letting signals break us out of the loop.
       while (update_mutatees())
         {
-          pollfd pfd;
-          pfd.fd = patch.getNotificationFD();
-          pfd.events = POLLIN;
-          pfd.revents = 0;
-
           struct timespec timeout = { 10, 0 };
+
+          // When a mutatee exits, the cleanup may cause dyninstAPI to dequeue
+          // other events from proccontrol (which clears the poll FD), without
+          // actually processing those events yet.  Check before we sleep...
+          if (patch.pollForStatusChange())
+            continue;
 
           int rc = ppoll (&pfd, 1, &timeout, &masked.old);
           if (rc < 0 && errno != EINTR)
@@ -666,18 +683,18 @@ mutator::find_mutatee(BPatch_process* process)
 // Check if it matches our targets, and instrument accordingly.
 void
 mutator::dynamic_library_callback(BPatch_thread *thread,
-                                  BPatch_module *module,
+                                  BPatch_object *object,
                                   bool load)
 {
-  if (!load || !thread || !module)
+  if (!load || !thread || !object)
     return;
 
   BPatch_process* process = thread->getProcess();
-  staplog(1) << "dlopen \"" << module->libraryName()
+  staplog(1) << "dlopen \"" << object->name()
              << "\", pid = " << process->getPid() << endl;
   boost::shared_ptr<mutatee> mut = find_mutatee(process);
   if (mut)
-    mut->instrument_object_dynprobes(module->getObject(), targets);
+    mut->instrument_object_dynprobes(object, targets);
 }
 
 

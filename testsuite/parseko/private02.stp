@@ -1,0 +1,6 @@
+#! stap -p1
+
+function foo () {}
+private function foo () {}
+
+

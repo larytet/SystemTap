@@ -1,0 +1,6 @@
+#! stap -p4
+
+probe timer.profile.freq.hz(99) {
+  println(1)
+  exit()
+}

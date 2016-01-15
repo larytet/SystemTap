@@ -18,14 +18,20 @@ probe begin(-9223372036854775808) {
 }
 
 probe end {
+  rc = 0
   if (gnum_saved == 42)
-    println("systemtap test success")
+    rc += 1
   else
     printf("systemtap test failure - gnum_saved:%d != 42\n", gnum_saved)
 
   if (gstr_saved == "foobar")
-    println("systemtap test success")
+    rc += 1
   else
     printf("systemtap test failure - gstr_saved:%s != foobar\n", gstr_saved)
+
+  if (rc == 2)
+    println("systemtap test success")
+  else
+    printf("systemtap test failure (%d passes)\n", rc)
 }
 

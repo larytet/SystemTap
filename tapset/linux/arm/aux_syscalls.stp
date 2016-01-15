@@ -4,7 +4,7 @@
 %{
 // Get _stp_val_array and _stp_lookup_* definitions.
 #include "linux/syscalls-common.h"
-
+#include <asm/ptrace.h>
 static const _stp_val_array const _stp_arch_ptrace_request_list[] = {
 	V(PTRACE_GETREGS),
 	V(PTRACE_SETREGS),
@@ -19,8 +19,10 @@ static const _stp_val_array const _stp_arch_ptrace_request_list[] = {
 	V(PTRACE_SETCRUNCHREGS),
 	V(PTRACE_GETVFPREGS),
 	V(PTRACE_SETVFPREGS),
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 	V(PTRACE_GETHBPREGS),
 	V(PTRACE_SETHBPREGS),
+#endif
 	{0, NULL}
 };
 %}
@@ -45,8 +47,10 @@ function _arch_ptrace_argstr(request, pid, addr, data)
 	    || request == %{ /* pure */ PTRACE_SETCRUNCHREGS %}
 	    || request == %{ /* pure */ PTRACE_GETVFPREGS %}
 	    || request == %{ /* pure */ PTRACE_SETVFPREGS %}
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 	    || request == %{ /* pure */ PTRACE_GETHBPREGS %}
 	    || request == %{ /* pure */ PTRACE_SETHBPREGS %})
+#endif
 		return sprintf("%s, %d, %#x, %p",
 			       __arch_ptrace_request_str(request), pid,
 			       addr, data)

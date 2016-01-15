@@ -1,8 +1,7 @@
 global threads;
 global times;
 
-probe syscall.semop,
-      syscall.semtimedop
+probe syscall.{semop,semtimedop}
 {
   sembuf_sz = & @cast(0, "struct sembuf")[1];
   res = sprintf("set %d sems", semid)
@@ -26,8 +25,7 @@ probe syscall.semop,
   times[tid()] = gettimeofday_us();
 }
 
-probe syscall.semop.return,
-      syscall.semtimedop.return
+probe syscall.{semop,semtimedop}.return
 {
   printf("Thread %d took %dus to operate on %s\n", tid(),
          gettimeofday_us() - times[tid()], threads[tid()]);

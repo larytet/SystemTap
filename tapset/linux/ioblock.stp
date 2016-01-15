@@ -19,7 +19,7 @@
 %}
 
 /* get i-node number of mapped file */
-function __bio_ino:long(bio:long)
+@__private30 function __bio_ino:long(bio:long)
 %{ /* pure */
     struct bio *bio = (struct bio *)(long)STAP_ARG_bio;
     struct page *bv_page = ((bio && kread(&(bio->bi_vcnt)))
@@ -56,7 +56,7 @@ function bio_rw_str(rw:long)
 }
 
 /* returns start sector */
-function __bio_start_sect:long(bio:long)
+@__private30 function __bio_start_sect:long(bio:long)
 {
     try {
         return @cast(bio, "bio")->bi_bdev->bd_part->start_sect
@@ -66,7 +66,7 @@ function __bio_start_sect:long(bio:long)
 }
 
 /* returns the block device name */
-function __bio_devname:string(bio:long)
+@__private30 function __bio_devname:string(bio:long)
 {
     return bdevname(@cast(bio, "bio")->bi_bdev)
 }

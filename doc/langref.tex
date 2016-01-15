@@ -651,6 +651,9 @@ private function three:long () { return 3 }
 \end{verbatim}
 \end{vindent}
 
+Functions terminating without reaching an explicit return statement will
+return an implicit 0 or \verb+""+, determined by type inference.
+
 \subsection{Embedded C\label{sub:Embedded-C}}
 \index{embedded C}
 SystemTap supports a \emph{guru\index{guru mode} mode} where script
@@ -778,6 +781,10 @@ and safety properties.
 \begin{itemize}
 \item \verb+/* pure */+ means that the C code has no side effects and
   may be elided entirely if its value is not used by script code.
+\item \verb+/* stable */+ means that the C code always has the same value
+  (in any given probe handler invocation), so repeated calls may be
+  automatically replaced by memoized values. Such functions must take
+  no parameters, and also be \verb+/* pure */+.
 \item \verb+/* unprivileged */+ means that the C code is so safe that
   even unprivileged users are permitted to use it. (This is useful, in
   particular, to define an embedded-C function inside a tapset that
@@ -796,10 +803,37 @@ and safety properties.
   \verb+THIS->foo+ and \verb+THIS->__retvalue+ respectively inside the
   function. This is useful for quickly migrating code written for
   SystemTap version 1.7 and earlier.
+\item \verb+/* unmodified-fnargs */+ in an embedded-C function, means
+  that the function arguments are not modified inside the function body.
 \item \verb+/* string */+ in embedded-C expressions only, means that
   the expression has \verb+const char *+ type and should be treated as
   a string value, instead of the default long numeric.
 \end{itemize}
+
+\subsection{Accessing script level global variables}
+
+Script level global variables may be accessed in embedded-C functions and
+blocks. To read or write the global variable \textbf{var}, the
+\verb+/* pragma:read:var */+ or \verb+/* pragma:write:var */+
+marker must be first placed in the embedded-C function or block. This provides
+the macros \verb+STAP_GLOBAL_GET_*+ and \verb+STAP_GLOBAL_SET_*+
+macros to allow reading and writing, respectively. For example:
+\begin{vindent}
+\begin{verbatim}
+global var
+global var2[100]
+function increment() %{
+    /* pragma:read:var */ /* pragma:write:var */
+    /* pragma:read:var2 */ /* pragma:write:var2 */
+    STAP_GLOBAL_SET_var(STAP_GLOBAL_GET_var()+1); //var++
+    STAP_GLOBAL_SET_var2(1, 1, STAP_GLOBAL_GET_var2(1, 1)+1); //var2[1,1]++
+%}
+\end{verbatim}
+\end{vindent}
+Variables may be read and set in both embedded-C functions and expressions.
+Strings returned from embedded-C code are decayed to pointers. Variables must
+also be assigned at script level to allow for type inference. Map assignment
+does not return the value written, so chaining does not work.
 
 \section{Probe points\label{sec:Probe-Points}}
 \index{probe points}
@@ -868,6 +902,32 @@ The following is the general syntax.
 \begin{vindent}
 \begin{verbatim}
 kernel.function("no_such_function") ?
+\end{verbatim}
+\end{vindent}
+
+\subsubsection{Brace expansion}
+\index{braceexpansion}
+Brace expansion is a mechanism which allows a list of probe points to be
+generated. It is very similar to shell expansion. A component may be surrounded
+by a pair of curly braces to indicate that the comma-separated sequence of
+one or more subcomponents will each constitute a new probe point. The braces
+may be arbitrarily nested. The ordering of expanded results is based on
+product order.
+
+The question mark (?), exclamation mark (!) indicators and probe point conditions
+may not be placed in any expansions that are before the last component.
+
+The following is an example of brace expansion.
+
+\begin{vindent}
+\begin{verbatim}
+syscall.{write,read}
+# Expands to
+syscall.write, syscall.read
+
+{kernel,module("nfs")}.function("nfs*")!
+# Expands to
+kernel.function("nfs*")!, module("nfs").function("nfs*")!
 \end{verbatim}
 \end{vindent}
 

@@ -27,13 +27,13 @@ function qs_time () { return gettimeofday_us () }
 
 # ------------------------------------------------------------------------
 
-global qs_wtime, qs_wlentime, qs_wcount
-global qs_rtime, qs_rlentime, qs_rcount
-global qs_stime, qs_utime, qs_dcount
+@__private30 global qs_wtime, qs_wlentime, qs_wcount
+@__private30 global qs_rtime, qs_rlentime, qs_rcount
+@__private30 global qs_stime, qs_utime, qs_dcount
 
 # ------------------------------------------------------------------------
 
-function _qs_update (qname) {
+@__private30 function _qs_update (qname) {
   now = qs_time ()
   then = qs_utime[qname]; if (! then) { then = now }
   delta = now-then

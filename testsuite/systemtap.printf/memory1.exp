@@ -1,5 +1,5 @@
 set test "memory1"
-set ::result_string {Test passed}
+set ::result_string {Test passed\r\n}
 
 if {![installtest_p]} {
     untested $test

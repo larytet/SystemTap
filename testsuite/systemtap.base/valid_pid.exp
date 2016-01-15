@@ -30,9 +30,9 @@ set pids "1234567890 $valid_pid"
 
 foreach test_script $test_scripts {
     foreach pid $pids {
-
+       verbose -log "PID under test is $pid"
        if {((([regexp {insn} $test_script] || [regexp {statement} $test_script]) && ![utrace_orig_p]) || ![uprobes_p]) || ([regexp {plt} $test_script] && ![plt_probes_p])} {
-            untested "script: $test_script pid: $pid"
+            untested "script: $test_script"
             continue
         } else {
             if { [regexp {1} $test_script] } { 
@@ -43,12 +43,12 @@ foreach test_script $test_scripts {
         }
         set exe_id2 $spawn_id
         expect {
-            -re {semantic error: [ A-Za-z]*pid[ A-Za-z]*} { if {$pid != $valid_pid } { pass "$test_script $pid" } else { fail "$test_script $pid" } }
-            -re {semantic error: [ A-Za-z]*cannot find executable[ A-Za-z]*} { if {(([regexp {function} $test_script] || [regexp {plt} $test_script]) || [regexp {mark} $test_script]) && $pid != $valid_pid} { pass "$test_script $pid" } }
+            -re {semantic error: [ A-Za-z]*pid[ A-Za-z]*} { if {$pid != $valid_pid } { pass "$test_script" } else { fail "$test_script" } }
+            -re {semantic error: [ A-Za-z]*cannot find executable[ A-Za-z]*} { if {(([regexp {function} $test_script] || [regexp {plt} $test_script]) || [regexp {mark} $test_script]) && $pid != $valid_pid} { pass "$test_script" } }
             # only checking that a semantic error about a pid is not raised 
             # when a valid pid is given. don't really care if other errors are
             # thrown
-            eof  { if {$pid == $valid_pid } { pass "$test_script $pid" } else { fail "$test_script $pid" } }
+            eof  { if {$pid == $valid_pid } { pass "$test_script" } else { fail "$test_script" } }
         }
         catch { close -i $exe_id2 }; catch { wait -i $exe_id2 }
     }

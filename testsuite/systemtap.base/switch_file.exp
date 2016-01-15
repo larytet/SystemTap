@@ -4,10 +4,12 @@ if {![installtest_p]} { untested $test; return }
 # clean existing files
 catch {exec rm -f $test.out*}
 
-spawn stap -o $test.out -we {probe begin {switch_file()}}
+# run systemtap
+verbose -log "Running stap -vo $test.out -e {probe begin {switch_file(); exit()}}"
+catch {exec stap -vo $test.out -e {probe begin {switch_file(); exit()}} } res
+verbose -log "$res"
 
 # check output file
-exec sleep 5
 if {[catch {exec rm $test.out}]} {
   fail "$test (no output file)"
   return -1

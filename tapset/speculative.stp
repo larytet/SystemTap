@@ -6,9 +6,9 @@
 // Public License (GPL); either version 2, or (at your option) any
 // later version.
 
-global _spec_id
-global _spec_counter%
-global _spec_buff%
+@__private30 global _spec_id
+@__private30 global _spec_counter%
+@__private30 global _spec_buff%
 
 
 /**

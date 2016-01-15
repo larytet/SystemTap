@@ -1,6 +1,6 @@
 /* Dwarfless register access for powerpc */
 
-global _reg_offsets[44]
+@__private30 global _reg_offsets[44]
 
 probe init {
 	/* Same order as pt_regs */
