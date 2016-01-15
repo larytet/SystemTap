@@ -47,7 +47,7 @@ printf("%d %d %d %d\\n", __global_arr1[0, 0], __global_arr2[0], idx2, j);
 (bb) = (__global_fnb((cc) = (1), (__global_elide_global_a) = (2)));
 for (1; (bb) < (10); (bb)++) (cc) += (bb);
 for ((dd) = (1); (dd) < (10); 1) (dd) += (1);
-if ((__global_elide_global_b) = (1)) (ee) = (1);
+if ((__global_elide_global_b) = (1)) (ee) = (1)
 ;
 (cc) = ((dd) = (5));
 (cc) = ((4) + ((cc) = (1)));
