@@ -654,6 +654,104 @@ public:
   }
 };
 
+class edit_cmd : public cmdopt
+{
+public:
+  edit_cmd()
+  {
+    name = usage = "edit";
+    _help_text = "Edit the current script. Uses EDITOR environment variable contents as editor (or ex as default).";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    const char *editor;
+    char temp_path[] = "/tmp/stapXXXXXX";
+    int fd;
+
+    // Get EDITOR value.
+    if ((editor = getenv ("EDITOR")) == NULL)
+      editor = "/bin/ex";
+
+    // Get a temporary file.
+    fd = mkstemp(temp_path);
+    if (fd < 0)
+      {
+	cout << endl
+	     << _F("Temporary file '%s' couldn't be opened: %s",
+		   temp_path, strerror(errno)) << endl;
+	return false;
+      }
+
+    // Write the script contents to the temporary file.
+    if (!script_vec.empty())
+      {
+	string script = join(script_vec, "\n");
+	if (write(fd, script.c_str(), script.length()) < 0)
+	  {
+	    cout << endl
+		 << _F("Writing to temporary file '%s' failed: %s",
+		       temp_path, strerror(errno)) << endl;
+	    (void)close(fd);
+	    (void)unlink(temp_path);
+	    return false;
+	  }
+      }
+
+    // Run the editor on the temporary file.
+    vector<string> edit_cmd;
+    edit_cmd.push_back(editor);
+    edit_cmd.push_back(temp_path);
+    if (stap_system(s.verbose, "edit", edit_cmd, false, false) != 0)
+      {
+	// Assume stap_system() reported an error.
+	(void)close(fd);
+	(void)unlink(temp_path);
+	return false;
+      }
+
+    // Read the new script contents. First, rewind the fd.
+    if (lseek(fd, 0, SEEK_SET) < 0)
+      {
+	cout << endl
+	     << _F("Rewinding the temporary file fd failed: %s",
+		   strerror(errno)) << endl;
+	(void)close(fd);
+	(void)unlink(temp_path);
+	return false;
+      }
+    
+    script_vec.clear();
+    
+    // Read the new file contents. We'd like to use C++ stream
+    // operations here, but there isn't a easy way to convert a file
+    // descriptor to a C++ stream.
+    FILE *fp = fdopen(fd, "r");
+    if (fp == NULL)
+      {
+	cout << endl
+	     << _F("Converting the file descriptor to a stream failed: %s",
+		   strerror(errno)) << endl;
+	(void)close(fd);
+	(void)unlink(temp_path);
+	return false;
+      }
+
+    char line[2048];
+    while (fgets(line, sizeof(line), fp) != NULL)
+      {
+	// Zap the ending '\n'.
+	size_t len = strlen(line);
+	if (line[len - 1] == '\n')
+	  line[len - 1] = '\0';
+	script_vec.push_back(line);
+      }
+
+    (void)fclose(fp);
+    (void)unlink(temp_path);
+    return false;
+  }
+};
+
 //
 // Supported options for the "set" and "show" commands.
 // 
@@ -1310,6 +1408,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   command_vec.push_back(new add_cmd);
   command_vec.push_back(new delete_cmd);
   command_vec.push_back(new list_cmd);
+  command_vec.push_back(new edit_cmd);
   command_vec.push_back(new load_cmd);
   command_vec.push_back(new save_cmd);
   command_vec.push_back(new run_cmd);
