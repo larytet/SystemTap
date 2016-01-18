@@ -284,11 +284,16 @@ public:
   {
     // FIXME: We will want to use 'printscript' here, once we store
     // parser output instead of strings.
+    size_t width = 1;
+    size_t len = script_vec.size();
+    if (len >= 10000) { len /= 10000; width += 4; }
+    if (len >= 100) { len /= 100; width += 2; }
+    if (len >= 10) { len /= 10; width += 1; }
     size_t i = 1;
     for (vector<string>::const_iterator it = script_vec.begin();
 	 it != script_vec.end(); ++it)
     {
-	clog << i++ << ": " << (*it) << endl;
+	clog << setw(width) << i++ << ": " << (*it) << endl;
     }
     return false;
   }
