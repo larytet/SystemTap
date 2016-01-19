@@ -1,0 +1,12 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>function::raise</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="SystemTap Tapset Reference Manual"><link rel="up" href="guru-delay.stp.html" title="Chapter 27. Guru tapsets"><link rel="prev" href="API-panic.html" title="function::panic"><link rel="next" href="API-udelay.html" title="function::udelay"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center"><span class="phrase">function::raise</span></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="API-panic.html">Prev</a> </td><th width="60%" align="center">Chapter 27. Guru tapsets</th><td width="20%" align="right"> <a accesskey="n" href="API-udelay.html">Next</a></td></tr></table><hr></div><div class="refentry"><a name="API-raise"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>function::raise — 
+  raise a signal in the current thread
+ </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><pre class="programlisting">
+    raise(signo:long)
+</pre></div><div class="refsect1"><a name="idm140101440292256"></a><h2>Arguments</h2><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>signo</code></em></span></dt><dd><p>
+     signal number
+    </p></dd></dl></div></div><div class="refsect1"><a name="idm140101440289056"></a><h2>Description</h2><p>
+   This function calls the kernel send_sig routine on
+   the current thread, with the given raw unchecked signal number.
+   It may raise an error if <code class="function">send_sig</code> failed.
+   It requires guru mode.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="API-panic.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="guru-delay.stp.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="API-udelay.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top"><span class="phrase">function::panic</span> </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> <span class="phrase">function::udelay</span></td></tr></table></div></body></html>

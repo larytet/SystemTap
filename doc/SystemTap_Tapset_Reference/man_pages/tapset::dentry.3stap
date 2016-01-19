@@ -1,0 +1,12 @@
+.\" -*- nroff -*-
+.TH tapset::dentry 3stap --- IBM
+.SH NAME
+tapset::dentry \- systemtap dentry tapset
+ 
+.SH DESCRIPTION
+.TP
+
+.SH SEE ALSO
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

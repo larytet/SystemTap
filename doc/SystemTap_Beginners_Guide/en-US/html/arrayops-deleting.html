@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title xmlns:d="http://docbook.org/ns/docbook">3.5.5. Clearing/Deleting Arrays and Array Elements</title><link rel="stylesheet" type="text/css" href="Common_Content/css/default.css" /><link rel="stylesheet" media="print" href="Common_Content/css/print.css" type="text/css" /><meta xmlns:d="http://docbook.org/ns/docbook" name="generator" content="not publican" /><meta xmlns:d="http://docbook.org/ns/docbook" name="package" content="" /><link rel="home" href="index.html" title="SystemTap Beginners Guide" /><link rel="up" href="arrayoperators.html" title="3.5. Array Operations in SystemTap" /><link rel="prev" href="arrayops-foreach.html" title="3.5.4. Processing Multiple Elements in an Array" /><link rel="next" href="arrayops-conditionals.html" title="3.5.6. Using Arrays in Conditional Statements" /></head><body><p id="title"></p><ul class="docnav top"><li class="previous"><a accesskey="p" href="arrayops-foreach.html"><strong>Prev</strong></a></li><li class="home">SystemTap Beginners Guide</li><li class="next"><a accesskey="n" href="arrayops-conditionals.html"><strong>Next</strong></a></li></ul><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="arrayops-deleting">
+      ⁠</a>3.5.5. Clearing/Deleting Arrays and Array Elements</h3></div></div></div><a id="idm140625249411616" class="indexterm"></a><a id="idm140625259871872" class="indexterm"></a><a id="idm140625259870240" class="indexterm"></a><a id="idm140625249357968" class="indexterm"></a><a id="idm140625254975072" class="indexterm"></a><div class="para">Sometimes, you may need to clear the associated values in array elements, or reset an entire array for re-use in another probe. <a class="xref" href="arrayops-foreach.html#simplevfsreadprint">Example 3.17, “cumulative-vfsreads.stp”</a> in <a class="xref" href="arrayops-foreach.html">Section 3.5.4, “Processing Multiple Elements in an Array”</a> allows you to track how the number of VFS reads per process grows over time, but it does not show you the number of VFS reads each process makes per 3-second period.</div><a id="idm140625257149904" class="indexterm"></a><a id="idm140625249078320" class="indexterm"></a><a id="idm140625249076240" class="indexterm"></a><a id="idm140625253733232" class="indexterm"></a><div class="para">To do that, you will need to clear the values accumulated by the array. You can accomplish this using the <code class="command">delete</code> operator to delete elements in an array, or an entire array. Consider the following example:</div><a id="idm140625250945616" class="indexterm"></a><a id="idm140625257597648" class="indexterm"></a><a id="idm140625250434688" class="indexterm"></a><a id="idm140625259933952" class="indexterm"></a><div class="example"><a id="simplevfsreadprintnotcumulative">
+      ⁠</a><p class="title"><strong>Example 3.18. noncumulative-vfsreads.stp</strong></p><div class="example-contents"><pre class="programlisting">global reads
+probe vfs.read
+{
+  reads[execname()] ++
+}
+probe timer.s(3)
+{
+  foreach (count in reads)
+    printf("%s : %d \n", count, reads[count])
+  delete reads
+}</pre></div></div><div class="para">In <a class="xref" href="arrayops-deleting.html#simplevfsreadprintnotcumulative">Example 3.18, “noncumulative-vfsreads.stp”</a>, the second probe prints the number of VFS reads each process made <span class="emphasis"><em>within the probed 3-second period only</em></span>. The <code class="command">delete reads</code> statement clears the <code class="command">reads</code> array within the probe.</div><div xmlns:d="http://docbook.org/ns/docbook" class="note"><div class="admonition_header"><p><strong>Note</strong></p></div><div class="admonition"><a id="idm140625253019504" class="indexterm"></a><a id="idm140625253017568" class="indexterm"></a><a id="idm140625247606928" class="indexterm"></a><a id="idm140625248874896" class="indexterm"></a><div class="para">You can have multiple array operations within the same probe. Using the examples from <a class="xref" href="arrayops-foreach.html">Section 3.5.4, “Processing Multiple Elements in an Array”</a> and <a class="xref" href="arrayops-deleting.html">Section 3.5.5, “Clearing/Deleting Arrays and Array Elements”</a> , you can track the number of VFS reads each process makes per 3-second period <span class="emphasis"><em>and</em></span> tally the cumulative VFS reads of those same processes. Consider the following example:</div><pre class="screen">global reads, totalreads
+
+probe vfs.read
+{
+  reads[execname()] ++
+  totalreads[execname()] ++
+}
+
+probe timer.s(3)
+{
+  printf("=======\n")
+  foreach (count in reads-)
+    printf("%s : %d \n", count, reads[count])
+  delete reads
+}
+
+probe end
+{
+  printf("TOTALS\n")
+  foreach (total in totalreads-)
+    printf("%s : %d \n", total, totalreads[total])
+}</pre><div class="para">In this example, the arrays <code class="command">reads</code> and <code class="command">totalreads</code> track the same information, and are printed out in a similar fashion. The only difference here is that <code class="command">reads</code> is cleared every 3-second period, whereas <code class="command">totalreads</code> keeps growing.</div></div></div></div><ul class="docnav"><li class="previous"><a accesskey="p" href="arrayops-foreach.html"><strong>Prev</strong>3.5.4. Processing Multiple Elements in an Array</a></li><li class="up"><a accesskey="u" href="#"><strong>Up</strong></a></li><li class="home"><a accesskey="h" href="index.html"><strong>Home</strong></a></li><li class="next"><a accesskey="n" href="arrayops-conditionals.html"><strong>Next</strong>3.5.6. Using Arrays in Conditional Statements</a></li></ul></body></html>

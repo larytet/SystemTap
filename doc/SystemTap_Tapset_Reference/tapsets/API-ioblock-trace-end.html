@@ -1,0 +1,42 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>probe::ioblock_trace.end</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="SystemTap Tapset Reference Manual"><link rel="up" href="iosched.stp.html" title="Chapter 9. IO Scheduler and block IO Tapset"><link rel="prev" href="API-ioblock-trace-bounce.html" title="probe::ioblock_trace.bounce"><link rel="next" href="API-ioblock-trace-request.html" title="probe::ioblock_trace.request"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center"><span class="phrase">probe::ioblock_trace.end</span></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="API-ioblock-trace-bounce.html">Prev</a> </td><th width="60%" align="center">Chapter 9. IO Scheduler and block IO Tapset</th><td width="20%" align="right"> <a accesskey="n" href="API-ioblock-trace-request.html">Next</a></td></tr></table><hr></div><div class="refentry"><a name="API-ioblock-trace-end"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>probe::ioblock_trace.end — 
+     Fires whenever a block I/O transfer is complete.
+ </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><pre class="synopsis">ioblock_trace.end </pre></div><div class="refsect1"><a name="idm140101446034208"></a><h2>Values</h2><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>p_start_sect</code></em></span></dt><dd><p>
+     points to the start sector of the partition structure of the device
+    </p></dd><dt><span class="term"><em class="parameter"><code>name</code></em></span></dt><dd><p>
+     name of the probe point
+    </p></dd><dt><span class="term"><em class="parameter"><code>bdev</code></em></span></dt><dd><p>
+     target block device
+    </p></dd><dt><span class="term"><em class="parameter"><code>devname</code></em></span></dt><dd><p>
+     block device name
+    </p></dd><dt><span class="term"><em class="parameter"><code>size</code></em></span></dt><dd><p>
+     total size in bytes
+    </p></dd><dt><span class="term"><em class="parameter"><code>idx</code></em></span></dt><dd><p>
+     offset into the bio vector array
+     <em class="parameter"><code>phys_segments</code></em> - number of segments in this bio after physical address coalescing is performed.
+    </p></dd><dt><span class="term"><em class="parameter"><code>flags</code></em></span></dt><dd><p>
+     see below
+     BIO_UPTODATE    0       ok after I/O completion
+     BIO_RW_BLOCK    1       RW_AHEAD set, and read/write would block
+     BIO_EOF         2       out-out-bounds error
+     BIO_SEG_VALID   3       nr_hw_seg valid
+     BIO_CLONED      4       doesn't own data
+     BIO_BOUNCED     5       bio is a bounce bio
+     BIO_USER_MAPPED 6       contains user pages
+     BIO_EOPNOTSUPP  7       not supported
+    </p></dd><dt><span class="term"><em class="parameter"><code>bdev_contains</code></em></span></dt><dd><p>
+     points to the device object which contains the partition (when bio structure represents a partition)
+    </p></dd><dt><span class="term"><em class="parameter"><code>ino</code></em></span></dt><dd><p>
+     i-node number of the mapped file
+    </p></dd><dt><span class="term"><em class="parameter"><code>vcnt</code></em></span></dt><dd><p>
+     bio vector count which represents number of array element (page, offset, length) which makes up this I/O request
+    </p></dd><dt><span class="term"><em class="parameter"><code>sector</code></em></span></dt><dd><p>
+     beginning sector for the entire bio
+    </p></dd><dt><span class="term"><em class="parameter"><code>q</code></em></span></dt><dd><p>
+     request queue on which this bio was queued.
+    </p></dd><dt><span class="term"><em class="parameter"><code>rw</code></em></span></dt><dd><p>
+     binary trace for read/write request
+    </p></dd><dt><span class="term"><em class="parameter"><code>bytes_done</code></em></span></dt><dd><p>
+     number of bytes transferred
+    </p></dd></dl></div></div><div class="refsect1"><a name="idm140101446003024"></a><h2>Context</h2><p>
+   The process signals the transfer is done.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="API-ioblock-trace-bounce.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="iosched.stp.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="API-ioblock-trace-request.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top"><span class="phrase">probe::ioblock_trace.bounce</span> </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> <span class="phrase">probe::ioblock_trace.request</span></td></tr></table></div></body></html>

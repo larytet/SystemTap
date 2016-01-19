@@ -1,0 +1,44 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>function::ctime</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="SystemTap Tapset Reference Manual"><link rel="up" href="ctime.stp.html" title="Chapter 4. Time utility functions"><link rel="prev" href="ctime.stp.html" title="Chapter 4. Time utility functions"><link rel="next" href="API-tz-ctime.html" title="function::tz_ctime"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center"><span class="phrase">function::ctime</span></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="ctime.stp.html">Prev</a> </td><th width="60%" align="center">Chapter 4. Time utility functions</th><td width="20%" align="right"> <a accesskey="n" href="API-tz-ctime.html">Next</a></td></tr></table><hr></div><div class="refentry"><a name="API-ctime"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>function::ctime — 
+  Convert seconds since epoch into human readable date/time string
+ </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><pre class="programlisting">
+    ctime:string(epochsecs:long)
+</pre></div><div class="refsect1"><a name="idm140101447030576"></a><h2>Arguments</h2><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>epochsecs</code></em></span></dt><dd><p>
+     Number of seconds since epoch (as returned by <code class="function">gettimeofday_s</code>)
+    </p></dd></dl></div></div><div class="refsect1"><a name="idm140101447026896"></a><h2>Description</h2><p>
+   Takes an argument of seconds since the epoch as returned by
+   <code class="function">gettimeofday_s</code>. Returns a string of the form
+   </p><p>
+
+   <span class="quote">“<span class="quote">Wed Jun 30 21:49:08 1993</span>”</span>
+   </p><p>
+
+   The string will always be exactly 24 characters. If the time would
+   be unreasonable far in the past (before what can be represented
+   with a 32 bit offset in seconds from the epoch) an error will occur
+   (which can be avoided with try/catch). If the time would be
+   unreasonable far in the future, an error will also occur.
+   </p><p>
+
+   Note that the epoch (zero) corresponds to
+   </p><p>
+
+   <span class="quote">“<span class="quote">Thu Jan  1 00:00:00 1970</span>”</span>
+   </p><p>
+
+   The earliest full date given by ctime, corresponding to epochsecs
+   -2147483648 is <span class="quote">“<span class="quote">Fri Dec 13 20:45:52 1901</span>”</span>. The latest full date
+   given by ctime, corresponding to epochsecs 2147483647 is
+   <span class="quote">“<span class="quote">Tue Jan 19 03:14:07 2038</span>”</span>.
+   </p><p>
+
+   The abbreviations for the days of the week are ‘Sun’, ‘Mon’, ‘Tue’,
+   ‘Wed’, ‘Thu’, ‘Fri’, and ‘Sat’.  The abbreviations for the months
+   are ‘Jan’, ‘Feb’, ‘Mar’, ‘Apr’, ‘May’, ‘Jun’, ‘Jul’, ‘Aug’, ‘Sep’,
+   ‘Oct’, ‘Nov’, and ‘Dec’.
+   </p><p>
+
+   Note that the real C library <code class="function">ctime</code> function puts a newline ('\n')
+   character at the end of the string that this function does not.
+   Also note that since the kernel has no concept of timezones, the
+   returned time is always in GMT.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="ctime.stp.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="ctime.stp.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="API-tz-ctime.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 4. Time utility functions </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> <span class="phrase">function::tz_ctime</span></td></tr></table></div></body></html>

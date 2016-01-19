@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title xmlns:d="http://docbook.org/ns/docbook">5.2. Disk</title><link rel="stylesheet" type="text/css" href="Common_Content/css/default.css" /><link rel="stylesheet" media="print" href="Common_Content/css/print.css" type="text/css" /><meta xmlns:d="http://docbook.org/ns/docbook" name="generator" content="not publican" /><meta xmlns:d="http://docbook.org/ns/docbook" name="package" content="" /><link rel="home" href="index.html" title="SystemTap Beginners Guide" /><link rel="up" href="useful-systemtap-scripts.html" title="Chapter 5. Useful SystemTap Scripts" /><link rel="prev" href="useful-systemtap-scripts.html" title="Chapter 5. Useful SystemTap Scripts" /><link rel="next" href="iotimesect.html" title="5.2.2. Tracking I/O Time For Each File Read or Write" /></head><body><p id="title"></p><ul class="docnav top"><li class="previous"><a accesskey="p" href="useful-systemtap-scripts.html"><strong>Prev</strong></a></li><li class="home">SystemTap Beginners Guide</li><li class="next"><a accesskey="n" href="iotimesect.html"><strong>Next</strong></a></li></ul><div class="section"><div class="titlepage"><div><div><h2 class="title"><a id="mainsect-disk">
+      ⁠</a>5.2. Disk</h2></div></div></div><div class="para">The following sections showcase scripts that monitor disk and I/O activity.</div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="disktop">
+      ⁠</a>5.2.1. Summarizing Disk Read/Write Traffic</h3></div></div></div><a id="idm140625259912336" class="indexterm"></a><a id="idm140625259727904" class="indexterm"></a><a id="idm140625259815584" class="indexterm"></a><a id="idm140625259350816" class="indexterm"></a><a id="idm140625259403696" class="indexterm"></a><a id="idm140625246947328" class="indexterm"></a><a id="idm140625253045712" class="indexterm"></a><a id="idm140625254581200" class="indexterm"></a><div class="para">This section describes how to identify which processes are performing the heaviest disk reads/writes to the system.</div><div class="para"><div xmlns:d="http://docbook.org/ns/docbook" class="title">disktop.stp</div>
+<pre class="programlisting">#!/usr/bin/env stap 
+#
+# Copyright (C) 2007 Oracle Corp.
+#
+# Get the status of reading/writing disk every 5 seconds,
+# output top ten entries 
+#
+# This is free software,GNU General Public License (GPL);
+# either version 2, or (at your option) any later version.
+#
+# Usage:
+#  ./disktop.stp
+#
+
+global io_stat,device
+global read_bytes,write_bytes
+
+probe vfs.read.return {
+  if ($return&gt;0) {
+    if (devname!="N/A") {/*skip read from cache*/
+      io_stat[pid(),execname(),uid(),ppid(),"R"] += $return
+      device[pid(),execname(),uid(),ppid(),"R"] = devname
+      read_bytes += $return
+    }
+  }
+}
+
+probe vfs.write.return {
+  if ($return&gt;0) {
+    if (devname!="N/A") { /*skip update cache*/
+      io_stat[pid(),execname(),uid(),ppid(),"W"] += $return
+      device[pid(),execname(),uid(),ppid(),"W"] = devname
+      write_bytes += $return
+    }
+  }
+}
+
+probe timer.ms(5000) {
+  /* skip non-read/write disk */
+  if (read_bytes+write_bytes) {
+
+    printf("\n%-25s, %-8s%4dKb/sec, %-7s%6dKb, %-7s%6dKb\n\n",
+           ctime(gettimeofday_s()),
+           "Average:", ((read_bytes+write_bytes)/1024)/5,
+           "Read:",read_bytes/1024,
+           "Write:",write_bytes/1024)
+
+    /* print header */
+    printf("%8s %8s %8s %25s %8s %4s %12s\n",
+           "UID","PID","PPID","CMD","DEVICE","T","BYTES")
+  }
+  /* print top ten I/O */
+  foreach ([process,cmd,userid,parent,action] in io_stat- limit 10)
+    printf("%8d %8d %8d %25s %8s %4s %12d\n",
+           userid,process,parent,cmd,
+           device[process,cmd,userid,parent,action],
+           action,io_stat[process,cmd,userid,parent,action])
+
+  /* clear data */
+  delete io_stat
+  delete device
+  read_bytes = 0
+  write_bytes = 0  
+}
+
+probe end{
+  delete io_stat
+  delete device
+  delete read_bytes
+  delete write_bytes
+}
+</pre>
+</div><div class="para"><a class="xref" href="mainsect-disk.html#scriptdisktop">disktop.stp</a> outputs the top ten processes responsible for the heaviest reads/writes to disk. <a class="xref" href="mainsect-disk.html#disktopoutput">Example 5.6, “disktop.stp Sample Output”</a> displays a sample output for this script, and includes the following data per listed process:</div><div xmlns:d="http://docbook.org/ns/docbook" class="itemizedlist"><ul><li class="listitem"><div class="para"><code class="computeroutput">UID</code> — user ID. A user ID of <code class="computeroutput">0</code> refers to the root user.</div></li><li class="listitem"><div class="para"><code class="computeroutput">PID</code> — the ID of the listed process.</div></li><li class="listitem"><div class="para"><code class="computeroutput">PPID</code> — the process ID of the listed process's <span class="emphasis"><em>parent process</em></span>.</div></li><li class="listitem"><div class="para"><code class="computeroutput">CMD</code> — the name of the listed process.</div></li><li class="listitem"><div class="para"><code class="computeroutput">DEVICE</code> — which storage device the listed process is reading from or writing to.</div></li><li class="listitem"><div class="para"><code class="computeroutput">T</code> — the type of action performed by the listed process; <code class="computeroutput">W</code> refers to write, while <code class="computeroutput">R</code> refers to read.</div></li><li class="listitem"><div class="para"><code class="computeroutput">BYTES</code> — the amount of data read to or written from disk.</div></li></ul></div><a id="idm140625254732816" class="indexterm"></a><a id="idm140625248875712" class="indexterm"></a><a id="idm140625253846400" class="indexterm"></a><div class="para">The time and date in the output of <a class="xref" href="mainsect-disk.html#scriptdisktop">disktop.stp</a> is returned by the functions <code class="command">ctime()</code> and <code class="command">gettimeofday_s()</code>. <code class="command">ctime()</code> derives calendar time in terms of seconds passed since the Unix epoch (January 1, 1970). <code class="command">gettimeofday_s()</code> counts the <span class="emphasis"><em>actual</em></span> number of seconds since Unix epoch, which gives a fairly accurate human-readable timestamp for the output.</div><a id="idm140625254863376" class="indexterm"></a><a id="idm140625248868384" class="indexterm"></a><a id="idm140625253281328" class="indexterm"></a><div class="para">
+	In this script, the <code class="command">$return</code> is a local variable that stores the
+	actual number of bytes each process reads or writes from the virtual file system.
+	<code class="command">$return</code> can only be used in return probes (for example,
+	<code class="command">vfs.read.return</code> and <code class="command">vfs.read.return</code>).
+</div><div class="example"><a id="disktopoutput">
+      ⁠</a><p class="title"><strong>Example 5.6. <a class="xref" href="mainsect-disk.html#scriptdisktop">disktop.stp</a> Sample Output</strong></p><div class="example-contents"><pre class="screen">[...]
+Mon Sep 29 03:38:28 2008 , Average:  19Kb/sec, Read: 7Kb, Write: 89Kb
+
+UID      PID     PPID                       CMD   DEVICE    T    BYTES
+0    26319    26294                   firefox     sda5    W        90229
+0     2758     2757           pam_timestamp_c     sda5    R         8064
+0     2885        1                     cupsd     sda5    W         1678
+
+Mon Sep 29 03:38:38 2008 , Average:   1Kb/sec, Read: 7Kb, Write: 1Kb
+
+UID      PID     PPID                       CMD   DEVICE    T    BYTES
+0     2758     2757           pam_timestamp_c     sda5    R         8064
+0     2885        1                     cupsd     sda5    W         1678</pre></div></div></div></div><ul class="docnav"><li class="previous"><a accesskey="p" href="useful-systemtap-scripts.html"><strong>Prev</strong>Chapter 5. Useful SystemTap Scripts</a></li><li class="up"><a accesskey="u" href="#"><strong>Up</strong></a></li><li class="home"><a accesskey="h" href="index.html"><strong>Home</strong></a></li><li class="next"><a accesskey="n" href="iotimesect.html"><strong>Next</strong>5.2.2. Tracking I/O Time For Each File Read or Wr...</a></li></ul></body></html>

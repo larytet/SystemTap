@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title xmlns:d="http://docbook.org/ns/docbook">4.2. Accessing User-Space Target Variables</title><link rel="stylesheet" type="text/css" href="Common_Content/css/default.css" /><link rel="stylesheet" media="print" href="Common_Content/css/print.css" type="text/css" /><meta xmlns:d="http://docbook.org/ns/docbook" name="generator" content="not publican" /><meta xmlns:d="http://docbook.org/ns/docbook" name="package" content="" /><link rel="home" href="index.html" title="SystemTap Beginners Guide" /><link rel="up" href="userspace-probing.html" title="Chapter 4. User-space Probing" /><link rel="prev" href="userspace-probing.html" title="Chapter 4. User-space Probing" /><link rel="next" href="ustack.html" title="4.3. User-Space Stack Backtraces" /></head><body><p id="title"></p><ul class="docnav top"><li class="previous"><a accesskey="p" href="userspace-probing.html"><strong>Prev</strong></a></li><li class="home">SystemTap Beginners Guide</li><li class="next"><a accesskey="n" href="ustack.html"><strong>Next</strong></a></li></ul><div class="section"><div class="titlepage"><div><div><h2 class="title"><a id="utargetvariable">
+      ⁠</a>4.2. Accessing User-Space Target Variables</h2></div></div></div><a id="idm140625252002992" class="indexterm"></a><div class="para">
+You can access user-space target variables in the same manner as described in
+<a class="xref" href="targetvariables.html">Section 3.3.2, “Target Variables”</a>.
+In Linux, however, there are separate address spaces for the user and
+kernel code.
+When using the <code class="literal">-&gt;</code> operator, SystemTap accesses the appropriate address space.
+</div><div class="para">
+For pointers to base types such as integers and strings,
+there are a number of functions listed below to access user-space data.
+The first argument for each functions is the pointer to the data item.
+</div><div class="variablelist"><dl class="variablelist"><dt><span class="term">user_char(<em class="replaceable">address</em>)</span></dt><dd><div class="para">
+Obtains the character at <em class="replaceable">address</em> for the current
+user process.
+</div></dd><dt><span class="term">user_short(<em class="replaceable">address</em>)</span></dt><dd><div class="para">
+Obtains the short integer at <em class="replaceable">address</em> for the current
+user process.
+</div></dd><dt><span class="term">user_int(<em class="replaceable">address</em>)</span></dt><dd><div class="para">
+Obtains the integer at <em class="replaceable">address</em> for the current
+user process.
+</div></dd><dt><span class="term">user_long(<em class="replaceable">address</em>)</span></dt><dd><div class="para">
+Obtains the long integer at <em class="replaceable">address</em> for the current
+user process.
+</div></dd><dt><span class="term">user_string(<em class="replaceable">address</em>)</span></dt><dd><div class="para">
+Obtains the string at <em class="replaceable">address</em> for the current
+user process.
+</div></dd><dt><span class="term">user_string_n(<em class="replaceable">address</em>, <em class="replaceable">n</em>)</span></dt><dd><div class="para">
+Obtains the string at <em class="replaceable">address</em> for the current
+user process and limits the string to <em class="replaceable">n</em> bytes.
+</div></dd></dl></div></div><ul class="docnav"><li class="previous"><a accesskey="p" href="userspace-probing.html"><strong>Prev</strong>Chapter 4. User-space Probing</a></li><li class="up"><a accesskey="u" href="#"><strong>Up</strong></a></li><li class="home"><a accesskey="h" href="index.html"><strong>Home</strong></a></li><li class="next"><a accesskey="n" href="ustack.html"><strong>Next</strong>4.3. User-Space Stack Backtraces</a></li></ul></body></html>

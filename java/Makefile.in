@@ -40,8 +40,7 @@ am__make_running_with_option = \
   has_opt=no; \
   sane_makeflags=$$MAKEFLAGS; \
   if $(am__is_gnu_make); then \
-    sane_makeflags=$$MFLAGS; \
-  else \
+    sane_makeflags=$$MFLAGS; \ else \
     case $$MAKEFLAGS in \
       *\\[\ \	]*) \
         bs=\\; \
@@ -330,7 +329,6 @@ have_jar = @have_jar@
 have_javac = @have_javac@
 have_latex = @have_latex@
 have_ps2pdf = @have_ps2pdf@
-have_xmlto = @have_xmlto@
 host = @host@
 host_alias = @host_alias@
 host_cpu = @host_cpu@

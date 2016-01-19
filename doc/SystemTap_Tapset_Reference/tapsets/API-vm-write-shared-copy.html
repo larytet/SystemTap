@@ -1,0 +1,15 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>probe::vm.write_shared_copy</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="SystemTap Tapset Reference Manual"><link rel="up" href="memory_stp.html" title="Chapter 6. Memory Tapset"><link rel="prev" href="API-vm-write-shared.html" title="probe::vm.write_shared"><link rel="next" href="task_time_stp.html" title="Chapter 7. Task Time Tapset"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center"><span class="phrase">probe::vm.write_shared_copy</span></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="API-vm-write-shared.html">Prev</a> </td><th width="60%" align="center">Chapter 6. Memory Tapset</th><td width="20%" align="right"> <a accesskey="n" href="task_time_stp.html">Next</a></td></tr></table><hr></div><div class="refentry"><a name="API-vm-write-shared-copy"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>probe::vm.write_shared_copy — 
+     Page copy for shared page write
+ </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><pre class="synopsis">vm.write_shared_copy </pre></div><div class="refsect1"><a name="idm140101446561568"></a><h2>Values</h2><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>zero</code></em></span></dt><dd><p>
+     boolean indicating whether it is a zero page
+     (can do a clear instead of a copy)
+    </p></dd><dt><span class="term"><em class="parameter"><code>name</code></em></span></dt><dd><p>
+     Name of the probe point
+    </p></dd><dt><span class="term"><em class="parameter"><code>address</code></em></span></dt><dd><p>
+     The address of the shared write
+    </p></dd></dl></div></div><div class="refsect1"><a name="idm140101446554256"></a><h2>Context</h2><p>
+   The process attempting the write.
+</p></div><div class="refsect1"><a name="idm140101446553024"></a><h2>Description</h2><p>
+   Fires when a write to a shared page requires a page copy.  This is
+   always preceded by a vm.write_shared.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="API-vm-write-shared.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="memory_stp.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="task_time_stp.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top"><span class="phrase">probe::vm.write_shared</span> </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 7. Task Time Tapset</td></tr></table></div></body></html>

@@ -1,0 +1,12 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>function::system</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="SystemTap Tapset Reference Manual"><link rel="up" href="system.stp.html" title="Chapter 5. Shell command functions"><link rel="prev" href="system.stp.html" title="Chapter 5. Shell command functions"><link rel="next" href="memory_stp.html" title="Chapter 6. Memory Tapset"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center"><span class="phrase">function::system</span></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="system.stp.html">Prev</a> </td><th width="60%" align="center">Chapter 5. Shell command functions</th><td width="20%" align="right"> <a accesskey="n" href="memory_stp.html">Next</a></td></tr></table><hr></div><div class="refentry"><a name="API-system"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>function::system — 
+  Issue a command to the system
+ </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><pre class="programlisting">
+    system(cmd:string)
+</pre></div><div class="refsect1"><a name="idm140101446982800"></a><h2>Arguments</h2><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>cmd</code></em></span></dt><dd><p>
+     the command to issue to the system
+    </p></dd></dl></div></div><div class="refsect1"><a name="idm140101446979616"></a><h2>Description</h2><p>
+   This function runs a command on the system.  The
+   command is started in the background some time after the current
+   probe completes. The command is run with the same UID as the user
+   running the stap or staprun command.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="system.stp.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="system.stp.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="memory_stp.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 5. Shell command functions </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 6. Memory Tapset</td></tr></table></div></body></html>

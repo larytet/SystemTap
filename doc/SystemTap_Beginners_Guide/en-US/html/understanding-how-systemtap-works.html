@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title xmlns:d="http://docbook.org/ns/docbook">Chapter 3. Understanding How SystemTap Works</title><link rel="stylesheet" type="text/css" href="Common_Content/css/default.css" /><link rel="stylesheet" media="print" href="Common_Content/css/print.css" type="text/css" /><meta xmlns:d="http://docbook.org/ns/docbook" name="generator" content="not publican" /><meta xmlns:d="http://docbook.org/ns/docbook" name="package" content="" /><link rel="home" href="index.html" title="SystemTap Beginners Guide" /><link rel="up" href="index.html" title="SystemTap Beginners Guide" /><link rel="prev" href="using-usage.html" title="2.3. Running SystemTap Scripts" /><link rel="next" href="scripts.html" title="3.2. SystemTap Scripts" /></head><body><p id="title"></p><ul class="docnav top"><li class="previous"><a accesskey="p" href="using-usage.html"><strong>Prev</strong></a></li><li class="home">SystemTap Beginners Guide</li><li class="next"><a accesskey="n" href="scripts.html"><strong>Next</strong></a></li></ul><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="understanding-how-systemtap-works">
+      ⁠</a>Chapter 3. Understanding How SystemTap Works</h1></div></div></div><div class="toc"><dl class="toc"><dt><span class="section"><a href="understanding-how-systemtap-works.html#understanding-architecture-tools">3.1. Architecture</a></span></dt><dt><span class="section"><a href="scripts.html">3.2. SystemTap Scripts</a></span></dt><dd><dl><dt><span class="section"><a href="scripts.html#systemtapscript-events">3.2.1. Event</a></span></dt><dt><span class="section"><a href="systemtapscript-handler.html">3.2.2. SystemTap Handler/Body</a></span></dt></dl></dd><dt><span class="section"><a href="scriptconstructions.html">3.3. Basic SystemTap Handler Constructs</a></span></dt><dd><dl><dt><span class="section"><a href="scriptconstructions.html#variablesconstructs">3.3.1. Variables</a></span></dt><dt><span class="section"><a href="targetvariables.html">3.3.2. Target Variables</a></span></dt><dt><span class="section"><a href="handlerconditionalstatements.html">3.3.3. Conditional Statements</a></span></dt><dt><span class="section"><a href="commandlineargssect.html">3.3.4. Command-Line Arguments</a></span></dt></dl></dd><dt><span class="section"><a href="associativearrays.html">3.4. Associative Arrays</a></span></dt><dt><span class="section"><a href="arrayoperators.html">3.5. Array Operations in SystemTap</a></span></dt><dd><dl><dt><span class="section"><a href="arrayoperators.html#arrayops-assignvalue">3.5.1. Assigning an Associated Value</a></span></dt><dt><span class="section"><a href="arrayops-readvalues.html">3.5.2. Reading Values From Arrays</a></span></dt><dt><span class="section"><a href="arrayops-increment.html">3.5.3. Incrementing Associated Values</a></span></dt><dt><span class="section"><a href="arrayops-foreach.html">3.5.4. Processing Multiple Elements in an Array</a></span></dt><dt><span class="section"><a href="arrayops-deleting.html">3.5.5. Clearing/Deleting Arrays and Array Elements</a></span></dt><dt><span class="section"><a href="arrayops-conditionals.html">3.5.6. Using Arrays in Conditional Statements</a></span></dt><dt><span class="section"><a href="arrayops-aggregates.html">3.5.7. Computing for Statistical Aggregates</a></span></dt></dl></dd><dt><span class="section"><a href="understanding-tapsets.html">3.6. Tapsets</a></span></dt></dl></div><a id="idm140625249734880" class="indexterm"></a><div class="para">
+    SystemTap allows users to write and reuse simple scripts to deeply
+    examine the activities of a running Linux system. These scripts can be
+    designed to extract data, filter it, and summarize it quickly (and
+    safely), enabling the diagnosis of complex performance (or even
+    functional) problems.
+  </div><a id="idm140625249737376" class="indexterm"></a><a id="idm140625249738864" class="indexterm"></a><a id="idm140625249740496" class="indexterm"></a><div class="para">The essential idea behind a SystemTap script is to name
+    <span class="emphasis"><em>events</em></span>, and to give them
+    <span class="emphasis"><em>handlers</em></span>. When SystemTap runs the script, SystemTap
+    monitors for the event; once the event occurs, the Linux kernel then runs
+    the handler as a quick sub-routine, then resumes.
+  </div><a id="idm140625249743584" class="indexterm"></a><a id="idm140625249745056" class="indexterm"></a><div class="para">
+    There are several kind of events; entering/exiting a function, timer
+    expiration, session termination, etc. A handler is a series of script
+    language statements that specify the work to be done whenever the event
+    occurs. This work normally includes extracting data from the event context,
+    storing them into internal variables, and printing results.
+</div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a id="understanding-architecture-tools">
+      ⁠</a>3.1. Architecture</h2></div></div></div><a id="idm140625249750864" class="indexterm"></a><a id="idm140625249750208" class="indexterm"></a><a id="idm140625249751296" class="indexterm"></a><div class="para">
+      A SystemTap session begins when you run a SystemTap script. This
+      session occurs in the following fashion:
+    </div><div xmlns:d="http://docbook.org/ns/docbook" class="procedure"><a id="systemtapsession">
+      ⁠</a><p class="title"><strong>Procedure 3.1. SystemTap Session</strong></p><a id="idm140625249763712" class="indexterm"></a><a id="idm140625249755280" class="indexterm"></a><a id="idm140625249756016" class="indexterm"></a><ol class="1"><li class="step"><div class="para">
+	  First, SystemTap checks the script against the existing tapset library
+	  (normally in <code class="filename">/usr/share/systemtap/tapset/</code> for any
+	  tapsets used. SystemTap will then substitute any located tapsets with their
+	  corresponding definitions in the tapset library.
+	</div></li><li class="step"><div class="para">SystemTap then translates the script to C, running the system C
+	  compiler to create a kernel module from it. The tools that perform
+	  this step are contained in the <code class="filename">systemtap</code> package
+	  (refer to <a class="xref" href="using-systemtap.html#installproper">Section 2.1.1, “Installing SystemTap”</a> for more information).
+	</div></li><li class="step"><div class="para">
+	  SystemTap loads the module, then enables all the probes (events and
+	  handlers) in the script. The <code class="command">staprun</code> in the
+	  <code class="filename">systemtap-runtime</code> package (refer to <a class="xref" href="using-systemtap.html#installproper">Section 2.1.1, “Installing SystemTap”</a> for more information) provides this
+	  functionality.
+	</div></li><li class="step"><div class="para">
+	  As the events occur, their corresponding handlers are executed.
+	</div></li><li class="step"><div class="para">
+	  Once the SystemTap session is terminated, the probes are disabled, and
+	  the kernel module is unloaded.
+	</div></li></ol></div><div class="para">This sequence is driven from a single command-line program:
+    <code class="command">stap</code>. This program is SystemTap's main front-end
+    tool. For more information about <code class="command">stap</code>, refer to
+    <code class="command">man stap</code> (once SystemTap is properly installed on your
+    machine).
+    </div></div></div><ul class="docnav"><li class="previous"><a accesskey="p" href="using-usage.html"><strong>Prev</strong>2.3. Running SystemTap Scripts</a></li><li class="up"><a accesskey="u" href="#"><strong>Up</strong></a></li><li class="home"><a accesskey="h" href="index.html"><strong>Home</strong></a></li><li class="next"><a accesskey="n" href="scripts.html"><strong>Next</strong>3.2. SystemTap Scripts</a></li></ul></body></html>

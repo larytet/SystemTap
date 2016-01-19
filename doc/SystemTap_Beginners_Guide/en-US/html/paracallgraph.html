@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title xmlns:d="http://docbook.org/ns/docbook">5.3.2. Call Graph Tracing</title><link rel="stylesheet" type="text/css" href="Common_Content/css/default.css" /><link rel="stylesheet" media="print" href="Common_Content/css/print.css" type="text/css" /><meta xmlns:d="http://docbook.org/ns/docbook" name="generator" content="not publican" /><meta xmlns:d="http://docbook.org/ns/docbook" name="package" content="" /><link rel="home" href="index.html" title="SystemTap Beginners Guide" /><link rel="up" href="mainsect-profiling.html" title="5.3. Profiling" /><link rel="prev" href="mainsect-profiling.html" title="5.3. Profiling" /><link rel="next" href="threadtimessect.html" title="5.3.3. Determining Time Spent in Kernel and User Space" /></head><body><p id="title"></p><ul class="docnav top"><li class="previous"><a accesskey="p" href="mainsect-profiling.html"><strong>Prev</strong></a></li><li class="home">SystemTap Beginners Guide</li><li class="next"><a accesskey="n" href="threadtimessect.html"><strong>Next</strong></a></li></ul><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="paracallgraph">
+      ⁠</a>5.3.2. Call Graph Tracing</h3></div></div></div><a id="idm140625248857824" class="indexterm"></a><a id="idm140625254921680" class="indexterm"></a><a id="idm140625246890688" class="indexterm"></a><a id="idm140625251044064" class="indexterm"></a><a id="idm140625257564864" class="indexterm"></a><a id="idm140625250628464" class="indexterm"></a><a id="idm140625247709728" class="indexterm"></a><div class="para">This section describes how to trace incoming and outgoing function calls. </div><div class="para"><div xmlns:d="http://docbook.org/ns/docbook" class="title">para-callgraph.stp</div>
+<pre class="programlisting">#! /usr/bin/env stap
+
+function trace(entry_p, extra) {
+  %( $# &gt; 1 %? if (tid() in trace) %)
+  printf("%s%s%s %s\n",
+         thread_indent (entry_p),
+         (entry_p&gt;0?"-&gt;":"&lt;-"),
+         ppfunc (),
+         extra)
+}
+
+
+%( $# &gt; 1 %?
+global trace
+probe $2.call {
+  trace[tid()] = 1
+}
+probe $2.return {
+  delete trace[tid()]
+}
+%)
+
+probe $1.call   { trace(1, $$parms) }
+probe $1.return { trace(-1, $$return) }
+</pre>
+</div><a id="idm140625251294400" class="indexterm"></a><a id="idm140625249449088" class="indexterm"></a><a id="idm140625259899664" class="indexterm"></a><a id="idm140625259457520" class="indexterm"></a><div class="para"><a class="xref" href="paracallgraph.html#scriptcallgraph">para-callgraph.stp</a> takes two command-line arguments:</div><a id="idm140625246818592" class="indexterm"></a><a id="idm140625251402800" class="indexterm"></a><a id="idm140625257010080" class="indexterm"></a><div xmlns:d="http://docbook.org/ns/docbook" class="itemizedlist"><ul><li class="listitem"><div class="para">
+			The function/s whose entry/exit call you'd like to trace
+			(<code class="command">$1</code>).
+		</div></li><li class="listitem"><div class="para">
+			A second optional <em class="firstterm">trigger function</em> (<code class="command">$2</code>), which
+			enables or disables tracing on a per-thread basis. Tracing in each thread
+			will continue as long as the trigger function has not exited yet.
+		</div></li></ul></div><a id="idm140625255396544" class="indexterm"></a><a id="idm140625246236560" class="indexterm"></a><a id="idm140625253454448" class="indexterm"></a><div class="para"><a class="xref" href="paracallgraph.html#scriptcallgraph">para-callgraph.stp</a> uses <code class="command">thread_indent()</code>; as such, its output contains the timestamp, process name, and thread ID of <code class="command">$1</code> (that is, the probe function you are tracing). For more information about <code class="command">thread_indent()</code>, refer to its entry in <a class="xref" href="systemtapscript-handler.html#systemtapscript-functions">SystemTap Functions</a>.</div><div class="para">The following example contains an excerpt from the output
+for <code class="command">stap para-callgraph.stp 'kernel.function("*@fs/*.c")' 'kernel.function("sys_read")'</code>:</div><div class="example"><a id="paracallgraphoutput">
+      ⁠</a><p class="title"><strong>Example 5.14. <a class="xref" href="paracallgraph.html#scriptcallgraph">para-callgraph.stp</a> Sample Output</strong></p><div class="example-contents"><pre class="screen">[...]
+   267 gnome-terminal(2921): &lt;-do_sync_read return=0xfffffffffffffff5
+   269 gnome-terminal(2921):&lt;-vfs_read return=0xfffffffffffffff5
+     0 gnome-terminal(2921):-&gt;fput file=0xffff880111eebbc0
+     2 gnome-terminal(2921):&lt;-fput
+     0 gnome-terminal(2921):-&gt;fget_light fd=0x3 fput_needed=0xffff88010544df54
+     3 gnome-terminal(2921):&lt;-fget_light return=0xffff8801116ce980
+     0 gnome-terminal(2921):-&gt;vfs_read file=0xffff8801116ce980 buf=0xc86504 count=0x1000 pos=0xffff88010544df48
+     4 gnome-terminal(2921): -&gt;rw_verify_area read_write=0x0 file=0xffff8801116ce980 ppos=0xffff88010544df48 count=0x1000
+     7 gnome-terminal(2921): &lt;-rw_verify_area return=0x1000
+    12 gnome-terminal(2921): -&gt;do_sync_read filp=0xffff8801116ce980 buf=0xc86504 len=0x1000 ppos=0xffff88010544df48
+    15 gnome-terminal(2921): &lt;-do_sync_read return=0xfffffffffffffff5
+    18 gnome-terminal(2921):&lt;-vfs_read return=0xfffffffffffffff5
+     0 gnome-terminal(2921):-&gt;fput file=0xffff8801116ce980</pre></div></div></div><ul class="docnav"><li class="previous"><a accesskey="p" href="mainsect-profiling.html"><strong>Prev</strong>5.3. Profiling</a></li><li class="up"><a accesskey="u" href="#"><strong>Up</strong></a></li><li class="home"><a accesskey="h" href="index.html"><strong>Home</strong></a></li><li class="next"><a accesskey="n" href="threadtimessect.html"><strong>Next</strong>5.3.3. Determining Time Spent in Kernel and User ...</a></li></ul></body></html>

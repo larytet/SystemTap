@@ -685,8 +685,6 @@ nss_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
-BUILD_PDFREFDOCS_FALSE
-BUILD_PDFREFDOCS_TRUE
 XMLTO_STRINGPARAM_FALSE
 XMLTO_STRINGPARAM_TRUE
 HAVE_XMLTO_FALSE
@@ -696,7 +694,6 @@ HAVE_FOP_TRUE
 have_fop
 BUILD_REFDOCS_FALSE
 BUILD_REFDOCS_TRUE
-have_xmlto
 BUILD_DOCS_FALSE
 BUILD_DOCS_TRUE
 have_ps2pdf
@@ -1546,7 +1543,7 @@ Optional Features:
   --enable-docs           enable building documentation (default on if latex
                           etc. found).
   --enable-refdocs        enable building reference documentation (default on
-                          if xmlto etc. found and other documentation built).
+                          if other documentation built).
   --enable-server         enable building of stap-server (default on if nss
                           etc. found).
   --enable-virt           enable building of stapvirt support (default on if
@@ -9743,50 +9740,7 @@ fi
 if test "$building_docs" == "no" -a "$enable_refdocs" == "yes" ; then
    as_fn_error $? "must use --enable-docs with --enable-refdocs" "$LINENO" 5
 fi
-# Extract the first word of "xmlto", so it can be a program name with args.
-set dummy xmlto; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_prog_have_xmlto+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  if test -n "$have_xmlto"; then
-  ac_cv_prog_have_xmlto="$have_xmlto" # Let the user override the test.
-else
-as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_prog_have_xmlto="yes"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  test -z "$ac_cv_prog_have_xmlto" && ac_cv_prog_have_xmlto="no"
-fi
-fi
-have_xmlto=$ac_cv_prog_have_xmlto
-if test -n "$have_xmlto"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_xmlto" >&5
-$as_echo "$have_xmlto" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-if test "$enable_refdocs" == "yes"; then
-   if test "x${have_xmlto}" != "xyes"; then
-      as_fn_error $? "cannot find xmlto for building reference documentation" "$LINENO" 5
-   fi
-fi
-if test "x${have_xmlto}" == "xyes" -a "$enable_refdocs" != "no" -a "${building_docs}" == "yes"; then
+if test "$enable_refdocs" != "no" -a "${building_docs}" == "yes"; then
    building_refdocs="yes"
 fi
  if test "$building_refdocs" == "yes"; then
@@ -9902,39 +9856,6 @@ fi
 else
   XMLTO_STRINGPARAM_TRUE='#'
   XMLTO_STRINGPARAM_FALSE=
-fi
-
-
-if test "x${building_refdocs}" == "xyes"; then
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for xmlto pdf support" >&5
-$as_echo_n "checking for xmlto pdf support... " >&6; }
-   # xmlto pdf may work *only* with --with-fop
-   # XXX: To an extent this test is redundant in that the --with-fop test
-   # already ran xmlto --with-fop pdf ....
-   if test "x$have_fop" == "xyes"; then
-      XMLTOPDF_FOP=--with-fop
-   else
-      XMLTOPDF_FOP=
-   fi
-   xmlto $XMLTOPDF_FOP pdf conftest.xml >& /dev/null
-   if test $? == 0; then
-      have_xmlto_pdf="yes"
-      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-   else
-      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-      { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Not building reference documentation in PDF format" >&5
-$as_echo "$as_me: WARNING: Not building reference documentation in PDF format" >&2;}
-   fi
-   rm -f conftest.pdf
-fi
- if test "$have_xmlto_pdf" == "yes"; then
-  BUILD_PDFREFDOCS_TRUE=
-  BUILD_PDFREFDOCS_FALSE='#'
-else
-  BUILD_PDFREFDOCS_TRUE='#'
-  BUILD_PDFREFDOCS_FALSE=
 fi
 
 
@@ -11943,10 +11864,6 @@ if test -z "${XMLTO_STRINGPARAM_TRUE}" && test -z "${XMLTO_STRINGPARAM_FALSE}"; 
   as_fn_error $? "conditional \"XMLTO_STRINGPARAM\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
-if test -z "${BUILD_PDFREFDOCS_TRUE}" && test -z "${BUILD_PDFREFDOCS_FALSE}"; then
-  as_fn_error $? "conditional \"BUILD_PDFREFDOCS\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
 if test -z "${HAVE_NSS_TRUE}" && test -z "${HAVE_NSS_FALSE}"; then
   as_fn_error $? "conditional \"HAVE_NSS\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
@@ -13433,7 +13350,7 @@ $as_echo X"$file" |
     "staprun/run-staprun":F) chmod +x staprun/run-staprun ;;
     "staprun/guest/stapshd":F) chmod +x staprun/guest/stapshd ;;
     "staprun/guest/stapsh-daemon":F) chmod +x staprun/guest/stapsh-daemon ;;
-    "doc/beginners":C) rm -f $ac_abs_top_builddir/doc/beginners/en-US $ac_abs_top_builddir/doc/beginners/build/en-US/testsuite && mkdir -p $ac_abs_top_builddir/doc/beginners/build/en-US && ln -s $ac_abs_top_srcdir/doc/SystemTap_Beginners_Guide/en-US $ac_abs_top_builddir/doc/beginners/en-US && ln -s $ac_abs_top_srcdir/testsuite $ac_abs_top_builddir/doc/beginners/build/en-US/testsuite ;;
+    "doc/beginners":C) rm -f $ac_abs_top_builddir/doc/beginners/en-US $ac_abs_top_builddir/doc/beginners/build/en-US/testsuite && mkdir -p $ac_abs_top_builddir/doc/beginners/build/en-US && ln -s $ac_abs_top_srcdir/doc/SystemTap_Beginners_Guide/en-US $ac_abs_top_builddir/doc/beginners/en-US ;;
 
   esac
 done # for ac_tag

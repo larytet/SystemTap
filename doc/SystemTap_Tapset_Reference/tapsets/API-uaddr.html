@@ -1,0 +1,14 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>function::uaddr</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="SystemTap Tapset Reference Manual"><link rel="up" href="context_stp.html" title="Chapter 2. Context Functions"><link rel="prev" href="API-u-register.html" title="function::u_register"><link rel="next" href="API-ubacktrace.html" title="function::ubacktrace"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center"><span class="phrase">function::uaddr</span></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="API-u-register.html">Prev</a> </td><th width="60%" align="center">Chapter 2. Context Functions</th><td width="20%" align="right"> <a accesskey="n" href="API-ubacktrace.html">Next</a></td></tr></table><hr></div><div class="refentry"><a name="API-uaddr"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>function::uaddr — 
+     User space address of current running task
+ </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><pre class="programlisting">
+    uaddr:long()
+</pre></div><div class="refsect1"><a name="idm140101447406640"></a><h2>Arguments</h2><p>
+  None
+ </p></div><div class="refsect1"><a name="idm140101447405488"></a><h2>Description</h2><p>
+   Returns the address in userspace that the current
+   task was at when the probe occurred. When the current running task
+   isn't a user space thread, or the address cannot be found, zero
+   is returned. Can be used to see where the current task is combined
+   with <code class="function">usymname</code> or <code class="function">usymdata</code>. Often the task will be in the VDSO
+   where it entered the kernel.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="API-u-register.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="context_stp.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="API-ubacktrace.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top"><span class="phrase">function::u_register</span> </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> <span class="phrase">function::ubacktrace</span></td></tr></table></div></body></html>

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title xmlns:d="http://docbook.org/ns/docbook">Chapter 4. User-space Probing</title><link rel="stylesheet" type="text/css" href="Common_Content/css/default.css" /><link rel="stylesheet" media="print" href="Common_Content/css/print.css" type="text/css" /><meta xmlns:d="http://docbook.org/ns/docbook" name="generator" content="not publican" /><meta xmlns:d="http://docbook.org/ns/docbook" name="package" content="" /><link rel="home" href="index.html" title="SystemTap Beginners Guide" /><link rel="up" href="index.html" title="SystemTap Beginners Guide" /><link rel="prev" href="understanding-tapsets.html" title="3.6. Tapsets" /><link rel="next" href="utargetvariable.html" title="4.2. Accessing User-Space Target Variables" /></head><body><p id="title"></p><ul class="docnav top"><li class="previous"><a accesskey="p" href="understanding-tapsets.html"><strong>Prev</strong></a></li><li class="home">SystemTap Beginners Guide</li><li class="next"><a accesskey="n" href="utargetvariable.html"><strong>Next</strong></a></li></ul><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="userspace-probing">
+      ⁠</a>Chapter 4. User-space Probing</h1></div></div></div><div class="toc"><dl class="toc"><dt><span class="section"><a href="userspace-probing.html#uevents">4.1. User-Space Events</a></span></dt><dt><span class="section"><a href="utargetvariable.html">4.2. Accessing User-Space Target Variables</a></span></dt><dt><span class="section"><a href="ustack.html">4.3. User-Space Stack Backtraces</a></span></dt></dl></div><div class="para">
+SystemTap initially focused on kernel-space probing. Because
+there are many instances where user-space probing can help diagnose
+a problem, SystemTap 0.6 added support to allow probing user-space processes.
+SystemTap can probe the entry into and return from a
+function in user-space processes, probe predefined markers in
+user-space code, and monitor user-process events.
+</div><div class="para">
+SystemTap requires the uprobes module to perform user-space probing. If your
+Linux kernel is version 3.5 or higher, it already includes uprobes.
+To verify that the current kernel supports uprobes natively, run the following command:
+</div><pre class="screen"><code class="command">grep CONFIG_UPROBES /boot/config-`uname -r`</code></pre><div class="para">
+If uprobes is integrated, the output of this command is as follows:
+</div><pre class="screen">CONFIG_UPROBES=y</pre><div class="para">
+If you are running a kernel prior to version 3.5, SystemTap automatically
+builds the uprobes module. However, you also need the utrace kernel
+extensions required by the SystemTap user-space probing to track
+various user-space events. More details about the utrace infrastructure are
+available at <a href="http://sourceware.org/systemtap/wiki/utrace">http://sourceware.org/systemtap/wiki/utrace</a>.
+To determine whether the currently running Linux kernel provides the needed utrace support, type the following at a shell prompt:
+</div><pre class="screen"><code class="command">grep CONFIG_UTRACE /boot/config-`uname -r`</code></pre><div class="para">
+If the Linux kernel supports user-space probing, the command produces the following output:
+</div><pre class="screen">CONFIG_UTRACE=y</pre><div class="section"><div class="titlepage"><div><div><h2 class="title"><a id="uevents">
+      ⁠</a>4.1. User-Space Events</h2></div></div></div><a id="idm140625251270368" class="indexterm"></a><div class="para">
+All user-space event probes begin with <span class="emphasis"><em>process</em></span>.
+You can limit the process events to a specific running process by specifying the process ID.
+You can also limit the process events to monitor a particular executable
+by specifying the path to the executable (PATH).
+SystemTap makes use of the <code class="envar">PATH</code> environment variable, which allows
+you to use both the name used on the command-line to start the executable and
+the absolute path to the executable.
+</div><div class="para">
+Several of the user-space probe events limit their scope to a
+particular executable name (PATH), because
+SystemTap must use debug information to statically analyze where to
+place the probes. But for many user-space probe events, the process ID
+and executable name are optional. 
+Any <code class="command">process</code> event in the list below that include process ID or
+the path to the executable must include those arguments.
+The process ID and path to the executable are optional for the
+<code class="command">process</code> events that do not list them:
+</div><div class="variablelist"><dl class="variablelist"><dt><span class="term">process("<em class="replaceable">PATH</em>").function("<em class="replaceable">function</em>")</span></dt><dd><div class="para">
+The entry to the user-space function <em class="replaceable">function</em> for the executable <em class="replaceable">PATH</em>.
+This event is the user-space analogue of the
+<code class="command">kernel.function("<em class="replaceable">function</em>")</code> event.
+It allows wildcards for the function <em class="replaceable">function</em>
+and <code class="literal">.return</code> suffix.
+</div></dd><dt><span class="term">process("<em class="replaceable">PATH</em>").statement("<em class="replaceable">statement</em>")</span></dt><dd><div class="para">
+The earliest instruction in the code for <em class="replaceable">statement</em>. This is the user-space analogue of 
+<code class="command">kernel.statement("<em class="replaceable">statement</em>")</code>.
+</div></dd><dt><span class="term">process("<em class="replaceable">PATH</em>").mark("<em class="replaceable">marker</em>")</span></dt><dd><div class="para">The static probe point <em class="replaceable">marker</em> defined in
+<em class="replaceable">PATH</em>.
+You can use wildcards for <em class="replaceable">marker</em> to specify
+multiple marks with a single probe.
+The static probe points may also have numbered arguments ($1, $2, and so on)
+available to the probe.</div><div class="para">A variety of user-space packages such as Java include these static
+probe points.
+Most packages that provide static probe points also
+provide aliases for the raw user-space mark events.
+Below is one such alias for the x86_64 Java hotspot JVM:
+ </div><pre class="programlisting">probe hotspot.gc_begin =
+  process("/usr/lib/jvm/java-1.6.0-openjdk-1.6.0.0.x86_64/jre/lib/amd64/server/libjvm.so").mark("gc__begin")</pre></dd><dt><span class="term">process.begin</span></dt><dd><div class="para">A user-space process is created.
+You can limit this to a particular process ID or a full path to the
+executable.</div></dd><dt><span class="term">process.thread.begin</span></dt><dd><div class="para">A user-space thread is created.
+You can limit this to a particular process ID or a full path to the
+executable.</div></dd><dt><span class="term">process.end</span></dt><dd><div class="para">A user-space process dies.
+You can limit this to a particular process ID or a full path to the
+executable.</div></dd><dt><span class="term">process.thread.end</span></dt><dd><div class="para">A user-space thread is destroyed.
+You can limit this to a particular process ID or a full path to the
+executable.</div></dd><dt><span class="term">process.syscall</span></dt><dd><div class="para">A user-space process makes a system call.
+The system call number is available in the <code class="varname">$syscall</code> context variable, and 
+the fist six arguments are available in <code class="varname">$arg1</code> through <code class="varname">$arg6</code>.
+The <code class="literal">.return</code> suffix places the probe at the return from the system call.
+For <code class="command">syscall.return</code>, the return value is available through the
+<code class="varname">$return</code> context variable.</div><div class="para">You can limit this to a particular process ID or a full path to the
+executable.</div></dd></dl></div></div></div><ul class="docnav"><li class="previous"><a accesskey="p" href="understanding-tapsets.html"><strong>Prev</strong>3.6. Tapsets</a></li><li class="up"><a accesskey="u" href="#"><strong>Up</strong></a></li><li class="home"><a accesskey="h" href="index.html"><strong>Home</strong></a></li><li class="next"><a accesskey="n" href="utargetvariable.html"><strong>Next</strong>4.2. Accessing User-Space Target Variables</a></li></ul></body></html>

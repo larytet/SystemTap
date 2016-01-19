@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title xmlns:d="http://docbook.org/ns/docbook">3.3.2.2. Typecasting</title><link rel="stylesheet" type="text/css" href="Common_Content/css/default.css" /><link rel="stylesheet" media="print" href="Common_Content/css/print.css" type="text/css" /><meta xmlns:d="http://docbook.org/ns/docbook" name="generator" content="not publican" /><meta xmlns:d="http://docbook.org/ns/docbook" name="package" content="" /><link rel="home" href="index.html" title="SystemTap Beginners Guide" /><link rel="up" href="targetvariables.html" title="3.3.2. Target Variables" /><link rel="prev" href="targetvariables.html" title="3.3.2. Target Variables" /><link rel="next" href="targetavailable.html" title="3.3.2.3. Checking Target Variable Availability" /></head><body><p id="title"></p><ul class="docnav top"><li class="previous"><a accesskey="p" href="targetvariables.html"><strong>Prev</strong></a></li><li class="home">SystemTap Beginners Guide</li><li class="next"><a accesskey="n" href="targetavailable.html"><strong>Next</strong></a></li></ul><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="typecasting">
+      ⁠</a>3.3.2.2. Typecasting</h4></div></div></div><a id="idm140625250970800" class="indexterm"></a><div class="para">
+	In most cases SystemTap can determine a variable's type
+	from the debug information.
+	However, code may use void pointers for variables
+	(for example memory allocation routines) and typing information is
+	not available.
+	Also the typing information available within a probe handler is not
+	available within a function;
+	SystemTap functions arguments use a long in place of a typed pointer.
+	SystemTap's <code class="command">@cast</code> operator (first available in 
+	SystemTap 0.9) can be used to indicate
+	the correct type of the object.
+</div><div class="para">
+	The <a class="xref" href="typecasting.html#casting">Example 3.9, “Casting Example”</a> is from the
+	<code class="command">task.stp</code> tapset.
+	The function returns the value of the <code class="command">state</code>
+	field from a <code class="command">task_struct</code> pointed to by
+	the long <code class="command">task</code>.
+	The first argument of the <code class="command">@cast</code> operator,
+	<code class="command">task</code>, is the pointer to the object.
+	The second argument is the type to cast the object to,
+	<code class="command">task_struct</code>.
+	The third argument lists what file that the type definition
+	information comes from and is optional.
+	With the <code class="command">@cast</code> operator the various fields of
+	this particular  <code class="command">task_struct</code> <code class="command">task</code>
+	can be accessed; in this example the <code class="command">state</code> field
+	is obtained.
+</div><div class="example"><a id="casting">
+      ⁠</a><p class="title"><strong>Example 3.9. Casting Example</strong></p><div class="example-contents"><pre class="programlisting">function task_state:long (task:long)
+{
+    return @cast(task, "task_struct", "kernel&lt;linux/sched.h&gt;")-&gt;state
+}
+</pre></div></div></div><ul class="docnav"><li class="previous"><a accesskey="p" href="targetvariables.html"><strong>Prev</strong>3.3.2. Target Variables</a></li><li class="up"><a accesskey="u" href="#"><strong>Up</strong></a></li><li class="home"><a accesskey="h" href="index.html"><strong>Home</strong></a></li><li class="next"><a accesskey="n" href="targetavailable.html"><strong>Next</strong>3.3.2.3. Checking Target Variable Availability</a></li></ul></body></html>

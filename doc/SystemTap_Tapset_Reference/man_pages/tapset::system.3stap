@@ -1,0 +1,22 @@
+.\" -*- nroff -*-
+.TH tapset::system 3stap --- IBM
+.SH NAME
+tapset::system \- systemtap system tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B system 
+Issue a command to the system
+.IP
+See 
+.IR function::system (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::system (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

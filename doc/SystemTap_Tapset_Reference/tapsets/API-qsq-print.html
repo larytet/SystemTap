@@ -1,0 +1,17 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>function::qsq_print</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="SystemTap Tapset Reference Manual"><link rel="up" href="queue_stats.stp.html" title="Chapter 23. Queue Statistics Tapset"><link rel="prev" href="API-qsq-blocked.html" title="function::qsq_blocked"><link rel="next" href="API-qsq-service-time.html" title="function::qsq_service_time"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center"><span class="phrase">function::qsq_print</span></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="API-qsq-blocked.html">Prev</a> </td><th width="60%" align="center">Chapter 23. Queue Statistics Tapset</th><td width="20%" align="right"> <a accesskey="n" href="API-qsq-service-time.html">Next</a></td></tr></table><hr></div><div class="refentry"><a name="API-qsq-print"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>function::qsq_print — 
+     Prints a line of statistics for the given queue
+ </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><pre class="programlisting">
+    qsq_print(qname:string)
+</pre></div><div class="refsect1"><a name="idm140101441175520"></a><h2>Arguments</h2><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>qname</code></em></span></dt><dd><p>
+     queue name
+    </p></dd></dl></div></div><div class="refsect1"><a name="idm140101441172336"></a><h2>Description</h2><p>
+   This function prints a line containing the following
+</p></div><div class="refsect1"><a name="idm140101441171072"></a><h2>statistics for the given queue</h2><p>
+   the queue name, 
+   the average rate of requests per second,
+   the average wait queue length,
+   the average time on the wait queue,
+   the average time to service a request,
+   the percentage of time the wait queue was used, 
+   and the percentage of time request was being serviced.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="API-qsq-blocked.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="queue_stats.stp.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="API-qsq-service-time.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top"><span class="phrase">function::qsq_blocked</span> </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> <span class="phrase">function::qsq_service_time</span></td></tr></table></div></body></html>

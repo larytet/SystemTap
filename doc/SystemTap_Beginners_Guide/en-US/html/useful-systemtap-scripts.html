@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title xmlns:d="http://docbook.org/ns/docbook">Chapter 5. Useful SystemTap Scripts</title><link rel="stylesheet" type="text/css" href="Common_Content/css/default.css" /><link rel="stylesheet" media="print" href="Common_Content/css/print.css" type="text/css" /><meta xmlns:d="http://docbook.org/ns/docbook" name="generator" content="not publican" /><meta xmlns:d="http://docbook.org/ns/docbook" name="package" content="" /><link rel="home" href="index.html" title="SystemTap Beginners Guide" /><link rel="up" href="index.html" title="SystemTap Beginners Guide" /><link rel="prev" href="ustack.html" title="4.3. User-Space Stack Backtraces" /><link rel="next" href="mainsect-disk.html" title="5.2. Disk" /></head><body><p id="title"></p><ul class="docnav top"><li class="previous"><a accesskey="p" href="ustack.html"><strong>Prev</strong></a></li><li class="home">SystemTap Beginners Guide</li><li class="next"><a accesskey="n" href="mainsect-disk.html"><strong>Next</strong></a></li></ul><div class="chapter"><div class="titlepage"><div><div><h1 class="title"><a id="useful-systemtap-scripts">
+      ⁠</a>Chapter 5. Useful SystemTap Scripts</h1></div></div></div><div class="toc"><dl class="toc"><dt><span class="section"><a href="useful-systemtap-scripts.html#mainsect-network">5.1. Network</a></span></dt><dd><dl><dt><span class="section"><a href="useful-systemtap-scripts.html#nettopsect">5.1.1. Network Profiling</a></span></dt><dt><span class="section"><a href="useful-systemtap-scripts.html#sockettracesect">5.1.2. Tracing Functions Called in Network Socket Code</a></span></dt><dt><span class="section"><a href="useful-systemtap-scripts.html#tcpconnectionssect">5.1.3. Monitoring Incoming TCP Connections</a></span></dt><dt><span class="section"><a href="useful-systemtap-scripts.html#tcpdumplikesect">5.1.4. Monitoring TCP Packets</a></span></dt><dt><span class="section"><a href="useful-systemtap-scripts.html#dropwatchsect">5.1.5. Monitoring Network Packets Drops in Kernel</a></span></dt></dl></dd><dt><span class="section"><a href="mainsect-disk.html">5.2. Disk</a></span></dt><dd><dl><dt><span class="section"><a href="mainsect-disk.html#disktop">5.2.1. Summarizing Disk Read/Write Traffic</a></span></dt><dt><span class="section"><a href="iotimesect.html">5.2.2. Tracking I/O Time For Each File Read or Write</a></span></dt><dt><span class="section"><a href="traceiosect.html">5.2.3. Track Cumulative IO</a></span></dt><dt><span class="section"><a href="traceio2sect.html">5.2.4. I/O Monitoring (By Device)</a></span></dt><dt><span class="section"><a href="inodewatchsect.html">5.2.5. Monitoring Reads and Writes to a File</a></span></dt><dt><span class="section"><a href="inodewatch2sect.html">5.2.6. Monitoring Changes to File Attributes</a></span></dt><dt><span class="section"><a href="ioblktimesect.html">5.2.7. Periodically Print I/O Block Time</a></span></dt></dl></dd><dt><span class="section"><a href="mainsect-profiling.html">5.3. Profiling</a></span></dt><dd><dl><dt><span class="section"><a href="mainsect-profiling.html#countcallssect">5.3.1. Counting Function Calls Made</a></span></dt><dt><span class="section"><a href="paracallgraph.html">5.3.2. Call Graph Tracing</a></span></dt><dt><span class="section"><a href="threadtimessect.html">5.3.3. Determining Time Spent in Kernel and User Space</a></span></dt><dt><span class="section"><a href="timeoutssect.html">5.3.4. Monitoring Polling Applications</a></span></dt><dt><span class="section"><a href="topsyssect.html">5.3.5. Tracking Most Frequently Used System Calls</a></span></dt><dt><span class="section"><a href="syscallsbyprocpidsect.html">5.3.6. Tracking System Call Volume Per Process</a></span></dt></dl></dd><dt><span class="section"><a href="futexcontentionsect.html">5.4. Identifying Contended User-Space Locks</a></span></dt></dl></div><a id="idm140625247863120" class="indexterm"></a><a id="idm140625262965520" class="indexterm"></a><a id="idm140625247392992" class="indexterm"></a><a id="idm140625247600064" class="indexterm"></a><div class="para">This chapter enumerates several SystemTap scripts you can use to monitor and investigate different subsystems. All of these scripts are available at <code class="filename">/usr/share/systemtap/testsuite/systemtap.examples/</code> once you install the <code class="filename">systemtap-testsuite</code> RPM.</div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a id="mainsect-network">
+      ⁠</a>5.1. Network</h2></div></div></div><div class="para">The following sections showcase scripts that trace network-related functions and build a profile of network activity.</div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="nettopsect">
+      ⁠</a>5.1.1. Network Profiling</h3></div></div></div><a id="idm140625249437072" class="indexterm"></a><a id="idm140625258856128" class="indexterm"></a><a id="idm140625246212912" class="indexterm"></a><a id="idm140625252611824" class="indexterm"></a><a id="idm140625252643248" class="indexterm"></a><div class="para">This section describes how to profile network activity. <a class="xref" href="useful-systemtap-scripts.html#nettop">nettop.stp</a> provides a glimpse into how much network traffic each process is generating on a machine.</div><div class="para"><div xmlns:d="http://docbook.org/ns/docbook" class="title">nettop.stp</div>
+<pre class="programlisting">#! /usr/bin/env stap
+
+global ifxmit, ifrecv
+global ifmerged
+
+probe netdev.transmit
+{
+  ifxmit[pid(), dev_name, execname(), uid()] &lt;&lt;&lt; length
+}
+
+probe netdev.receive
+{
+  ifrecv[pid(), dev_name, execname(), uid()] &lt;&lt;&lt; length
+}
+
+function print_activity()
+{
+  printf("%5s %5s %-7s %7s %7s %7s %7s %-15s\n",
+         "PID", "UID", "DEV", "XMIT_PK", "RECV_PK",
+         "XMIT_KB", "RECV_KB", "COMMAND")
+
+  foreach ([pid, dev, exec, uid] in ifrecv) {
+	  ifmerged[pid, dev, exec, uid] += @count(ifrecv[pid,dev,exec,uid]);
+  }
+  foreach ([pid, dev, exec, uid] in ifxmit) {
+	  ifmerged[pid, dev, exec, uid] += @count(ifxmit[pid,dev,exec,uid]);
+  }
+  foreach ([pid, dev, exec, uid] in ifmerged-) {
+    n_xmit = @count(ifxmit[pid, dev, exec, uid])
+    n_recv = @count(ifrecv[pid, dev, exec, uid])
+    printf("%5d %5d %-7s %7d %7d %7d %7d %-15s\n",
+           pid, uid, dev, n_xmit, n_recv,
+           n_xmit ? @sum(ifxmit[pid, dev, exec, uid])/1024 : 0,
+           n_recv ? @sum(ifrecv[pid, dev, exec, uid])/1024 : 0,
+           exec)
+  }
+
+  print("\n")
+
+  delete ifxmit
+  delete ifrecv
+  delete ifmerged
+}
+
+probe timer.ms(5000), end, error
+{
+  print_activity()
+}
+</pre>
+</div><a id="idm140625252143888" class="indexterm"></a><a id="idm140625251105984" class="indexterm"></a><a id="idm140625257903648" class="indexterm"></a><div class="para">Note that <code class="command">function print_activity()</code> uses the following
+expressions:</div><pre class="screen">n_xmit ? @sum(ifxmit[pid, dev, exec, uid])/1024 : 0
+n_recv ? @sum(ifrecv[pid, dev, exec, uid])/1024 : 0</pre><div class="para">These expressions are if/else conditionals.
+The first statement is a more concise way of writing the following
+psuedo code:</div><pre class="screen">if n_recv != 0 then
+  @sum(ifrecv[pid, dev, exec, uid])/1024
+else
+  0 </pre><div class="para"><a class="xref" href="useful-systemtap-scripts.html#nettop">nettop.stp</a> tracks which processes are generating network traffic on the system, and provides the following information about each process:</div><div xmlns:d="http://docbook.org/ns/docbook" class="itemizedlist"><ul><li class="listitem"><div class="para"><code class="computeroutput">PID</code> — the ID of the listed process.</div></li><li class="listitem"><div class="para"><code class="computeroutput">UID</code> — user ID. A user ID of <code class="computeroutput">0</code> refers to the root user.</div></li><li class="listitem"><div class="para"><code class="computeroutput">DEV</code> — which ethernet device the process used to send / receive data (for example, eth0, eth1)</div></li><li class="listitem"><div class="para"><code class="computeroutput">XMIT_PK</code> — number of packets transmitted by the process</div></li><li class="listitem"><div class="para"><code class="computeroutput">RECV_PK</code> — number of packets received by the process</div></li><li class="listitem"><div class="para"><code class="computeroutput">XMIT_KB</code> — amount of data sent by the process, in kilobytes</div></li><li class="listitem"><div class="para"><code class="computeroutput">RECV_KB</code> — amount of data received by the service, in kilobytes</div></li></ul></div><div class="para"><a class="xref" href="useful-systemtap-scripts.html#nettop">nettop.stp</a> provides network profile sampling every 5 seconds. You can change this setting by editing <code class="command">probe timer.ms(5000)</code> accordingly. <a class="xref" href="useful-systemtap-scripts.html#nettopoutput">Example 5.1, “nettop.stp Sample Output”</a> contains an excerpt of the output from <a class="xref" href="useful-systemtap-scripts.html#nettop">nettop.stp</a> over a 20-second period:</div><div class="example"><a id="nettopoutput">
+      ⁠</a><p class="title"><strong>Example 5.1. <a class="xref" href="useful-systemtap-scripts.html#nettop">nettop.stp</a> Sample Output</strong></p><div class="example-contents"><pre class="screen">[...]
+  PID   UID DEV     XMIT_PK RECV_PK XMIT_KB RECV_KB COMMAND
+    0     0 eth0          0       5       0       0 swapper
+11178     0 eth0          2       0       0       0 synergyc
+
+  PID   UID DEV     XMIT_PK RECV_PK XMIT_KB RECV_KB COMMAND
+ 2886     4 eth0         79       0       5       0 cups-polld
+11362     0 eth0          0      61       0       5 firefox
+    0     0 eth0          3      32       0       3 swapper
+ 2886     4 lo            4       4       0       0 cups-polld
+11178     0 eth0          3       0       0       0 synergyc
+
+  PID   UID DEV     XMIT_PK RECV_PK XMIT_KB RECV_KB COMMAND
+    0     0 eth0          0       6       0       0 swapper
+ 2886     4 lo            2       2       0       0 cups-polld
+11178     0 eth0          3       0       0       0 synergyc
+ 3611     0 eth0          0       1       0       0 Xorg
+
+  PID   UID DEV     XMIT_PK RECV_PK XMIT_KB RECV_KB COMMAND
+    0     0 eth0          3      42       0       2 swapper
+11178     0 eth0         43       1       3       0 synergyc
+11362     0 eth0          0       7       0       0 firefox
+ 3897     0 eth0          0       1       0       0 multiload-apple
+[...]</pre></div></div></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="sockettracesect">
+      ⁠</a>5.1.2. Tracing Functions Called in Network Socket Code</h3></div></div></div><a id="idm140625252216944" class="indexterm"></a><a id="idm140625253214112" class="indexterm"></a><a id="idm140625251872432" class="indexterm"></a><a id="idm140625246152544" class="indexterm"></a><a id="idm140625252979920" class="indexterm"></a><a id="idm140625254512160" class="indexterm"></a><a id="idm140625253985088" class="indexterm"></a><a id="idm140625251984976" class="indexterm"></a><div class="para">This section describes how to trace functions called from the kernel's <code class="filename">net/socket.c</code> file. This task helps you identify, in finer detail, how each process interacts with the network at the kernel level.</div><div class="para"><div xmlns:d="http://docbook.org/ns/docbook" class="title">socket-trace.stp</div>
+<pre class="programlisting">#! /usr/bin/env stap
+
+probe kernel.function("*@net/socket.c").call {
+  printf ("%s -&gt; %s\n", thread_indent(1), ppfunc())
+}
+probe kernel.function("*@net/socket.c").return {
+  printf ("%s &lt;- %s\n", thread_indent(-1), ppfunc())
+}
+</pre>
+</div><div class="para"><a class="xref" href="useful-systemtap-scripts.html#sockettrace">socket-trace.stp</a> is identical to <a class="xref" href="systemtapscript-handler.html#thread_indent">Example 3.6, “thread_indent.stp”</a>, which was earlier used in <a class="xref" href="systemtapscript-handler.html#systemtapscript-functions">SystemTap Functions</a> to illustrate how <code class="command">thread_indent()</code> works.</div><div class="example"><a id="sockettraceoutput">
+      ⁠</a><p class="title"><strong>Example 5.2. <a class="xref" href="useful-systemtap-scripts.html#sockettrace">socket-trace.stp</a> Sample Output</strong></p><div class="example-contents"><pre class="screen">[...]
+0 Xorg(3611): -&gt; sock_poll
+3 Xorg(3611): &lt;- sock_poll
+0 Xorg(3611): -&gt; sock_poll
+3 Xorg(3611): &lt;- sock_poll
+0 gnome-terminal(11106): -&gt; sock_poll
+5 gnome-terminal(11106): &lt;- sock_poll
+0 scim-bridge(3883): -&gt; sock_poll
+3 scim-bridge(3883): &lt;- sock_poll
+0 scim-bridge(3883): -&gt; sys_socketcall
+4 scim-bridge(3883):  -&gt; sys_recv
+8 scim-bridge(3883):   -&gt; sys_recvfrom
+12 scim-bridge(3883):-&gt; sock_from_file
+16 scim-bridge(3883):&lt;- sock_from_file
+20 scim-bridge(3883):-&gt; sock_recvmsg
+24 scim-bridge(3883):&lt;- sock_recvmsg
+28 scim-bridge(3883):   &lt;- sys_recvfrom
+31 scim-bridge(3883):  &lt;- sys_recv
+35 scim-bridge(3883): &lt;- sys_socketcall
+[...]</pre></div></div><div class="para"><a class="xref" href="useful-systemtap-scripts.html#sockettraceoutput">Example 5.2, “socket-trace.stp Sample Output”</a> contains a 3-second excerpt of the output for <a class="xref" href="useful-systemtap-scripts.html#sockettrace">socket-trace.stp</a>. For more information about the output of this script as provided by <code class="command">thread_indent()</code>, refer to <a class="xref" href="systemtapscript-handler.html#systemtapscript-functions">SystemTap Functions</a> <a class="xref" href="systemtapscript-handler.html#thread_indent">Example 3.6, “thread_indent.stp”</a>. </div></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="tcpconnectionssect">
+      ⁠</a>5.1.3. Monitoring Incoming TCP Connections</h3></div></div></div><a id="idm140625251878320" class="indexterm"></a><a id="idm140625258469840" class="indexterm"></a><a id="idm140625247342368" class="indexterm"></a><a id="idm140625250460880" class="indexterm"></a><a id="idm140625248020240" class="indexterm"></a><div class="para">
+	This section illustrates how to monitor incoming TCP connections. This task is useful in
+	identifying any unauthorized, suspicious, or otherwise unwanted network access requests
+	in real time.
+</div><div class="para"><div xmlns:d="http://docbook.org/ns/docbook" class="title">tcp_connections.stp</div>
+<pre class="programlisting">#! /usr/bin/env stap
+
+probe begin {
+  printf("%6s %16s %6s %6s %16s\n",
+         "UID", "CMD", "PID", "PORT", "IP_SOURCE")
+}
+
+probe kernel.{function("tcp_accept"),function("inet_csk_accept")}.return? {
+  sock = $return
+  if (sock != 0)
+    printf("%6d %16s %6d %6d %16s\n", uid(), execname(), pid(),
+           inet_get_local_port(sock), inet_get_ip_source(sock))
+}
+</pre>
+</div><div class="para">
+	While <a class="xref" href="useful-systemtap-scripts.html#tcpconnections">tcp_connections.stp</a> is running, it will print out the following information
+	about any incoming TCP connections accepted by the system in real time:
+</div><div xmlns:d="http://docbook.org/ns/docbook" class="itemizedlist"><ul><li class="listitem"><div class="para">Current <code class="command">UID</code></div></li><li class="listitem"><div class="para"><code class="command">CMD</code> - the command accepting the connection</div></li><li class="listitem"><div class="para"><code class="command">PID</code> of the command</div></li><li class="listitem"><div class="para">Port used by the connection</div></li><li class="listitem"><div class="para">IP address from which the TCP connection originated</div></li></ul></div><div class="example"><a id="tcpconnectionsoutput">
+      ⁠</a><p class="title"><strong>Example 5.3. <a class="xref" href="useful-systemtap-scripts.html#tcpconnections">tcp_connections.stp</a> Sample Output</strong></p><div class="example-contents"><pre class="screen">UID            CMD    PID   PORT        IP_SOURCE
+0             sshd   3165     22      10.64.0.227
+0             sshd   3165     22      10.64.0.227</pre></div></div></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="tcpdumplikesect">
+      ⁠</a>5.1.4. Monitoring TCP Packets</h3></div></div></div><a id="idm140625252398864" class="indexterm"></a><a id="idm140625247132496" class="indexterm"></a><a id="idm140625258380096" class="indexterm"></a><a id="idm140625249631744" class="indexterm"></a><a id="idm140625257471920" class="indexterm"></a><div class="para">
+	This section illustrates how to monitor TCP packets received by the system. This is useful in
+	analyzing network traffic generated by applications running on the system.
+</div><div class="para"><div xmlns:d="http://docbook.org/ns/docbook" class="title">tcpdumplike.stp</div>
+  <pre class="programlisting">	#! /usr/bin/env stap
+
+// A TCP dump like example
+
+probe begin, timer.s(1) {
+  printf("-----------------------------------------------------------------\n")
+  printf("       Source IP         Dest IP  SPort  DPort  U  A  P  R  S  F \n")
+  printf("-----------------------------------------------------------------\n")
+}
+
+probe udp.recvmsg /* ,udp.sendmsg */ {
+  printf(" %15s %15s  %5d  %5d  UDP\n",
+         saddr, daddr, sport, dport)
+}
+
+probe tcp.receive {
+  printf(" %15s %15s  %5d  %5d  %d  %d  %d  %d  %d  %d\n",
+         saddr, daddr, sport, dport, urg, ack, psh, rst, syn, fin)
+}
+</pre>
+</div><div class="para">
+	While <a class="xref" href="useful-systemtap-scripts.html#tcpdumplike">tcpdumplike.stp</a> is running, it will print out the following information
+	about any received TCP packets in real time:
+</div><div xmlns:d="http://docbook.org/ns/docbook" class="itemizedlist"><ul><li class="listitem"><div class="para">Source and destination IP address (<code class="command">saddr</code>,
+	<code class="command">daddr</code>, respectively)</div></li><li class="listitem"><div class="para">Source and destination ports (<code class="command">sport</code>, <code class="command">dport</code>,
+	respectively)</div></li><li class="listitem"><div class="para">Packet flags</div></li></ul></div><div class="para">
+	To determine the flags used by the packet, <a class="xref" href="useful-systemtap-scripts.html#tcpdumplike">tcpdumplike.stp</a> uses the following
+	functions:
+</div><div xmlns:d="http://docbook.org/ns/docbook" class="itemizedlist"><ul><li class="listitem"><div class="para"><code class="command">urg</code> - urgent</div></li><li class="listitem"><div class="para"><code class="command">ack</code> - acknowledgement</div></li><li class="listitem"><div class="para"><code class="command">psh</code> - push</div></li><li class="listitem"><div class="para"><code class="command">rst</code> - reset</div></li><li class="listitem"><div class="para"><code class="command">syn</code> - synchronize</div></li><li class="listitem"><div class="para"><code class="command">fin</code> - finished</div></li></ul></div><div class="para">
+	The aforementioned functions return <code class="command">1</code> or <code class="command">0</code> to
+	specify whether the packet uses the corresponding flag.
+</div><div class="example"><a id="tcpdumplikeoutput">
+      ⁠</a><p class="title"><strong>Example 5.4. <a class="xref" href="useful-systemtap-scripts.html#tcpdumplike">tcpdumplike.stp</a> Sample Output</strong></p><div class="example-contents"><pre class="screen">-----------------------------------------------------------------
+       Source IP         Dest IP  SPort  DPort  U  A  P  R  S  F
+-----------------------------------------------------------------
+  209.85.229.147       10.0.2.15     80  20373  0  1  1  0  0  0
+  92.122.126.240       10.0.2.15     80  53214  0  1  0  0  1  0
+  92.122.126.240       10.0.2.15     80  53214  0  1  0  0  0  0
+  209.85.229.118       10.0.2.15     80  63433  0  1  0  0  1  0
+  209.85.229.118       10.0.2.15     80  63433  0  1  0  0  0  0
+  209.85.229.147       10.0.2.15     80  21141  0  1  1  0  0  0
+  209.85.229.147       10.0.2.15     80  21141  0  1  1  0  0  0
+  209.85.229.147       10.0.2.15     80  21141  0  1  1  0  0  0
+  209.85.229.147       10.0.2.15     80  21141  0  1  1  0  0  0
+  209.85.229.147       10.0.2.15     80  21141  0  1  1  0  0  0
+  209.85.229.118       10.0.2.15     80  63433  0  1  1  0  0  0
+[...]</pre></div></div></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="dropwatchsect">
+      ⁠</a>5.1.5. Monitoring Network Packets Drops in Kernel</h3></div></div></div><a id="idm140625250452880" class="indexterm"></a><a id="idm140625247315696" class="indexterm"></a><a id="idm140625256881888" class="indexterm"></a><a id="idm140625251774992" class="indexterm"></a><a id="idm140625251040480" class="indexterm"></a><div class="para">
+<a id="idm140625247603760" class="indexterm"></a>
+The network stack in Linux
+can discard packets for various reasons.  Some Linux kernels include a
+tracepoint, <code class="command">kernel.trace("kfree_skb")</code>, which easily tracks where packets are discarded. 
+<a class="xref" href="useful-systemtap-scripts.html#dropwatch">dropwatch.stp</a> uses 
+<code class="command">kernel.trace("kfree_skb")</code> to trace
+packet discards; the script summarizes which locations
+discard packets every five-second interval.
+</div><div class="para"><div xmlns:d="http://docbook.org/ns/docbook" class="title">dropwatch.stp</div>
+<pre class="programlisting">#! /usr/bin/env stap
+
+############################################################
+# Dropwatch.stp
+# Author: Neil Horman &lt;nhorman@redhat.com&gt;
+# An example script to mimic the behavior of the dropwatch utility
+# http://fedorahosted.org/dropwatch
+############################################################
+
+# Array to hold the list of drop points we find
+global locations
+
+# Note when we turn the monitor on and off
+probe begin { printf("Monitoring for dropped packets\n") }
+probe end { printf("Stopping dropped packet monitor\n") }
+
+# increment a drop counter for every location we drop at
+probe kernel.trace("kfree_skb") { locations[$location] &lt;&lt;&lt; 1 }
+
+# Every 5 seconds report our drop locations
+probe timer.sec(5)
+{
+  printf("\n")
+  foreach (l in locations-) {
+    printf("%d packets dropped at %s\n",
+           @count(locations[l]), symname(l))
+  }
+  delete locations
+}
+</pre>
+</div><div class="para">
+The <code class="command">kernel.trace("kfree_skb")</code> traces which places
+in the kernel drop network packets.
+The <code class="command">kernel.trace("kfree_skb")</code> has two arguments:
+a pointer to the buffer being freed (<code class="command">$skb</code>)
+and the location in kernel code the
+buffer is being freed (<code class="command">$location</code>).
+The <a class="xref" href="useful-systemtap-scripts.html#dropwatch">dropwatch.stp</a> script provides the function containing
+<code class="command">$location</code> where possible.
+The information to map <code class="command">$location</code> back to the
+function is not in the instrumentation by default.
+On SystemTap 1.4 the <code class="command">--all-modules</code> option will include the
+required mapping information and the following command can be used to run
+the script:
+</div><pre class="programlisting">stap --all-modules dropwatch.stp</pre><div class="para">
+On older versions of SystemTap you can use the following command to emulate the
+<code class="command">--all-modules</code> option:
+</div><pre class="programlisting">stap -dkernel \
+`cat /proc/modules | awk 'BEGIN { ORS = " " } {print "-d"$1}'` \
+dropwatch.stp</pre><div class="para">
+Running the dropwatch.stp script 15 seconds would result in output similar in
+<a class="xref" href="useful-systemtap-scripts.html#dropwatchoutput">Example 5.5, “dropwatch.stp Sample Output”</a>. The output lists the number of misses for
+each tracepoint location with either the function name or the address.
+</div><div class="example"><a id="dropwatchoutput">
+      ⁠</a><p class="title"><strong>Example 5.5. <a class="xref" href="useful-systemtap-scripts.html#dropwatch">dropwatch.stp</a> Sample Output</strong></p><div class="example-contents"><pre class="screen">Monitoring for dropped packets
+
+1762 packets dropped at unix_stream_recvmsg
+4 packets dropped at tun_do_read
+2 packets dropped at nf_hook_slow
+
+467 packets dropped at unix_stream_recvmsg
+20 packets dropped at nf_hook_slow
+6 packets dropped at tun_do_read
+
+446 packets dropped at unix_stream_recvmsg
+4 packets dropped at tun_do_read
+4 packets dropped at nf_hook_slow
+Stopping dropped packet monitor
+</pre></div></div><div class="para">
+When the script is being compiled on one machine and run on
+another the <code class="command">--all-modules</code> and
+<code class="filename">/proc/modules</code> directory are not available; the
+<code class="command">symname</code> function will just print out the raw address.
+To make the raw address of packet drops more meaningful, refer to the
+<code class="filename">/boot/System.map-`uname -r`</code> file. This file lists the
+starting addresses for each function, allowing you to map the
+addresses in the output of <a class="xref" href="useful-systemtap-scripts.html#dropwatchoutput">Example 5.5, “dropwatch.stp Sample Output”</a> to a specific
+function name.
+Given the following snippet of the
+<code class="filename">/boot/System.map-`uname -r`</code> file,
+the address 0xffffffff8149a8ed maps to the function
+<code class="command">unix_stream_recvmsg</code>:
+</div><pre class="screen">[...]
+ffffffff8149a420 t unix_dgram_poll
+ffffffff8149a5e0 t unix_stream_recvmsg
+ffffffff8149ad00 t unix_find_other
+[...]</pre></div></div></div><ul class="docnav"><li class="previous"><a accesskey="p" href="ustack.html"><strong>Prev</strong>4.3. User-Space Stack Backtraces</a></li><li class="up"><a accesskey="u" href="#"><strong>Up</strong></a></li><li class="home"><a accesskey="h" href="index.html"><strong>Home</strong></a></li><li class="next"><a accesskey="n" href="mainsect-disk.html"><strong>Next</strong>5.2. Disk</a></li></ul></body></html>

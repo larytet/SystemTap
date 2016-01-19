@@ -1,0 +1,13 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>function::stringat</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="SystemTap Tapset Reference Manual"><link rel="up" href="string.stp.html" title="Chapter 28. A collection of standard string functions"><link rel="prev" href="API-string-quoted.html" title="function::string_quoted"><link rel="next" href="API-strlen.html" title="function::strlen"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center"><span class="phrase">function::stringat</span></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="API-string-quoted.html">Prev</a> </td><th width="60%" align="center">Chapter 28. A collection of standard string functions</th><td width="20%" align="right"> <a accesskey="n" href="API-strlen.html">Next</a></td></tr></table><hr></div><div class="refentry"><a name="API-stringat"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>function::stringat — 
+     Returns the char at a given position in the string
+ </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><pre class="programlisting">
+    stringat:long(str:string,pos:long)
+</pre></div><div class="refsect1"><a name="idm140101440213616"></a><h2>Arguments</h2><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>str</code></em></span></dt><dd><p>
+     the string to fetch the character from
+    </p></dd><dt><span class="term"><em class="parameter"><code>pos</code></em></span></dt><dd><p>
+     the position to get the character from  (first character is 0)
+    </p></dd></dl></div></div><div class="refsect1"><a name="idm140101440208400"></a><h2>Description</h2><p>
+   This function returns the character at a given position in
+   the string or zero if the string doesn't have as many characters. Reports
+   an error if pos is out of bounds.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="API-string-quoted.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="string.stp.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="API-strlen.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top"><span class="phrase">function::string_quoted</span> </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> <span class="phrase">function::strlen</span></td></tr></table></div></body></html>

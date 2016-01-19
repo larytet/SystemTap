@@ -1,0 +1,18 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>function::cmdline_args</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="SystemTap Tapset Reference Manual"><link rel="up" href="context_stp.html" title="Chapter 2. Context Functions"><link rel="prev" href="API-cmdline-arg.html" title="function::cmdline_arg"><link rel="next" href="API-cmdline-str.html" title="function::cmdline_str"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center"><span class="phrase">function::cmdline_args</span></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="API-cmdline-arg.html">Prev</a> </td><th width="60%" align="center">Chapter 2. Context Functions</th><td width="20%" align="right"> <a accesskey="n" href="API-cmdline-str.html">Next</a></td></tr></table><hr></div><div class="refentry"><a name="API-cmdline-args"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>function::cmdline_args — 
+     Fetch command line arguments from current process
+ </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><pre class="programlisting">
+    cmdline_args:string(n:long,m:long,delim:string)
+</pre></div><div class="refsect1"><a name="idm140101448472704"></a><h2>Arguments</h2><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>n</code></em></span></dt><dd><p>
+     First argument to get (zero is normally the program itself)
+    </p></dd><dt><span class="term"><em class="parameter"><code>m</code></em></span></dt><dd><p>
+     Last argument to get (or minus one for all arguments after n)
+    </p></dd><dt><span class="term"><em class="parameter"><code>delim</code></em></span></dt><dd><p>
+     String to use to separate arguments when more than one.
+    </p></dd></dl></div></div><div class="refsect1"><a name="idm140101448465840"></a><h2>Description</h2><p>
+   Returns arguments from the current process starting
+   with argument number n, up to argument m. If there are less than n
+   arguments, or the arguments cannot be retrieved from the current
+   process, the empty string is returned. If m is smaller than n then
+   all arguments starting from argument n are returned. Argument zero
+   is traditionally the command itself.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="API-cmdline-arg.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="context_stp.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="API-cmdline-str.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top"><span class="phrase">function::cmdline_arg</span> </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> <span class="phrase">function::cmdline_str</span></td></tr></table></div></body></html>

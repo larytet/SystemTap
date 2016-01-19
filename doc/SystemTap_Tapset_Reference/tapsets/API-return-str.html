@@ -1,0 +1,16 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>function::return_str</title><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="SystemTap Tapset Reference Manual"><link rel="up" href="errno.stp.html" title="Chapter 18. Errno Tapset"><link rel="prev" href="API-errno-str.html" title="function::errno_str"><link rel="next" href="API-returnstr.html" title="function::returnstr"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center"><span class="phrase">function::return_str</span></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="API-errno-str.html">Prev</a> </td><th width="60%" align="center">Chapter 18. Errno Tapset</th><td width="20%" align="right"> <a accesskey="n" href="API-returnstr.html">Next</a></td></tr></table><hr></div><div class="refentry"><a name="API-return-str"></a><div class="titlepage"></div><div class="refnamediv"><h2>Name</h2><p>function::return_str — 
+     Formats the return value as a string
+ </p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><pre class="programlisting">
+    return_str:string(format:long,ret:long)
+</pre></div><div class="refsect1"><a name="idm140101441526112"></a><h2>Arguments</h2><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="parameter"><code>format</code></em></span></dt><dd><p>
+     Variable to determine return type base value
+    </p></dd><dt><span class="term"><em class="parameter"><code>ret</code></em></span></dt><dd><p>
+     Return value (typically <code class="envar">$return</code>)
+    </p></dd></dl></div></div><div class="refsect1"><a name="idm140101441520464"></a><h2>Description</h2><p>
+   This function is used by the syscall tapset, and 
+   returns a string. Set format equal to 1 for a decimal, 
+   2 for hex, 3 for octal.
+   </p><p>
+
+   Note that this function is preferred over <code class="function">returnstr</code>.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="API-errno-str.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="errno.stp.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="API-returnstr.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top"><span class="phrase">function::errno_str</span> </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> <span class="phrase">function::returnstr</span></td></tr></table></div></body></html>
