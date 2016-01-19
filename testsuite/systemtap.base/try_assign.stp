@@ -1,0 +1,18 @@
+#!/usr/bin/env stap
+
+function func (a){
+  if (a == 1)
+    error("This message should not appear")
+  else
+    return "systemtap test success"
+}
+
+probe begin {
+	println("systemtap starting probe")
+  exit()
+}
+probe end {
+	println("systemtap ending probe")
+  @try_assign(msg, func(1), func(0))
+  println(msg)
+}
