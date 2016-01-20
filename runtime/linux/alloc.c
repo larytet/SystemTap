@@ -247,7 +247,9 @@ static void _stp_mem_debug_validate(void *addr)
  */
 
 #ifdef STP_MAXMEMORY
-#ifndef STAPCONF_GRSECURITY
+#ifdef STAPCONF_MODULE_LAYOUT
+#define _STP_MODULE_CORE_SIZE (THIS_MODULE->core_layout.size)
+#elif defined(STAPCONF_GRSECURITY)
 #define _STP_MODULE_CORE_SIZE (THIS_MODULE->core_size)
 #else
 #define _STP_MODULE_CORE_SIZE (THIS_MODULE->core_size_rw)

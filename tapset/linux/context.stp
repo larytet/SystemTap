@@ -403,12 +403,17 @@ function module_name:string ()
 function module_size:string() %{
     int ctx = num_online_cpus() * sizeof(struct context);
     snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%ludata/%lutext/%uctx/%unet/%ualloc kb",
+#ifdef STAPCONF_MODULE_LAYOUT
+	(unsigned long) (THIS_MODULE->core_layout.size - THIS_MODULE->core_layout.text_size)/1024,
+	(unsigned long) (THIS_MODULE->core_layout.text_size)/1024,
+#else
 #ifndef STAPCONF_GRSECURITY
         (unsigned long) (THIS_MODULE->core_size - THIS_MODULE->core_text_size)/1024,
         (unsigned long) (THIS_MODULE->core_text_size)/1024,
 #else
         (unsigned long) (THIS_MODULE->core_size_rw - THIS_MODULE->core_size_rx)/1024,
         (unsigned long) (THIS_MODULE->core_size_rx)/1024,
+#endif
 #endif
         ctx/1024, _stp_allocated_net_memory/1024,
         (_stp_allocated_memory - _stp_allocated_net_memory - ctx)/1024);
