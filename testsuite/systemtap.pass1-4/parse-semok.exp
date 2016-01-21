@@ -1,0 +1,130 @@
+set self parse-semok
+set test_suffix "parse-semok"
+
+# This test is somewhat similar to
+# testsuite/parseok/unparser.stp. Here we're going to:
+#
+# 1) See if a systemtap script passes -p2, so we know the script is
+# semantically correct.
+# 2) If so, try running the output of -p1 (parsed output) through
+# -p2. If this passes, we know the parsed output is also semantically
+# correct.
+#
+# If we get any failures here, then we know the parsed output isn't
+# semantically corect.
+
+# Create a temporary directory we can use.
+if {[catch {exec mktemp -d -t staptestXXXXXX} tmpdir]} {
+    verbose -log "Failed to create temporary directory: $tmpdir"
+    return
+}
+
+# Notice that by default we're just testing the scripts in the
+# 'buildok' (pass 4) directory. If "verbose" is on, we also test the
+# scripts in the 'semok' (pass 2) and 'transok' (pass 3) directories.
+#
+# Notice we never test the scripts in the 'parseok' directory, since
+# those tests are designed to be parsed (-p1), but aren't necessarily
+# semantically correct (i.e. they might not pass -p2).
+if { $verbose } {
+    set dirlist [list semok transok buildok]
+} else {
+    set dirlist [list buildok]
+}
+foreach dir $dirlist {
+    foreach file [lsort [glob -nocomplain $srcdir/$dir/*.stp]] {
+	set test "${dir}/[file tail $file]"
+	set full_test "${test} ${test_suffix}"
+	set extra_args ""
+
+	# Most of the "ok" test cases use '#! stap ...'. Try to read
+	# this information.
+	set f [open $file r]
+	set firstbits [gets $f]
+	close $f
+	if [regexp -line {\#! stap (.*)} $firstbits -> stap_args] {
+	    # Parse arguments.
+	    set arg_fail 0
+	    foreach arg $stap_args {
+		if {[ string index $arg 0 ] != "-" } { break }
+		set ch_idx 1
+		while {1} {
+		    set opt_ch [ string index $arg $ch_idx ]
+		    if { $opt_ch == "" } { break }
+		    incr ch_idx
+		    switch $opt_ch {
+			p {
+			    # Ignore "pass" options.
+			    incr ch_idx; continue
+			}
+			g { append extra_args " -g"; continue }
+			t { append extra_args " -t"; continue }
+			w { append extra_args " -w"; continue }
+			W { append extra_args " -W"; continue }
+			u { append extra_args " -u"; continue }
+			- {
+			    # Handle long arguments ("--FOO") by just
+			    # adding them.
+			    append extra_args " $arg"; break
+			}
+			default {
+			    verbose -log "unknown argument '${opt_ch}'"
+			    set arg_fail 1
+			    break
+			}
+		    }
+		}
+	    }
+	    if {$arg_fail == 0} {
+		pass "${full_test} - arg parsing"
+	    } else {
+		fail "${full_test} - arg parsing"
+		continue
+	    }
+	} else {
+	    # If "stap" wasn't on the first line of the script, this isn't
+	    # a systemtap script, but a shell script that will run
+	    # systemtap. We'll have to skip these.
+	    untested "$full_test - shell script"
+	    continue
+	}
+	
+	# 1) See if the script is semantically correct.
+	set cmd [concat stap -p2 ${extra_args} ${file}]
+	verbose -log "Running $cmd"
+	if {[catch {eval exec ${cmd}} res]} {
+	    verbose -log "$res"
+	    untested "${full_test} - not semok"
+	    continue
+	}
+	pass "${full_test} - semok"
+	
+	# 2) The test is semantically correct. Now let's see if the parsed
+	# output is semantically correct.
+	
+	# 2a) First, get the parsed output. This should work since it
+	# passed -p2 above (so -p1 should work).
+	set tmpfile "${tmpdir}/[file rootname [file tail $file]].p1"
+	set cmd [concat stap -p1 ${extra_args} ${file} > ${tmpfile}]
+	verbose -log "Running $cmd"
+	if {[catch {eval exec ${cmd}} res]} {
+	    verbose -log "$res"
+	    fail "${full_test} - parsing?"
+	    continue
+	}
+	pass "${full_test} - parsing"
+	
+	# 2b) See if the -p1 output is semantically correct.
+	set cmd [concat stap -p2 ${extra_args} ${tmpfile}]
+	verbose -log "Running $cmd"
+	if {[catch {eval exec ${cmd}} res]} {
+	    verbose -log "$res"
+	    fail "${full_test} - parsed output is not semok"
+	    continue
+	}
+	pass "${full_test} - parsed output is semok"
+    }
+}
+
+# Cleanup
+if { $verbose == 0 } { catch {exec /bin/rm -rf $tmpdir} }
