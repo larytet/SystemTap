@@ -59,11 +59,13 @@ probe process("utrace_syscall_args").syscall {
 	    mmap_args[5] = $arg5
 	    mmap_args[6] = $arg6
 
-%(arch == "s390" && kernel_v < "2.6.33" %?
+%(arch == "s390" %?
 	    # For s390, mmap was handled by arch-specific code in
 	    # kernels before 2.6.33 that got a structure pointer in
 	    # argument 1 that holds all the actual arguments. Handle
-	    # this.
+	    # this. After 2.6.33, this was moved to generic code, but
+	    # s390x defines has __ARCH_WANT_SYS_OLD_MMAP, so it still
+	    # uses the same structures.
 	    addr = mmap_args[1]
 	    if (! %{ _stp_is_compat_task() %}) {
 	    	mmap_args[1] = user_long(&@cast(addr, "mmap_arg_struct")->addr)
