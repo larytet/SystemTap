@@ -528,7 +528,7 @@ void perf_op::print (ostream& o) const
 
 void vardecl::print (ostream& o) const
 {
-  o << name;
+  o << unmangled_name;
   if(wrap)
     o << "%";
   if (maxsize > 0)
@@ -545,7 +545,7 @@ void vardecl::print (ostream& o) const
 
 void vardecl::printsig (ostream& o) const
 {
-  o << name;
+  o << unmangled_name;
   if(wrap)
      o << "%";
   if (maxsize > 0)
@@ -563,7 +563,7 @@ void vardecl::printsig (ostream& o) const
 
 void functiondecl::print (ostream& o) const
 {
-  o << "function " << name << " (";
+  o << "function " << unmangled_name << " (";
   for (unsigned i=0; i<formal_args.size(); i++)
     o << (i>0 ? ", " : "") << *formal_args[i];
   o << ")" << endl;
@@ -573,7 +573,7 @@ void functiondecl::print (ostream& o) const
 
 void functiondecl::printsig (ostream& o) const
 {
-  o << (tok ? tok->content : name) << ":" << type << " (";
+  o << unmangled_name << ":" << type << " (";
   for (unsigned i=0; i<formal_args.size(); i++)
     o << (i>0 ? ", " : "")
       << *formal_args[i]

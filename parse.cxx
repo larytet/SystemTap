@@ -2259,6 +2259,7 @@ parser::do_parse_global (vector <vardecl*>& globals, vector<probe*>&,
       }
 
       vardecl* d = new vardecl;
+      d->unmangled_name = t->content;
       d->name = name;
       d->tok = t;
       d->systemtap_v_conditional = systemtap_v_seen;
@@ -2346,6 +2347,7 @@ parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
   }
 
   functiondecl *fd = new functiondecl ();
+  fd->unmangled_name = t->content;
   fd->name = name;
   fd->tok = t;
 
@@ -2381,7 +2383,7 @@ parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
       else if (! (t->type == tok_identifier))
 	throw PARSE_ERROR (_("expected identifier"));
       vardecl* vd = new vardecl;
-      vd->name = t->content;
+      vd->unmangled_name = vd->name = t->content;
       vd->tok = t;
       fd->formal_args.push_back (vd);
       fd->systemtap_v_conditional = systemtap_v_seen;

@@ -1910,7 +1910,7 @@ void add_global_var_display (systemtap_session& s)
       stringstream code;
       code << "probe end {" << endl;
 
-      string format = l->tok->content;
+      string format = l->unmangled_name;
 
       string indexes;
       string foreach_value;
@@ -1941,13 +1941,13 @@ void add_global_var_display (systemtap_session& s)
               foreach_value = "__val";
               code << foreach_value << " = ";
             }
-	  code << "[" << indexes << "] in " << l->tok->content << "-)" << endl;
+	  code << "[" << indexes << "] in " << l->unmangled_name << "-)" << endl;
 	}
       else if (l->type == pe_stats)
 	{
 	  // PR7053: Check scalar globals for empty aggregate
-	  code << "if (@count(" << l->tok->content << ") == 0)" << endl;
-	  code << "printf(\"" << l->tok->content << " @count=0x0\\n\")" << endl;
+	  code << "if (@count(" << l->unmangled_name << ") == 0)" << endl;
+	  code << "printf(\"" << l->unmangled_name << " @count=0x0\\n\")" << endl;
 	  code << "else" << endl;
 	}
 
@@ -1969,7 +1969,7 @@ void add_global_var_display (systemtap_session& s)
       code << "printf (\"" << format << "\"";
 
       // Feed indexes to the printf, and include them in the value
-      string value = !foreach_value.empty() ? foreach_value : string(l->tok->content);
+      string value = !foreach_value.empty() ? foreach_value : string(l->unmangled_name);
       if (!l->index_types.empty())
 	{
 	  code << "," << indexes;

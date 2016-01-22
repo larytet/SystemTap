@@ -1,6 +1,8 @@
 # Makefile.am --- automake input file for systemtap man pages
 ## process this file with automake to produce Makefile.in
 
+SUBDIRS = cs
+
 AUTOMAKE_OPTIONS = no-dist foreign subdir-objects
 
 man_MANS = stapprobes.3stap stapfuncs.3stap stapvars.3stap stapex.3stap \

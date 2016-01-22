@@ -441,6 +441,9 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-tracepoint-strings.c", "STAPCONF_TRACEPOINT_STRINGS", NULL);
   output_autoconf(s, o, "autoconf-timerfd.c", "STAPCONF_TIMERFD_H", NULL);
 
+  output_autoconf(s, o, "autoconf-module_layout.c",
+		  "STAPCONF_MODULE_LAYOUT", NULL);
+
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
   for (unsigned i=0; i<s.c_macros.size(); i++)

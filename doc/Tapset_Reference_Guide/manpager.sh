@@ -44,7 +44,7 @@ done ;
 # create man page headers
 for i in `ls | grep -v .stp | grep -v tapsetdescription` ; do 
 #echo ".\" -*- nroff -*-" >> $i.template ;
-echo ".TH STAPPROBES."$i" 5 @DATE@ "IBM"" >> $i.template ;
+echo ".TH STAPPROBES."$i" 5 @DATE@ "SystemTap Tapset Reference"" >> $i.template ;
 echo ".SH NAME" >> $i.template ;
 echo "stapprobes."`cat $i.stp`" \- systemtap "`cat $i.stp`" probe points" >> $i.template ;
 echo " " >> $i.template ;

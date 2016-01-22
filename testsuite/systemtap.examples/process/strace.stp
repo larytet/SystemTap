@@ -12,7 +12,7 @@ global elapsed_time = 0  /* -Gelapsed_time=1 means print a syscall duration too 
 global thread_argstr%
 global thread_time%
 
-global syscalls_nonreturn
+global syscalls_nonreturn[2]
 probe begin 
   {
     /* list those syscalls that never .return */

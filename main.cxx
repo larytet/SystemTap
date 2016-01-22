@@ -812,9 +812,9 @@ passes_0_4 (systemtap_session &s)
   if (s.verbose)
     {
       // XXX also include a count of helper macro files loaded (.stpm)?
-      clog << "Pass 1: parsed user script and "
+      clog << _("Pass 1: parsed user script and ")
            << s.library_files.size()
-           << " library script(s) "
+           << _(" library script(s) ")
            << getmemusage()
            << TIMESPRINT
            << endl;
@@ -868,11 +868,11 @@ passes_0_4 (systemtap_session &s)
   times (& tms_after);
   gettimeofday (&tv_after, NULL);
 
-  if (s.verbose) clog << "Pass 2: analyzed script: "
-                      << s.probes.size() << " probe(s), "
-                      << s.functions.size() << " function(s), "
-                      << s.embeds.size() << " embed(s), "
-                      << s.globals.size() << " global(s) "
+  if (s.verbose) clog << _("Pass 2: analyzed script: ")
+                      << s.probes.size() << _(" probe(s), ")
+                      << s.functions.size() << _(" function(s), ")
+                      << s.embeds.size() << _(" embed(s), ")
+                      << s.globals.size() << _(" global(s) ")
                       << getmemusage()
                       << TIMESPRINT
                       << endl;
@@ -945,7 +945,7 @@ passes_0_4 (systemtap_session &s)
   gettimeofday (&tv_after, NULL);
 
   if (s.verbose) 
-    clog << "Pass 3: translated to C into \""
+    clog << _("Pass 3: translated to C into \"")
          << s.translated_source
          << "\" "
          << getmemusage()
@@ -981,7 +981,7 @@ passes_0_4 (systemtap_session &s)
   times (& tms_after);
   gettimeofday (&tv_after, NULL);
 
-  if (s.verbose) clog << "Pass 4: compiled C into \""
+  if (s.verbose) clog << _("Pass 4: compiled C into \"")
                       << s.module_filename()
                       << "\" "
                       << TIMESPRINT
@@ -1045,7 +1045,7 @@ pass_5 (systemtap_session &s, vector<remote*> targets)
   unsigned _sc_clk_tck = sysconf (_SC_CLK_TCK);
   struct timeval tv_after;
   gettimeofday (&tv_after, NULL);
-  if (s.verbose) clog << "Pass 5: run completed "
+  if (s.verbose) clog << _("Pass 5: run completed ")
                       << TIMESPRINT
                       << endl;
 

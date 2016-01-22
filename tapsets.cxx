@@ -5091,7 +5091,7 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
   // invalid, we still want to expand things such as $$vars/$$parms/etc...
   // (PR15999, PR16473). Access to specific context vars e.g. $argc will not be
   // expanded and will produce an error during the typeresolution_info pass.
-    {
+  {
       // XXX: user-space deref's for q.has_process!
 
       // PR14436: if we're expanding target variables in the probe body of a
@@ -5194,7 +5194,7 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
       if (!null_die(scope_die) &&
           q.sess.dump_mode == systemtap_session::dump_matched_probes_vars)
         saveargs(q, scope_die, dwfl_addr);
-    }
+  }
 
   // Reset the sole element of the "locations" vector as a
   // "reverse-engineered" form of the incoming (q.base_loc) probe

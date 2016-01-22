@@ -16,6 +16,9 @@ probe process.function("sub")
 /* NB: can't just use syscall.utimes, because with HAVE_SYSCALL_WRAPPERS the
  * primary sys_utimes function has all long types.  Also, all architectures
  * effectively HAVE_SYSCALL_WRAPPERS starting in 3.10!  */
+%(arch != "s390" %?
+  // On s390x, the utimes() wrapper and function both just get longs,
+  // so we'll have to use @cast().
 probe kernel.function("SYSC_utimes")!, kernel.function("sys_utimes")
 {
   printf("$utimes$$: %s\n", $utimes$$);
@@ -23,6 +26,7 @@ probe kernel.function("SYSC_utimes")!, kernel.function("sys_utimes")
   printf("@var(\"utimes\")$$: %s\n", @var("utimes")$$);
   printf("@var(\"utimes\")[1]$$: %s\n", @var("utimes")[1]$$);
 }
+%)
 
 probe process.function("sub").return
 {
