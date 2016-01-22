@@ -59,9 +59,11 @@ for i in `cat ../manpageus` ; do
 done ;
 
 # create man page headers
+date=`date "+%B %Y"`
 for i in `ls | grep -v .stp | grep -v tapsetdescription` ; do
+  icap=`echo $i | tr a-z A-Z`
   echo ".\\\" -*- nroff -*-" >> $i.template ;
-  echo ".TH tapset::"$i" 3stap --- IBM" >> $i.template ;
+  echo ".TH TAPSET::"$icap" 3stap \"$date\" \"SystemTap Tapset Reference\"" >> $i.template ;
   echo ".SH NAME" >> $i.template ;
   echo "tapset::"`cat $i.stp`" \- systemtap "`cat $i.stp`" tapset" >> $i.template ;
   echo " " >> $i.template ;

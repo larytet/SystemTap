@@ -1,5 +1,5 @@
 ." -*- nroff -*-
-.TH tapset::task 3stap --- IBM
+.TH TAPSET::SYSCALLS 3stap "January 2016" "Systemtap Tapset Reference"
 .SH NAME
 tapset::syscalls \- systemtap syscall tapset
 
