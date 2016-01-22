@@ -2022,7 +2022,7 @@ static void create_monitor_function(systemtap_session& s)
 
   vardecl* v = new vardecl;
   v->type = pe_long;
-  v->name = "index";
+  v->unmangled_name = v->name = "index";
   fd->formal_args.push_back(v);
 
   embeddedcode* ec = new embeddedcode;
@@ -2055,7 +2055,7 @@ static void monitor_mode_init(systemtap_session& s)
   if (!s.monitor) return;
 
   vardecl* v = new vardecl;
-  v->name = "__global___monitor_module_start";
+  v->unmangled_name = v->name = "__global___monitor_module_start";
   v->set_arity(0, 0);
   v->type = pe_long;
   v->synthetic = true;
@@ -2172,7 +2172,7 @@ static void monitor_mode_write(systemtap_session& s)
       it != s.probes.end(); ++it)
     {
       vardecl* v = new vardecl;
-      v->name = "__global___monitor_" + lex_cast(it-s.probes.begin()) + "_enabled";
+      v->unmangled_name = v->name = "__global___monitor_" + lex_cast(it-s.probes.begin()) + "_enabled";
       v->tok = (*it)->tok;
       v->set_arity(0, (*it)->tok);
       v->type = pe_long;
@@ -2463,7 +2463,7 @@ symresolution_info::visit_symbol (symbol* e)
     {
       // new local
       vardecl* v = new vardecl;
-      v->name = e->name;
+      v->unmangled_name = v->name = e->name;
       v->tok = e->tok;
       v->set_arity(0, e->tok);
       if (current_function)
@@ -4830,7 +4830,7 @@ void stable_functioncall_visitor::visit_functioncall (functioncall* e)
             {
               // New variable declaration to store result of function call
               vardecl* v = new vardecl;
-              v->name = name;
+              v->unmangled_name = v->name = name;
               v->tok = e->tok;
               v->set_arity(0, e->tok);
               v->type = e->type;
