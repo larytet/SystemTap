@@ -1153,7 +1153,7 @@ void block::print (ostream& o) const
 {
   o << "{" << endl;
   for (unsigned i=0; i<statements.size(); i++)
-    o << *statements [i] << endl;
+    o << *statements [i] << ";" << endl;
   o << "}";
 }
 

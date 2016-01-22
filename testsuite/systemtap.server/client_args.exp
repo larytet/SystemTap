@@ -107,7 +107,7 @@ if {[info procs installtest_p] != "" && ![installtest_p]} { untested $test; retu
 set no_error_result "# parse tree dump
 # file $test_file
 probe begin{
-exit()
+exit();
 }
 
 "
