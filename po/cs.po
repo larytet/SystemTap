@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: systemtap 3.0\n"
 "Report-Msgid-Bugs-To: systemtap@sourceware.org\n"
-"POT-Creation-Date: 2016-01-14 05:07-0500\n"
+"POT-Creation-Date: 2016-01-22 14:53+0100\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: Czech\n"
@@ -14,29 +14,29 @@ msgstr ""
 "X-Generator: Zanata 3.7.3\n"
 "Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2\n"
 
-#: buildrun.cxx:577
+#: buildrun.cxx:580
 msgid "Pass 4, preamble: (re)building SystemTap's version of uprobes."
-msgstr "Fáze 4, úvod: sestavuji SystemTap verzi mechanizmu uprobe."
+msgstr "Fáze 4, úvod: sestavuji SystemTap verzi mechanizmu 'uprobe'."
 
-#: buildrun.cxx:623
+#: buildrun.cxx:626
 msgid "uprobes rebuild exit code: "
-msgstr "návratový kód sestavení vlastního uprobes mechanizmu:"
+msgstr "návratový kód sestavení vlastního 'uprobe' mechanizmu:"
 
-#: buildrun.cxx:683
+#: buildrun.cxx:686
 msgid ""
 "user-space process-tracking facilities not available [man error::process-"
 "tracking]"
 msgstr ""
-"nástroje pro sledování uživatelských procesů (userspace) jsou nedostupné "
-"[man error::process-tracking]"
+"nástroje pro sledování uživatelských procesů jsou nedostupné [man error::"
+"process-tracking]"
 
 #: cache.cxx:134 cache.cxx:223
 msgid "Pass 4: using cached "
-msgstr "Fáze 4: využívám cache "
+msgstr "Fáze 4: využívám cache: "
 
 #: cache.cxx:221
 msgid "Pass 3: using cached "
-msgstr "Fáze 3: využívám cache "
+msgstr "Fáze 3: využívám cache: "
 
 #: cache.cxx:379
 msgid "Cache cleaning successful, removed entries: "
@@ -48,11 +48,11 @@ msgstr "Mazání cache přeskočeno. Neznámá cesta k cache."
 
 #: coveragedb.cxx:28
 msgid "---- used probes-----"
-msgstr "---- použité proby-----"
+msgstr "---- použité sondy-----"
 
 #: coveragedb.cxx:35 coveragedb.cxx:58
 msgid "probe: "
-msgstr "proba: "
+msgstr "sonda: "
 
 #: coveragedb.cxx:42
 msgid "local: "
@@ -64,7 +64,7 @@ msgstr "nepoužitá lokální proměnná: "
 
 #: coveragedb.cxx:51
 msgid "---- unused probes----- "
-msgstr "---- nepoužíté proby----- "
+msgstr "---- nepoužíté sondy----- "
 
 #: coveragedb.cxx:64
 msgid "---- used functions----- "
@@ -430,7 +430,7 @@ msgstr " z "
 
 #: dwflpp.cxx:3119
 msgid "unknown debug file for "
-msgstr "chybí 'debug-info' pro "
+msgstr "chybí ladicí informace pro "
 
 #: dwflpp.cxx:3139
 msgid "function: "
@@ -478,19 +478,19 @@ msgstr "regulární výrazy pro blacklist:"
 
 #: dwflpp.cxx:4382 dwflpp.cxx:4429
 msgid "blacklist_func regcomp failed"
-msgstr "proba je v blacklistu pro funkce"
+msgstr "sonda je v blacklistu pro funkce"
 
 #: dwflpp.cxx:4384 dwflpp.cxx:4431
 msgid "blacklist_func_ret regcomp failed"
-msgstr "proba je v blacklistu pro návrat z funkcí"
+msgstr "sonda je v blacklistu pro návrat z funkcí"
 
 #: dwflpp.cxx:4386 dwflpp.cxx:4433
 msgid "blacklist_file regcomp failed"
-msgstr "proba je v blacklistu pro soubory"
+msgstr "sonda je v blacklistu pro soubory"
 
 #: dwflpp.cxx:4388 dwflpp.cxx:4435
 msgid "blacklist_section regcomp failed"
-msgstr "proba je v blacklistu pro sekce"
+msgstr "sonda je v blacklistu pro sekce"
 
 #: dwflpp.cxx:4619
 msgid "not found cfa"
@@ -510,11 +510,11 @@ msgstr "běžný uživatel: autorizováno jen pro vlastníka procesu"
 
 #: elaborate.cxx:240
 msgid "invalid suffix for probe"
-msgstr "chybná přípona pro probu"
+msgstr "chybná přípona pro sondu"
 
 #: elaborate.cxx:395
 msgid "invalid use of wildcard probe point component"
-msgstr "chybné použití zástupného symbolu pro probu"
+msgstr "chybné použití zástupného symbolu pro sondu"
 
 #: elaborate.cxx:794
 msgid "inappropriate"
@@ -526,7 +526,7 @@ msgstr "příliš velká hloubka rekurze"
 
 #: elaborate.cxx:1021 elaborate.cxx:1069
 msgid "while resolving probe point"
-msgstr "během vyhodnocování proby"
+msgstr "během vyhodnocování sondy"
 
 #: elaborate.cxx:1032
 msgid "no match"
@@ -542,15 +542,15 @@ msgstr "Pokus o zápis do atributu histogramu, který je určen pouze ke čtení
 
 #: elaborate.cxx:1453
 msgid "probe condition must not modify any variables"
-msgstr "podmínka proby nesmí změnit hodnotu žádné proměnné"
+msgstr "podmínka sonda nesmí změnit hodnotu žádné proměnné"
 
 #: elaborate.cxx:1457
 msgid "probe condition must not include impure embedded-C"
-msgstr "podmínka proby nesmí obsahovat vložený C-kód, který není 'pure'"
+msgstr "podmínka sondy nesmí obsahovat vložený C-kód, který není 'pure'"
 
 #: elaborate.cxx:1521
 msgid "can't create cond initializer probe"
-msgstr "chyba při vytváření syntetické inicializační proby"
+msgstr "chyba při vytváření syntetické inicializační sondy"
 
 #: elaborate.cxx:1577
 msgid "VMA-tracking is only supported by the kernel runtime (PR15052)"
@@ -578,12 +578,12 @@ msgstr "Funkce vázaná na tapset závislý na verzi systemtapu"
 #: elaborate.cxx:1857
 msgid ""
 "This probe uses tapset constructs that are dependent on systemtap version"
-msgstr "Proba vázaná na tapset závislý na verzi systemtapu"
+msgstr "Sonda vázaná na tapset závislý na verzi systemtapu"
 
 #: elaborate.cxx:1859
 msgid ""
 "This alias uses tapset constructs that are dependent on systemtap version"
-msgstr "Alias vázaný na tapset, který je závislý na verzi systemtapu"
+msgstr "Přezdívka vázaná na tapset, který je závislý na verzi systemtapu"
 
 #: elaborate.cxx:1993
 msgid "can't create global var display"
@@ -591,15 +591,15 @@ msgstr "chyba při automatickém zobrazení nečtené globální proměnné"
 
 #: elaborate.cxx:2071
 msgid "can't create begin probe"
-msgstr "nemohu vytvořit 'begin' probu"
+msgstr "nemohu vytvořit 'begin' sondu"
 
 #: elaborate.cxx:2151 elaborate.cxx:2252
 msgid "can't create procfs probe"
-msgstr "nemohu vytvořit 'procfs' probu"
+msgstr "nemohu vytvořit 'procfs' sondu"
 
 #: elaborate.cxx:2305
 msgid "no probes found"
-msgstr "nenalezeny žádné proby"
+msgstr "nenalezeny žádné sondy"
 
 #: elaborate.cxx:2438
 msgid "unresolved array in delete statement"
@@ -607,7 +607,7 @@ msgstr "nerozpoznané pole v příkazu 'delete'"
 
 #: elaborate.cxx:2475
 msgid "probe condition must not reference undeclared global"
-msgstr "podmíněná proba nesmí být vázána na nedeklarovanou globální proměnnou"
+msgstr "podmíněná sonda nesmí být vázána na nedeklarovanou globální proměnnou"
 
 #: elaborate.cxx:2496
 msgid "wildcard not allowed in array index"
@@ -615,7 +615,7 @@ msgstr "zástupný znak nelze použít pro specifikaci indexu pole"
 
 #: elaborate.cxx:2548
 msgid "probe condition must not reference function"
-msgstr "podmínka proby nesmí být vázána na funkci"
+msgstr "podmínka sondy nesmí být vázána na funkci"
 
 #: elaborate.cxx:2567 elaborate.cxx:2861 elaborate.cxx:2905 elaborate.cxx:2942
 msgid " (similar: "
@@ -816,7 +816,7 @@ msgstr "neočekávaný výskyt '@defined'"
 
 #: elaborate.cxx:5849
 msgid "@entry is only valid in .return probes"
-msgstr "'@entry' lze použít jen v '.return' probách"
+msgstr "'@entry' lze použít jen v '.return' sondách"
 
 #: elaborate.cxx:5875
 msgid "unknown type in dereference"
@@ -1098,7 +1098,7 @@ msgstr "nelze použít index do nedostupné hodnoty"
 
 #: main.cxx:177
 msgid "# global embedded code"
-msgstr "# globální 'embedded' kód"
+msgstr "# globální vložený kód"
 
 #: main.cxx:187
 msgid "# globals"
@@ -1109,13 +1109,12 @@ msgid "# functions"
 msgstr "# funkce"
 
 #: main.cxx:210 main.cxx:234
-#, fuzzy
 msgid "  # locals"
 msgstr "# lokální proměnné"
 
 #: main.cxx:226
 msgid "# probes"
-msgstr "# proby"
+msgstr "# sondy"
 
 #: main.cxx:365
 msgid "ERROR: kernel release isn't specified"
@@ -1135,17 +1134,53 @@ msgstr "Ignoruji --use-server"
 msgid "# parse tree dump"
 msgstr "# Výpis derivačního stromu (parse tree)"
 
+#: main.cxx:795
+msgid "Pass 1: parsed user script and "
+msgstr "Fáze 1: zpracován uživatelský skript a "
+
+#: main.cxx:797
+msgid " library script(s) "
+msgstr " tapset skriptů "
+
 #: main.cxx:804
 msgid "Pass 1: parse failed.  [man error::pass1]"
 msgstr "Fáze 1: chyba parsování. [man error::pass1]"
+
+#: main.cxx:851
+msgid "Pass 2: analyzed script: "
+msgstr "Fáze 2: skript analyzován: "
+
+#: main.cxx:852
+msgid " probe(s), "
+msgstr " x sonda, "
+
+#: main.cxx:853
+msgid " function(s), "
+msgstr " x funkce, "
+
+#: main.cxx:854
+msgid " embed(s), "
+msgstr " x blok vloženého kódu, "
+
+#: main.cxx:855
+msgid " global(s) "
+msgstr " x globální proměnná, "
 
 #: main.cxx:861
 msgid "Pass 2: analysis failed.  [man error::pass2]"
 msgstr "Fáze 2: chyba analýzy. [man error::pass2]"
 
+#: main.cxx:928
+msgid "Pass 3: translated to C into \""
+msgstr "Fáze 3: přeloženo do C jako \""
+
 #: main.cxx:936
 msgid "Pass 3: translation failed.  [man error::pass3]"
 msgstr "Fáze 3: chyba překladu. [man error::pass3]"
+
+#: main.cxx:964
+msgid "Pass 4: compiled C into \""
+msgstr "Fáze 4: C kód přeložen: \""
 
 #: main.cxx:971
 msgid "Pass 4: compilation failed.  [man error::pass4]"
@@ -1153,7 +1188,11 @@ msgstr "Fáze 4: chyba kompilace. [man error::pass4]"
 
 #: main.cxx:1021
 msgid "Pass 5: starting run."
-msgstr "Fáze 5: startuji modul."
+msgstr "Fáze 5: startuji běh."
+
+#: main.cxx:1028
+msgid "Pass 5: run completed "
+msgstr "Fáze 5: běh dokončen "
 
 #: main.cxx:1033
 msgid "Pass 5: run failed.  [man error::pass5]"
@@ -1325,7 +1364,7 @@ msgid "'@define' forbidden inside macro body"
 msgstr "použití '@define' v těle makra je zakázáno"
 
 #: parse.cxx:465 parse.cxx:509 parse.cxx:2123 parse.cxx:2211 parse.cxx:2247
-#: parse.cxx:2334 parse.cxx:2382 parse.cxx:3018
+#: parse.cxx:2335 parse.cxx:2384 parse.cxx:3020
 msgid "expected identifier"
 msgstr "očekáván identifikátor"
 
@@ -1333,7 +1372,7 @@ msgstr "očekáván identifikátor"
 msgid "attempt to redefine '@define'"
 msgstr "pokus o předefinování '@define'"
 
-#: parse.cxx:526 parse.cxx:2413 parse.cxx:3896
+#: parse.cxx:526 parse.cxx:2415 parse.cxx:3898
 msgid "expected ',' or ')'"
 msgstr "očekávám ',' nebo ')'"
 
@@ -1429,7 +1468,7 @@ msgstr "neočekávaný konec souboru"
 msgid "expected "
 msgstr "očekávám "
 
-#: parse.cxx:1312 parse.cxx:2708
+#: parse.cxx:1312 parse.cxx:2710
 msgid "number invalid or out of range"
 msgstr "chybný zápis čísla, nebo číslo mimo rozsah"
 
@@ -1447,7 +1486,7 @@ msgstr "Nevidím uzavírací uvozovky"
 
 #: parse.cxx:1849
 msgid "Could not find matching '%}' to close embedded function block"
-msgstr "Nevidím uzavírací '%}' pro uzavření bloku 'embedded' funkce"
+msgstr "Nevidím uzavírací '%}' pro uzavření bloku vložené funkce"
 
 #: parse.cxx:1852
 msgid "unknown junk token"
@@ -1459,7 +1498,7 @@ msgstr "očekávám 'probe', 'global', 'private', 'function', nebo '%{'"
 
 #: parse.cxx:1974
 msgid "expected a single synthetic probe"
-msgstr "očekávám jedinou syntetickou probu"
+msgstr "očekávám jedinou syntetickou sondu"
 
 #: parse.cxx:1996
 msgid "expected 'probe'"
@@ -1467,11 +1506,12 @@ msgstr "očekávám 'probe'"
 
 #: parse.cxx:2012 parse.cxx:2021
 msgid "probe point alias name cannot be optional nor sufficient"
-msgstr "alias proby nemůže být 'optional' ('?') ani 'sufficient' ('!')"
+msgstr ""
+"přezdívka (probe alias) nemůže být 'optional' ('?') ani 'sufficient' ('!')"
 
 #: parse.cxx:2033
 msgid "expected probe point specifier"
-msgstr "očekávám specifikátor proby"
+msgstr "očekávám specifikátor sondy"
 
 #: parse.cxx:2069
 msgid "expected '%{'"
@@ -1479,7 +1519,7 @@ msgstr "očekávám '%{'"
 
 #: parse.cxx:2072
 msgid "embedded code in unprivileged script; need stap -g"
-msgstr "'embedded' kód v 'unprivileged' režimu; použijte -g"
+msgstr "vložený kód v neprivilegovaném režimu; použijte -g"
 
 #: parse.cxx:2088
 msgid "expected '{'"
@@ -1509,190 +1549,185 @@ msgstr "duplicitní jméno globální proměnné"
 msgid "global versus private variable declaration conflict"
 msgstr "konflikt mezi 'global' a 'private' deklarací proměnné"
 
-#: parse.cxx:2282
+#: parse.cxx:2283
 msgid "array size out of range"
 msgstr "velikost pole mimo rozsah"
 
-#: parse.cxx:2291
+#: parse.cxx:2292
 msgid "only scalar globals can be initialized"
 msgstr "lze inicializovat jen skalární proměnné"
 
-#: parse.cxx:2321
+#: parse.cxx:2322
 msgid "expected 'function'"
 msgstr "očekávám 'function'"
 
-#: parse.cxx:2343
+#: parse.cxx:2344
 msgid "duplicate function name"
 msgstr "duplicitní jméno funkce"
 
-#: parse.cxx:2345
+#: parse.cxx:2346
 msgid "global versus private function declaration conflict"
 msgstr "konflikt mezi 'global' a 'private' deklarací funkce"
 
-#: parse.cxx:2361 parse.cxx:2398
+#: parse.cxx:2363 parse.cxx:2400
 msgid "expected 'string' or 'long'"
 msgstr "očekávám 'string', nebo 'long'"
 
-#: parse.cxx:2368 parse.cxx:2520 parse.cxx:2735 parse.cxx:2851 parse.cxx:2921
-#: parse.cxx:2958
+#: parse.cxx:2370 parse.cxx:2522 parse.cxx:2737 parse.cxx:2853 parse.cxx:2923
+#: parse.cxx:2960
 msgid "expected '('"
 msgstr "očekávám '('"
 
-#: parse.cxx:2446
-#, fuzzy
+#: parse.cxx:2448
 msgid "expected one of ', { } = +='"
 msgstr "očekávám něco jako '. , ( ? ! { = +='"
 
-#: parse.cxx:2469
+#: parse.cxx:2471
 msgid "'?', '!' or condition must only be specified in suffix"
-msgstr ""
+msgstr "'?', '!', nebo podmínku lze specifikovat jen jako příponu"
 
-#: parse.cxx:2505
-#, fuzzy
+#: parse.cxx:2507
 msgid "'?' or '!' respecified"
 msgstr "Nebyl specifikován žádný server"
 
-#: parse.cxx:2527
-#, fuzzy
+#: parse.cxx:2529
 msgid "condition respecified"
 msgstr "Nebyl specifikován žádný server"
 
-#: parse.cxx:2533 parse.cxx:2619 parse.cxx:2742 parse.cxx:2899 parse.cxx:2933
-#: parse.cxx:3661
+#: parse.cxx:2535 parse.cxx:2621 parse.cxx:2744 parse.cxx:2901 parse.cxx:2935
+#: parse.cxx:3663
 msgid "expected ')'"
 msgstr "očekávám ')'"
 
-#: parse.cxx:2551
-#, fuzzy
+#: parse.cxx:2553
 msgid "expected identifier or '*' or '{'"
 msgstr "očekávám identifikátor nebo '*'"
 
-#: parse.cxx:2559
-#, fuzzy
+#: parse.cxx:2561
 msgid "expected '}'"
 msgstr "očekávám '{'"
 
-#: parse.cxx:2666
+#: parse.cxx:2668
 msgid "expected literal string"
 msgstr "očekávám řetězcový literál"
 
-#: parse.cxx:2716
+#: parse.cxx:2718
 msgid "expected literal string or number"
 msgstr "očekávám řetězcový nebo číselný literál"
 
-#: parse.cxx:2729
+#: parse.cxx:2731
 msgid "expected 'if'"
 msgstr "očekávám 'if'"
 
-#: parse.cxx:2766
+#: parse.cxx:2768
 msgid "expression statement expected"
 msgstr "očekávám výraz"
 
-#: parse.cxx:2779
+#: parse.cxx:2781
 msgid "expected 'return'"
 msgstr "očekávám 'return'"
 
-#: parse.cxx:2781
+#: parse.cxx:2783
 msgid "found 'return' not in function context"
 msgstr "našel jsem 'return' mimo kontext funkce"
 
-#: parse.cxx:2794
+#: parse.cxx:2796
 msgid "expected 'delete'"
 msgstr "očekávám 'delete'"
 
-#: parse.cxx:2807
+#: parse.cxx:2809
 msgid "expected 'next'"
 msgstr "očekávám 'next'"
 
-#: parse.cxx:2809
+#: parse.cxx:2811
 msgid "found 'next' not in probe context"
-msgstr "našel jsem 'next' mimo kontext proby"
+msgstr "našel jsem 'next' mimo kontext sondy"
 
-#: parse.cxx:2821
+#: parse.cxx:2823
 msgid "expected 'break'"
 msgstr "očekávám 'break'"
 
-#: parse.cxx:2833
+#: parse.cxx:2835
 msgid "expected 'continue'"
 msgstr "očekávám 'continue'"
 
-#: parse.cxx:2845
+#: parse.cxx:2847
 msgid "expected 'for'"
 msgstr "očekávám 'for'"
 
-#: parse.cxx:2866 parse.cxx:2883
+#: parse.cxx:2868 parse.cxx:2885
 msgid "expected ';'"
 msgstr "očekávám ';'"
 
-#: parse.cxx:2915
+#: parse.cxx:2917
 msgid "expected 'while'"
 msgstr "očekávám 'while'"
 
-#: parse.cxx:2948
+#: parse.cxx:2950
 msgid "expected 'foreach'"
 msgstr "očekávám 'foreach'"
 
-#: parse.cxx:3029 parse.cxx:3117
+#: parse.cxx:3031 parse.cxx:3119
 msgid "multiple sort directives"
 msgstr "více než jedna 'sort' direktiva"
 
-#: parse.cxx:3049 parse.cxx:3090 parse.cxx:3364 parse.cxx:3947
+#: parse.cxx:3051 parse.cxx:3092 parse.cxx:3366 parse.cxx:3949
 msgid "expected ',' or ']'"
 msgstr "očekávám ',' nebo ']'"
 
-#: parse.cxx:3057
+#: parse.cxx:3059
 msgid "expected 'in'"
 msgstr "očekávám 'in'"
 
-#: parse.cxx:3104
+#: parse.cxx:3106
 msgid "expected statistical operation"
 msgstr "očekávám statistickou operaci"
 
-#: parse.cxx:3109
+#: parse.cxx:3111
 msgid "expected sort directive"
 msgstr "očekávám 'sort' direktivu"
 
-#: parse.cxx:3200
+#: parse.cxx:3202
 msgid "expected ':'"
 msgstr "očekávám ':'"
 
-#: parse.cxx:3387
+#: parse.cxx:3389
 msgid "unexpected comma-separated expression list"
 msgstr "neočekávaný seznam čárkou oddělených výrazů"
 
-#: parse.cxx:3609
+#: parse.cxx:3611
 msgid "expected @cast, @var or $var"
 msgstr "očekávám @cast, @var, nebo $var"
 
-#: parse.cxx:3641
+#: parse.cxx:3643
 msgid "expected value"
 msgstr "očekávám hodnotu"
 
-#: parse.cxx:3646
+#: parse.cxx:3648
 msgid "embedded expression code in unprivileged script; need stap -g"
-msgstr "'embedded' kód v 'unprivileged' režimu; použijte -g"
+msgstr "vložený kód v neprivilegovaném režimu; použijte -g"
 
-#: parse.cxx:3958
+#: parse.cxx:3960
 msgid "base histogram operator where expression expected"
 msgstr "očekáván aritmetický výraz, nalezen operátor pracující s histogramem"
 
-#: parse.cxx:3976
+#: parse.cxx:3978
 msgid "expected $var"
 msgstr "očekávám $var"
 
-#: parse.cxx:3994 parse.cxx:4071
+#: parse.cxx:3996 parse.cxx:4073
 msgid "expected non-empty string"
 msgstr "očekávám neprázdný řetězec"
 
-#: parse.cxx:4004
+#: parse.cxx:4006
 msgid "expected @cast"
 msgstr "očekávám @cast"
 
-#: parse.cxx:4035
+#: parse.cxx:4037
 msgid "expected @var"
 msgstr "očekávám @var"
 
-#: parse.cxx:4157
+#: parse.cxx:4159
 msgid "-> and [ are not accepted for a pretty-printing variable"
 msgstr "'->' a '[' nelze použít pro 'pretty-printing' proměnnou"
 
@@ -1983,7 +2018,7 @@ msgstr "blíže neurčená chyba příkazu"
 
 #: session.cxx:2053
 msgid "while registering probe alias"
-msgstr "během registrace aliasu proby"
+msgstr "během registrace přezdívky"
 
 #: session.cxx:2120
 msgid "semantic error:"
@@ -2711,7 +2746,7 @@ msgstr "chybná typová konverze ve formátovacím řetězci"
 
 #: staptree.cxx:1390
 msgid "internal error: missing probe point component"
-msgstr "interní chyba: chybí komponenta proby"
+msgstr "interní chyba: chybí komponenta sondy"
 
 #: staptree.cxx:1780
 msgid "Expecting symbol or histogram operator"
@@ -2723,7 +2758,7 @@ msgstr "Chyba klasifikace pole"
 
 #: staptree.cxx:2412 staptree.cxx:2418 staptree.cxx:2473 staptree.cxx:2479
 msgid "Aggregates not available in embedded-C"
-msgstr ""
+msgstr "Statistické funkce nejsou povoleny ve vloženém C kódu"
 
 #: staptree.cxx:2437
 msgid "function may not be used unless -g is specified"
@@ -2731,7 +2766,7 @@ msgstr "funkci nelze použít pokud není aktivován guru režim (-g)"
 
 #: staptree.cxx:2498
 msgid "embedded expression may not be used unless -g is specified"
-msgstr "'embedded' výraz nelze použít pokud není aktivován guru režim (-g)"
+msgstr "vložený výraz nelze použít pokud není aktivován guru režim (-g)"
 
 #: staptree.cxx:2649
 msgid "symbol without referent"
@@ -2741,17 +2776,17 @@ msgstr "symbol bez odkazu"
 msgid "invalid element"
 msgstr "neplatný element"
 
-#: staptree.h:1179
+#: staptree.h:1180
 msgid "update_visitor wasn't provided a value"
 msgstr "update_visitor nemá definovanou hodnotu"
 
-#: staptree.h:1183
+#: staptree.h:1184
 msgid "update_visitor was provided a NULL value"
 msgstr "update_visitor má hodnotu rovnu NULL"
 
 #: tapset-itrace.cxx:78
 msgid "process probes not available without kernel CONFIG_UTRACE"
-msgstr "proby pro userspace procesy nejsou k dispozici bez CONFIG_UTRACE"
+msgstr "sondy pro uživatelské procesy nejsou k dispozici bez CONFIG_UTRACE"
 
 #: tapset-mark.cxx:98
 msgid "invalid marker argument number"
@@ -2775,7 +2810,7 @@ msgstr ""
 
 #: tapset-mark.cxx:447 translate.cxx:3052
 msgid "cannot expand unknown type"
-msgstr "nemohu rozšířit neznámý typ"
+msgstr "neznámý typ"
 
 #: tapset-mark.cxx:583
 msgid "mark_builder releasing cache"
@@ -2792,7 +2827,7 @@ msgstr "maximálně jedno číslo řádky (:NNN)"
 
 #: tapset-method.cxx:167
 msgid "conflict :NNN and .return probe"
-msgstr "konflikt :NNN a .return proby"
+msgstr "konflikt ':NNN' a '.return' sondy"
 
 #: tapset-method.cxx:177
 msgid "maximum of 10 java method parameters may be specified"
@@ -2804,23 +2839,23 @@ msgstr "chybějící JVMID"
 
 #: tapset-method.cxx:236
 msgid "can't create java backtrace probe"
-msgstr "selhalo vytvoření java backtrace proby"
+msgstr "selhalo vytvoření java backtrace sondy"
 
 #: tapset-method.cxx:254
 msgid "can't create java backtrace delete probe"
-msgstr "selhalo vytvoření java backtrace delete proby"
+msgstr "selhalo vytvoření java backtrace delete sondy"
 
 #: tapset-method.cxx:292
 msgid "can't create java method probe"
-msgstr "nemohu vložit probu do java metody"
+msgstr "nemohu vložit sondu do java metody"
 
 #: tapset-method.cxx:337
 msgid "can't create java begin probe"
-msgstr "nemohu vytvořit java 'begin' probu"
+msgstr "nemohu vytvořit java 'begin' sondu"
 
 #: tapset-method.cxx:356
 msgid "can't create java end probe"
-msgstr "nemohu vytvořit java 'end' probu"
+msgstr "nemohu vytvořit java 'end' sondu"
 
 #: tapset-netfilter.cxx:433
 msgid "cannot take address of netfilter hook context variable"
@@ -2840,7 +2875,7 @@ msgstr "zápis do proměnné 'verdict' netfilteru vyžaduje guru režim (-g)"
 
 #: tapset-netfilter.cxx:500
 msgid "missing hooknum"
-msgstr "chybějící číslo hooku"
+msgstr "chybějící číslo pro 'hook'"
 
 #: tapset-netfilter.cxx:503
 msgid "missing protocol family"
@@ -2854,7 +2889,7 @@ msgstr ""
 
 #: tapset-perfmon.cxx:297
 msgid "perf probes not available without CONFIG_PERF_EVENTS"
-msgstr "perf proby nejsou dostupné bez CONFIG_PERF_EVENTS"
+msgstr "perf sondy nejsou dostupné bez CONFIG_PERF_EVENTS"
 
 #: tapset-perfmon.cxx:312
 msgid "invalid perf sample period "
@@ -2862,47 +2897,47 @@ msgstr "neplatná vzorkovací frekvence pro perf"
 
 #: tapset-perfmon.cxx:321
 msgid "wildcard not allowed with perf probe counter component"
-msgstr "zástupné znaky nelze použít v 'counter' komponentě perf proby"
+msgstr "zástupné znaky nelze použít v 'counter' komponentě perf sondy"
 
 #: tapset-perfmon.cxx:325
 msgid "missing perf probe counter component name"
-msgstr "chybí jméno counteru perf proby"
+msgstr "chybí jméno počitadla perf sondy"
 
 #: tapset-perfmon.cxx:334
 msgid "duplicate counter name"
-msgstr "duplicitní jméno counteru"
+msgstr "duplicitní jméno počitadla"
 
 #: tapset-perfmon.cxx:353 tapsets.cxx:7914
 msgid "invalid -c command for unspecified process probe [man stapprobes]"
 msgstr ""
-"neplatný -c PŘÍKAZ pro nespecifikovanou probu v uživatelskémprocesu [man "
+"neplatný -c PŘÍKAZ pro nespecifikovanou sondu v uživatelském procesu [man "
 "stapprobes]"
 
 #: tapset-perfmon.cxx:357
 msgid ""
 "unspecified process probe is invalid without a -c COMMAND [man stapprobes]"
 msgstr ""
-"nespecifikovaná process proba je neplatná bez -c PŘÍKAZ [man stapprobes]"
+"nespecifikovaná 'process' sonda je neplatná bez -c PŘÍKAZ [man stapprobes]"
 
 #: tapset-procfs.cxx:148
 msgid "only one write procfs probe can exist for procfs path \""
-msgstr "nejvýše jedna write proba povolena pro procfs cestu \""
+msgstr "nejvýše jedna 'write' sonda povolena pro procfs cestu \""
 
 #: tapset-procfs.cxx:150
 msgid "only one read procfs probe can exist for procfs path \""
-msgstr "nejvýše jedna read proba povolena pro procfs cestu \""
+msgstr "nejvýše jedna 'read' sonda povolena pro procfs cestu \""
 
 #: tapset-procfs.cxx:430
 msgid "invalid target symbol for procfs probe, $value expected"
-msgstr "neplatný cílový symbol pro procfs probu, očekávám $value"
+msgstr "neplatný cílový symbol pro procfs sondu, očekávám $value"
 
 #: tapset-procfs.cxx:437
 msgid "procfs $value variable is read-only in a procfs write probe"
-msgstr "procfs proměnná $value je jen ke čtení v procfs write probě"
+msgstr "procfs proměnná '$value' je jen ke čtení v 'procfs write' sondě"
 
 #: tapset-procfs.cxx:439
 msgid "procfs $value variable cannot be read in a procfs read probe"
-msgstr "procfs proměnná $value je pouze pro zápis v procfs read probě"
+msgstr "procfs proměnná '$value' je pouze pro zápis v 'procfs read' sondě"
 
 #: tapset-procfs.cxx:442
 msgid "cannot take address of procfs variable"
@@ -2918,35 +2953,35 @@ msgstr ""
 
 #: tapset-procfs.cxx:573
 msgid "maxsize must be greater than 0"
-msgstr "maxsize musí být > 0"
+msgstr "'maxsize' musí být > 0"
 
 #: tapset-procfs.cxx:595
 msgid "procfs path cannot start with a '/'"
-msgstr "procfs cesta nesmí začínat '/'"
+msgstr "'procfs' cesta nesmí začínat '/'"
 
 #: tapset-procfs.cxx:601
 msgid "procfs path component cannot be empty"
-msgstr "procfs cesta nesmí být prázdná"
+msgstr "'procfs' cesta nesmí být prázdná"
 
 #: tapset-procfs.cxx:605 tapset-procfs.cxx:615
 msgid "procfs path cannot be relative (and contain '.' or '..')"
-msgstr "procfs cesta nesmí být relativní (a obsahovat '.' nebo '..')"
+msgstr "'procfs' cesta nesmí být relativní (a obsahovat '.' nebo '..')"
 
 #: tapset-procfs.cxx:612
 msgid "procfs path cannot end with a '/'"
-msgstr "procfs cesta nesmí končit '/'"
+msgstr "'procfs' cesta nesmí končit '/'"
 
 #: tapset-procfs.cxx:619
 msgid "need read/write component"
-msgstr "potřebuji read/write komponentu"
+msgstr "potřebuji 'read'/'write' komponentu"
 
 #: tapsets.cxx:1049
 msgid ".callees(N) only acceptable for N >= 1"
-msgstr ".callees(N) je platné jen pro N >= 1"
+msgstr "'.callees(N)' je platné jen pro N >= 1"
 
 #: tapsets.cxx:1403
 msgid "probe "
-msgstr "proba "
+msgstr "sonda "
 
 #: tapsets.cxx:1405
 msgid " kernel"
@@ -2972,7 +3007,7 @@ msgstr "Chyba čtení ELF hlavičky"
 msgid ""
 "For probing a particular line, use a .statement() probe, not .function()"
 msgstr ""
-"Pro vložení proby na konkrétní řádek použijte .statement(), ne .function()"
+"Pro vložení sondy na konkrétní řádek použijte .statement(), ne .function()"
 
 #: tapsets.cxx:2682
 msgid "module="
@@ -2984,19 +3019,19 @@ msgstr "mažu cache modulu"
 
 #: tapsets.cxx:3101
 msgid "cannot take address of pretty-printed variable"
-msgstr "nelze přisoudit adresu pretty-printed proměnné"
+msgstr "nelze přisoudit adresu 'pretty-printed' proměnné"
 
 #: tapsets.cxx:3105
 msgid "invalid target_symbol for pretty-print"
-msgstr "neplatný cílový symbol pro pretty-print"
+msgstr "neplatný cílový symbol pro 'pretty-print'"
 
 #: tapsets.cxx:4084
 msgid "unknown type to save in kretprobe"
-msgstr "neznámý typ pro uložení v kretprobě"
+msgstr "neznámý typ pro uložení pro sondu 'kretprobe'"
 
 #: tapsets.cxx:4234 tapsets.cxx:10316
 msgid "variable location problem [man error::dwarf]: "
-msgstr "problém s dwarf adresací proměnné [man error::dwarf]:"
+msgstr "problém se symbolickou (dwarf) adresací proměnné [man error::dwarf]:"
 
 #: tapsets.cxx:4287
 msgid "write to target variable not permitted; need stap -g"
@@ -3004,7 +3039,7 @@ msgstr "zápis do proměnné není dovolen; použijte stap -g"
 
 #: tapsets.cxx:4299
 msgid "write to target variable not permitted in .return probes"
-msgstr "zápis do proměnné není dovolen v .return probě"
+msgstr "zápis do proměnné není dovolen v '.return' sondě"
 
 #: tapsets.cxx:4308
 msgid "cannot write to context variable"
@@ -3017,7 +3052,7 @@ msgstr "nelze přisoudit adresu kontextové proměnné"
 #. TRANSLATORS: Here we're using a cached module.
 #: tapsets.cxx:4609
 msgid "Pass 2: using cached "
-msgstr "Fáze 2: využívám cache"
+msgstr "Fáze 2: využívám cache: "
 
 #: tapsets.cxx:4633
 msgid "write to @cast context variable not permitted; need stap -g"
@@ -3029,11 +3064,11 @@ msgstr "zápis není povolen; použijte stap -g"
 
 #: tapsets.cxx:4727 tapsets.cxx:10223
 msgid "cannot take address of tracepoint variable"
-msgstr "nelze přisoudit adresu proměnné tracepointu"
+msgstr "nelze přisoudit adresu proměnné 'tracepoint' bodu"
 
 #: tapsets.cxx:4730
 msgid "internal error: no-op autocast encountered"
-msgstr "interní chyba: pokus o NOP autocast"
+msgstr "interní chyba: pokus o přetypování 'NOP' operace"
 
 #: tapsets.cxx:4866
 msgid "write to @var variable not permitted; need stap -g"
@@ -3061,7 +3096,7 @@ msgstr "nekonzistentní relokační adresa"
 
 #: tapsets.cxx:6343
 msgid "target-symbol requires debuginfo"
-msgstr "chybějící debuginfo pro symbol"
+msgstr "chybějící ladicí informace pro symbol"
 
 #: tapsets.cxx:6690
 msgid "can't retrieve symbol table"
@@ -3069,11 +3104,12 @@ msgstr "nemám k dispozici tabulku symbolů"
 
 #: tapsets.cxx:6825
 msgid "SDT asm not understood, requires debuginfo [man error::sdt]"
-msgstr "selhala interpretace SDT assembly bez debuginfa [man error::sdt]"
+msgstr ""
+"selhala interpretace 'SDT assembly' bez ladicích informací [man error::sdt]"
 
 #: tapsets.cxx:6840
 msgid "cannot take address of sdt variable"
-msgstr "nelze přisoudit adresu sdt proměnné"
+msgstr "nelze přisoudit adresu 'sdt' proměnné"
 
 #: tapsets.cxx:7299 tapsets.cxx:7358
 msgid " (provider "
@@ -3081,7 +3117,7 @@ msgstr " (poskytovatel "
 
 #: tapsets.cxx:7358
 msgid "saw .probes "
-msgstr "vidím .probes"
+msgstr "vidím '.probes'"
 
 #: tapsets.cxx:7399
 msgid ", found at 0x"
@@ -3093,35 +3129,38 @@ msgstr ", nenalezen"
 
 #: tapsets.cxx:7494
 msgid "probe_type == uprobe1, use statement addr: 0x"
-msgstr "probe_type == uprobe1, použijte statement addr: 0x"
+msgstr "probe_type == uprobe1, použijte 'statement addr': 0x"
 
 #: tapsets.cxx:7498
 msgid "probe_type == uprobe2, use statement addr: 0x"
-msgstr "probe_type == uprobe2, použijte statement addr: 0x"
+msgstr "probe_type == uprobe2, použijte 'statement addr': 0x"
 
 #: tapsets.cxx:7502
 msgid "probe_type == uprobe3, use statement addr: 0x"
-msgstr "probe_type == uprobe3, použijte statement addr: 0x"
+msgstr "probe_type == uprobe3, použijte 'statement addr': 0x"
 
 #: tapsets.cxx:7911
 msgid "invalid -x pid for unspecified process probe [man stapprobes]"
-msgstr "neplatný -x pid pro nespecifikovanou process probu [man stapprobes]"
+msgstr "neplatný -x pid pro nespecifikovanou 'process' sondu [man stapprobes]"
 
 #: tapsets.cxx:7918
 msgid ""
 "unspecified process probe is invalid without a -c COMMAND or -x PID [man "
 "stapprobes]"
 msgstr ""
-"nespecifikovaná userspace proba není validní viz -c PŘÍKAZ, nebo -x PID [man "
-"stapprobes]"
+"nespecifikovaná sonda pro uživatelský proces není validní viz -c PŘÍKAZ, "
+"nebo -x PID [man stapprobes]"
 
 #: tapsets.cxx:8174
 msgid "process return probes not available [man error::inode-uprobes]"
-msgstr "userspace return proby nejsou dostupné [man error::inode-uprobes]"
+msgstr ""
+"'return' sondy pro uživatelské procesy nejsou dostupné [man error::inode-"
+"uprobes]"
 
 #: tapsets.cxx:8242 tapsets.cxx:9696
 msgid "absolute statement probe in unprivileged script; need stap -g"
-msgstr "kernel.statement.absolute v neprivilegovaném skriptu; použijte stap -g"
+msgstr ""
+"'kernel.statement.absolute' v neprivilegovaném skriptu; použijte stap -g"
 
 #: tapsets.cxx:8571
 msgid "Multiple 'sys_ni_syscall' symbols found.\n"
@@ -3129,11 +3168,12 @@ msgstr "Nalezeno více 'sys_ni_syscall' symbolů\n"
 
 #: tapsets.cxx:8606
 msgid "Error: Cannot find vmlinux."
-msgstr "Chyba: Nemohu najít vmlinux."
+msgstr "Chyba: Nemohu najít 'vmlinux'."
 
 #: tapsets.cxx:8785
 msgid "absolute process probes not available [man error::inode-uprobes]"
-msgstr "process.statement.absolute proby nedostupné [man error::inode-uprobes]"
+msgstr ""
+"sondy 'process.statement.absolute' nedostupné [man error::inode-uprobes]"
 
 #: tapsets.cxx:10066
 msgid "CONFIG_PERF_EVENTS not available on this kernel"
@@ -3153,15 +3193,15 @@ msgstr "syntaxe SYSTEM:TRACEPOINT není podporovaná pro '--compatible <= 2.6'"
 
 #: tapsets.cxx:11059
 msgid "invalid tracepoint string provided"
-msgstr "neplatný tracepoint string"
+msgstr "neplatný 'tracepoint' string"
 
 #: tapsets.cxx:11217
 msgid "tracepoint_builder releasing dwflpp"
-msgstr "tracepoint_builder uvolňuje dwflpp"
+msgstr "'tracepoint_builder' uvolňuje 'dwflpp'"
 
 #: tapsets.cxx:11482
 msgid "Checking tracepoint glob "
-msgstr "Ověřuji tracepoint glob "
+msgstr "Ověřuji 'tracepoint' glob "
 
 #. TRANSLATORS: 'timer' is the name of a probe point
 #: tapset-timers.cxx:63
@@ -3175,7 +3215,7 @@ msgstr "neplatná hodnota randomize pro časovač jiffies"
 
 #: tapset-timers.cxx:70
 msgid "only expect one probe point"
-msgstr "očekávám jedinou probu"
+msgstr "očekávám jedinou sondu"
 
 #: tapset-timers.cxx:206
 msgid "randomization value out of range"
@@ -3183,7 +3223,7 @@ msgstr "hodnota 'randomization' mimo rozsah"
 
 #: tapset-timers.cxx:581
 msgid "profile timer probes not available with the dyninst runtime"
-msgstr "v --runtime=dyninst nejsou profilovací timer proby dostupné"
+msgstr "v --runtime=dyninst nejsou profilovací časovače dostupné"
 
 #: tapset-timers.cxx:590
 msgid "profiling timer support (register_timer_hook) not found in kernel!"
@@ -3192,7 +3232,7 @@ msgstr ""
 
 #: tapset-timers.cxx:604
 msgid "jiffies timer probes not available with the dyninst runtime"
-msgstr "jiffies timer proby nejsou dostupné v --runtime=dyninst"
+msgstr "sondy časovače nejsou dostupné v --runtime=dyninst"
 
 #: tapset-timers.cxx:614
 msgid "frequency must be greater than 0"
@@ -3204,19 +3244,20 @@ msgstr "nerozpoznaná varianta časovače"
 
 #: tapset-utrace.cxx:484
 msgid "only \"process(PATH_OR_PID).syscall\" support $argN or $$parms."
-msgstr "pouze \"process(PATH_OR_PID).syscall\" podporuje $argN nebo $$parms"
+msgstr ""
+"pouze \"process(PATH_OR_PID).syscall\" podporuje '$argN' nebo '$$parms'"
 
 #: tapset-utrace.cxx:528 tapset-utrace.cxx:535
 msgid "invalid syscall argument number (1-6)"
-msgstr "neplatné číslo argumentu pro syscall, očekávám (1-6)"
+msgstr "neplatné číslo argumentu pro systémové volání, očekávám (1-6)"
 
 #: tapset-utrace.cxx:539
 msgid "utrace '$argN' variable is read-only"
-msgstr "utrace '$argN' proměnná je pouze pro čtení"
+msgstr "'utrace' proměnná '$argN' je pouze pro čtení"
 
 #: tapset-utrace.cxx:574
 msgid "only \"process(PATH_OR_PID).syscall.return\" support $return."
-msgstr "pouze \"process(PATH_OR_PID).syscall.return\" podporuje $return."
+msgstr "pouze \"process(PATH_OR_PID).syscall.return\" podporuje '$return'."
 
 #: tapset-utrace.cxx:599
 msgid "unknown target variable"
@@ -3228,7 +3269,7 @@ msgid ""
 "return\" probes support target symbols"
 msgstr ""
 "pouze \"process(PATH_OR_PID).syscall\" a \"process(PATH_OR_PID).syscall."
-"return\" proby podporují cílové symboly"
+"return\" sondy podporují cílové symboly"
 
 #: tapset-utrace.cxx:628
 msgid "cannot take address of utrace variable"
@@ -3240,11 +3281,11 @@ msgid ""
 "expected"
 msgstr ""
 "neplatný cílový symbol pro 'utrace' probu, očekávám $syscall, $return, $argN "
-"nebo $$parms"
+"nebo '$$parms'"
 
 #: tapset-utrace.cxx:674
 msgid "process.syscall probes not available with the dyninst runtime"
-msgstr "process.syscall proby nejsou dostupné v --runtime=dyninst"
+msgstr "'process.syscall' sondy nejsou dostupné v --runtime=dyninst"
 
 #: translate.cxx:51
 msgid "\"Array overflow, check "
@@ -3288,7 +3329,7 @@ msgstr "agregace neparalelních polí"
 
 #: translate.cxx:715
 msgid "fetching aggregate of non-parallel map type"
-msgstr ""
+msgstr "agregace neparalelních polí"
 
 #: translate.cxx:733
 msgid "checking existence of an unsupported map type"
@@ -3336,7 +3377,7 @@ msgstr "neplatný typ hodnoty"
 
 #: translate.cxx:1152
 msgid "internal error translating printf"
-msgstr "interní chyba při překladu printf"
+msgstr "interní chyba při překladu 'printf'"
 
 #: translate.cxx:2492 translate.cxx:2732
 msgid "array locals not supported, missing global declaration?"
@@ -3417,7 +3458,7 @@ msgstr "Neplatné indexování histogramu"
 
 #: translate.cxx:4272
 msgid "cannot 'return' from probe"
-msgstr "v probě nelze použít 'return'"
+msgstr "v sondě nelze použít 'return'"
 
 #: translate.cxx:4275
 msgid "return type mismatch"
@@ -3553,7 +3594,7 @@ msgstr "nekonzistentní arita"
 
 #: translate.cxx:5418 translate.cxx:5435
 msgid "function argument type mismatch"
-msgstr "nekonzistentní datové typy parametů"
+msgstr "nekonzistentní datové typy parametrů"
 
 #: translate.cxx:5427
 msgid "function actual argument evaluation"
@@ -3569,19 +3610,19 @@ msgstr "nemohu vypsat statistický objekt"
 
 #: translate.cxx:6147
 msgid "unexpected build-id reloc section "
-msgstr "neočekávaná relokační sekce .note.gnu.build-id"
+msgstr "neočekávaná relokační sekce '.note.gnu.build-id'"
 
 #: translate.cxx:7251
 msgid "Searching for vdso candidates: "
-msgstr "Hledám vhodné VDSO: "
+msgstr "Hledám vhodné 'VDSO': "
 
 #: translate.cxx:7261
 msgid "vdso candidate: "
-msgstr "Kandidát na VDSO: "
+msgstr "Kandidát na 'VDSO': "
 
 #: translate.cxx:7443
 msgid "missing unwind/symbol data for module '"
-msgstr "chybějící unwind/symbol data pro modul '"
+msgstr "chybějící ladicí informace pro modul '"
 
 #: translate.cxx:7490
 #, c-format
@@ -3589,8 +3630,8 @@ msgid ""
 "myproc-unprivileged tapset function called without is_myproc checking for "
 "pid %d (euid %d)"
 msgstr ""
-"myproc-unprivileged tapset funkce volaná bez is_myproc kontroly na pid %d "
-"(euid %d)"
+"'myproc-unprivileged' tapset funkce volaná bez 'is_myproc' kontroly na pid "
+"%d (euid %d)"
 
 #: translate.cxx:7494
 #, c-format
@@ -3627,7 +3668,6 @@ msgstr "cmdstr_join() zavolán s prázdným argumentem"
 msgid "Running"
 msgstr "Běží"
 
-#: util.h:130 util.h:141 util.h:152 util.h:160 util.h:171 util.h:183
-#: util.h:203
+#: util.h:130 util.h:141 util.h:152 util.h:160 util.h:171 util.h:183 util.h:203
 msgid "bad lexical cast"
 msgstr "chybné zpracování řetězce"
