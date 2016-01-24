@@ -103,7 +103,7 @@ sub add_meta_html(*;$) {
         $Text::Wrap::separator = " \\\n";
         my $usage = wrap('', '', $scripts{$meta}{test_installcheck});
         $Text::Wrap::separator = "\n";
-        my $usage = encode_entities($usage);
+        $usage = encode_entities($usage);
         print $file "<p><font size=\"-2\"><pre># $usage</pre></font>";
     }
 
