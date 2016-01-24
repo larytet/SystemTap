@@ -781,7 +781,7 @@ client_callback (AvahiClient *c, AvahiClientState state, AVAHI_GCC_UNUSED void *
 }
 
 static void
-inotify_callback (AvahiWatch *w, int fd, AvahiWatchEvent event, void *userdata)
+inotify_callback (AvahiWatch *, int fd, AvahiWatchEvent, void *)
 {
   struct inotify_event in_events[10];
   ssize_t rc;

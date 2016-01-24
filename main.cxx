@@ -252,7 +252,7 @@ printscript(systemtap_session& s, ostream& o)
 int pending_interrupts;
 
 extern "C"
-void handle_interrupt (int sig)
+void handle_interrupt (int)
 {
   // This might be nice, but we don't know our current verbosity...
   // clog << _F("Received signal %d", sig) << endl << flush;

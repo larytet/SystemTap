@@ -2694,9 +2694,8 @@ dwflpp::loc2c_error (void *arg, const char *fmt, ...)
 
   dwflpp *pp = (dwflpp *) arg;
   semantic_error err(ERR_SRC, msg);
-  string what = pp->die_location_as_string(pp->l2c_ctx.pc, pp->l2c_ctx.die);
-  string where = pp->die_location_as_function_string (pp->l2c_ctx.pc,
-						      pp->l2c_ctx.die);
+  string what = pp->die_location_as_string(pp->l2c_ctx.die);
+  string where = pp->pc_location_as_function_string (pp->l2c_ctx.pc);
   err.details.push_back(what);
   err.details.push_back(where);
   throw err;
@@ -3101,7 +3100,7 @@ dwflpp::pc_die_line_string (Dwarf_Addr pc, Dwarf_Die *die)
 /* Returns a human readable DIE offset for use in error messages.
    Includes DIE offset and DWARF file used. */
 string
-dwflpp::die_location_as_string(Dwarf_Addr pc, Dwarf_Die *die)
+dwflpp::die_location_as_string(Dwarf_Die *die)
 {
   string locstr;
 
@@ -3131,9 +3130,9 @@ dwflpp::die_location_as_string(Dwarf_Addr pc, Dwarf_Die *die)
 }
 
 /* Returns a human readable (inlined) function and source file/line location
-   for a DIE and pc location.  */
+   for a pc location.  */
 string
-dwflpp::die_location_as_function_string(Dwarf_Addr pc, Dwarf_Die *die)
+dwflpp::pc_location_as_function_string(Dwarf_Addr pc)
 {
   string locstr;
   locstr = _("function: ");
@@ -3263,8 +3262,8 @@ dwflpp::translate_location(struct obstack *pool,
       {
 	string msg = _F("not accessible at this address (pc: %s) [man error::dwarf]", lex_cast_hex(pc).c_str());
 	semantic_error err(ERR_SRC, msg, e->tok);
-	err.details.push_back(die_location_as_string(pc, die));
-	err.details.push_back(die_location_as_function_string(pc, die));
+	err.details.push_back(die_location_as_string(die));
+	err.details.push_back(pc_location_as_function_string(pc));
 	err.details.push_back(suggested_locations_string(attr));
 	throw err;
       }
@@ -3276,8 +3275,8 @@ dwflpp::translate_location(struct obstack *pool,
 	semantic_error err(ERR_SRC, msg, e->tok);
 	string dwarf_err = _F("dwarf_error: %s", dwarf_errmsg(-1));
 	err.details.push_back(dwarf_err);
-	err.details.push_back(die_location_as_string(pc, die));
-	err.details.push_back(die_location_as_function_string(pc, die));
+	err.details.push_back(die_location_as_string(die));
+	err.details.push_back(pc_location_as_function_string(pc));
 	err.details.push_back(suggested_locations_string(attr));
 	throw err;
       }
@@ -3918,8 +3917,8 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 	{
 	  string msg = _F("failed to retrieve location attribute for '%s' [man error::dwarf]", local.c_str());
 	  semantic_error err(ERR_SRC, msg, e->tok);
-	  err.details.push_back(die_location_as_string(pc, &vardie));
-	  err.details.push_back(die_location_as_function_string(pc, &vardie));
+	  err.details.push_back(die_location_as_string(&vardie));
+	  err.details.push_back(pc_location_as_function_string(pc));
 	  throw err;
 	}
     }
@@ -3933,8 +3932,8 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
     {
       string msg = _F("failed to retrieve type attribute for '%s' [man error::dwarf]", local.c_str());
       semantic_error err(ERR_SRC, msg, e->tok);
-      err.details.push_back(die_location_as_string(pc, &vardie));
-      err.details.push_back(die_location_as_function_string(pc, &vardie));
+      err.details.push_back(die_location_as_string(&vardie));
+      err.details.push_back(pc_location_as_function_string(pc));
       throw err;
     }
 
@@ -4635,7 +4634,7 @@ int
 dwflpp::add_module_build_id_to_hash (Dwfl_Module *m,
                  void **userdata __attribute__ ((unused)),
                  const char *name,
-                 Dwarf_Addr base,
+                 Dwarf_Addr,
                  void *arg)
 {
    string modname = name;

@@ -224,14 +224,13 @@ derived_probe::print_dupe_stamp_unprivileged_process_owner(ostream& o)
 // Members of derived_probe_builder
 
 void
-derived_probe_builder::build_with_suffix(systemtap_session & sess,
-                                         probe * use,
-                                         probe_point * location,
-                                         literal_map_t const & parameters,
-                                         std::vector<derived_probe *>
-                                           & finished_results,
+derived_probe_builder::build_with_suffix(systemtap_session &,
+                                         probe *,
+                                         probe_point *,
+                                         literal_map_t const &,
+                                         std::vector<derived_probe *> &,
                                          std::vector<probe_point::component *>
-                                           const & suffix) {
+                                           const &) {
   // XXX perhaps build the probe if suffix is empty?
   // if (suffix.empty()) {
   //   build (sess, use, location, parameters, finished_results);
@@ -2972,22 +2971,22 @@ struct assignment_symbol_fetcher
   assignment_symbol_fetcher (symbol *&sym): symbol_fetcher(sym)
   {}
 
-  void visit_target_symbol (target_symbol* e)
+  void visit_target_symbol (target_symbol*)
   {
     sym = NULL;
   }
 
-  void visit_atvar_op (atvar_op *e)
+  void visit_atvar_op (atvar_op*)
   {
     sym = NULL;
   }
 
-  void visit_cast_op (cast_op* e)
+  void visit_cast_op (cast_op*)
   {
     sym = NULL;
   }
 
-  void visit_autocast_op (autocast_op* e)
+  void visit_autocast_op (autocast_op*)
   {
     sym = NULL;
   }
@@ -4604,7 +4603,7 @@ void stable_analysis::visit_embeddedcode (embeddedcode* s)
         s->tok);
 }
 
-void stable_analysis::visit_functioncall (functioncall* e)
+void stable_analysis::visit_functioncall (functioncall*)
 {
 }
 
@@ -4640,7 +4639,7 @@ struct level_check: public traversing_visitor
   void visit_functioncall (functioncall* s);
 };
 
-void level_check::visit_block (block* s)
+void level_check::visit_block (block*)
 {
 }
 
@@ -5132,11 +5131,11 @@ struct initial_typeresolution_info : public typeresolution_info
   // these expressions are not supposed to make its way to the typeresolution
   // pass. they probably get substituted/replaced, but since this is an initial pass
   // and not all substitutions are done, replace the functions that throw errors.
-  void visit_target_symbol (target_symbol* e) {}
-  void visit_atvar_op (atvar_op* e) {}
-  void visit_defined_op (defined_op* e) {}
-  void visit_entry_op (entry_op* e) {}
-  void visit_cast_op (cast_op* e) {}
+  void visit_target_symbol (target_symbol*) {}
+  void visit_atvar_op (atvar_op*) {}
+  void visit_defined_op (defined_op*) {}
+  void visit_entry_op (entry_op*) {}
+  void visit_cast_op (cast_op*) {}
 };
 
 static int initial_typeres_pass(systemtap_session& s)
@@ -6686,7 +6685,7 @@ typeresolution_info::mismatch (const token *tok, exp_type type,
  * index if index-based (array index or function arg)
  * */
 void
-typeresolution_info::resolved (const token *tok, exp_type type,
+typeresolution_info::resolved (const token *tok, exp_type,
                                const symboldecl* decl, int index)
 {
   num_newly_resolved ++;

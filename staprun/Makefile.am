@@ -2,8 +2,8 @@
 
 AUTOMAKE_OPTIONS = subdir-objects
 
-AM_CFLAGS = -Wall -Werror -Wunused -W -Wformat=2
-AM_CXXFLAGS = -Wall -Werror -Wunused -W -Wformat=2
+AM_CFLAGS = -Wall -Wextra -Werror -Wunused -W -Wformat=2
+AM_CXXFLAGS = -Wall -Wextra -Werror -Wunused -W -Wformat=2
 AM_CPPFLAGS = -D_GNU_SOURCE
 AM_CPPFLAGS += -I$(srcdir)/../includes
 AM_CPPFLAGS += -I$(builddir)/../includes/sys

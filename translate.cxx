@@ -2298,8 +2298,8 @@ struct max_action_info: public functioncall_traversing_visitor
   void add_max_stmt_count () { statement_count = max_statement_count; }
   bool statement_count_finite() { return statement_count < max_statement_count; }
 
-  void visit_for_loop (for_loop* stmt) { add_max_stmt_count(); }
-  void visit_foreach_loop (foreach_loop* stmt) { add_max_stmt_count(); }
+  void visit_for_loop (for_loop*) { add_max_stmt_count(); }
+  void visit_foreach_loop (foreach_loop*) { add_max_stmt_count(); }
   void visit_expr_statement (expr_statement *stmt)
     {
       add_stmt_count(1);
@@ -2325,14 +2325,14 @@ struct max_action_info: public functioncall_traversing_visitor
       statement_count = max(tmp_visitor_then.statement_count, tmp_visitor_else.statement_count);
     }
 
-  void note_recursive_functioncall (functioncall *e) { add_max_stmt_count(); }
+  void note_recursive_functioncall (functioncall *) { add_max_stmt_count(); }
 
-  void visit_null_statement (null_statement *stmt) { add_stmt_count(1); }
-  void visit_return_statement (return_statement *stmt) { add_stmt_count(1); }
-  void visit_delete_statement (delete_statement *stmt) { add_stmt_count(1); }
-  void visit_next_statement (next_statement *stmt) { add_stmt_count(1); }
-  void visit_break_statement (break_statement *stmt) { add_stmt_count(1); }
-  void visit_continue_statement (continue_statement *stmt) { add_stmt_count(1); }
+  void visit_null_statement (null_statement *) { add_stmt_count(1); }
+  void visit_return_statement (return_statement *) { add_stmt_count(1); }
+  void visit_delete_statement (delete_statement *) { add_stmt_count(1); }
+  void visit_next_statement (next_statement *) { add_stmt_count(1); }
+  void visit_break_statement (break_statement *) { add_stmt_count(1); }
+  void visit_continue_statement (continue_statement *) { add_stmt_count(1); }
 };
 
 void
@@ -6110,7 +6110,7 @@ static void get_unwind_data (Dwfl_Module *m,
 static int
 dump_build_id (Dwfl_Module *m,
 	       unwindsym_dump_context *c,
-	       const char *name, Dwarf_Addr base)
+	       const char *name, Dwarf_Addr)
 {
   string modname = name;
 
@@ -6167,7 +6167,7 @@ dump_build_id (Dwfl_Module *m,
 static int
 dump_section_list (Dwfl_Module *m,
                    unwindsym_dump_context *c,
-                   const char *name, Dwarf_Addr base)
+                   const char *name, Dwarf_Addr)
 {
   // Depending on ELF section names normally means you are doing it WRONG.
   // Sadly it seems we do need it for the kernel modules. Which are ET_REL
@@ -6380,7 +6380,7 @@ dump_line_tables_check (void *data, size_t data_len)
 
 static void
 dump_line_tables (Dwfl_Module *m, unwindsym_dump_context *c,
-                  const char *modname, Dwarf_Addr base)
+                  const char *, Dwarf_Addr)
 {
   Elf* elf;
   Elf_Scn* scn = NULL;
@@ -6663,7 +6663,7 @@ dump_symbol_tables (Dwfl_Module *m,
 static int
 dump_unwind_tables (Dwfl_Module *m,
 		    unwindsym_dump_context *c,
-		    const char *name, Dwarf_Addr base)
+		    const char *, Dwarf_Addr)
 {
   // Add unwind data to be included if it exists for this module.
   get_unwind_data (m, &c->debug_frame, &c->eh_frame,

@@ -386,7 +386,7 @@ te_closure (state_kernel *start, int ntags, bool is_initial = false)
    question, appends reordering commands to r). Returns NULL is no
    suitable state is found. */
 state *
-dfa::find_equivalent (state *s, tdfa_action &r)
+dfa::find_equivalent (state *s, tdfa_action &)
 {
   state *answer = NULL;
 
@@ -406,7 +406,7 @@ dfa::find_equivalent (state *s, tdfa_action &r)
               if (!marked(it->i)) 
                 goto next_state;
 
-          // TODOXXX check for existence of reordering r
+          // TODOXXX check for existence of reordering tdfa_action r
           answer = t;
           goto cleanup;
         }
@@ -662,8 +662,8 @@ dfa::emit (translator_output *o) const
 }
 
 void
-dfa::emit_tagsave (translator_output *o, std::string tag_states,
-                   std::string tag_vals, std::string tag_count) const
+dfa::emit_tagsave (translator_output *, std::string,
+                   std::string, std::string) const
 {
   // TODOXXX implement after testing the preceding algorithms
 }

@@ -562,8 +562,8 @@ AM_CPPFLAGS = -DBINDIR='"$(bindir)"' \
 	      -DLOCALEDIR='"$(localedir)"' \
 	      -I$(srcdir)/includes -I$(builddir)/includes/sys
 
-AM_CFLAGS = -D_GNU_SOURCE -fexceptions -Wall -Werror -Wunused -Wformat=2 -W
-AM_CXXFLAGS = -Wall -Werror
+AM_CFLAGS = -D_GNU_SOURCE -fexceptions -Wall -Wextra -Werror -Wunused -Wformat=2 -W
+AM_CXXFLAGS = -Wall -Wextra -Werror
 bin_SCRIPTS = stap-report $(am__append_2) $(am__append_5)
 pkglibexec_SCRIPTS = stap-env $(am__append_6)
 oldinclude_HEADERS = includes/sys/sdt.h includes/sys/sdt-config.h

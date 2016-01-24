@@ -2320,7 +2320,7 @@ functioncall_traversing_visitor::enter_functioncall (functioncall* e)
 }
 
 void
-functioncall_traversing_visitor::note_recursive_functioncall (functioncall* e)
+functioncall_traversing_visitor::note_recursive_functioncall (functioncall*)
 {
 }
 

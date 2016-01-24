@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: systemtap 3.0\n"
 "Report-Msgid-Bugs-To: systemtap@sourceware.org\n"
-"POT-Creation-Date: 2016-01-22 14:53+0100\n"
+"POT-Creation-Date: 2016-01-14 05:07-0500\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: Czech\n"
@@ -14,15 +14,15 @@ msgstr ""
 "X-Generator: Zanata 3.7.3\n"
 "Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2\n"
 
-#: buildrun.cxx:580
+#: buildrun.cxx:577
 msgid "Pass 4, preamble: (re)building SystemTap's version of uprobes."
 msgstr "Fáze 4, úvod: sestavuji SystemTap verzi mechanizmu 'uprobe'."
 
-#: buildrun.cxx:626
+#: buildrun.cxx:623
 msgid "uprobes rebuild exit code: "
 msgstr "návratový kód sestavení vlastního 'uprobe' mechanizmu:"
 
-#: buildrun.cxx:686
+#: buildrun.cxx:683
 msgid ""
 "user-space process-tracking facilities not available [man error::process-"
 "tracking]"
@@ -1134,53 +1134,17 @@ msgstr "Ignoruji --use-server"
 msgid "# parse tree dump"
 msgstr "# Výpis derivačního stromu (parse tree)"
 
-#: main.cxx:795
-msgid "Pass 1: parsed user script and "
-msgstr "Fáze 1: zpracován uživatelský skript a "
-
-#: main.cxx:797
-msgid " library script(s) "
-msgstr " tapset skriptů "
-
 #: main.cxx:804
 msgid "Pass 1: parse failed.  [man error::pass1]"
 msgstr "Fáze 1: chyba parsování. [man error::pass1]"
-
-#: main.cxx:851
-msgid "Pass 2: analyzed script: "
-msgstr "Fáze 2: skript analyzován: "
-
-#: main.cxx:852
-msgid " probe(s), "
-msgstr " x sonda, "
-
-#: main.cxx:853
-msgid " function(s), "
-msgstr " x funkce, "
-
-#: main.cxx:854
-msgid " embed(s), "
-msgstr " x blok vloženého kódu, "
-
-#: main.cxx:855
-msgid " global(s) "
-msgstr " x globální proměnná, "
 
 #: main.cxx:861
 msgid "Pass 2: analysis failed.  [man error::pass2]"
 msgstr "Fáze 2: chyba analýzy. [man error::pass2]"
 
-#: main.cxx:928
-msgid "Pass 3: translated to C into \""
-msgstr "Fáze 3: přeloženo do C jako \""
-
 #: main.cxx:936
 msgid "Pass 3: translation failed.  [man error::pass3]"
 msgstr "Fáze 3: chyba překladu. [man error::pass3]"
-
-#: main.cxx:964
-msgid "Pass 4: compiled C into \""
-msgstr "Fáze 4: C kód přeložen: \""
 
 #: main.cxx:971
 msgid "Pass 4: compilation failed.  [man error::pass4]"
@@ -1189,10 +1153,6 @@ msgstr "Fáze 4: chyba kompilace. [man error::pass4]"
 #: main.cxx:1021
 msgid "Pass 5: starting run."
 msgstr "Fáze 5: startuji běh."
-
-#: main.cxx:1028
-msgid "Pass 5: run completed "
-msgstr "Fáze 5: běh dokončen "
 
 #: main.cxx:1033
 msgid "Pass 5: run failed.  [man error::pass5]"
@@ -1364,7 +1324,7 @@ msgid "'@define' forbidden inside macro body"
 msgstr "použití '@define' v těle makra je zakázáno"
 
 #: parse.cxx:465 parse.cxx:509 parse.cxx:2123 parse.cxx:2211 parse.cxx:2247
-#: parse.cxx:2335 parse.cxx:2384 parse.cxx:3020
+#: parse.cxx:2334 parse.cxx:2382 parse.cxx:3018
 msgid "expected identifier"
 msgstr "očekáván identifikátor"
 
@@ -1372,7 +1332,7 @@ msgstr "očekáván identifikátor"
 msgid "attempt to redefine '@define'"
 msgstr "pokus o předefinování '@define'"
 
-#: parse.cxx:526 parse.cxx:2415 parse.cxx:3898
+#: parse.cxx:526 parse.cxx:2413 parse.cxx:3896
 msgid "expected ',' or ')'"
 msgstr "očekávám ',' nebo ')'"
 
@@ -1468,7 +1428,7 @@ msgstr "neočekávaný konec souboru"
 msgid "expected "
 msgstr "očekávám "
 
-#: parse.cxx:1312 parse.cxx:2710
+#: parse.cxx:1312 parse.cxx:2708
 msgid "number invalid or out of range"
 msgstr "chybný zápis čísla, nebo číslo mimo rozsah"
 
@@ -1549,185 +1509,185 @@ msgstr "duplicitní jméno globální proměnné"
 msgid "global versus private variable declaration conflict"
 msgstr "konflikt mezi 'global' a 'private' deklarací proměnné"
 
-#: parse.cxx:2283
+#: parse.cxx:2282
 msgid "array size out of range"
 msgstr "velikost pole mimo rozsah"
 
-#: parse.cxx:2292
+#: parse.cxx:2291
 msgid "only scalar globals can be initialized"
 msgstr "lze inicializovat jen skalární proměnné"
 
-#: parse.cxx:2322
+#: parse.cxx:2321
 msgid "expected 'function'"
 msgstr "očekávám 'function'"
 
-#: parse.cxx:2344
+#: parse.cxx:2343
 msgid "duplicate function name"
 msgstr "duplicitní jméno funkce"
 
-#: parse.cxx:2346
+#: parse.cxx:2345
 msgid "global versus private function declaration conflict"
 msgstr "konflikt mezi 'global' a 'private' deklarací funkce"
 
-#: parse.cxx:2363 parse.cxx:2400
+#: parse.cxx:2361 parse.cxx:2398
 msgid "expected 'string' or 'long'"
 msgstr "očekávám 'string', nebo 'long'"
 
-#: parse.cxx:2370 parse.cxx:2522 parse.cxx:2737 parse.cxx:2853 parse.cxx:2923
-#: parse.cxx:2960
+#: parse.cxx:2368 parse.cxx:2520 parse.cxx:2735 parse.cxx:2851 parse.cxx:2921
+#: parse.cxx:2958
 msgid "expected '('"
 msgstr "očekávám '('"
 
-#: parse.cxx:2448
+#: parse.cxx:2446
 msgid "expected one of ', { } = +='"
 msgstr "očekávám něco jako '. , ( ? ! { = +='"
 
-#: parse.cxx:2471
+#: parse.cxx:2469
 msgid "'?', '!' or condition must only be specified in suffix"
 msgstr "'?', '!', nebo podmínku lze specifikovat jen jako příponu"
 
-#: parse.cxx:2507
+#: parse.cxx:2505
 msgid "'?' or '!' respecified"
 msgstr "Nebyl specifikován žádný server"
 
-#: parse.cxx:2529
+#: parse.cxx:2527
 msgid "condition respecified"
 msgstr "Nebyl specifikován žádný server"
 
-#: parse.cxx:2535 parse.cxx:2621 parse.cxx:2744 parse.cxx:2901 parse.cxx:2935
-#: parse.cxx:3663
+#: parse.cxx:2533 parse.cxx:2619 parse.cxx:2742 parse.cxx:2899 parse.cxx:2933
+#: parse.cxx:3661
 msgid "expected ')'"
 msgstr "očekávám ')'"
 
-#: parse.cxx:2553
+#: parse.cxx:2551
 msgid "expected identifier or '*' or '{'"
 msgstr "očekávám identifikátor nebo '*'"
 
-#: parse.cxx:2561
+#: parse.cxx:2559
 msgid "expected '}'"
 msgstr "očekávám '{'"
 
-#: parse.cxx:2668
+#: parse.cxx:2666
 msgid "expected literal string"
 msgstr "očekávám řetězcový literál"
 
-#: parse.cxx:2718
+#: parse.cxx:2716
 msgid "expected literal string or number"
 msgstr "očekávám řetězcový nebo číselný literál"
 
-#: parse.cxx:2731
+#: parse.cxx:2729
 msgid "expected 'if'"
 msgstr "očekávám 'if'"
 
-#: parse.cxx:2768
+#: parse.cxx:2766
 msgid "expression statement expected"
 msgstr "očekávám výraz"
 
-#: parse.cxx:2781
+#: parse.cxx:2779
 msgid "expected 'return'"
 msgstr "očekávám 'return'"
 
-#: parse.cxx:2783
+#: parse.cxx:2781
 msgid "found 'return' not in function context"
 msgstr "našel jsem 'return' mimo kontext funkce"
 
-#: parse.cxx:2796
+#: parse.cxx:2794
 msgid "expected 'delete'"
 msgstr "očekávám 'delete'"
 
-#: parse.cxx:2809
+#: parse.cxx:2807
 msgid "expected 'next'"
 msgstr "očekávám 'next'"
 
-#: parse.cxx:2811
+#: parse.cxx:2809
 msgid "found 'next' not in probe context"
 msgstr "našel jsem 'next' mimo kontext sondy"
 
-#: parse.cxx:2823
+#: parse.cxx:2821
 msgid "expected 'break'"
 msgstr "očekávám 'break'"
 
-#: parse.cxx:2835
+#: parse.cxx:2833
 msgid "expected 'continue'"
 msgstr "očekávám 'continue'"
 
-#: parse.cxx:2847
+#: parse.cxx:2845
 msgid "expected 'for'"
 msgstr "očekávám 'for'"
 
-#: parse.cxx:2868 parse.cxx:2885
+#: parse.cxx:2866 parse.cxx:2883
 msgid "expected ';'"
 msgstr "očekávám ';'"
 
-#: parse.cxx:2917
+#: parse.cxx:2915
 msgid "expected 'while'"
 msgstr "očekávám 'while'"
 
-#: parse.cxx:2950
+#: parse.cxx:2948
 msgid "expected 'foreach'"
 msgstr "očekávám 'foreach'"
 
-#: parse.cxx:3031 parse.cxx:3119
+#: parse.cxx:3029 parse.cxx:3117
 msgid "multiple sort directives"
 msgstr "více než jedna 'sort' direktiva"
 
-#: parse.cxx:3051 parse.cxx:3092 parse.cxx:3366 parse.cxx:3949
+#: parse.cxx:3049 parse.cxx:3090 parse.cxx:3364 parse.cxx:3947
 msgid "expected ',' or ']'"
 msgstr "očekávám ',' nebo ']'"
 
-#: parse.cxx:3059
+#: parse.cxx:3057
 msgid "expected 'in'"
 msgstr "očekávám 'in'"
 
-#: parse.cxx:3106
+#: parse.cxx:3104
 msgid "expected statistical operation"
 msgstr "očekávám statistickou operaci"
 
-#: parse.cxx:3111
+#: parse.cxx:3109
 msgid "expected sort directive"
 msgstr "očekávám 'sort' direktivu"
 
-#: parse.cxx:3202
+#: parse.cxx:3200
 msgid "expected ':'"
 msgstr "očekávám ':'"
 
-#: parse.cxx:3389
+#: parse.cxx:3387
 msgid "unexpected comma-separated expression list"
 msgstr "neočekávaný seznam čárkou oddělených výrazů"
 
-#: parse.cxx:3611
+#: parse.cxx:3609
 msgid "expected @cast, @var or $var"
 msgstr "očekávám @cast, @var, nebo $var"
 
-#: parse.cxx:3643
+#: parse.cxx:3641
 msgid "expected value"
 msgstr "očekávám hodnotu"
 
-#: parse.cxx:3648
+#: parse.cxx:3646
 msgid "embedded expression code in unprivileged script; need stap -g"
 msgstr "vložený kód v neprivilegovaném režimu; použijte -g"
 
-#: parse.cxx:3960
+#: parse.cxx:3958
 msgid "base histogram operator where expression expected"
 msgstr "očekáván aritmetický výraz, nalezen operátor pracující s histogramem"
 
-#: parse.cxx:3978
+#: parse.cxx:3976
 msgid "expected $var"
 msgstr "očekávám $var"
 
-#: parse.cxx:3996 parse.cxx:4073
+#: parse.cxx:3994 parse.cxx:4071
 msgid "expected non-empty string"
 msgstr "očekávám neprázdný řetězec"
 
-#: parse.cxx:4006
+#: parse.cxx:4004
 msgid "expected @cast"
 msgstr "očekávám @cast"
 
-#: parse.cxx:4037
+#: parse.cxx:4035
 msgid "expected @var"
 msgstr "očekávám @var"
 
-#: parse.cxx:4159
+#: parse.cxx:4157
 msgid "-> and [ are not accepted for a pretty-printing variable"
 msgstr "'->' a '[' nelze použít pro 'pretty-printing' proměnnou"
 
@@ -2776,11 +2736,11 @@ msgstr "symbol bez odkazu"
 msgid "invalid element"
 msgstr "neplatný element"
 
-#: staptree.h:1180
+#: staptree.h:1179
 msgid "update_visitor wasn't provided a value"
 msgstr "update_visitor nemá definovanou hodnotu"
 
-#: staptree.h:1184
+#: staptree.h:1183
 msgid "update_visitor was provided a NULL value"
 msgstr "update_visitor má hodnotu rovnu NULL"
 
@@ -3671,3 +3631,33 @@ msgstr "Běží"
 #: util.h:130 util.h:141 util.h:152 util.h:160 util.h:171 util.h:183 util.h:203
 msgid "bad lexical cast"
 msgstr "chybné zpracování řetězce"
+
+#~ msgid "Pass 1: parsed user script and "
+#~ msgstr "Fáze 1: zpracován uživatelský skript a "
+
+#~ msgid " library script(s) "
+#~ msgstr " tapset skriptů "
+
+#~ msgid "Pass 2: analyzed script: "
+#~ msgstr "Fáze 2: skript analyzován: "
+
+#~ msgid " probe(s), "
+#~ msgstr " x sonda, "
+
+#~ msgid " function(s), "
+#~ msgstr " x funkce, "
+
+#~ msgid " embed(s), "
+#~ msgstr " x blok vloženého kódu, "
+
+#~ msgid " global(s) "
+#~ msgstr " x globální proměnná, "
+
+#~ msgid "Pass 3: translated to C into \""
+#~ msgstr "Fáze 3: přeloženo do C jako \""
+
+#~ msgid "Pass 4: compiled C into \""
+#~ msgstr "Fáze 4: C kód přeložen: \""
+
+#~ msgid "Pass 5: run completed "
+#~ msgstr "Fáze 5: běh dokončen "
