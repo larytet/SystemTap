@@ -3720,8 +3720,8 @@ probe syscall.mlock2 = kernel.function("sys_mlock2").call ?
 	addr = __ulong($start)
 	len = __ulong($len)
 	flags = __int32($flags)
-	flags_str = _stp_mlock2_str(__int32(flags))
-	argstr = sprintf("%p, %u %s", addr, len, flags_str)
+	flags_str = _stp_mlock2_str(__int32($flags))
+	argstr = sprintf("%p, %u, %s", addr, len, flags_str)
 }
 probe syscall.mlock2.return = kernel.function("sys_mlock2").return ?
 {

@@ -1374,6 +1374,16 @@ probe nd_syscall.mlock.return
 	printf("%s, %s\n", name, retstr)
 }
 
+probe nd_syscall.mlock2 ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d, %d, %s\n", addr, len, flags, flags_str)
+}
+probe nd_syscall.mlock2.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe nd_syscall.mlockall
 {
 	printf("%s, %s\n", name, argstr)

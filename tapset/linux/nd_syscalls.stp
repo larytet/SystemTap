@@ -3953,11 +3953,11 @@ probe nd_syscall.mlock2 = kprobe.function("sys_mlock2") ?
 {
 	name = "mlock2"
 	asmlinkage()
-	addr = __ulong(1)
-	len = __ulong(2)
-	flags = __int32(3)
-	flags_str = _stp_mlock2_str(__int32(3))
-	argstr = sprintf("%p, %u %s", addr, len, flags_str)
+	addr = ulong_arg(1)
+	len = ulong_arg(2)
+	flags = int_arg(3)
+	flags_str = _stp_mlock2_str(flags)
+	argstr = sprintf("%p, %u, %s", addr, len, flags_str)
 }
 probe nd_syscall.mlock2.return = kprobe.function("sys_mlock2").return ?
 {
