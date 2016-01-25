@@ -2,12 +2,12 @@
 
 set test "optim_arridx"
 set ::result_string {# globals
-__global_arr1:long [long, long]
-__global_arr2:long [long]
-__global_arr3:long [long]
-__global_elide_idx1:long
-__global_elide_global_a:long
-__global_elide_global_b:long
+arr1:long [long, long]
+arr2:long [long]
+arr3:long [long]
+elide_idx1:long
+elide_global_a:long
+elide_global_b:long
 # functions
 exit:unknown ()
 %{ /* unprivileged */

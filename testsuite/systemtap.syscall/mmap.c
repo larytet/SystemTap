@@ -1,5 +1,5 @@
 /* COVERAGE: mmap mmap2 mmap_pgoff munmap msync */
-/* COVERAGE: mlock mlockall munlock munlockall */
+/* COVERAGE: mlock mlock2 mlockall munlock munlockall */
 /* COVERAGE: mprotect mremap */
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -7,6 +7,19 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/syscall.h>
+
+#ifdef __NR_mlock2
+
+#ifndef MLOCK_ONFAULT
+#define MLOCK_ONFAULT 0x01
+#endif
+
+static inline int __mlock2(const void *start, size_t len, int flags)
+{
+	return syscall(__NR_mlock2, start, len, flags);
+}
+#endif
 
 int main()
 {
@@ -48,6 +61,33 @@ int main()
 	//staptest// mlock (0x[0]+, 18446744073709551615) = NNNN
 #else
 	//staptest// mlock (0x[0]+, 4294967295) = NNNN
+#endif
+
+#ifdef __NR_mlock2
+	{
+		void *r2 = mmap(NULL, 12288, PROT_READ|PROT_WRITE,
+				MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+		//staptest// mmap[2]* (0x0, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = XXXX
+
+		__mlock2(r2, 4096, MLOCK_ONFAULT);
+		//staptest// mlock2 (XXXX, 4096, MLOCK_ONFAULT) = 0
+
+		__mlock2((void *)-1, 4096, 0);
+		//staptest// mlock2 (0x[f]+, 4096, 0x0) = NNNN
+
+		__mlock2(0, -1, 0);
+#if __WORDSIZE == 64
+		//staptest// mlock2 (0x[0]+, 18446744073709551615, 0x0) = NNNN
+#else
+		//staptest// mlock2 (0x[0]+, 4294967295, 0x0) = NNNN
+#endif
+
+		__mlock2(0, 4096, -1);
+		//staptest// mlock2 (0x[0]+, 4096, MLOCK_ONFAULT|XXXX) = NNNN
+
+		munlock(r2, 4096);
+		//staptest// munlock (XXXX, 4096) = 0
+	}
 #endif
 
 	msync(r, 4096, MS_SYNC);	

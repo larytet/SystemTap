@@ -1680,13 +1680,32 @@ function _mfd_flags_str:string(flags:long)
 
 %{
 #include <linux/mman.h>
+static const _stp_val_array const _stp_mlock2_flags_list[] = {
+#ifdef MLOCK_ONFAULT  
+         V(MLOCK_ONFAULT),
+#endif
+        {0, NULL}
+};
+%}
+/* `man mlock2` for more information */
+function _stp_mlock2_str:string(flags:long)
+%{
+        uint32_t flags = (uint32_t)STAP_ARG_flags;
+        _stp_lookup_or_str(_stp_mlock2_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/mman.h>
 static const _stp_val_array const _stp_mlockall_flags_list[] = {
 	V(MCL_CURRENT),
 	V(MCL_FUTURE),
+#ifdef MCL_ONFAULT
+	V(MCL_ONFAULT),
+#endif
 	{0, NULL}
 };
 %}
-
 /* `man mlockall` for more information */
 function _mlockall_flags_str:string(flags:long)
 %{ /* pure */

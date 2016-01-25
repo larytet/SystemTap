@@ -14,8 +14,8 @@ AM_CPPFLAGS = -DBINDIR='"$(bindir)"' \
 	      -DLOCALEDIR='"$(localedir)"' \
 	      -I$(srcdir)/includes -I$(builddir)/includes/sys
 
-AM_CFLAGS = -D_GNU_SOURCE -fexceptions -Wall -Werror -Wunused -Wformat=2 -W
-AM_CXXFLAGS = -Wall -Werror
+AM_CFLAGS = -D_GNU_SOURCE -fexceptions -Wall -Wextra -Werror -Wunused -Wformat=2 -W
+AM_CXXFLAGS = -Wall -Wextra -Werror
 
 bin_SCRIPTS = stap-report
 pkglibexec_SCRIPTS = stap-env

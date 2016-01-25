@@ -708,7 +708,7 @@ uprobes_pass (systemtap_session& s)
 static
 vector<string>
 make_dyninst_run_command (systemtap_session& s, const string& remotedir,
-			  const string& version)
+			  const string&)
 {
   vector<string> cmd;
   cmd.push_back(getenv("SYSTEMTAP_STAPDYN") ?: BINDIR "/stapdyn");

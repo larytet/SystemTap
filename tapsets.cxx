@@ -636,10 +636,10 @@ public:
   void emit_module_init (systemtap_session& s);
   void emit_module_refresh (systemtap_session& s);
   void emit_module_exit (systemtap_session& s);
-  bool otf_supported (systemtap_session& s) { return true; }
+  bool otf_supported (systemtap_session&) { return true; }
 
   // workqueue handling not safe in kprobes context
-  bool otf_safe_context (systemtap_session& s) { return false; }
+  bool otf_safe_context (systemtap_session&) { return false; }
 };
 
 // Helper struct to thread through the dwfl callbacks.
@@ -4497,7 +4497,7 @@ struct dwarf_cast_query : public base_query
 
   void handle_query_module();
   void query_library (const char *) {}
-  void query_plt (const char *entry, size_t addr) {}
+  void query_plt (const char *, size_t) {}
 };
 
 
@@ -4786,7 +4786,7 @@ struct dwarf_atvar_query: public base_query
 
   void handle_query_module ();
   void query_library (const char *) {}
-  void query_plt (const char *entry, size_t addr) {}
+  void query_plt (const char *, size_t) {}
   static int atvar_query_cu (Dwarf_Die *cudie, dwarf_atvar_query *q);
 };
 
@@ -5580,7 +5580,7 @@ dwarf_derived_probe::register_function_and_statement_variants(
 }
 
 void
-dwarf_derived_probe::register_sdt_variants(systemtap_session& s,
+dwarf_derived_probe::register_sdt_variants(systemtap_session&,
 					   match_node * root,
 					   dwarf_builder * dw)
 {
@@ -5593,7 +5593,7 @@ dwarf_derived_probe::register_sdt_variants(systemtap_session& s,
 }
 
 void
-dwarf_derived_probe::register_plt_variants(systemtap_session& s,
+dwarf_derived_probe::register_plt_variants(systemtap_session&,
 					   match_node * root,
 					   dwarf_builder * dw)
 {
@@ -6942,7 +6942,7 @@ struct sdt_query : public base_query
   set<string> visited_libraries;
   bool resolved_library;
 
-  void query_plt (const char *entry, size_t addr) {}
+  void query_plt (const char *, size_t) {}
   void handle_query_module();
 
 private:
@@ -9580,7 +9580,7 @@ struct kprobe_builder: public derived_probe_builder
 public:
   kprobe_builder() {}
 
-  void build_no_more (systemtap_session &s) {}
+  void build_no_more (systemtap_session &) {}
 
   virtual void build(systemtap_session & sess,
 		     probe * base,
@@ -11018,7 +11018,7 @@ struct tracepoint_query : public base_query
   int handle_query_cu(Dwarf_Die * cudie);
   int handle_query_func(Dwarf_Die * func);
   void query_library (const char *) {}
-  void query_plt (const char *entry, size_t addr) {}
+  void query_plt (const char *, size_t) {}
 
   static int tracepoint_query_cu (Dwarf_Die * cudie, tracepoint_query * q);
   static int tracepoint_query_func (Dwarf_Die * func, tracepoint_query * q);

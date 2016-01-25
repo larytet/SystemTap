@@ -3945,6 +3945,26 @@ probe nd_syscall.mlock.return = kprobe.function("sys_mlock").return ?
 	retstr = returnstr(1)
 }
 
+# mlock2 _____________________________________________________
+#
+# long sys_mlock2(unsigned long start, size_t len, int flags)
+#
+probe nd_syscall.mlock2 = kprobe.function("sys_mlock2") ?
+{
+	name = "mlock2"
+	asmlinkage()
+	addr = ulong_arg(1)
+	len = ulong_arg(2)
+	flags = int_arg(3)
+	flags_str = _stp_mlock2_str(flags)
+	argstr = sprintf("%p, %u, %s", addr, len, flags_str)
+}
+probe nd_syscall.mlock2.return = kprobe.function("sys_mlock2").return ?
+{
+	name = "mlock2"
+	retstr = returnstr(1)
+}
+
 # mlockall ___________________________________________________
 #
 # long sys_mlockall(int flags)

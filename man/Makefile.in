@@ -106,7 +106,7 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 DIST_COMMON = $(srcdir)/Makefile.am
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
-CONFIG_CLEAN_FILES = stappaths.7 systemtap.8
+CONFIG_CLEAN_FILES = stap.1 stappaths.7 systemtap.8
 CONFIG_CLEAN_VPATH_FILES =
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -404,6 +404,8 @@ $(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
+stap.1: $(top_builddir)/config.status $(srcdir)/stap.1.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 stappaths.7: $(top_builddir)/config.status $(srcdir)/stappaths.7.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 systemtap.8: $(top_builddir)/config.status $(srcdir)/systemtap.8.in

@@ -129,7 +129,7 @@ struct null_op : public regexp {
   void calc_size();
   void compile(ins *i);
 
-  void print (std::ostream &o, unsigned priority) const {
+  void print (std::ostream &o, unsigned) const {
     o << "{null}"; // XXX: pick a better pseudo-notation?
   }
 };
@@ -142,7 +142,7 @@ struct anchor_op : public regexp {
   void calc_size();
   void compile(ins *i);
 
-  void print (std::ostream &o, unsigned priority) const {
+  void print (std::ostream &o, unsigned) const {
     o << type;
   }  
 };
@@ -154,7 +154,7 @@ struct tag_op : public regexp {
   void calc_size();
   void compile(ins *i);
 
-  void print (std::ostream &o, unsigned priority) const {
+  void print (std::ostream &o, unsigned) const {
     o << "{t_" << id << "}";
   }
 };
@@ -165,7 +165,7 @@ struct match_op : public regexp {
   const std::string type_of() const { return "match_op"; }
   void calc_size();
   void compile(ins *i);
-  void print (std::ostream &o, unsigned priority) const { o << ran; }
+  void print (std::ostream &o, unsigned) const { o << ran; }
 };
 
 struct alt_op : public regexp {
@@ -210,7 +210,7 @@ struct close_op : public regexp {
   void calc_size();
   void compile(ins *i);
 
-  void print (std::ostream &o, unsigned priority) const {
+  void print (std::ostream &o, unsigned) const {
     re->print(o, 2); o << "+";
   }
 };
@@ -224,7 +224,7 @@ struct closev_op : public regexp {
   void calc_size();
   void compile(ins *i);
 
-  void print (std::ostream &o, unsigned priority) const {
+  void print (std::ostream &o, unsigned) const {
     re->print(o, 2); o << "{" << nmin << "," << nmax << "}";
   }
 };
@@ -240,7 +240,7 @@ struct rule_op : public regexp {
   void calc_size();
   void compile(ins *i);
 
-  void print (std::ostream &o, unsigned priority) const {
+  void print (std::ostream &o, unsigned) const {
     re->print(o, 1);
     if (outcome) o << "{success_" << outcome << "}";
     else o << "{failure_0}";

@@ -201,7 +201,7 @@ struct derived_probe: public probe
   // From within unparser::emit_probe, initialized any extra variables
   // in this probe's context locals.
 
-  virtual void emit_probe_local_init (systemtap_session& s, translator_output*) {}
+  virtual void emit_probe_local_init (systemtap_session&, translator_output*) {}
   // From within unparser::emit_probe, emit any extra processing block
   // for this probe.
 
@@ -248,7 +248,7 @@ struct derived_probe_group
 {
   virtual ~derived_probe_group () {}
 
-  virtual void emit_kernel_module_init (systemtap_session& s) {}
+  virtual void emit_kernel_module_init (systemtap_session&) {}
   // Similar to emit_module_init(), but code emitted here gets run
   // with root access.  The _init-generated code may assume that it is
   // called only once.  If that code fails at run time, it must set
@@ -257,7 +257,7 @@ struct derived_probe_group
   // pre-declared "int i, j;".  Note that the message transport isn't
   // available, so printk()/errk() is the only output option.
 
-  virtual void emit_kernel_module_exit (systemtap_session& s) {}
+  virtual void emit_kernel_module_exit (systemtap_session&) {}
   // Similar to emit_module_exit(), but code emitted here gets run
   // with root access.  The _exit-generated code may assume that it is
   // executed exactly zero times (if the _init-generated code failed)
@@ -282,11 +282,11 @@ struct derived_probe_group
   // invoked.  The generated code may use pre-declared "int i, j;"
   // and set "const char* probe_point;".
 
-  virtual void emit_module_post_init (systemtap_session& s) {}
+  virtual void emit_module_post_init (systemtap_session&) {}
   // The emit_module_post_init() code is called once session_state is
   // set to running.
 
-  virtual void emit_module_refresh (systemtap_session& s) {}
+  virtual void emit_module_refresh (systemtap_session&) {}
   // The _refresh-generated code may be called multiple times during
   // a session run, bracketed by _init and _exit calls.
   // Upon failure, it must set enough state so that
@@ -307,10 +307,10 @@ struct derived_probe_group
   // to schedule the work. Otherwise, if the probe context is safe
   // (otf_safe_context() = true), we can directly schedule the work.
 
-  virtual bool otf_supported (systemtap_session& s) { return false; }
+  virtual bool otf_supported (systemtap_session&) { return false; }
   // Support for on-the-fly arming/disarming depends on probe type
 
-  virtual bool otf_safe_context (systemtap_session& s) { return false; }
+  virtual bool otf_safe_context (systemtap_session&) { return false; }
   // Whether this probe type occurs in a safe context. To be safe, we default to
   // no, which means we'll rely on a background timer.
 };

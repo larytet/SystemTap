@@ -87,6 +87,68 @@ stap \- překladač a řadič systemtap skriptů
 ]
 .B \-\-dump-functions
 
+.SH "ZDROJE INFORMACÍ"
+
+Pro SystemTap existuje pestrá škála dokumentace. Je dostupná jak online na
+adrese https://sourceware.org/systemtap/, tak (z větší části) i v rámci
+distribučních balíčků.
+
+Pro začátečníky je ideální
+.IR "Beginner's Guide".
+Přináší čtivý úvod do základních principů funkce
+nástroje jako celku, jeho skriptovacího jazyka, a také řadu příkladů.
+.IR "Systemtap Tutorial"
+pak jde více do hloubky a obsahuje cvičení.
+.IR "Language Reference"
+Podrobně popisuje syntaxi skriptovacího jazyka systemtapu.  Ta je v základních
+rysech podobná syntaxi jazyků C a awk, ale obsahuje i netradiční prvky, jako
+například statistické nástroje.
+.IR "Tapset Reference"
+přináší přehled rozšiřitelné knihovny tapsetů.  Taktéž je k dispozici rozsáhlá 
+.IR "sbírka příkladů".
+Jsou dostupné jak online setříděné do kategorií na projektovém webu,
+tak i offline v rámci distribučních balíčků, viz
+@prefix@/share/doc/systemtap*/examples. Často jde o přímo použitelné nástroje
+pro analýzu a správu systému.
+
+Seznam manuálových stránek:
+
+.TP
+.BI stapprobes(3stap)
+Přehled sondážních bodů a přezdívek a související syntaxe.
+.TP
+.BI "function::*(3stap), probe::*(3stap), tapset::*(3stap)"
+Individuální manuálové stránky pro jednotlivé funkce, sondážní body a tapsety.
+Kompletní seznam nalezne čtenář v adresáři
+@prefix@/share/man/man3/.
+.TP
+.BI stappaths(7)
+Přehled důležitých umístění v rámci adresářové struktury.
+.TP
+.BI staprun(8)
+Řadič pro jaderné moduly systemtapu.
+.TP
+.BI stapdyn(8)
+Nástroj Dyninst pro dynamickou instrumentaci.
+.TP
+.BI systemtap(8)
+Služba umožňující spustit systemtap skript jako démon.
+.TP
+.BI stapvars(3stap)
+Veřejné proměnné definované knihovnou tapsetů.
+.TP
+.BI stapex(3stap)
+Několik jednoduchých příkladů systemtap syntaxe.
+.TP
+.BI stap-server(8)
+Kompilační server Systemtapu.
+.TP
+.BI stap-prep(1)
+Instalátor závislostí, jako např. ladicích informací jádra.
+.TP
+.BI stapref(1)
+Rychlá reference pro skriptovací jazyk systemtapu.
+
 .SH POPIS
 
 Program

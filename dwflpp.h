@@ -613,8 +613,8 @@ private:
                                                  Dwarf_Die *vardie,
                                                  Dwarf_Attribute *fb_attr_mem);
 
-  std::string die_location_as_string(Dwarf_Addr, Dwarf_Die*);
-  std::string die_location_as_function_string(Dwarf_Addr, Dwarf_Die*);
+  std::string die_location_as_string(Dwarf_Die*);
+  std::string pc_location_as_function_string(Dwarf_Addr);
   std::string pc_die_line_string(Dwarf_Addr, Dwarf_Die*);
 
   /* source file name, line and column info for pc in current cu. */

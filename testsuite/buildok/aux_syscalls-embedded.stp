@@ -85,6 +85,7 @@ probe begin {
 %)
 
 	print (_mfd_flags_str(0))
+	print (_stp_mlock2_str(0))
 	print (_mlockall_flags_str(0))
 	print (_module_flags_str(0))
 	print (_sched_policy_str(0))

@@ -240,7 +240,7 @@ null_op::calc_size()
 }
 
 void
-null_op::compile(ins *i)
+null_op::compile(ins *)
 {
   ;
 }
