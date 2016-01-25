@@ -711,7 +711,8 @@ AC_SUBST(STAP_PREFIX, "$stap_prefix")
 AC_CONFIG_HEADERS([config.h:config.in])
 AC_CONFIG_FILES([Makefile doc/Makefile man/Makefile man/cs/Makefile \
 doc/beginners/Makefile doc/SystemTap_Tapset_Reference/Makefile \
-man/stappaths.7 man/systemtap.8 \
+man/stap.1 man/stappaths.7 man/systemtap.8 \
+man/cs/stap.1 \
 initscript/config.systemtap initscript/config.stap-server \
 initscript/systemtap initscript/stap-server \
 initscript/99stap/module-setup.sh ])
