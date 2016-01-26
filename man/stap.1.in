@@ -1,4 +1,4 @@
-.\" -*- nroff -*-
+.\" t       -*- nroff -*-
 .TH STAP 1 
 .SH NAME
 stap \- systemtap script translator/driver
@@ -88,70 +88,6 @@ stap \- systemtap script translator/driver
 .B \-\-dump-functions
 
 
-.SH "GETTING HELP"
-
-Stap comes with variety of educational, documentation and reference resources.
-They come either online, or packaged for offline use.  For online documentation,
-please, reach out to the project homesite, https://sourceware.org/systemtap/.
-
-If you are a newbie, read the
-.IR "Beginner's Guide" .
-It shows the basic ideas behind the tool, goes through the language essentials,
-and guides you through a few real life examples.
-See the online
-.IR "Documentation"
-section, or your distribution packages. 
-.IR "Systemtap Tutorial"
-goes more in-depth and comes with exercises.
-.IR "Language Reference"
-Is a detailed overview of the C and awk like syntactical constructs of the
-scripting language, as well as its less usual features like statistical data
-gathering and analysis.
-.IR "Tapset Reference"
-brings detailed overview of the extendable "standard" tapset library.  Last but
-not least, systemtap comes with a rich set of
-.IR example scripts .
-Many of them are directly usable sysadmin tools. See the project website, or
-your distribution packages, namely
-@prefix@/share/doc/systemtap*/examples.
-
-Following is an overview of available manual pages:
-
-.TP
-.BI stapprobes(3stap)
-The probe points and tapset aliases general reference.
-.TP
-.BI "function::*(3stap), probe::*(3stap), tapset::*(3stap)"
-Individual function, probe and tapset manpages. See
-@prefix@/share/man/man3/ for complete list.
-.TP
-.BI stappaths(7)
-Important systemtap paths.
-.TP
-.BI staprun(8)
-The Systemtap runtime driver backend.
-.TP
-.BI stapdyn(8)
-The Dyninst instrumentation backend.
-.TP
-.BI systemtap(8)
-The initscript service.
-.TP
-.BI stapvars(3stap)
-Public variables provided by the tapsets library.
-.TP
-.BI stapex(3stap)
-Gives the feel for basic systemtap syntax and control structures.
-.TP
-.BI stap-server(8)
-Systemtap's compile server facility.
-.TP
-.BI stap-prep(1)
-Dependency installer.
-.TP
-.BI stapref(1)
-Systemtap scripting language quick reference.
-
 
 .SH DESCRIPTION
 
@@ -179,6 +115,49 @@ with handlers, which are subroutines that are executed synchronously.  It is
 somewhat similar conceptually to "breakpoint command lists" in the
 .IR gdb
 debugger.
+
+.SH "DOCUMENTATION OVERVIEW"
+
+systemtap comes with variety of educational, documentation and
+reference resources.  They come online and/or packaged for offline
+use.  For online documentation, see the project web site,
+.nh
+https://sourceware.org/systemtap/
+.hy
+.
+
+.TS
+tab(%) allbox;
+l l.
+\fBman pages\fP
+stap (this page)%language syntax, concepts, operation, options
+stapprobes%probe points and their $context variables
+stapref%quick reference to language syntax
+stappaths%T{
+list of directories, including books & references
+T}
+stap-prep%T{
+program to install auxiliary dependencies like kernel debuginfo
+T}
+tapset::*%generated list of tapsets
+probe::*%generated list of tapset probe aliases
+function::*%generated list of tapset functions
+macro::*%generated list of tapset macros
+stapvars%some of the tapset global variables
+staprun, stapdyn%programs for executing compiled systemtap scripts
+systemtap%initscript, boot-time probing
+stap-server%compilation server
+stapex%a few very basic script examples
+\fBbooks\fP%
+Beginner's Guide%tutorial book, language essentials, examples
+Tutorial%shorter tutorial, exercises
+Language Reference%detailed language manual, covers statistics/analysis
+Tapset Reference%the tapset man pages, reformatted into a book
+\fBreferences\fP%
+example scripts%T{
+over a hundred directly usable sysadmin tools, toys, hacks to learn from
+T}
+.TE
 
 .SH OPTIONS
 The systemtap translator supports the following options.  Any other option
