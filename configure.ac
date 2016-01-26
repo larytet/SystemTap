@@ -232,6 +232,7 @@ if test "$enable_refdocs" != "no" -a "${building_docs}" == "yes"; then
 fi
 AM_CONDITIONAL([BUILD_REFDOCS], [test "$building_refdocs" == "yes"])
 
+AC_CHECK_PROG(have_xmlto, xmlto, yes, no)
 AC_CHECK_PROG(have_fop, fop, yes, no)
 if test "x${have_fop}" == "xyes"; then
    # Due to rhbz505364 / 830266, we must actually test-run fop, not just
@@ -247,6 +248,20 @@ if test "x${have_fop}" == "xyes"; then
 fi
 AM_CONDITIONAL([HAVE_FOP], [test "$have_fop" == "yes"])
 AM_CONDITIONAL([HAVE_XMLTO], [test "$have_xmlto" == "yes"])
+
+dnl Handle the option to build the html documentation
+building_htmldocs="no"
+AC_ARG_ENABLE([htmldocs],
+  AS_HELP_STRING([--enable-htmldocs],
+    [enable building html documentation (default off).]),
+    [if test "$have_xmlto" == yes; then
+       building_htmldocs="yes"
+     else
+       AC_MSG_ERROR([xmlto required for building html documentation])
+     fi],
+    [building_htmldocs="no"])
+
+AM_CONDITIONAL([BUILD_HTMLDOCS], [test "$building_htmldocs" == "yes"])
 
 dnl There is a strange bug in older versions of xmlto when generating pdf.
 dnl https://bugzilla.redhat.com/show_bug.cgi?id=526273
@@ -707,7 +722,7 @@ AC_CONFIG_FILES([staprun/guest/stapsh@.service])
 # It would be nice to use AC_CONFIG_LINKS, but automake complains when
 # the src is a directory and not a file.
 AC_CONFIG_COMMANDS([doc/beginners],
-                   [rm -f $ac_abs_top_builddir/doc/beginners/en-US $ac_abs_top_builddir/doc/beginners/build/en-US/testsuite && mkdir -p $ac_abs_top_builddir/doc/beginners/build/en-US && ln -s $ac_abs_top_srcdir/doc/SystemTap_Beginners_Guide/en-US $ac_abs_top_builddir/doc/beginners/en-US])
+                   [rm -f $ac_abs_top_builddir/doc/beginners/en-US $ac_abs_top_builddir/doc/beginners/build/en-US/testsuite && mkdir -p $ac_abs_top_builddir/doc/beginners/build/en-US && ln -s $ac_abs_top_srcdir/doc/SystemTap_Beginners_Guide/en-US $ac_abs_top_builddir/doc/beginners/en-US && ln -s $ac_abs_top_srcdir/testsuite $ac_abs_top_builddir/doc/beginners/build/en-US/testsuite])
 
 AC_OUTPUT
 

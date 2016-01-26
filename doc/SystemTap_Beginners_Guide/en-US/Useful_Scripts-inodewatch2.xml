@@ -46,7 +46,7 @@ no script in examples
 <formalpara id="inodewatch2">
 	<title>inodewatch2.stp</title>
 <para>
-<programlisting><xi:include parse="text" href="../../../testsuite/systemtap.examples/io/inodewatch2.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
+<programlisting><xi:include parse="text" href="../testsuite/systemtap.examples/io/inodewatch2.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
 </para>
 </formalpara>
 

@@ -52,7 +52,7 @@
 <formalpara id="scriptcallgraph">
 	<title>para-callgraph.stp</title>
 <para>
-<programlisting><xi:include parse="text" href="../../../testsuite/systemtap.examples/general/para-callgraph.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
+<programlisting><xi:include parse="text" href="../testsuite/systemtap.examples/general/para-callgraph.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
 </para>
 </formalpara>
 <indexterm>

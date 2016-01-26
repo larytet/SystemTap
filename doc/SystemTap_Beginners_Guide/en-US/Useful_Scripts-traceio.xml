@@ -41,7 +41,7 @@
 <formalpara id="traceio">
 	<title>traceio.stp</title>
 <para>
-<programlisting><xi:include parse="text" href="../../../testsuite/systemtap.examples/io/traceio.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
+<programlisting><xi:include parse="text" href="../testsuite/systemtap.examples/io/traceio.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
 </para>
 </formalpara>
 <!--

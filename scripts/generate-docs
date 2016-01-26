@@ -3,17 +3,18 @@
 echo "Generating documentation"
 SCRIPT=$(readlink -f $0)
 BASE=$(dirname $SCRIPT)/..
+TEMP=$(mktemp -d -p /tmp) && pushd $TEMP
 
 SBG=SystemTap_Beginners_Guide
 STR=SystemTap_Tapset_Reference
 DOCS=$BASE/doc
-TEMP=$(mktemp -d -p /tmp) && pushd $TEMP
+
+# Beginners Guide documentation
 
 echo "Generating beginner pdf"
 xmlto --with-fop --skip-validation -o $DOCS/$SBG/en-US/ -x $DOCS/$SBG/en-US/xsl/pdf.xsl pdf $DOCS/$SBG/en-US/$SBG.xml
 
-echo "Generating beginner html"
-xmlto --skip-validation -o $DOCS/$SBG/en-US/html -x $DOCS/$SBG/en-US/xsl/html.xsl html $DOCS/$SBG/en-US/$SBG.xml
+# Tapset Reference documentation
 
 ###
 # The build process is as follows (targets):
@@ -35,9 +36,6 @@ if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then
 else
     mv tapsets.xml.new2 tapsets.xml;
 fi
-
-echo "Generating tapsets html"
-xmlto --stringparam use.id.as.filename=1 -m $DOCS/$STR/generate-toc.xml html -o $DOCS/$STR/tapsets tapsets.xml
 
 echo "Generating tapsets pdf"
 env pool_size=6000000 hash_extra=6000000 xmlto --with-fop --stringparam refentry.generate.name=0 --stringparam refentry.generate.title=1 pdf -o $DOCS/$STR/ tapsets.xml

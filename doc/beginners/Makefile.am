@@ -24,11 +24,14 @@ $(SBG).pdf:
 
 # rely on the pdf generation to move all the necessary files into the right dirs
 $(SBG)/index.html: $(SBG).pdf
-	cp -R en-US/html $(SBG)
+if BUILD_HTMLDOCS
+	xmlto --skip-validation \
+				-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
 	cp -R build/en-US/xml/images $(SBG)
 	mkdir -p $(SBG)/Common_Content
 	cp -R build/en-US/xml/Common_Content/images $(SBG)/Common_Content
 	cp -R build/en-US/xml/Common_Content/css $(SBG)/Common_Content
+endif
 
 clean-local:
 	rm -rf build/en-US/xml
@@ -39,6 +42,7 @@ clean-local:
 install-data-hook:
 	$(MKDIR_P) $(DOC_INSTALL_DIR)
 	$(INSTALL_DATA) $(SBG).pdf $(DOC_INSTALL_DIR)
+if BUILD_HTMLDOCS
 	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)
 	$(INSTALL_DATA) $(SBG)/*.html $(DOC_INSTALL_DIR)/$(SBG)
 	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/images
@@ -54,6 +58,7 @@ install-data-hook:
 	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/xsl
 	$(INSTALL_DATA) en-US/xsl/*.xsl \
 			$(DOC_INSTALL_DIR)/$(SBG)/xsl
+endif
 
 uninstall-local:
 	rm -f $(DOC_INSTALL_DIR)/$(SBG).pdf

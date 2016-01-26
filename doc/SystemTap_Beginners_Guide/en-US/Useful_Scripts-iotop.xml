@@ -34,7 +34,7 @@
 <formalpara id="iotop">
 	<title>iotop.stp</title>
 <para>
-<programlisting><xi:include parse="text" href="../../../testsuite/systemtap.examples/io/iotop.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
+<programlisting><xi:include parse="text" href="../testsuite/systemtap.examples/io/iotop.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
 </para>
 </formalpara>
 

@@ -42,7 +42,7 @@
 <formalpara id="threadtimes">
 		<title>thread-times.stp</title>
 <para>
-<programlisting><xi:include parse="text" href="../../../testsuite/systemtap.examples/profiling/thread-times.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
+<programlisting><xi:include parse="text" href="../testsuite/systemtap.examples/profiling/thread-times.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
 </para>
 </formalpara>
 <indexterm>

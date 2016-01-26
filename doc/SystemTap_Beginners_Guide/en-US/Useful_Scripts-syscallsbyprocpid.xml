@@ -52,7 +52,7 @@ uses systemtap/testsuite/systemtap.examples/process/syscalls_by_p*.stp
 <formalpara id="syscallsbyprocpid">
 	<title>syscalls_by_proc.stp</title>
 <para>
-<programlisting><xi:include parse="text" href="../../../testsuite/systemtap.examples/process/syscalls_by_proc.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
+<programlisting><xi:include parse="text" href="../testsuite/systemtap.examples/process/syscalls_by_proc.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
 </para>
 </formalpara>
 
@@ -92,7 +92,7 @@ uses systemtap/testsuite/systemtap.examples/process/syscalls_by_p*.stp
 <formalpara id="syscallsbypid">
 	<title>syscalls_by_pid.stp</title>
 <para>
-<programlisting><xi:include parse="text" href="../../../testsuite/systemtap.examples/process/syscalls_by_pid.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
+<programlisting><xi:include parse="text" href="../testsuite/systemtap.examples/process/syscalls_by_pid.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
 </para>
 </formalpara>
 

@@ -46,7 +46,7 @@ uses systemtap/testsuite/systemtap.examples/profiling/timeout.stp
 <formalpara id="timeouts">
 	<title>timeout.stp</title>
 <para>
-<programlisting><xi:include parse="text" href="../../../testsuite/systemtap.examples/profiling/timeout.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
+<programlisting><xi:include parse="text" href="../testsuite/systemtap.examples/profiling/timeout.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
 </para>
 </formalpara>
 

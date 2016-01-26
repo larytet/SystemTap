@@ -94,10 +94,10 @@ subdir = doc/beginners
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/gettext.m4 $(top_srcdir)/m4/iconv.m4 \
-	$(top_srcdir)/m4/lib-ld.m4 $(top_srcdir)/m4/lib-link.m4 \
-	$(top_srcdir)/m4/lib-prefix.m4 $(top_srcdir)/m4/nls.m4 \
-	$(top_srcdir)/m4/po.m4 $(top_srcdir)/m4/progtest.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/intlmacosx.m4 $(top_srcdir)/m4/lib-ld.m4 \
+	$(top_srcdir)/m4/lib-link.m4 $(top_srcdir)/m4/lib-prefix.m4 \
+	$(top_srcdir)/m4/nls.m4 $(top_srcdir)/m4/po.m4 \
+	$(top_srcdir)/m4/progtest.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am
@@ -242,6 +242,7 @@ have_jar = @have_jar@
 have_javac = @have_javac@
 have_latex = @have_latex@
 have_ps2pdf = @have_ps2pdf@
+have_xmlto = @have_xmlto@
 host = @host@
 host_alias = @host_alias@
 host_cpu = @host_cpu@
@@ -471,11 +472,12 @@ uninstall-am: uninstall-local
 
 # rely on the pdf generation to move all the necessary files into the right dirs
 @BUILD_DOCS_TRUE@$(SBG)/index.html: $(SBG).pdf
-@BUILD_DOCS_TRUE@	cp -R en-US/html $(SBG)
-@BUILD_DOCS_TRUE@	cp -R build/en-US/xml/images $(SBG)
-@BUILD_DOCS_TRUE@	mkdir -p $(SBG)/Common_Content
-@BUILD_DOCS_TRUE@	cp -R build/en-US/xml/Common_Content/images $(SBG)/Common_Content
-@BUILD_DOCS_TRUE@	cp -R build/en-US/xml/Common_Content/css $(SBG)/Common_Content
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	xmlto --skip-validation \
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@				-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	cp -R build/en-US/xml/images $(SBG)
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	mkdir -p $(SBG)/Common_Content
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	cp -R build/en-US/xml/Common_Content/images $(SBG)/Common_Content
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	cp -R build/en-US/xml/Common_Content/css $(SBG)/Common_Content
 
 @BUILD_DOCS_TRUE@clean-local:
 @BUILD_DOCS_TRUE@	rm -rf build/en-US/xml
@@ -486,21 +488,21 @@ uninstall-am: uninstall-local
 @BUILD_DOCS_TRUE@install-data-hook:
 @BUILD_DOCS_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)
 @BUILD_DOCS_TRUE@	$(INSTALL_DATA) $(SBG).pdf $(DOC_INSTALL_DIR)
-@BUILD_DOCS_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)
-@BUILD_DOCS_TRUE@	$(INSTALL_DATA) $(SBG)/*.html $(DOC_INSTALL_DIR)/$(SBG)
-@BUILD_DOCS_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/images
-@BUILD_DOCS_TRUE@	$(INSTALL_DATA) $(SBG)/images/*.png $(SBG)/images/*.svg \
-@BUILD_DOCS_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/images
-@BUILD_DOCS_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/Common_Content/css
-@BUILD_DOCS_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/Common_Content/images
-@BUILD_DOCS_TRUE@	$(INSTALL_DATA) $(SBG)/Common_Content/css/*.css \
-@BUILD_DOCS_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/Common_Content/css
-@BUILD_DOCS_TRUE@	$(INSTALL_DATA) $(SBG)/Common_Content/images/*.png \
-@BUILD_DOCS_TRUE@			$(SBG)/Common_Content/images/*.svg \
-@BUILD_DOCS_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/Common_Content/images
-@BUILD_DOCS_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/xsl
-@BUILD_DOCS_TRUE@	$(INSTALL_DATA) en-US/xsl/*.xsl \
-@BUILD_DOCS_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/xsl
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	$(INSTALL_DATA) $(SBG)/*.html $(DOC_INSTALL_DIR)/$(SBG)
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/images
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	$(INSTALL_DATA) $(SBG)/images/*.png $(SBG)/images/*.svg \
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/images
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/Common_Content/css
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/Common_Content/images
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	$(INSTALL_DATA) $(SBG)/Common_Content/css/*.css \
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/Common_Content/css
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	$(INSTALL_DATA) $(SBG)/Common_Content/images/*.png \
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@			$(SBG)/Common_Content/images/*.svg \
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/Common_Content/images
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/xsl
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@	$(INSTALL_DATA) en-US/xsl/*.xsl \
+@BUILD_DOCS_TRUE@@BUILD_HTMLDOCS_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/xsl
 
 @BUILD_DOCS_TRUE@uninstall-local:
 @BUILD_DOCS_TRUE@	rm -f $(DOC_INSTALL_DIR)/$(SBG).pdf
