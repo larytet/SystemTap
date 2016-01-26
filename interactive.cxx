@@ -146,7 +146,10 @@ public:
   string usage;				// command usage (includes options)
 
   // help_text() returns the help text for a command/option
-  virtual string help_text(size_t indent) const { return _help_text; }
+  virtual string help_text(size_t indent __attribute ((unused))) const
+  {
+    return _help_text;
+  }
 
   // handler() is the code associated with a command/option
   virtual bool handler(systemtap_session &s, vector<string> &tokens) = 0;
@@ -265,7 +268,8 @@ public:
     name = usage = "help";
     _help_text = "Print this command list.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s __attribute ((unused)),
+	       vector<string> &tokens __attribute ((unused)))
   {
     interactive_usage();
     return false;
@@ -280,7 +284,8 @@ public:
     name = usage = "list";
     _help_text = "Display the current script.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s __attribute ((unused)),
+	       vector<string> &tokens __attribute ((unused)))
   {
     // FIXME: We will want to use 'printscript' here, once we store
     // parser output instead of strings.
@@ -308,7 +313,7 @@ public:
     usage = "set OPTION VALUE";
     _help_text = "Set option value. Supported options are:";
   }
-  string help_text(size_t indent) const
+  string help_text(size_t indent __attribute ((unused))) const
   {
     ostringstream buffer;
     size_t width = 1;
@@ -420,7 +425,8 @@ public:
     name = usage = "quit";
     _help_text = "Quit systemtap.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s __attribute ((unused)),
+	       vector<string> &tokens __attribute ((unused)))
   {
     return true;
   }
@@ -434,7 +440,8 @@ public:
     name = usage = "add";
     _help_text = "Add a global, probe, or function.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s __attribute ((unused)),
+	       vector<string> &tokens)
   {
     // FIXME: note this isn't quite right. If someone was trying to
     // print "    ", tokenizing the string will have messed up those
@@ -462,7 +469,8 @@ public:
     usage = "delete ITEM_NUM";
     _help_text = "Delete a probe or function by its number.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s __attribute ((unused)),
+	       vector<string> &tokens)
   {
     // FIXME 2: Unlike gdb, our numbers get rearranged after a
     // delete. Example:
@@ -591,7 +599,8 @@ public:
     usage = "save FILE";
     _help_text = "Save a script to a file from the current session.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s __attribute ((unused)),
+	       vector<string> &tokens)
   {
     if (tokens.size() != 2)
       {
@@ -624,7 +633,8 @@ public:
     name = usage = "run";
     _help_text = "Run the current script.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s,
+	       vector<string> &tokens __attribute ((unused)))
   {
     if (script_vec.empty())
       {
@@ -667,7 +677,8 @@ public:
     name = usage = "edit";
     _help_text = "Edit the current script. Uses EDITOR environment variable contents as editor (or ex as default).";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s,
+	       vector<string> &tokens __attribute ((unused)))
   {
     const char *editor;
     char temp_path[] = "/tmp/stapXXXXXX";
@@ -1016,6 +1027,41 @@ public:
   }
 };
 
+class compatible_version_opt: public cmdopt
+{
+protected:
+  string _compatible;
+
+public:
+  compatible_version_opt()
+  {
+    name = "compatible_version";
+    _help_text = "Suppress incompatible language/tapset changes beyond VERSION, instead of ";
+  }
+  string help_text(size_t indent __attribute ((unused))) const
+  {
+    if (_compatible.empty())
+      return _help_text + VERSION + ".";
+    else
+      return _help_text + _compatible + ".";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    bool set = (tokens[0] == "set");
+    if (set)
+      {
+	if (strverscmp(tokens[2].c_str(), VERSION) > 0)
+	  cerr << _F("ERROR: systemtap version %s cannot be compatible with future version %s", VERSION, tokens[2].c_str())
+	       << endl;
+	else
+	  _compatible = s.compatible = tokens[2];
+      }
+    else
+      cout << name << ": \"" << s.compatible << "\"" << endl;
+    return false;
+  }
+};
+
 static void
 interactive_usage ()
 {
@@ -1222,7 +1268,8 @@ probe_generator(const char *text, int state)
 // rl_line_buffer in case we want to do some simple parsing.  Return
 // the array of matches, or NULL if there aren't any.
 static char **
-interactive_completion(const char *text, int start, int end)
+interactive_completion(const char *text, int start,
+		       int end __attribute ((unused)))
 {
   char **matches = (char **)NULL;
 
@@ -1435,6 +1482,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   option_vec.push_back(new unoptimized_opt);
   option_vec.push_back(new target_pid_opt);
   option_vec.push_back(new cmd_opt);
+  option_vec.push_back(new compatible_version_opt);
 
   // FIXME: It might be better to wait to get the list of probes and
   // aliases until they are needed.
