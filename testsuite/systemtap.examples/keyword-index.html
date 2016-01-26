@@ -39,7 +39,7 @@
          	</ul>
 
 <p><em>For systemtap version 3.0.</em></p><h2>Examples by Keyword</h2>
-<p><tt><a href="#_BEST">_BEST(18)</a> <a href="#AUDIT">AUDIT(1)</a> <a href="#AUTOFS">AUTOFS(1)</a> <a href="#BACKTRACE">BACKTRACE(8)</a> <a href="#CALLGRAPH">CALLGRAPH(3)</a> <a href="#CPU">CPU(1)</a> <a href="#DEVICE">DEVICE(1)</a> <a href="#DIAGRAM">DIAGRAM(1)</a> <a href="#DISK">DISK(6)</a> <a href="#FILE">FILE(2)</a> <a href="#FILESYSTEM">FILESYSTEM(4)</a> <a href="#FORMAT">FORMAT(2)</a> <a href="#FUNCTION">FUNCTION(4)</a> <a href="#FUTEX">FUTEX(2)</a> <a href="#GURU">GURU(7)</a> <a href="#INTERRUPT">INTERRUPT(3)</a> <a href="#IO">IO(29)</a> <a href="#JSON">JSON(2)</a> <a href="#KVM">KVM(3)</a> <a href="#LIMITS">LIMITS(2)</a> <a href="#LOCKING">LOCKING(6)</a> <a href="#MEMORY">MEMORY(14)</a> <a href="#MONITORING">MONITORING(6)</a> <a href="#NANOSLEEP">NANOSLEEP(1)</a> <a href="#NET">NET(1)</a> <a href="#NETWORK">NETWORK(18)</a> <a href="#NFS">NFS(4)</a> <a href="#NUMA">NUMA(1)</a> <a href="#PACKETS">PACKETS(1)</a> <a href="#PROCESS">PROCESS(23)</a> <a href="#PROFILING">PROFILING(20)</a> <a href="#QEMU">QEMU(2)</a> <a href="#REGEX">REGEX(1)</a> <a href="#SCHEDULER">SCHEDULER(8)</a> <a href="#SCSI">SCSI(1)</a> <a href="#SECURITY">SECURITY(2)</a> <a href="#SIGNALS">SIGNALS(5)</a> <a href="#SIMPLE">SIMPLE(5)</a> <a href="#SLAB">SLAB(1)</a> <a href="#SOCKET">SOCKET(7)</a> <a href="#SPECULATION">SPECULATION(1)</a> <a href="#STAPGAMES">STAPGAMES(5)</a> <a href="#STATISTICS">STATISTICS(9)</a> <a href="#SYSCALL">SYSCALL(12)</a> <a href="#TCP">TCP(3)</a> <a href="#THREAD">THREAD(2)</a> <a href="#TIME">TIME(3)</a> <a href="#TRACE">TRACE(5)</a> <a href="#TRACEPOINT">TRACEPOINT(4)</a> <a href="#TRAFFIC">TRAFFIC(6)</a> <a href="#TTY">TTY(1)</a> <a href="#UTILIZATION">UTILIZATION(1)</a> <a href="#VIRTUALIZATION">VIRTUALIZATION(3)</a> <a href="#WATCHDOG">WATCHDOG(1)</a> <a href="#WATCHPOINT">WATCHPOINT(2)</a> </tt></p>
+<p><tt><a href="#_BEST">_BEST(18)</a> <a href="#AUDIT">AUDIT(1)</a> <a href="#AUTOFS">AUTOFS(1)</a> <a href="#BACKTRACE">BACKTRACE(8)</a> <a href="#CALLGRAPH">CALLGRAPH(3)</a> <a href="#CPU">CPU(1)</a> <a href="#DEVICE">DEVICE(1)</a> <a href="#DIAGRAM">DIAGRAM(1)</a> <a href="#DISK">DISK(6)</a> <a href="#FILE">FILE(2)</a> <a href="#FILESYSTEM">FILESYSTEM(4)</a> <a href="#FORMAT">FORMAT(2)</a> <a href="#FUNCTION">FUNCTION(4)</a> <a href="#FUTEX">FUTEX(2)</a> <a href="#GURU">GURU(14)</a> <a href="#INTERRUPT">INTERRUPT(3)</a> <a href="#IO">IO(29)</a> <a href="#JSON">JSON(2)</a> <a href="#KVM">KVM(3)</a> <a href="#LIMITS">LIMITS(2)</a> <a href="#LOCKING">LOCKING(6)</a> <a href="#MEMORY">MEMORY(14)</a> <a href="#MONITORING">MONITORING(6)</a> <a href="#NANOSLEEP">NANOSLEEP(1)</a> <a href="#NET">NET(1)</a> <a href="#NETWORK">NETWORK(18)</a> <a href="#NFS">NFS(4)</a> <a href="#NUMA">NUMA(1)</a> <a href="#PACKETS">PACKETS(1)</a> <a href="#PROCESS">PROCESS(23)</a> <a href="#PROFILING">PROFILING(20)</a> <a href="#QEMU">QEMU(2)</a> <a href="#REGEX">REGEX(1)</a> <a href="#SCHEDULER">SCHEDULER(8)</a> <a href="#SCSI">SCSI(1)</a> <a href="#SECURITY">SECURITY(9)</a> <a href="#SIGNALS">SIGNALS(5)</a> <a href="#SIMPLE">SIMPLE(5)</a> <a href="#SLAB">SLAB(1)</a> <a href="#SOCKET">SOCKET(7)</a> <a href="#SPECULATION">SPECULATION(1)</a> <a href="#STAPGAMES">STAPGAMES(5)</a> <a href="#STATISTICS">STATISTICS(9)</a> <a href="#SYSCALL">SYSCALL(12)</a> <a href="#TCP">TCP(3)</a> <a href="#THREAD">THREAD(2)</a> <a href="#TIME">TIME(3)</a> <a href="#TRACE">TRACE(5)</a> <a href="#TRACEPOINT">TRACEPOINT(4)</a> <a href="#TRAFFIC">TRAFFIC(6)</a> <a href="#TTY">TTY(1)</a> <a href="#UTILIZATION">UTILIZATION(1)</a> <a href="#VIRTUALIZATION">VIRTUALIZATION(3)</a> <a href="#WATCHDOG">WATCHDOG(1)</a> <a href="#WATCHPOINT">WATCHPOINT(2)</a> </tt></p>
 <h3><a name="_BEST"><a href="#_BEST">&para;</a> _BEST</a></h3>
 <ul>
 <li><a href="general/eventcount.stp">general/eventcount.stp</a> - Count Specified Events<br>
@@ -269,6 +269,27 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 </li><li><a href="process/threadstacks.stp">process/threadstacks.stp</a> - Override default new-pthread stack sizes<br>
 keywords: <a href="keyword-index.html#THREAD">THREAD</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>Overrides default NPTL pthread_create stack size for all new threads created by target processes.  Reports one line per process when the related glibc variable __default_stacksize is updated.  Moot for glibc versions that support $LIBC_PTHREAD_DEFAULT_STACKSIZE_NP.</p><p><font size="-2"><pre># stap -g threadstacks.stp -Gsize=65536 -c &quot;sleep 1&quot; -d `which stap`</pre></font></p>
+</li><li><a href="security-band-aids/cve-2008-0600.stp">security-band-aids/cve-2008-0600.stp</a> - cve-2008-0600 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><i><a href="security-band-aids/cve-2008-0600.txt">sample usage in security-band-aids/cve-2008-0600.txt</i></font></p>
+</li><li><a href="security-band-aids/cve-2012-0056.stp">security-band-aids/cve-2012-0056.stp</a> - cve-2012-0056 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><font size="-2"><pre># </pre></font></p>
+</li><li><a href="security-band-aids/cve-2013-2094.stp">security-band-aids/cve-2013-2094.stp</a> - cve-2013-2094 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><font size="-2"><pre># </pre></font></p>
+</li><li><a href="security-band-aids/cve-2014-7169.stp">security-band-aids/cve-2014-7169.stp</a> - cve-2014-7169 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><font size="-2"><pre># </pre></font></p>
+</li><li><a href="security-band-aids/cve-2015-0235.stp">security-band-aids/cve-2015-0235.stp</a> - cve-2015-0235 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><font size="-2"><pre># </pre></font></p>
+</li><li><a href="security-band-aids/cve-2015-3456.stp">security-band-aids/cve-2015-3456.stp</a> - cve-2015-3456 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><font size="-2"><pre># </pre></font></p>
+</li><li><a href="security-band-aids/cve-2016-0728.stp">security-band-aids/cve-2016-0728.stp</a> - cve-2016-0728 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><font size="-2"><pre># </pre></font></p>
 </li></ul>
 <h3><a name="INTERRUPT"><a href="#INTERRUPT">&para;</a> INTERRUPT</a></h3>
 <ul>
@@ -778,6 +799,27 @@ keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keywor
 </li><li><a href="process/noptrace.stp">process/noptrace.stp</a> - Disable ptrace from Hierarchies of Processes<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>Blocks ptrace(2) attempts from processes identified by stap -c/-x, as also specifiable from /proc/systemtap/stap_XXX/ control files.  Processes may be added or removed from the blocked list.</p><p><i><a href="process/noptrace.txt">sample usage in process/noptrace.txt</i></font></p>
+</li><li><a href="security-band-aids/cve-2008-0600.stp">security-band-aids/cve-2008-0600.stp</a> - cve-2008-0600 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><i><a href="security-band-aids/cve-2008-0600.txt">sample usage in security-band-aids/cve-2008-0600.txt</i></font></p>
+</li><li><a href="security-band-aids/cve-2012-0056.stp">security-band-aids/cve-2012-0056.stp</a> - cve-2012-0056 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><font size="-2"><pre># </pre></font></p>
+</li><li><a href="security-band-aids/cve-2013-2094.stp">security-band-aids/cve-2013-2094.stp</a> - cve-2013-2094 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><font size="-2"><pre># </pre></font></p>
+</li><li><a href="security-band-aids/cve-2014-7169.stp">security-band-aids/cve-2014-7169.stp</a> - cve-2014-7169 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><font size="-2"><pre># </pre></font></p>
+</li><li><a href="security-band-aids/cve-2015-0235.stp">security-band-aids/cve-2015-0235.stp</a> - cve-2015-0235 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><font size="-2"><pre># </pre></font></p>
+</li><li><a href="security-band-aids/cve-2015-3456.stp">security-band-aids/cve-2015-3456.stp</a> - cve-2015-3456 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><font size="-2"><pre># </pre></font></p>
+</li><li><a href="security-band-aids/cve-2016-0728.stp">security-band-aids/cve-2016-0728.stp</a> - cve-2016-0728 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p><p><font size="-2"><pre># </pre></font></p>
 </li></ul>
 <h3><a name="SIGNALS"><a href="#SIGNALS">&para;</a> SIGNALS</a></h3>
 <ul>
