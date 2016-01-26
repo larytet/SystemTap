@@ -502,6 +502,9 @@ systemtap_session::version ()
 #ifdef HAVE_TR1_UNORDERED_MAP
        << " TR1_UNORDERED_MAP"
 #endif
+#ifdef HAVE_LIBREADLINE
+       << " READLINE"
+#endif
        << endl;
 }
 

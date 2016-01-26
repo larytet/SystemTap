@@ -1,6 +1,8 @@
 set self buildok
 set test_suffix "(interactive)"
 
+if {! [readline_p]} { untested "${self} ${test_suffix}"; return }
+
 # Since we need a clean cache directory, we'll use a temporary
 # systemtap directory and cache (add user name so make check and
 # sudo make installcheck don't clobber each others)
@@ -16,6 +18,8 @@ set rc [stapi_start "-vp4"]
 if {$rc} { return }
 
 set effective_uid [exec /usr/bin/id -u]
+regexp {version ([^)/]*)} [exec stap -V 2>@ stdout] dummy stap_version
+
 foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     set test "${self}/[file tail $file]"
     set full_test "${test} ${test_suffix}"
@@ -26,6 +30,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     set panic_warnings 0
     set timing 0
     set unoptimized 0
+    set compat_version ${stap_version}
 
     # Most of the buildok test cases use '#! stap ...'. Try to read
     # this information.
@@ -61,6 +66,22 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 		    w { set suppress_warnings 1; continue }
 		    W { set panic_warnings 1; continue }
 		    u { set unoptimized 1; continue }
+		    - {
+			# Handle long arguments ("--FOO") by testing
+			# the whole argument.
+			switch -regexp $arg {
+			    {^--compatible=\d+(\.\d*)?} {
+				if {[regexp {^--compatible=(\d+(\.\d*)?)} $arg dummy version]} {
+				    set compat_version $version
+				} else { set arg_fail 1 }
+			    }
+			    default { set arg_fail 1 }
+			}
+			if {$arg_fail} {
+			    verbose -log "unknown long argument '${arg}'"
+			}
+			break
+		    }
 		    default {
 			verbose -log "unknown argument '${opt_ch}'"
 			set arg_fail 1
@@ -100,6 +121,8 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     if {!$rc} {set rc [stapi_test_no_output "set timing $timing"] }
     if {!$rc} {set rc [stapi_test_no_output \
 			       "set unoptimized $unoptimized"] }
+    if {!$rc} {set rc [stapi_test_no_output \
+			       "set compatible_version $compat_version"] }
     switch $rc {
 	0 { pass "${full_test} - reset" }
 	1 { fail "${full_test} - reset"; break }
