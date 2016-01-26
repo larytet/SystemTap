@@ -67,8 +67,10 @@ sub add_meta_txt(*;$) {
 
     $Text::Wrap::separator = " \\\n";
     my $usage = wrap('', '  ', $scripts{$meta}{test_installcheck});
-    print $file "\n  # $usage\n";
-    $Text::Wrap::separator = "\n";
+    if ($usage =~ /[a-z]/) {
+        print $file "\n  # $usage\n";
+    }
+     $Text::Wrap::separator = "\n";
 
     print $file "\n\n";
 }
@@ -103,8 +105,10 @@ sub add_meta_html(*;$) {
         $Text::Wrap::separator = " \\\n";
         my $usage = wrap('', '', $scripts{$meta}{test_installcheck});
         $Text::Wrap::separator = "\n";
-        $usage = encode_entities($usage);
-        print $file "<p><font size=\"-2\"><pre># $usage</pre></font>";
+        if ($usage =~ /[a-z]/) {
+            $usage = encode_entities($usage);
+            print $file "<p><font size=\"-2\"><pre># $usage</pre></font>";
+        }
     }
 
     print $file "</p>\n";
