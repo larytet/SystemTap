@@ -17,6 +17,7 @@ proc run_test {test exp hits} {
       }
     }
   }
+  catch { close }; catch { wait }
 
   eval spawn stap -u -g $testpath/$test.stp
   expect {
@@ -28,6 +29,7 @@ proc run_test {test exp hits} {
       }
     }
   }
+  catch { close }; catch { wait }
 
   if { $success == 2 } { pass $test }  { fail $test  }
 }

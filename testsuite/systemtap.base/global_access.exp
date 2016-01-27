@@ -10,6 +10,7 @@ proc run_test {test script expected} {
         -re "$expected" {pass $test}
         default {fail $test}
     }
+    catch { close }; catch { wait }
 }
 
 set script1 {
