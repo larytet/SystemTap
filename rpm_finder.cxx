@@ -201,10 +201,10 @@ missing_rpm_enlist (systemtap_session& sess, const char *filename, const char *r
 }
 #endif	/* HAVE_LIBRPM */
 
+#ifdef HAVE_LIBRPM
 void
 missing_rpm_list_print (systemtap_session &sess, const char* rpm_type)
 {
-#ifdef HAVE_LIBRPM
   if (sess.rpms_to_install.size() > 0 && ! sess.suppress_warnings) {
 
     if(strcmp(rpm_type,"-devel")==0)
@@ -225,26 +225,39 @@ missing_rpm_list_print (systemtap_session &sess, const char* rpm_type)
     }
     cerr << endl;
   }
-#endif
 }
+#else
+void
+missing_rpm_list_print (systemtap_session &, const char *)
+{
+}
+#endif
 
+#ifdef HAVE_LIBRPM
 int
 find_debug_rpms (systemtap_session &sess, const char * filename)
 {
-#ifdef HAVE_LIBRPM
   const char *rpm_type = "-debuginfo";
   return missing_rpm_enlist(sess, filename, rpm_type);
-#else
-  return 0;
-#endif
 }
+#else
+int
+find_debug_rpms (systemtap_session &, const char *)
+{
+  return 0;
+}
+#endif
 
+
+#ifdef HAVE_LIBRPM
 int find_devel_rpms(systemtap_session &sess, const char * filename)
 {
-#ifdef HAVE_LIBRPM
   const char *rpm_type = "-devel";
   return missing_rpm_enlist(sess, filename, rpm_type);
-#else
-  return 0;
-#endif
 }
+#else
+int find_devel_rpms(systemtap_session &, const char *)
+{
+  return 0;
+}
+#endif
