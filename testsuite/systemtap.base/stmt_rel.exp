@@ -19,7 +19,7 @@ proc parse_lineno { function line } {
       verbose -log "parsed lineno $submatch in line $line"
       return $submatch
    } else {
-      verbose -log "can't parse lineno in $line"
+      verbose -log "can't parse lineno in '$line'"
       return 0
    }
 }
@@ -56,6 +56,10 @@ proc test_stmt_rel { function } {
 
    set valid_linenos [collect_valid_linenos $function]
    set last_valid_lineno [lindex $valid_linenos end]
+   if {[llength $valid_linenos] == 0} {
+      fail "$test ($function - no valid linenos in $function)"
+      return
+   }
 
    set decl_line [get_function_decl_line $function]
    set max_valid_rel [expr $last_valid_lineno - $decl_line]
@@ -79,14 +83,14 @@ proc test_stmt_rel { function } {
 }
 
 # Sanity check that bio_init has at least 3 linenos
-if {[expr [llength [collect_valid_linenos {bio_init@*/bio.c}]] > 3]} {
+if {[expr [llength [collect_valid_linenos {bio_init@*/bio.c}]] >= 3]} {
    pass "$test (bio_init sanity check)"
 } else {
    fail "$test (bio_init sanity check)"
 }
 
-test_stmt_rel {bio_init@fs/bio.c}
-test_stmt_rel {bio_reset@fs/bio.c}
+test_stmt_rel {bio_init@*/bio.c}
+test_stmt_rel {bio_reset@*/bio.c}
 test_stmt_rel {vfs_read@fs/read_write.c}
 test_stmt_rel {vfs_write@fs/read_write.c}
 
