@@ -1,0 +1,18 @@
+# Check that SIGUSR2 doesn't cause errors when not using file rotation.
+#
+# It used to say something like:
+#   stapio:open_outfile:75: ERROR: -S is set without -o. Please file a bug report.
+#   ERROR: Couldn't open file for cpu 0, exiting.: Success
+
+
+set test "sigusr2"
+stap_run $srcdir/$subdir/$test.stp no_load $all_pass_string -g
+
+# PR19525: In bulk-mode (-b), close_relayfs() expects SIGUSR2 to cause EINTR on
+# the relay threads, so it can't be SIG_IGN.  But the output is written to
+# files for later stap-merge, so we can't use normal proc stap_run.
+# Just make sure it doesn't hang, at least.
+
+set result_string {}
+stap_run3 "$test bulk" $srcdir/$subdir/$test.stp -g -b -c true
+
