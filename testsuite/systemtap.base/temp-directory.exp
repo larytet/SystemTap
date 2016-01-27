@@ -3,7 +3,6 @@ set test "keep temporary directory"
 
 # Script we'll use while testing:
 set script "probe begin{exit();}"
-set dir ""
 
 set dir ""
 spawn stap -k -p1 -e $script
@@ -16,13 +15,15 @@ expect {
 catch {close}; catch {wait}
 
 if { $dir != "" && [file isdirectory $dir] == 1 } {
-    exec rm -rf $dir
+    catch {exec rm -rf $dir}
     pass "$test (pass1 only)"
 } else {
     fail "$test (pass1 only)"
 }
 
 if {![installtest_p]} { untested "$test (full run)"; return }
+
+set dir ""
 spawn stap -k -e $script
 expect {
     -re {Keeping temporary directory \"((/[0-9a-zA-Z]*)+)\"\r\n} {
@@ -33,7 +34,7 @@ expect {
 catch {close}; catch {wait}
 
 if { $dir != "" && [file isdirectory $dir] == 1 } {
-    exec rm -rf $dir
+    catch {exec rm -rf $dir}
     pass "$test (full run)"
 } else {
     fail "$test (full run)"

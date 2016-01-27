@@ -221,23 +221,18 @@ dnl Handle the option to build the reference documentation
 building_refdocs="no"
 AC_ARG_ENABLE([refdocs],
   AS_HELP_STRING([--enable-refdocs],
-    [enable building reference documentation (default on if xmlto etc. found and other documentation built).]),
+    [enable building reference documentation (default on if other documentation built).]),
   [enable_refdocs=$enableval],
   [enable_refdocs="check"])
 if test "$building_docs" == "no" -a "$enable_refdocs" == "yes" ; then
    AC_MSG_ERROR([must use --enable-docs with --enable-refdocs])
 fi
-AC_CHECK_PROG(have_xmlto, xmlto, yes, no)
-if test "$enable_refdocs" == "yes"; then
-   if test "x${have_xmlto}" != "xyes"; then
-      AC_MSG_ERROR([cannot find xmlto for building reference documentation])
-   fi
-fi
-if test "x${have_xmlto}" == "xyes" -a "$enable_refdocs" != "no" -a "${building_docs}" == "yes"; then
+if test "$enable_refdocs" != "no" -a "${building_docs}" == "yes"; then
    building_refdocs="yes"
 fi
 AM_CONDITIONAL([BUILD_REFDOCS], [test "$building_refdocs" == "yes"])
 
+AC_CHECK_PROG(have_xmlto, xmlto, yes, no)
 AC_CHECK_PROG(have_fop, fop, yes, no)
 if test "x${have_fop}" == "xyes"; then
    # Due to rhbz505364 / 830266, we must actually test-run fop, not just
@@ -253,6 +248,20 @@ if test "x${have_fop}" == "xyes"; then
 fi
 AM_CONDITIONAL([HAVE_FOP], [test "$have_fop" == "yes"])
 AM_CONDITIONAL([HAVE_XMLTO], [test "$have_xmlto" == "yes"])
+
+dnl Handle the option to build the html documentation
+building_htmldocs="no"
+AC_ARG_ENABLE([htmldocs],
+  AS_HELP_STRING([--enable-htmldocs],
+    [enable building html documentation (default off).]),
+    [if test "$have_xmlto" == yes; then
+       building_htmldocs="yes"
+     else
+       AC_MSG_ERROR([xmlto required for building html documentation])
+     fi],
+    [building_htmldocs="no"])
+
+AM_CONDITIONAL([BUILD_HTMLDOCS], [test "$building_htmldocs" == "yes"])
 
 dnl There is a strange bug in older versions of xmlto when generating pdf.
 dnl https://bugzilla.redhat.com/show_bug.cgi?id=526273
@@ -284,28 +293,6 @@ AC_MSG_CHECKING([for xmlto --stringparam support])
    rm -f conftest.html
 fi
 AM_CONDITIONAL([XMLTO_STRINGPARAM], [test "$have_xmlto_stringparam" == "yes"])
-
-if test "x${building_refdocs}" == "xyes"; then
-AC_MSG_CHECKING([for xmlto pdf support])
-   # xmlto pdf may work *only* with --with-fop
-   # XXX: To an extent this test is redundant in that the --with-fop test
-   # already ran xmlto --with-fop pdf ....
-   if test "x$have_fop" == "xyes"; then
-      XMLTOPDF_FOP=--with-fop
-   else
-      XMLTOPDF_FOP=
-   fi
-   xmlto $XMLTOPDF_FOP pdf conftest.xml >& /dev/null
-   if test $? == 0; then
-      have_xmlto_pdf="yes"
-      AC_MSG_RESULT([yes])
-   else
-      AC_MSG_RESULT([no])
-      AC_MSG_WARN([Not building reference documentation in PDF format])
-   fi
-   rm -f conftest.pdf
-fi
-AM_CONDITIONAL([BUILD_PDFREFDOCS], [test "$have_xmlto_pdf" == "yes"])
 
 rm -f conftest.xml
 

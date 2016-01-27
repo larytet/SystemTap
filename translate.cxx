@@ -2388,7 +2388,8 @@ c_tmpcounter::emit_function (functiondecl* fd)
 
 	  if (v->char_ptr_arg && session->verbose > 2)
 	    clog << _F("variable %s for function %s will be passed by reference (char *)",
-		       v->name.to_string().c_str(), fd->name.to_string().c_str()) << endl;
+		       v->name.to_string().c_str(),
+		       fd->unmangled_name.to_string().c_str()) << endl;
 
 	  if (fd->mangle_oldstyle)
 	    {
@@ -2420,7 +2421,7 @@ c_tmpcounter::emit_function (functiondecl* fd)
       bool as_charp = !session->unoptimized && fd->type == pe_string;
       if (as_charp && session->verbose > 2)
 	clog << _F("return value for function %s will be passed by reference (char *)",
-		   fd->name.to_string().c_str()) << endl;
+		   fd->unmangled_name.to_string().c_str()) << endl;
       o->newline() << (as_charp ? "char *" : c_typename (fd->type))
 		   << " __retvalue;";
     }

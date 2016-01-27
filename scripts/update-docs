@@ -38,7 +38,7 @@ cd systemtap
 
 mkdir build && mkdir local && cd build
 
-../configure --enable-docs --prefix=$BASEDIR/systemtap/local
+../configure --enable-docs --enable-htmldocs --prefix=$BASEDIR/systemtap/local
 
 make -C doc
 make install-data

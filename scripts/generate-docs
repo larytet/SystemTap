@@ -1,0 +1,51 @@
+#!/usr/bin/bash
+
+echo "Generating documentation"
+SCRIPT=$(readlink -f $0)
+BASE=$(dirname $SCRIPT)/..
+TEMP=$(mktemp -d -p /tmp) && pushd $TEMP
+
+SBG=SystemTap_Beginners_Guide
+STR=SystemTap_Tapset_Reference
+DOCS=$BASE/doc
+
+# Beginners Guide documentation
+
+echo "Generating beginner pdf"
+xmlto --with-fop --skip-validation -o $DOCS/$SBG/en-US/ -x $DOCS/$SBG/en-US/xsl/pdf.xsl pdf $DOCS/$SBG/en-US/$SBG.xml
+
+# Tapset Reference documentation
+
+###
+# The build process is as follows (targets):
+#              (xmldocs) [by docproc]
+# file.tmpl --> file.xml +--> file.ps   (psdocs)   [by xmlto]
+#                        +--> file.pdf  (pdfdocs)  [by xmlto]
+#                        +--> DIR=file  (htmldocs) [by xmlto]
+#                        +--> man/      (mandocs)  [by xmlto]
+
+echo "Generating tapsets.xml"
+gcc -o docproc $DOCS/$STR/docproc.c
+sed -e '/^!Syscalls/{r $DOCS/$STR/syscalls.xmlpart' -e 'd}' $DOCS/$STR/tapsets.tmpl > tapsets.tmpl.new
+SRCTREE=$BASE/ ./docproc doc tapsets.tmpl.new > tapsets.xml.new
+xsltproc $DOCS/$STR/sort-tapsets.xslt tapsets.xml.new > tapsets.xml.new2
+rm tapsets.xml.new tapsets.tmpl.new
+if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then
+    echo tapsets.xml unchanged;
+    rm tapsets.xml.new2;
+else
+    mv tapsets.xml.new2 tapsets.xml;
+fi
+
+echo "Generating tapsets pdf"
+env pool_size=6000000 hash_extra=6000000 xmlto --with-fop --stringparam refentry.generate.name=0 --stringparam refentry.generate.title=1 pdf -o $DOCS/$STR/ tapsets.xml
+
+echo "Generating tapsets man pages"
+xmlto --stringparam man.authors.section.enabled=0 --stringparam man.copyright.section.enabled=0 man -o man3 tapsets.xml
+SRCTREE=$BASE $DOCS/$STR/manpager # generate tapset::* pages
+cp $DOCS/$STR/syscalls.3stap man_pages/tapset\:\:syscalls.3stap # use cached syscall page
+cp -R man3 $DOCS/$STR/
+cp -R man_pages $DOCS/$STR/
+
+popd && rm -rf $TEMP
+echo "Finished generating documentation"

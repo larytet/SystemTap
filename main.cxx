@@ -800,7 +800,7 @@ passes_0_4 (systemtap_session &s)
   struct timeval tv_after;
   gettimeofday (&tv_after, NULL);
 
-#define TIMESPRINT "in " << \
+#define TIMESPRINT _("in ") << \
            (tms_after.tms_cutime + tms_after.tms_utime \
             - tms_before.tms_cutime - tms_before.tms_utime) * 1000 / (_sc_clk_tck) << "usr/" \
         << (tms_after.tms_cstime + tms_after.tms_stime \
@@ -812,9 +812,9 @@ passes_0_4 (systemtap_session &s)
   if (s.verbose)
     {
       // XXX also include a count of helper macro files loaded (.stpm)?
+      int n = int(s.library_files.size());
       clog << _("Pass 1: parsed user script and ")
-           << s.library_files.size()
-           << _(" library script(s) ")
+           << _NF("%d library script ", "%d library scripts ", n, n)
            << getmemusage()
            << TIMESPRINT
            << endl;
@@ -868,14 +868,20 @@ passes_0_4 (systemtap_session &s)
   times (& tms_after);
   gettimeofday (&tv_after, NULL);
 
-  if (s.verbose) clog << _("Pass 2: analyzed script: ")
-                      << s.probes.size() << _(" probe(s), ")
-                      << s.functions.size() << _(" function(s), ")
-                      << s.embeds.size() << _(" embed(s), ")
-                      << s.globals.size() << _(" global(s) ")
-                      << getmemusage()
-                      << TIMESPRINT
-                      << endl;
+  if (s.verbose) {
+    int np = s.probes.size();
+    int nf = s.functions.size();
+    int ne = s.embeds.size();
+    int ng = s.globals.size();
+    clog << _("Pass 2: analyzed script: ")
+         << _NF("%d probe, ", "%d probes, ", np, np)
+         << _NF("%d function, ", "%d functions, ", nf, nf)
+         << _NF("%d embed, ", "%d embeds, ", ne, ne)
+         << _NF("%d global ", "%d globals ", ng, ng)
+         << getmemusage()
+         << TIMESPRINT
+         << endl;
+  }
 
   if (rc && !s.dump_mode && !s.try_server ())
     cerr << _("Pass 2: analysis failed.  [man error::pass2]") << endl;

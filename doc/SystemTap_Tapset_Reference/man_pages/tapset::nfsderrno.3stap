@@ -1,0 +1,22 @@
+.\" -*- nroff -*-
+.TH tapset::nfsderrno 3stap --- IBM
+.SH NAME
+tapset::nfsderrno \- systemtap nfsderrno tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B nfsderror 
+Convert nfsd error number into string
+.IP
+See 
+.IR function::nfsderror (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::nfsderror (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

@@ -9,6 +9,7 @@ proc run_test {test pp expected} {
 	-timeout 30
         -re $expected { incr success }
     }
+    catch { close }; catch { wait }
     if {$success == 1} { pass $test } { fail $test }
 }
 

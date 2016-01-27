@@ -1196,7 +1196,7 @@ struct no_var_mutation_during_iteration_check
 		if (v == vd)
 		  {
                     string err = _F("variable '%s' modified during 'foreach' iteration",
-                                    v->name.to_string().c_str());
+                                    v->unmangled_name.to_string().c_str());
 		    session.print_error (SEMANTIC_ERROR (err, e->tok));
 		  }
 	      }
@@ -1218,7 +1218,7 @@ struct no_var_mutation_during_iteration_check
 	    if (i->second->find (m) != i->second->end())
 	      {
                 string err = _F("function call modifies var '%s' during 'foreach' iteration",
-                                m->name.to_string().c_str());
+                                m->unmangled_name.to_string().c_str());
 		session.print_error (SEMANTIC_ERROR (err, e->tok));
 	      }
 	  }
@@ -1335,7 +1335,7 @@ semantic_pass_stats (systemtap_session & sess)
 	  if (sess.stat_decls.find(v->name) == sess.stat_decls.end())
 	    {
               semantic_error se(ERR_SRC, _F("unable to infer statistic parameters for global '%s'",
-                                            v->name.to_string().c_str()));
+                                            v->unmangled_name.to_string().c_str()));
 	      sess.print_error (se);
 	    }
 	}
@@ -1569,7 +1569,7 @@ public:
       {
 	if (session.verbose > 2)
           clog << _F("Turning on task_finder vma_tracker, pragma:vma found in %s",
-                     current_function->name.to_string().c_str()) << endl;
+                     current_function->unmangled_name.to_string().c_str()) << endl;
 
 	// PR15052: stapdyn doesn't have VMA-tracking yet.
 	if (session.runtime_usermode_p())
@@ -1583,7 +1583,7 @@ public:
       {
 	if (session.verbose > 2)
 	  clog << _F("Turning on unwind support, pragma:unwind found in %s",
-		    current_function->name.to_string().c_str()) << endl;
+		    current_function->unmangled_name.to_string().c_str()) << endl;
 	session.need_unwind = true;
       }
 
@@ -1592,7 +1592,8 @@ public:
       {
 	if (session.verbose > 2)
 	  clog << _F("Turning on symbol data collecting, pragma:symbols found in %s",
-		    current_function->name.to_string().c_str()) << endl;
+		    current_function->unmangled_name.to_string().c_str())
+	       << endl;
 	session.need_symbols = true;
       }
 
@@ -1601,7 +1602,8 @@ public:
       {
         if (session.verbose > 2)
 	  clog << _F("Turning on debug line data collecting, pragma:lines found in %s",
-		    current_function->name.to_string().c_str()) << endl;
+		    current_function->unmangled_name.to_string().c_str())
+	       << endl;
 	session.need_lines = true;
       }
   }
@@ -2744,14 +2746,14 @@ symresolution_info::collect_functions(void)
 
   for (map<string,functiondecl*>::const_iterator it = session.functions.begin();
        it != session.functions.end(); ++it)
-    funcs.insert(it->first);
+    funcs.insert(it->second->unmangled_name);
 
   // search library functions
   for (unsigned i=0; i<session.library_files.size(); i++)
     {
       stapfile* f = session.library_files[i];
       for (unsigned j=0; j<f->functions.size(); j++)
-        funcs.insert(f->functions[j]->name);
+        funcs.insert(f->functions[j]->unmangled_name);
     }
 
   return funcs;
@@ -2780,7 +2782,8 @@ void semantic_pass_opt1 (systemtap_session& s, bool& relaxed_p)
         {
           if (! fd->synthetic && s.is_user_file(fd->tok->location.file->name))
             s.print_warning (_F("Eliding unused function '%s'",
-                                fd->name.to_string().c_str()), fd->tok);
+                                fd->unmangled_name.to_string().c_str()),
+			     fd->tok);
           // s.functions.erase (it); // NB: can't, since we're already iterating upon it
           new_unused_functions.push_back (fd);
           relaxed_p = false;
@@ -2836,7 +2839,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
           {
             if (s.is_user_file(l->tok->location.file->name))
               s.print_warning (_F("Eliding unused variable '%s'",
-                                  l->name.to_string().c_str()), l->tok);
+                                  l->unmangled_name.to_string().c_str()),
+			       l->tok);
 	    if (s.tapset_compile_coverage) {
 	      s.probes[i]->unused_locals.push_back
 		      (s.probes[i]->locals[j]);
@@ -2853,15 +2857,16 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
                   set<string> vars;
                   vector<vardecl*>::iterator it;
                   for (it = s.probes[i]->locals.begin(); it != s.probes[i]->locals.end(); it++)
-                    vars.insert((*it)->name);
+                    vars.insert((*it)->unmangled_name);
                   for (it = s.globals.begin(); it != s.globals.end(); it++)
-                    vars.insert((*it)->name);
+                    vars.insert((*it)->unmangled_name);
 
                   vars.erase(l->name);
                   string sugs = levenshtein_suggest(l->name, vars, 5); // suggest top 5 vars
                   s.print_warning (_F("never-assigned local variable '%s'%s",
-                                      l->name.to_string().c_str(), (sugs.empty() ? "" :
-                                      (_(" (similar: ") + sugs + ")")).c_str()), l->tok);
+                                      l->unmangled_name.to_string().c_str(),
+				      (sugs.empty() ? "" :
+				       (_(" (similar: ") + sugs + ")")).c_str()), l->tok);
                 }
             j++;
           }
@@ -2878,7 +2883,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
             {
               if (s.is_user_file(l->tok->location.file->name))
                 s.print_warning (_F("Eliding unused variable '%s'",
-                                    l->name.to_string().c_str()), l->tok);
+                                    l->unmangled_name.to_string().c_str()),
+				 l->tok);
               if (s.tapset_compile_coverage) {
                 fd->unused_locals.push_back (fd->locals[j]);
               }
@@ -2895,17 +2901,18 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
                     vector<vardecl*>::iterator it;
                     for (it = fd->formal_args.begin() ;
                          it != fd->formal_args.end(); it++)
-                        vars.insert((*it)->name);
+                        vars.insert((*it)->unmangled_name);
                     for (it = fd->locals.begin(); it != fd->locals.end(); it++)
-                        vars.insert((*it)->name);
+                        vars.insert((*it)->unmangled_name);
                     for (it = s.globals.begin(); it != s.globals.end(); it++)
-                        vars.insert((*it)->name);
+                        vars.insert((*it)->unmangled_name);
 
                     vars.erase(l->name);
                     string sugs = levenshtein_suggest(l->name, vars, 5); // suggest top 5 vars
                     s.print_warning (_F("never-assigned local variable '%s'%s",
-                                        l->name.to_string().c_str(), (sugs.empty() ? "" :
-                                        (_(" (similar: ") + sugs + ")")).c_str()), l->tok);
+                                        l->unmangled_name.to_string().c_str(),
+					(sugs.empty() ? "" :
+					 (_(" (similar: ") + sugs + ")")).c_str()), l->tok);
                   }
 
               j++;
@@ -2920,7 +2927,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
         {
           if (s.is_user_file(l->tok->location.file->name)) 
             s.print_warning (_F("Eliding unused variable '%s'",
-                                l->name.to_string().c_str()), l->tok);
+                                l->unmangled_name.to_string().c_str()),
+			     l->tok);
 	  if (s.tapset_compile_coverage) {
 	    s.unused_globals.push_back(s.globals[i]);
 	  }
@@ -2936,13 +2944,15 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
                 set<string> vars;
                 vector<vardecl*>::iterator it;
                 for (it = s.globals.begin(); it != s.globals.end(); it++)
-                  if (l->name != (*it)->name)
-                    vars.insert((*it)->name);
+                  if (l->name != (*it)->unmangled_name)
+                    vars.insert((*it)->unmangled_name);
 
                 string sugs = levenshtein_suggest(l->name, vars, 5); // suggest top 5 vars
                 s.print_warning (_F("never-assigned global variable '%s'%s",
-                                    l->name.to_string().c_str(), (sugs.empty() ? "" :
-                                    (_(" (similar: ") + sugs + ")")).c_str()), l->tok);
+                                    l->unmangled_name.to_string().c_str(),
+				    (sugs.empty() ? "" :
+				     (_(" (similar: ") + sugs + ")")).c_str()),
+				 l->tok);
               }
 
           i++;
@@ -3058,7 +3068,7 @@ dead_assignment_remover::visit_assignment (assignment* e)
               */
               if (session.is_user_file(e->left->tok->location.file->name)) 
                 session.print_warning(_F("Eliding assignment to '%s'",
-                                         leftvar->name.to_string().c_str()), e->tok);
+                                         leftvar->unmangled_name.to_string().c_str()), e->tok);
               provide (e->right); // goodbye assignment*
               relaxed_p = false;
               return;
@@ -3080,7 +3090,8 @@ dead_assignment_remover::visit_try_block (try_block *s)
         {
           if (session.verbose>2)
             clog << _F("Eliding unused error string catcher %s at %s",
-                      errvar->name.to_string().c_str(), lex_cast(*s->tok).c_str()) << endl;
+		       errvar->unmangled_name.to_string().c_str(),
+		       lex_cast(*s->tok).c_str()) << endl;
           s->catch_error_var = 0;
         }
     }
@@ -3395,7 +3406,8 @@ void semantic_pass_opt4 (systemtap_session& s, bool& relaxed_p)
       if (fn->body == 0)
         {
           s.print_warning (_F("side-effect-free function '%s'",
-                              fn->name.to_string().c_str()), fn->tok);
+                              fn->unmangled_name.to_string().c_str()),
+			   fn->tok);
 
           fn->body = new null_statement(fn->tok);
 
@@ -4513,8 +4525,8 @@ duplicate_function_remover::visit_functioncall (functioncall *e)
     {
       if (s.verbose>2)
           clog << _F("Changing %s reference to %s reference\n",
-                     e->referent->name.to_string().c_str(),
-                     duplicate_function_map[e->referent]->name.to_string().c_str());
+                     e->referent->unmangled_name.to_string().c_str(),
+                     duplicate_function_map[e->referent]->unmangled_name.to_string().c_str());
       e->tok = duplicate_function_map[e->referent]->tok;
       e->function = duplicate_function_map[e->referent]->name;
       e->referent = duplicate_function_map[e->referent];
@@ -5098,7 +5110,7 @@ struct autocast_expanding_visitor: public var_expanding_visitor
           if (!inserted.second && inserted.first->second != fd)
             throw SEMANTIC_ERROR
               (_F("resolved function '%s' conflicts with an existing function",
-                  fd->name.to_string().c_str()), fc->tok);
+                  fd->unmangled_name.to_string().c_str()), fc->tok);
         }
     }
 
@@ -5276,7 +5288,7 @@ semantic_pass_types (systemtap_session& s)
         catch (const semantic_error& e)
           {
             throw SEMANTIC_ERROR(_F("while processing function %s",
-                                    it->second->name.to_string().c_str())).set_chain(e);
+                                    it->second->unmangled_name.to_string().c_str())).set_chain(e);
           }
       
       for (unsigned j=0; j<s.probes.size(); j++)

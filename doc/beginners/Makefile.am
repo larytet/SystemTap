@@ -7,12 +7,12 @@ SBG = SystemTap_Beginners_Guide
 BEGIN_INSTALL_DIR = $(DOC_INSTALL_DIR)/$(SBG)
 
 if BUILD_DOCS
-if HAVE_XMLTO
 all: $(SBG)/index.html
+
+# The beginner documents are now pre generated in the source tree
 
 # move all the relevant files into the build directory
 $(SBG).pdf:
-# since we're not using publican, we'll have copy over the necessary folders
 	mkdir -p build/en-US/xml
 	cp en-US/*.xml build/en-US/xml/
 	cp en-US/*.ent build/en-US/xml/
@@ -20,24 +20,18 @@ $(SBG).pdf:
 	cp -R en-US/extras build/en-US/xml/
 	cp -R en-US/images build/en-US/xml/
 	cp -R en-US/Common_Content build/en-US/xml
-# Since we're no longer using publican, workaround due to BZ920216
-# is no longer needed (no longer need xvfb)
-if HAVE_FOP
-# skip xml validation since testing on rhel5 generated io errors with loading
-# dtd files from a URL. might have something to do with the issue mentioned
-# in BZ428168.
-	xmlto --with-fop --skip-validation \
-		-x build/en-US/xsl/pdf.xsl pdf build/en-US/xml/$(SBG).xml
-endif
+	cp en-US/$(SBG).pdf $(builddir)/
 
 # rely on the pdf generation to move all the necessary files into the right dirs
 $(SBG)/index.html: $(SBG).pdf
+if BUILD_HTMLDOCS
 	xmlto --skip-validation \
-		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
+				-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
 	cp -R build/en-US/xml/images $(SBG)
 	mkdir -p $(SBG)/Common_Content
 	cp -R build/en-US/xml/Common_Content/images $(SBG)/Common_Content
 	cp -R build/en-US/xml/Common_Content/css $(SBG)/Common_Content
+endif
 
 clean-local:
 	rm -rf build/en-US/xml
@@ -47,9 +41,8 @@ clean-local:
 
 install-data-hook:
 	$(MKDIR_P) $(DOC_INSTALL_DIR)
-if HAVE_FOP
 	$(INSTALL_DATA) $(SBG).pdf $(DOC_INSTALL_DIR)
-endif
+if BUILD_HTMLDOCS
 	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)
 	$(INSTALL_DATA) $(SBG)/*.html $(DOC_INSTALL_DIR)/$(SBG)
 	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/images
@@ -65,9 +58,9 @@ endif
 	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/xsl
 	$(INSTALL_DATA) en-US/xsl/*.xsl \
 			$(DOC_INSTALL_DIR)/$(SBG)/xsl
+endif
 
 uninstall-local:
 	rm -f $(DOC_INSTALL_DIR)/$(SBG).pdf
 	rm -rf $(DOC_INSTALL_DIR)/$(SBG)
-endif
 endif

@@ -1,0 +1,22 @@
+.\" -*- nroff -*-
+.TH tapset::ctime 3stap --- IBM
+.SH NAME
+tapset::ctime \- systemtap ctime tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B ctime 
+Convert seconds since epoch into human readable date/time string
+.IP
+See 
+.IR function::ctime (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::ctime (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

@@ -16,7 +16,6 @@
 
 # Makefile.am --- automake input file for systemtap tapset reference manual
 
-
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -92,15 +91,16 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-@BUILD_REFDOCS_TRUE@noinst_PROGRAMS = docproc$(EXEEXT)
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@noinst_PROGRAMS =  \
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	docproc$(EXEEXT)
 subdir = doc/SystemTap_Tapset_Reference
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/gettext.m4 $(top_srcdir)/m4/iconv.m4 \
-	$(top_srcdir)/m4/lib-ld.m4 $(top_srcdir)/m4/lib-link.m4 \
-	$(top_srcdir)/m4/lib-prefix.m4 $(top_srcdir)/m4/nls.m4 \
-	$(top_srcdir)/m4/po.m4 $(top_srcdir)/m4/progtest.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/intlmacosx.m4 $(top_srcdir)/m4/lib-ld.m4 \
+	$(top_srcdir)/m4/lib-link.m4 $(top_srcdir)/m4/lib-prefix.m4 \
+	$(top_srcdir)/m4/nls.m4 $(top_srcdir)/m4/po.m4 \
+	$(top_srcdir)/m4/progtest.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am
@@ -112,7 +112,6 @@ PROGRAMS = $(noinst_PROGRAMS)
 docproc_SOURCES = docproc.c
 docproc_OBJECTS = docproc.$(OBJEXT)
 docproc_LDADD = $(LDADD)
-SCRIPTS = $(noinst_SCRIPTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -339,25 +338,10 @@ top_srcdir = @top_srcdir@
 DOC_INSTALL_DIR = $(DESTDIR)$(datadir)/doc/systemtap
 MAN_INSTALL_DIR = $(DESTDIR)$(mandir)/man3
 HTML_INSTALL_DIR = $(DESTDIR)$(datadir)/doc/systemtap/tapsets
-
-###
-# The build process is as follows (targets):
-#              (xmldocs) [by docproc]
-# file.tmpl --> file.xml +--> file.ps   (psdocs)   [by xmlto]
-#                        +--> file.pdf  (pdfdocs)  [by xmlto]
-#                        +--> DIR=file  (htmldocs) [by xmlto]
-#                        +--> man/      (mandocs)  [by xmlto]
-@BUILD_PDFREFDOCS_TRUE@PDFDOCS = tapsets.pdf
-@XMLTO_STRINGPARAM_TRUE@XMLTOMANPARAMS = --stringparam man.authors.section.enabled=0 --stringparam man.copyright.section.enabled=0
 @XMLTO_STRINGPARAM_TRUE@XMLTOHTMLPARAMS = --stringparam use.id.as.filename=1 -m $(abs_srcdir)/generate-toc.xml
-@XMLTO_STRINGPARAM_TRUE@XMLTOPDFPARAMS = --stringparam refentry.generate.name=0 --stringparam refentry.generate.title=1
-@HAVE_FOP_FALSE@XMLTOPDF_FOP = 
-@HAVE_FOP_TRUE@XMLTOPDF_FOP = --with-fop
-@BUILD_REFDOCS_TRUE@SRCTREE = $(abs_top_srcdir)/
-@BUILD_REFDOCS_TRUE@DOCPROC = $(abs_builddir)/docproc
-@BUILD_REFDOCS_TRUE@noinst_SCRIPTS = manpager
-@BUILD_REFDOCS_TRUE@MANPAGER = $(abs_srcdir)/manpager
-CLEANFILES = tapsets.xml stamp-* $(PDFDOCS)
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@SRCTREE = $(abs_top_srcdir)/
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@DOCPROC = $(abs_builddir)/docproc
+CLEANFILES = stamp-* tapsets.pdf tapsets.xml
 all: all-am
 
 .SUFFIXES:
@@ -474,7 +458,7 @@ distclean-tags:
 	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH tags
 check-am: all-am
 check: check-am
-all-am: Makefile $(PROGRAMS) $(SCRIPTS)
+all-am: Makefile $(PROGRAMS)
 installdirs:
 install: install-am
 install-exec: install-exec-am
@@ -597,43 +581,42 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
-@BUILD_REFDOCS_TRUE@all: $(PDFDOCS) stamp-htmldocs stamp-mandocs
+@BUILD_REFDOCS_TRUE@all: stamp-pdfdoc stamp-htmldocs stamp-mandocs
 @BUILD_REFDOCS_TRUE@tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
-@BUILD_REFDOCS_TRUE@	sed -e '/^!Syscalls/{r $(abs_srcdir)/syscalls.xmlpart' -e 'd}' $(abs_srcdir)/tapsets.tmpl > tapsets.tmpl.new
-@BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(DOCPROC) doc tapsets.tmpl.new > tapsets.xml.new
-@BUILD_REFDOCS_TRUE@	xsltproc $(srcdir)/sort-tapsets.xslt tapsets.xml.new > tapsets.xml.new2
-@BUILD_REFDOCS_TRUE@	rm tapsets.xml.new tapsets.tmpl.new
-@BUILD_REFDOCS_TRUE@	if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then \
-@BUILD_REFDOCS_TRUE@		echo tapsets.xml unchanged; \
-@BUILD_REFDOCS_TRUE@		rm tapsets.xml.new2; \
-@BUILD_REFDOCS_TRUE@	else \
-@BUILD_REFDOCS_TRUE@		mv tapsets.xml.new2 tapsets.xml; \
-@BUILD_REFDOCS_TRUE@	fi
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	sed -e '/^!Syscalls/{r $(abs_srcdir)/syscalls.xmlpart' -e 'd}' $(abs_srcdir)/tapsets.tmpl > tapsets.tmpl.new
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(DOCPROC) doc tapsets.tmpl.new > tapsets.xml.new
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	xsltproc $(srcdir)/sort-tapsets.xslt tapsets.xml.new > tapsets.xml.new2
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	rm tapsets.xml.new tapsets.tmpl.new
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then \
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@		echo tapsets.xml unchanged; \
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@		rm tapsets.xml.new2; \
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	else \
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@		mv tapsets.xml.new2 tapsets.xml; \
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	fi
+
+@BUILD_REFDOCS_TRUE@stamp-pdfdoc:
+@BUILD_REFDOCS_TRUE@	cp $(abs_srcdir)/tapsets.pdf $(builddir)/
+@BUILD_REFDOCS_TRUE@	touch stamp-pdfdoc
 
 @BUILD_REFDOCS_TRUE@stamp-htmldocs: tapsets.xml
-@BUILD_REFDOCS_TRUE@	xmlto $(XMLTOHTMLPARAMS) html -o tapsets tapsets.xml
-@BUILD_REFDOCS_TRUE@	touch stamp-htmldocs
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	xmlto $(XMLTOHTMLPARAMS) html -o tapsets tapsets.xml
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	touch stamp-htmldocs
 
-# bump up the allocated space so "xmlto pdf" works
-@BUILD_REFDOCS_TRUE@tapsets.pdf: tapsets.xml
-@BUILD_REFDOCS_TRUE@	env pool_size=6000000 hash_extra=6000000 xmlto $(XMLTOPDF_FOP) $(XMLTOPDFPARAMS) pdf tapsets.xml
-
-@BUILD_REFDOCS_TRUE@stamp-mandocs: tapsets.xml
-@BUILD_REFDOCS_TRUE@	xmlto $(XMLTOMANPARAMS) man -o man3 tapsets.xml
-@BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(MANPAGER) # generate tapset::* pages
-@BUILD_REFDOCS_TRUE@	cp $(abs_srcdir)/syscalls.3stap man_pages/tapset\:\:syscalls.3stap
+@BUILD_REFDOCS_TRUE@stamp-mandocs:
+@BUILD_REFDOCS_TRUE@	cp -R $(abs_srcdir)/man3 man3
+@BUILD_REFDOCS_TRUE@	cp -R $(abs_srcdir)/man_pages man_pages
 @BUILD_REFDOCS_TRUE@	touch stamp-mandocs
 
 #FIXME need to figure out where to install things appropriately
 #installmandocs: mandocs
 @BUILD_REFDOCS_TRUE@install-data-hook:
-@BUILD_PDFREFDOCS_TRUE@@BUILD_REFDOCS_TRUE@	$(MKDIR_P)  $(DOC_INSTALL_DIR)
-@BUILD_PDFREFDOCS_TRUE@@BUILD_REFDOCS_TRUE@	$(INSTALL_DATA) tapsets.pdf $(DOC_INSTALL_DIR)
+@BUILD_REFDOCS_TRUE@	$(MKDIR_P)  $(DOC_INSTALL_DIR)
+@BUILD_REFDOCS_TRUE@	$(INSTALL_DATA) tapsets.pdf $(DOC_INSTALL_DIR)
 @BUILD_REFDOCS_TRUE@	$(MKDIR_P)  $(MAN_INSTALL_DIR)
 @BUILD_REFDOCS_TRUE@	$(INSTALL_DATA) man3/* $(MAN_INSTALL_DIR)
 @BUILD_REFDOCS_TRUE@	$(INSTALL_DATA) man_pages/* $(MAN_INSTALL_DIR) # manpager output
-@BUILD_REFDOCS_TRUE@	$(MKDIR_P)  $(HTML_INSTALL_DIR)
-@BUILD_REFDOCS_TRUE@	$(INSTALL_DATA) tapsets/* $(HTML_INSTALL_DIR)
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	$(MKDIR_P)  $(HTML_INSTALL_DIR)
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	$(INSTALL_DATA) tapsets/* $(HTML_INSTALL_DIR)
 clean-local:
 	rm -rf man3 man_pages tapsets
 
