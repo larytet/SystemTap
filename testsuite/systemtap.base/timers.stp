@@ -21,7 +21,7 @@ probe timer.profile.freq.hz(10) { ++phz }
 probe timer.jiffies(1) { ++j1 }
 probe timer.jiffies(2) { ++j2 }
 probe timer.jiffies(1000000) { ++jmax }
-probe timer.jiffies(1000).randomize(500) { ++jr }
+probe timer.jiffies(100).randomize(50) { ++jr }
 
 /* as long as HZ>2, ms(1) and ms(500) 
  * will produce different counts */
