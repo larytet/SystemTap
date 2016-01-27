@@ -25,20 +25,22 @@ void *tfunc(void *arg)
 {
   /* Choose some random thread to print stack size */
   (void) pthread_once(&printed_p, &print_it);
-  sleep (4);
   return NULL;
 }
 
  
+#define MAXTHREADS 4096
+
 int
 main(int argc, char **argv)
 {
-    pthread_t thr;
+    pthread_t thr[MAXTHREADS];
     pthread_attr_t attr;
     int numthreads;
     int stacksize;
     int rc;
     int threads_created = 0;
+    size_t i;
 
     if (argc != 3) {
 	fprintf(stderr, "Usage: %s numthreads stacksize|0\n", argv[0]);
@@ -46,6 +48,9 @@ main(int argc, char **argv)
     }
 
     numthreads = atoi(argv[1]);
+    if (numthreads > MAXTHREADS) {
+	numthreads = MAXTHREADS;
+    }
     stacksize = atoi(argv[2]);
 
     rc = pthread_attr_init(&attr);
@@ -56,8 +61,8 @@ main(int argc, char **argv)
       assert (rc == 0);
     }
 
-    while (numthreads--) {
-      rc = pthread_create(&thr, (stacksize == 0 ? NULL : &attr), tfunc, NULL);
+    for (i = 0; i < numthreads; i++) {
+      rc = pthread_create(&thr[i], (stacksize == 0 ? NULL : &attr), tfunc, NULL);
 
       /* On systems with not enough memory, pthread_create() can fail
        * after creating lots of threads. Just ignore this error (if
@@ -66,6 +71,13 @@ main(int argc, char **argv)
 	  break;
       assert (rc == 0);
       threads_created++;
+    }
+
+    /* Wait for all the threads to finish (otherwise we can exit
+     * before one of our threads has the chance to print the stack
+     * size). */
+    for (i = 0; i < threads_created; i++) {
+	pthread_join(thr[i], NULL);
     }
 
     rc = pthread_attr_destroy(&attr);
