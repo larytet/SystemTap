@@ -536,7 +536,8 @@ public:
     usage = "load FILE";
     _help_text = "Load a script from a file into the current session.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s __attribute ((unused)),
+	       vector<string> &tokens)
   {
     if (tokens.size() != 2)
       {
@@ -545,47 +546,25 @@ public:
 	return false;
       }
 
-    // FIXME: validate FILE?
-    unsigned user_flags = s.guru_mode ? pf_guru : 0;
-    stapfile *f = parse (s, tokens[1], user_flags);
-    if (f)
+    // Originally, we called stap's parser here to read in the
+    // script. However, doing so discards comments, preprocessor
+    // directives, and rearranges the script. So, let's just read the
+    // script as a series of strings.
+    ifstream f(tokens[1].c_str(), ios::in);
+    if (f.fail())
       {
-	// This is similar to calling stapfile::print(). We have to
-	// work through adding each type of data.
-	for (unsigned i = 0; i < f->embeds.size(); ++i)
-	  {
-	    ostringstream buffer;
-	    f->embeds[i]->print(buffer);
-	    // FIXME: we may need to remove a trailing newline here...
-	    script_vec.push_back(buffer.str());
-	  }
-	for (unsigned i = 0; i < f->globals.size(); ++i)
-	  {
-	    ostringstream buffer;
-	    buffer << "global ";
-	    f->globals[i]->print(buffer);
-	    script_vec.push_back(buffer.str());
-	  }
-	for (unsigned i = 0; i < f->aliases.size(); ++i)
-	  {
-	    ostringstream buffer;
-	    f->aliases[i]->print(buffer);
-	    script_vec.push_back(buffer.str());
-	  }
-	for (unsigned i = 0; i < f->probes.size(); ++i)
-	  {
-	    ostringstream buffer;
-	    f->probes[i]->print(buffer);
-	    script_vec.push_back(buffer.str());
-	  }
-	for (unsigned i = 0; i < f->functions.size(); ++i)
-	  {
-	    ostringstream buffer;
-	    f->functions[i]->print(buffer);
-	    script_vec.push_back(buffer.str());
-	  }
-	delete f;
+	cout << endl
+	     << _F("File '%s' couldn't be opened for reading.",
+		   tokens[1].c_str()) << endl;
+	return false;
       }
+	
+    string line;
+    while (getline(f, line))
+      {
+	script_vec.push_back(line);
+      }
+    f.close();
     return false;
   }
 };
