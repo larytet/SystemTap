@@ -18,7 +18,7 @@ SRCTREE=$(abs_top_srcdir)/
 DOCPROC=$(abs_builddir)/docproc
 endif
 
-all: stamp-pdfdoc stamp-htmldocs stamp-mandocs
+all: stamp-htmldocs
 tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
 if BUILD_HTMLDOCS
 	sed -e '/^!Syscalls/{r $(abs_srcdir)/syscalls.xmlpart' -e 'd}' $(abs_srcdir)/tapsets.tmpl > tapsets.tmpl.new
@@ -33,29 +33,20 @@ if BUILD_HTMLDOCS
 	fi
 endif
 
-stamp-pdfdoc:
-	cp $(abs_srcdir)/tapsets.pdf $(builddir)/
-	touch stamp-pdfdoc
-
 stamp-htmldocs: tapsets.xml
 if BUILD_HTMLDOCS
 	xmlto $(XMLTOHTMLPARAMS) html -o tapsets tapsets.xml
 	touch stamp-htmldocs
 endif
 
-stamp-mandocs:
-	cp -R $(abs_srcdir)/man3 man3
-	cp -R $(abs_srcdir)/man_pages man_pages
-	touch stamp-mandocs
-
 #FIXME need to figure out where to install things appropriately
 #installmandocs: mandocs
 install-data-hook:
 	$(MKDIR_P)  $(DOC_INSTALL_DIR)
-	$(INSTALL_DATA) tapsets.pdf $(DOC_INSTALL_DIR)
+	cp $(abs_srcdir)/tapsets.pdf $(DOC_INSTALL_DIR)
 	$(MKDIR_P)  $(MAN_INSTALL_DIR)
-	$(INSTALL_DATA) man3/* $(MAN_INSTALL_DIR)
-	$(INSTALL_DATA) man_pages/* $(MAN_INSTALL_DIR) # manpager output
+	cp -R $(abs_srcdir)/man3/* $(MAN_INSTALL_DIR)
+	cp -R $(abs_srcdir)/man_pages/* $(MAN_INSTALL_DIR) # manpager output
 if BUILD_HTMLDOCS
 	$(MKDIR_P)  $(HTML_INSTALL_DIR)
 	$(INSTALL_DATA) tapsets/* $(HTML_INSTALL_DIR)
