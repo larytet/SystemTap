@@ -1027,41 +1027,6 @@ public:
   }
 };
 
-class compatible_version_opt: public cmdopt
-{
-protected:
-  string _compatible;
-
-public:
-  compatible_version_opt()
-  {
-    name = "compatible_version";
-    _help_text = "Suppress incompatible language/tapset changes beyond VERSION, instead of ";
-  }
-  string help_text(size_t indent __attribute ((unused))) const
-  {
-    if (_compatible.empty())
-      return _help_text + VERSION + ".";
-    else
-      return _help_text + _compatible + ".";
-  }
-  bool handler(systemtap_session &s, vector<string> &tokens)
-  {
-    bool set = (tokens[0] == "set");
-    if (set)
-      {
-	if (strverscmp(tokens[2].c_str(), VERSION) > 0)
-	  cerr << _F("ERROR: systemtap version %s cannot be compatible with future version %s", VERSION, tokens[2].c_str())
-	       << endl;
-	else
-	  _compatible = s.compatible = tokens[2];
-      }
-    else
-      cout << name << ": \"" << s.compatible << "\"" << endl;
-    return false;
-  }
-};
-
 static void
 interactive_usage ()
 {
@@ -1482,7 +1447,6 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   option_vec.push_back(new unoptimized_opt);
   option_vec.push_back(new target_pid_opt);
   option_vec.push_back(new cmd_opt);
-  option_vec.push_back(new compatible_version_opt);
 
   // FIXME: It might be better to wait to get the list of probes and
   // aliases until they are needed.

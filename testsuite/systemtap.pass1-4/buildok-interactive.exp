@@ -18,7 +18,6 @@ set rc [stapi_start "-vp4"]
 if {$rc} { return }
 
 set effective_uid [exec /usr/bin/id -u]
-regexp {version ([^)/]*)} [exec stap -V 2>@ stdout] dummy stap_version
 
 foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     set test "${self}/[file tail $file]"
@@ -30,7 +29,6 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     set panic_warnings 0
     set timing 0
     set unoptimized 0
-    set compat_version ${stap_version}
 
     # Most of the buildok test cases use '#! stap ...'. Try to read
     # this information.
@@ -41,6 +39,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
         verbose -log "running the equivalent of 'stap $stap_args $file'"
 	# Parse arguments.
 	set arg_fail 0
+	set skip_test 0
 	set last_pass "4"
 	foreach arg $stap_args {
 	    if {[ string index $arg 0 ] != "-" } { break }
@@ -71,9 +70,13 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 			# the whole argument.
 			switch -regexp $arg {
 			    {^--compatible=\d+(\.\d*)?} {
-				if {[regexp {^--compatible=(\d+(\.\d*)?)} $arg dummy version]} {
-				    set compat_version $version
-				} else { set arg_fail 1 }
+				# We can't handle the '--compatible'
+				# option. Once the library scripts
+				# have been read, they are "set" at a
+				# particular version and can't be
+				# changed on the fly.
+				set skip_test 1
+				verbose -log "unsupported option '${arg}'"
 			    }
 			    default { set arg_fail 1 }
 			}
@@ -90,11 +93,14 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 		}
 	    }
 	}
-	if {$arg_fail == 0} {
-	    pass "${full_test} - arg parsing"
-	} else {
+	if {$arg_fail} {
 	    fail "${full_test} - arg parsing"
 	    continue
+	} elseif {$skip_test} {
+	    untested "${full_test} - unsupported option"
+	    continue
+	} else {
+	    pass "${full_test} - arg parsing"
 	}
 	if {$last_pass != "4"} {
 	    untested "$full_test - last pass isn't 4 ($last_pass)"
@@ -121,8 +127,6 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     if {!$rc} {set rc [stapi_test_no_output "set timing $timing"] }
     if {!$rc} {set rc [stapi_test_no_output \
 			       "set unoptimized $unoptimized"] }
-    if {!$rc} {set rc [stapi_test_no_output \
-			       "set compatible_version $compat_version"] }
     switch $rc {
 	0 { pass "${full_test} - reset" }
 	1 { fail "${full_test} - reset"; break }
