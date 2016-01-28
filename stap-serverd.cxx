@@ -1734,6 +1734,8 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
   stapargv.push_back("--tmpdir=" + new_staptmpdir);
 
   stapargv.push_back ("--client-options");
+
+  string stap_opts = "";
   for (i=1 ; ; i++)
     {
       char stapargfile[PATH_MAX];
@@ -1772,9 +1774,12 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 
       arg[st.st_size] = '\0';
       stapargv.push_back (arg);
+      stap_opts.append(arg);
+      stap_opts.append(" ");
       free (arg);
       fclose (argfile);
     }
+  log(_F("Options passed from the client: %s", stap_opts.c_str()));
 
   string stapstdout = responseDirName + "/stdout";
 

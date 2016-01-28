@@ -1,5 +1,9 @@
 * What's new in version 3.0
 
+- The stap compile server will log the stap client's options that are passed
+  to the server. The options that get logged on the server will include the
+  script name or the -e script, depending on which is used by the client.
+
 - Embedded-C functions and blocks may now access script level global variables
   using the STAP_GLOBAL_GET_* and STAP_GLOBAL_SET_* macros.
 
