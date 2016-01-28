@@ -466,8 +466,8 @@ public:
   delete_cmd()
   {
     name = "delete";
-    usage = "delete ITEM_NUM";
-    _help_text = "Delete a probe or function by its number.";
+    usage = "delete LINE_NUM";
+    _help_text = "Delete a script line by its number.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
 	       vector<string> &tokens)
@@ -483,7 +483,7 @@ public:
     //   1: probe end { printf("end\n") }
     //
     // We could fix this if we stored the numbers along with the
-    // probe/function. 
+    // script lines.
 
     if (tokens.size() == 1)
       {
@@ -509,15 +509,15 @@ public:
     val = strtol (tokens[1].c_str(), &end, 10);
     if (errno != 0 || *end != '\0' || val < 0)
       {
-	cout << "Invalid probe/function value" << endl;
+	cout << "Invalid script line value" << endl;
 	return false;
       }
 
-    // Does this probe/function exist?
+    // Does this script line exist?
     size_t item_num = val - 1;
     if (item_num > script_vec.size())
       {
-	cout << "No probe/function " << val << endl;
+	cout << "No line " << val << endl;
 	return false;
       }
       
