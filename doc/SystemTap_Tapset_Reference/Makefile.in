@@ -581,7 +581,7 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
-@BUILD_REFDOCS_TRUE@all: stamp-pdfdoc stamp-htmldocs stamp-mandocs
+@BUILD_REFDOCS_TRUE@all: stamp-htmldocs
 @BUILD_REFDOCS_TRUE@tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	sed -e '/^!Syscalls/{r $(abs_srcdir)/syscalls.xmlpart' -e 'd}' $(abs_srcdir)/tapsets.tmpl > tapsets.tmpl.new
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(DOCPROC) doc tapsets.tmpl.new > tapsets.xml.new
@@ -594,27 +594,18 @@ uninstall-am:
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@		mv tapsets.xml.new2 tapsets.xml; \
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	fi
 
-@BUILD_REFDOCS_TRUE@stamp-pdfdoc:
-@BUILD_REFDOCS_TRUE@	cp $(abs_srcdir)/tapsets.pdf $(builddir)/
-@BUILD_REFDOCS_TRUE@	touch stamp-pdfdoc
-
 @BUILD_REFDOCS_TRUE@stamp-htmldocs: tapsets.xml
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	xmlto $(XMLTOHTMLPARAMS) html -o tapsets tapsets.xml
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	touch stamp-htmldocs
-
-@BUILD_REFDOCS_TRUE@stamp-mandocs:
-@BUILD_REFDOCS_TRUE@	cp -R $(abs_srcdir)/man3 man3
-@BUILD_REFDOCS_TRUE@	cp -R $(abs_srcdir)/man_pages man_pages
-@BUILD_REFDOCS_TRUE@	touch stamp-mandocs
 
 #FIXME need to figure out where to install things appropriately
 #installmandocs: mandocs
 @BUILD_REFDOCS_TRUE@install-data-hook:
 @BUILD_REFDOCS_TRUE@	$(MKDIR_P)  $(DOC_INSTALL_DIR)
-@BUILD_REFDOCS_TRUE@	$(INSTALL_DATA) tapsets.pdf $(DOC_INSTALL_DIR)
+@BUILD_REFDOCS_TRUE@	cp $(abs_srcdir)/tapsets.pdf $(DOC_INSTALL_DIR)
 @BUILD_REFDOCS_TRUE@	$(MKDIR_P)  $(MAN_INSTALL_DIR)
-@BUILD_REFDOCS_TRUE@	$(INSTALL_DATA) man3/* $(MAN_INSTALL_DIR)
-@BUILD_REFDOCS_TRUE@	$(INSTALL_DATA) man_pages/* $(MAN_INSTALL_DIR) # manpager output
+@BUILD_REFDOCS_TRUE@	cp -R $(abs_srcdir)/man3/* $(MAN_INSTALL_DIR)
+@BUILD_REFDOCS_TRUE@	cp -R $(abs_srcdir)/man_pages/* $(MAN_INSTALL_DIR) # manpager output
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	$(MKDIR_P)  $(HTML_INSTALL_DIR)
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	$(INSTALL_DATA) tapsets/* $(HTML_INSTALL_DIR)
 clean-local:

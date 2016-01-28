@@ -10655,6 +10655,7 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
     they_live.push_back ("struct nfs4_state;");
     they_live.push_back ("struct nfs4_delegreturnres;");
     they_live.push_back ("struct nfs4_delegreturnargs;");
+    they_live.push_back ("struct pnfs_layout_hdr;");
     they_live.push_back ("struct pnfs_layout_range;");
 
     // We need a definition of a 'stateid_t', which is a typedef of an
@@ -10662,6 +10663,12 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
     // header file.
     if (s.kernel_source_tree != "")
       they_live.push_back ("#include \"fs/nfsd/state.h\"");
+
+    // We need a definition of the pnfs_update_layout_reason enum, so
+    // we'll need the right kernel header file.
+    if (s.kernel_source_tree != ""
+	&& s.kernel_config["CONFIG_NFS_V4"] != string(""))
+      they_live.push_back ("#include \"linux/nfs4.h\"");
   }
 
   // RHEL6.3
@@ -10792,6 +10799,14 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
 
   if (header.find("events/net.h") != string::npos)
     they_live.push_back ("struct ndmsg;");
+
+  if (header.find("iwl") != string::npos)
+    {
+      they_live.push_back ("struct iwl_cmd_header_wide;");
+      they_live.push_back ("struct iwl_host_cmd;");
+      they_live.push_back ("struct iwl_trans;");
+      they_live.push_back ("struct iwl_rx_packet;");
+    }
 
   return they_live;
 }
@@ -11450,7 +11465,7 @@ tracepoint_builder::init_dw(systemtap_session& s)
   glob_suffixes.push_back("include/ras/*_event.h");
   glob_suffixes.push_back("arch/x86/entry/vsyscall/*trace.h");
   glob_suffixes.push_back("arch/x86/kernel/*trace.h");
-  glob_suffixes.push_back("arch/*/include/asm/trace*.h");
+  glob_suffixes.push_back("arch/*/include/asm/*trace*.h");
   glob_suffixes.push_back("arch/*/include/asm/trace/*.h");
   glob_suffixes.push_back("arch/*/kvm/*trace.h");
   glob_suffixes.push_back("fs/xfs/linux-*/xfs_tr*.h");

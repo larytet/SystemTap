@@ -1,0 +1,18 @@
+/*
+ * sigusr2.stp
+ *
+ * Check that SIGUSR2 doesn't cause errors when not using file rotation.
+ */
+
+probe begin
+{
+	println("systemtap starting probe")
+	raise(%{ SIGUSR2 %})
+}
+
+probe end
+{
+	println("systemtap ending probe")
+	println("systemtap test success")
+}
+

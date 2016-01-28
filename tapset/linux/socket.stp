@@ -810,12 +810,18 @@ function sock_flags_num2str:string(flags:long)
 #ifndef SOCK_PASSSEC
 #define SOCK_PASSSEC 4   /* introduced in 2.6.18 */
 #endif
+#ifndef SOCKWQ_ASYNC_NOSPACE /* renamed in 4.4 */
+#define SOCKWQ_ASYNC_NOSPACE SOCK_ASYNC_NOSPACE
+#endif
+#ifndef SOCKWQ_ASYNC_WAITDATA /* renamed in 4.4 */
+#define SOCKWQ_ASYNC_WAITDATA SOCK_ASYNC_WAITDATA
+#endif
 	unsigned long flags = STAP_ARG_flags;
 
 	STAP_RETVALUE[0] = '\0';
-	if (test_bit(SOCK_ASYNC_NOSPACE, &flags))
+	if (test_bit(SOCKWQ_ASYNC_NOSPACE, &flags))
 		strlcat(STAP_RETVALUE, "ASYNC_NOSPACE|", MAXSTRINGLEN);
-	if (test_bit(SOCK_ASYNC_WAITDATA, &flags))
+	if (test_bit(SOCKWQ_ASYNC_WAITDATA, &flags))
 		strlcat(STAP_RETVALUE, "ASYNC_WAITDATA|", MAXSTRINGLEN);
 	if (test_bit(SOCK_NOSPACE, &flags))
 		strlcat(STAP_RETVALUE, "NOSPACE|", MAXSTRINGLEN);
