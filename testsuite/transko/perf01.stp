@@ -1,6 +1,8 @@
-#! stap -p2
+#! stap -p3
 
-# @perf not supported
+# This test checks that @perf isn't used as a normal operand. It can
+# only be used as an aggragate operand.
+
 global x
 probe perf.hw.cpu_cycles.process("/bin/ed").counter("a") {} 
 probe process("/bin/ed").begin
