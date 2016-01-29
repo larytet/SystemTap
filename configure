@@ -9869,7 +9869,7 @@ building_htmldocs="no"
 # Check whether --enable-htmldocs was given.
 if test "${enable_htmldocs+set}" = set; then :
   enableval=$enable_htmldocs; if test "$have_xmlto" == yes; then
-       building_htmldocs="yes"
+       building_htmldocs=$enableval
      else
        as_fn_error $? "xmlto required for building html documentation" "$LINENO" 5
      fi

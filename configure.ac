@@ -255,7 +255,7 @@ AC_ARG_ENABLE([htmldocs],
   AS_HELP_STRING([--enable-htmldocs],
     [enable building html documentation (default off).]),
     [if test "$have_xmlto" == yes; then
-       building_htmldocs="yes"
+       building_htmldocs=$enableval
      else
        AC_MSG_ERROR([xmlto required for building html documentation])
      fi],
