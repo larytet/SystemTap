@@ -1,5 +1,6 @@
 %{!?with_sqlite: %global with_sqlite 1}
 %{!?with_docs: %global with_docs 1}
+%{!?with_htmldocs: %global with_htmldocs 0}
 %{!?with_monitor: %global with_monitor 1}
 # crash is not available
 %ifarch ppc ppc64 %{sparc} aarch64 ppc64le
@@ -135,11 +136,12 @@ BuildRequires: tex(fullpage.sty) tex(fancybox.sty) tex(bchr7t.tfm) tex(graphicx.
 # For the html.sty mentioned in the .tex files, even though latex2html is
 # not run during the build, only during manual scripts/update-docs runs:
 BuildRequires: latex2html
-#
+%if %{with_htmldocs}
 # On F10, xmlto's pdf support was broken off into a sub-package,
 # called 'xmlto-tex'.  To avoid a specific F10 BuildReq, we'll do a
 # file-based buildreq on '/usr/share/xmlto/format/fo/pdf'.
 BuildRequires: xmlto /usr/share/xmlto/format/fo/pdf
+%endif
 %endif
 %if %{with_emacsvim}
 BuildRequires: emacs
@@ -448,7 +450,11 @@ cd ..
 %endif
 
 %if %{with_docs}
-%global docs_config --enable-docs
+%if %{with_htmldocs}
+%global docs_config --enable-docs --enable-htmldocs
+%else
+%global docs_config --enable-docs --disable-htmldocs
+%endif
 %else
 %global docs_config --disable-docs
 %endif
@@ -535,8 +541,10 @@ cp -rp testsuite $RPM_BUILD_ROOT%{_datadir}/systemtap
 # %doc directive.
 mkdir docs.installed
 mv $RPM_BUILD_ROOT%{_datadir}/doc/systemtap/*.pdf docs.installed/
+%if %{with_htmldocs}
 mv $RPM_BUILD_ROOT%{_datadir}/doc/systemtap/tapsets docs.installed/
 mv $RPM_BUILD_ROOT%{_datadir}/doc/systemtap/SystemTap_Beginners_Guide docs.installed/
+%endif
 %endif
 
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/stap-server
@@ -948,8 +956,10 @@ done
 %license COPYING
 %if %{with_docs}
 %doc docs.installed/*.pdf
+%if %{with_htmldocs}
 %doc docs.installed/tapsets/*.html
 %doc docs.installed/SystemTap_Beginners_Guide
+%endif
 %endif
 %{_bindir}/stap
 %{_bindir}/stap-prep
