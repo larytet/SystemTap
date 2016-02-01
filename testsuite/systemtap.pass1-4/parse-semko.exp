@@ -1,0 +1,41 @@
+set self parse-semko
+set test_suffix "parse-semko"
+
+# Make sure that we can *parse* all semko test files, to ensure that
+# it is semantic (elaboration) (-p2) checks that fail, not parse
+# errors (-p1).
+
+foreach file [lsort [glob -nocomplain $srcdir/semko/*.stp]] {
+    set test "semko/[file tail $file]"
+    set full_test "${test} ${test_suffix}"
+
+    # Most of the test cases use '#! stap ...'. Try to read this
+    # information.
+    set f [open $file r]
+    set firstbits [gets $f]
+    close $f
+    if {[regexp -line {\#! (stap .+)} $firstbits -> stap_cmd]} {
+	# First, we need to substitute pass 1 for pass 2.
+	if {! [regsub {p2} $stap_cmd {p1} stap_cmd]} {
+	    fail "${full_test} - pass 1 substitute"
+	    continue
+	}
+	pass "${full_test} - pass 1 substitute"
+
+	# Now run the script using '-p1'.
+	set cmd [concat ${stap_cmd} ${file}]
+	verbose -log "Running $cmd"
+	if {[catch {eval exec ${cmd}} res]} {
+	    verbose -log "$res"
+	    fail "${full_test} - parsing"
+	    continue
+	}
+	pass "${full_test} - parsing"
+    } else {
+	# If "stap" wasn't on the first line of the script, this isn't
+	# a systemtap script, but a shell script that will run
+	# systemtap. We'll have to skip these.
+	untested "$full_test - shell script"
+	continue
+    }
+}
