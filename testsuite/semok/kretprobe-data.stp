@@ -8,7 +8,7 @@ probe kernel.function("kern_path_create").return !,
 {
     if (@defined($path)) {
         println($path)
-	println($path)
+	println($path$)
     }
     else {
         println($nd)

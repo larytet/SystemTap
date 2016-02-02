@@ -495,7 +495,7 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
         }
       fname += lex_cast(++tick);
 
-      fdecl->name = fname;
+      fdecl->unmangled_name = fdecl->name = fname;
       fdecl->body = ec;
       fdecl->type = pe_string;
 

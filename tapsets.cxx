@@ -3123,10 +3123,12 @@ dwarf_pretty_print::expand ()
 
   // Create the function decl and call.
 
+  string fhash = detox_path(string(ts->tok->location.file->name));
   functiondecl *fdecl = new functiondecl;
   fdecl->tok = ts->tok;
   fdecl->synthetic = true;
-  fdecl->name = "_dwarf_pretty_print_" + lex_cast(tick++);
+  fdecl->unmangled_name = fdecl->name = "__private_" + fhash
+    + "_dwarf_pretty_print_" + lex_cast(tick++);
   fdecl->type = pe_string;
 
   functioncall* fcall = new functioncall;
@@ -3608,7 +3610,7 @@ synthetic_embedded_deref_call(dwflpp& dw,
   functiondecl *fdecl = new functiondecl;
   fdecl->synthetic = true;
   fdecl->tok = e->tok;
-  fdecl->name = "__private_" + fhash + function_name;
+  fdecl->unmangled_name = fdecl->name = "__private_" + fhash + function_name;
   // The fdecl type is generic, but we'll be detailed on the fcall below.
   fdecl->type = pe_long;
   fdecl->type_details.reset(new exp_type_dwarf(&dw, function_type,
@@ -6725,7 +6727,8 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
               functiondecl *get_addr_decl = new functiondecl;
               get_addr_decl->tok = e->tok;
               get_addr_decl->synthetic = true;
-              get_addr_decl->name = "__private_" + fhash + "_sdt_arg_get_addr_" + lex_cast(tick++);
+              get_addr_decl->unmangled_name = get_addr_decl->name =
+		"__private_" + fhash + "_sdt_arg_get_addr_" + lex_cast(tick++);
               get_addr_decl->type = pe_long;
 
               // build _stp_umodule_relocate(module, addr, current)

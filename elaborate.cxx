@@ -2018,7 +2018,7 @@ static void create_monitor_function(systemtap_session& s)
 {
   functiondecl* fd = new functiondecl;
   fd->synthetic = true;
-  fd->name = "__global___monitor_data_function_probes";
+  fd->unmangled_name = fd->name = "__global___monitor_data_function_probes";
   fd->type = pe_string;
 
   vardecl* v = new vardecl;
