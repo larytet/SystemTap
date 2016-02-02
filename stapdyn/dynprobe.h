@@ -16,6 +16,9 @@ extern "C" {
 #include <stdint.h>
 }
 
+#if __cplusplus >= 201103L /* -std=c++11 */
+#define typeof(x) decltype(x)
+#endif
 
 // The individual probes' info read from the stap module.
 struct dynprobe_location {

@@ -26,6 +26,9 @@ extern "C" {
 #include "../runtime/dyninst/stapdyn.h"
 }
 
+#if __cplusplus >= 201103L /* -std=c++11 */
+#define typeof(x) decltype(x)
+#endif
 
 // The mutator drives all instrumentation.
 class mutator {
