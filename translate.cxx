@@ -3117,7 +3117,7 @@ c_unparser::c_global_write_def(vardecl* v)
 {
   if (v->arity > 0)
     {
-      o->newline() << "#define STAP_GLOBAL_SET_" << v->tok->content << "(...) "
+      o->newline() << "#define STAP_GLOBAL_SET_" << v->unmangled_name << "(...) "
                    << "({int rc = _stp_map_set_" << map_keytypes(v)
                    << "(global(" << c_globalname(v->name) << "), __VA_ARGS__); "
                    << "if (unlikely(rc)) { c->last_error = " << STAP_T_01
@@ -3126,7 +3126,7 @@ c_unparser::c_global_write_def(vardecl* v)
     }
   else
     {
-      o->newline() << "#define STAP_GLOBAL_SET_" << v->tok->content << "(val) ";
+      o->newline() << "#define STAP_GLOBAL_SET_" << v->unmangled_name << "(val) ";
       if (v->type == pe_string)
           o->line() << "strlcpy(global(" << c_globalname(v->name) << "), val, MAXSTRINGLEN)";
       else if (v->type == pe_long)
@@ -3139,13 +3139,13 @@ c_unparser::c_global_read_def(vardecl* v)
 {
   if (v->arity > 0)
     {
-      o->newline() << "#define STAP_GLOBAL_GET_" << v->tok->content << "(...) "
+      o->newline() << "#define STAP_GLOBAL_GET_" << v->unmangled_name << "(...) "
                    << "_stp_map_get_" << map_keytypes(v)
                    << "(global(" << c_globalname(v->name) << "), __VA_ARGS__)";
     }
   else
     {
-      o->newline() << "#define STAP_GLOBAL_GET_" << v->tok->content << "() "
+      o->newline() << "#define STAP_GLOBAL_GET_" << v->unmangled_name << "() "
                    << "global(" << c_globalname(v->name) << ")";
     }
 }
@@ -3153,13 +3153,13 @@ c_unparser::c_global_read_def(vardecl* v)
 void
 c_unparser::c_global_write_undef(vardecl* v)
 {
-  o->newline() << "#undef STAP_GLOBAL_SET_" << v->tok->content;
+  o->newline() << "#undef STAP_GLOBAL_SET_" << v->unmangled_name;
 }
 
 void
 c_unparser::c_global_read_undef(vardecl* v)
 {
-  o->newline() << "#undef STAP_GLOBAL_GET_" << v->tok->content;
+  o->newline() << "#undef STAP_GLOBAL_GET_" << v->unmangled_name;
 }
 
 void
@@ -3674,7 +3674,7 @@ c_unparser::visit_embeddedcode (embeddedcode *s)
   for (unsigned i = 0; i < session->globals.size(); i++)
     {
       vardecl* v = session->globals[i];
-      string name = v->tok->content;
+      string name = v->unmangled_name;
       if (s->code.find("/* pragma:read:" + name + " */") != string::npos)
         {
           c_global_read_def(v);
@@ -4548,7 +4548,7 @@ c_unparser::visit_embedded_expr (embedded_expr* e)
   for (unsigned i = 0; i < session->globals.size(); i++)
     {
       vardecl* v = session->globals[i];
-      string name = v->tok->content;
+      string name = v->unmangled_name;
       if (e->code.find("/* pragma:read:" + name + " */") != string::npos)
         {
           has_defines = true;

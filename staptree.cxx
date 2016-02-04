@@ -2405,7 +2405,7 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
   for (unsigned i = 0; i < session.globals.size(); i++)
     {
       vardecl* v = session.globals[i];
-      string name = v->tok->content;
+      string name = v->unmangled_name;
       if (s->code.find("/* pragma:read:" + name + " */") != string::npos)
         {
           if (v->type == pe_stats)
@@ -2466,7 +2466,7 @@ varuse_collecting_visitor::visit_embedded_expr (embedded_expr *e)
   for (unsigned i = 0; i < session.globals.size(); i++)
     {
       vardecl* v = session.globals[i];
-      string name = v->tok->content;
+      string name = v->unmangled_name;
       if (e->code.find("/* pragma:read:" + name + " */") != string::npos)
         {
           if (v->type == pe_stats)

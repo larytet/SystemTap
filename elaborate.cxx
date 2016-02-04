@@ -2116,7 +2116,7 @@ static void monitor_mode_read(systemtap_session& s)
       if (it != s.globals.begin())
         code << "$value .= sprintf(\",\\n\")" << endl;
 
-      code << "$value .= sprintf(\"\\\"%s\\\"\", \"" << (*it)->tok->content << "\")" << endl;
+      code << "$value .= sprintf(\"\\\"%s\\\"\", \"" << (*it)->unmangled_name << "\")" << endl;
       if ((*it)->arity == 0)
         code << "$value .= sprint(\": \", " << (*it)->name << ", \"\")" << endl;
       else if ((*it)->arity > 0)
