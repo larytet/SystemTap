@@ -32,7 +32,8 @@ incompatibilities can occur when some OS changes occur, such as kernel
 modifications that change functions, types, or macros referenced 
 by systemtap.  Upstream (git://sourceware.org/git/systemtap.git) builds
 of systemtap are often quickly updated to include relevant fixes, so try
-getting or making an updated build.
+getting or making an updated build.  Reworded: \fBbuild systemtap from git
+for use with very young kernels\fP.
 If the issue persists, report the problem to the systemtap developers.
 
 .TP
