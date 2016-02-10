@@ -1,0 +1,210 @@
+.\" -*- nroff -*-
+.TH STAPVIRT 1
+.SH JMÉNO
+stapvirt \- připravit libvirt domény pro sondování systemtapem
+
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH POUŽITÍ
+\fBstapvirt\fR
+[\fB-c\fR \fIURI\fR]
+[\fB-d\fR \fIPATH\fR]
+[\fB-v\fR]
+\fICOMMAND\fR
+\fIARGUMENTS\fR
+
+.SH POPIS
+
+Program \fIstapvirt\fR slouží k přidání portů do domén, které obsluhuje
+libvirt (viz
+.nh
+<http://libvirt.org/>).
+.hy
+Tyto porty pak umí využít \fIstap\fR ke spuštění skriptů uvnitř těchto domén
+(viz volba '--remote' v manuálové stránce \fIstap\fR(1))
+
+.PP
+Porty se do definice domény přidávají příkazem \fBport-add\fR a odebírají se
+analogickým příkazem \fBport-remove\fR.  Poznamenejme, že počet možných systemtap
+sezení odpovídá počtu dostupných portů.
+
+.PP
+Při použití alespoň libvirt v1.1.1 a QEMU v0.10.0 mohou být porty přidávány a
+odebírány za běhu (hotpllugging).  V tomto případě není iniciální \fBport-add\fR
+nutný.
+
+.PP
+Aby bylo možné se k portům přidaným za běhu připojit, je třeba zaručit, aby
+ovladač virtio-serial byl aktivní.  Při vytváření domény programem virt-install
+se toho dá dosáhnout takto:
+.SAMPLE
+\fB$\fR virt-install [...] --controller=virtio-serial
+.ESAMPLE
+Pokud již doména existuje, použijte \fBport-add\fR, \fBport-remove\fR, a
+následně doménu restartujte.  Port byl odebrán, ale ovladač zůstane na místě.
+
+.SH VOLBY
+Podporují se následující volby.  Jakákoliv jiná volba způsobí výpis nápovědy.
+
+.IP "\fB-c\fR \fIURI\fR"
+Určí URI libvirt ovladače ke kterému se plánujeme připojit (např. 'qemu:///system').
+NULL je také bezpečná hodnota, která představuje žádost o připojení k výchozímu
+ovladači.  Kompletní seznam podporovaných hodnot shrnuje <http://libvirt.org/uri.html>.
+
+.IP "\fB-d\fR \fIPATH\fR"
+Určuje adresář pro UNIX sokety odpovídající přidaným portům.  Výchozí adresář
+je '/var/lib/libvirt/qemu'.
+
+.IP "\fB-v\fR"
+Zvýšit upovídanost.  Volbu lze opakovat pro další zvýšení povídanosti.
+
+.SH PŘÍKAZY
+Program stapvirt přijímá následující příkazy.  Jiný příkaz způsobí vypsání
+nápovědy.
+
+.IP "\fBhelp\fR"
+Zobrazit nápovědu.
+
+.IP "\fBlist\fR"
+Vypsat dostupné domény.
+
+.IP "\fBport-add\fR \fIDOMAIN\fR"
+Trvale přidat port do definice domény.  Pokud doména zrovna běží, je nutné ji
+restartovat, aby změny byly efektivní.
+
+.IP "\fBport-list\fR \fIDOMAIN\fR"
+Vypíše seznam cest k UNIX soketům, které odpovídají SystemTap portům v definici
+domény.
+
+.IP "\fBport-remove\fR \fIDOMAIN\fR"
+Odstraní port z definice domény.  Pokud doména právě běží, je nutno ji
+restartovat, aby změny byly efektivní.
+
+.IP "\fBquery\fR \fIDOMAIN\fR"
+Zobrazit následující informace o doméně: jméno, UUID, stav, čísla SystemTap
+portů, a zda je podporován "hotpllugging", tj. přidávání a odebírání portů za
+běhu.
+
+.SH TUTORIÁl
+Následuje lehký úvod do stapvirtu.  Začněme vypsáním privilegovaných domén:
+
+.SAMPLE
+\fB$\fR stapvirt -c 'qemu:///system' list
+Available domains on URI 'qemu:///system':
+ID      State     Type        Name
+2       running   persistent  TestVM
+.ESAMPLE
+
+Poznamenejme, že jsme určili URI pomocí přepínače \-c.  Jinak by mohl libvirt
+použít výchozí hodnotu, např. 'qemu:///session'.
+.PP
+Namísto opakovaného zadávání URI může být pohodlnější nastavit odpovídající
+proměnnou prostředí
+.nh
+LIBVIRT_DEFAULT_URI
+.ni
+a přepínač \-c napříště vynechat (poznamenejme, že toto je funkcionalita
+libvirtu, viz
+.nh
+<libvirt.org/uri.html>
+.hy
+).
+.PP
+Příkaz \fBlist\fR ukazuje, že doména 'TestVM' běží a má ID 2.  Použijme příkaz
+\fBquery\fR abychom zjistili podrobnosti:
+
+.SAMPLE
+\fB$\fR stapvirt query TestVM # by name
+\fB$\fR stapvirt query 2      # by ID
+
+              Name:  TestVM
+              UUID:  905951c0-fa4f-409b-079c-c91ddda27028
+             State:  running
+                ID:  2
+              Type:  persistent
+   Permanent Ports:  0
+       Hotplugging:  not supported
+.ESAMPLE
+
+Příkaz \fBquery\fR dává základní informace o doméně, jako UUID a stav.  Z
+důležitějších informací jsou to pak čísla permanentních portů, a zda je podporován
+"hotplugging" (což technicky vzato závisí na libvirt a qemu a nesouvisí přímo
+s doménou).
+
+.PP
+Kdyby byl podporován "hotplugging", mohli bychom zde skončit a spustit přímo
+\fIstap\fR (s tím, že ovladač virtio-serial je dostupný, viz \fBPOPIS\fR).  Ale
+protože "hotplugging" v našem případě není podporován, musíme přidat porty ručně
+příkazem \fBport-add\fR:
+
+.SAMPLE
+\fB$\fR stapvirt port-add TestVM
+Added new port org.systemtap.stapsh.0
+The domain must be powered off before changes take effect.
+.ESAMPLE
+
+Ověřit, že port byl přidán, můžeme opět příkazem \fBquery\fR:
+
+.SAMPLE
+\fB$\fR stapvirt query TestVM
+\fB...\fR
+   Permanent Ports:  1
+       Hotplugging:  not supported
+.ESAMPLE
+
+Nyní máme k dispozici 1 permanentní port.  Pro více podrobností můžeme zavolat
+příkaz \fBport-list\fR:
+
+.SAMPLE
+\fB$\fR stapvirt port-list TestVM
+/var/lib/libvirt/qemu/TestVM.org.systemtap.stapsh.0.sock
+.ESAMPLE
+
+Po restartu domény už můžeme zavádět systemtap sondy příkazem \fIstap\fR:
+
+.SAMPLE
+\fB$\fR stap -e 'probe begin { printf("Hello from TestVM!\\n"); exit() }' \\
+       --remote=libvirt://TestVM
+Hello from TestVM!
+.ESAMPLE
+
+Na závěr můžeme použitý port opět odebrat příkazem \fBport-remove\fR:
+
+.SAMPLE
+\fB$\fR stapvirt port-remove TestVM
+Removed port org.systemtap.stapsh.0
+The domain must be powered off before changes take effect.
+.ESAMPLE
+
+A to je vše!
+
+.SH VIZ TÉŽ
+.nh
+.nf
+.IR stap (1),
+.IR virt-install (1)
+
+.SH CHYBY
+Použijte projektovou bugzillu, nebo mailing list.
+.nh
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .
+.hy
+.PP
+.IR error::reporting (7stap),
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs
+.hy
