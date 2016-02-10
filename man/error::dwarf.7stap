@@ -15,7 +15,7 @@ access to the desired information.  If a script requires such data,
 but the compiler did not preserve enough of it, pass-2 errors may
 result.
 .PP
-Common conditions that trigger these problems include;
+Common conditions that trigger these problems include:
 
 .TP
 compiler version
@@ -47,8 +47,8 @@ CFLAGS, and/or try rerunning systemtap with
 .TP
 function inlining
 Even modern gcc sometimes has problems with parameters for inlined functions.
-It may be necessary to change the script to probe at a slightly different place
-(try a 
+It may be necessary to change the script to probe at a slightly different place.
+Try a 
 .IR .statement() " probe, instead of a " .function() " probe,"
 somewhere a few source lines into the body of the inlined function.  Or try
 putting a probe at the call site of the inlined function.  Or use the

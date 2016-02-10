@@ -1,4 +1,5 @@
 * What's new in version 3.0
+- Add Czech version of manual pages.
 
 - The stap compile server will log the stap client's options that are passed
   to the server. The options that get logged on the server will include the
