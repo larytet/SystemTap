@@ -20,6 +20,7 @@ static pthread_t reader[NR_CPUS];
 static int relay_fd[NR_CPUS];
 static int avail_cpus[NR_CPUS];
 static int switch_file[NR_CPUS];
+static pthread_mutex_t mutex[NR_CPUS];
 static int bulkmode = 0;
 static volatile int stop_threads = 0;
 static time_t *time_backlog[NR_CPUS];
@@ -174,12 +175,18 @@ static void *reader_thread(void *data)
 			if (errno == EINTR) {
 				if (stop_threads)
 					break;
+
+				pthread_mutex_lock(&mutex[cpu]);
 				if (switch_file[cpu]) {
-					if (switch_outfile(cpu, &fnum) < 0)
+					if (switch_outfile(cpu, &fnum) < 0) {
+						switch_file[cpu] = 0;
+						pthread_mutex_unlock(&mutex[cpu]);
 						goto error_out;
+					}
 					switch_file[cpu] = 0;
 					wsize = 0;
 				}
+				pthread_mutex_unlock(&mutex[cpu]);
 			} else {
 				_perr("poll error");
 				goto error_out;
@@ -188,13 +195,19 @@ static void *reader_thread(void *data)
 
 		while ((rc = read(relay_fd[cpu], buf, sizeof(buf))) > 0) {
 			/* Switching file */
-			if ((fsize_max && wsize + rc > fsize_max) ||
+			pthread_mutex_lock(&mutex[cpu]);
+			if ((fsize_max && ((wsize + rc) > fsize_max)) ||
 			    switch_file[cpu]) {
-				if (switch_outfile(cpu, &fnum) < 0)
+				if (switch_outfile(cpu, &fnum) < 0) {
+					switch_file[cpu] = 0;
+					pthread_mutex_unlock(&mutex[cpu]);
 					goto error_out;
+				}
 				switch_file[cpu] = 0;
 				wsize = 0;
 			}
+			pthread_mutex_unlock(&mutex[cpu]);
+
 			/* Prevent pipe overflow after closing */
 			if (monitor && monitor_end)
 				return 0;
@@ -221,17 +234,33 @@ static void switchfile_handler(int sig)
 	int i;
 	if (stop_threads || !outfile_name)
 		return;
-	for (i = 0; i < ncpus; i++)
+
+	for (i = 0; i < ncpus; i++) {
+		pthread_mutex_lock(&mutex[avail_cpus[i]]);
 		if (reader[avail_cpus[i]] && switch_file[avail_cpus[i]]) {
+			pthread_mutex_unlock(&mutex[avail_cpus[i]]);
 			dbug(2, "file switching is progressing, signal ignored.\n", sig);
 			return;
 		}
+		pthread_mutex_unlock(&mutex[avail_cpus[i]]);
+	}
 	for (i = 0; i < ncpus; i++) {
+		pthread_mutex_lock(&mutex[avail_cpus[i]]);
 		if (reader[avail_cpus[i]]) {
 			switch_file[avail_cpus[i]] = 1;
+			pthread_mutex_unlock(&mutex[avail_cpus[i]]);
+
+			// Make sure we don't send the USR2 signal to
+			// ourselves.
+			if (pthread_equal(pthread_self(),
+					  reader[avail_cpus[i]]))
+				break;
 			pthread_kill(reader[avail_cpus[i]], SIGUSR2);
-		} else
+		}
+		else {
+			pthread_mutex_unlock(&mutex[avail_cpus[i]]);
 			break;
+		}
 	}
 }
 
@@ -385,7 +414,14 @@ int init_relayfs(void)
         sa.sa_flags = 0;
         sigemptyset(&sa.sa_mask);
         sigaction(SIGUSR2, &sa, NULL);
+
         dbug(2, "starting threads\n");
+	for (i = 0; i < ncpus; i++) {
+		if (pthread_mutex_init(&mutex[avail_cpus[i]], NULL) < 0) {
+                        _perr("failed to create mutex");
+                        return -1;
+		}
+	}
         for (i = 0; i < ncpus; i++) {
                 if (pthread_create(&reader[avail_cpus[i]], NULL, reader_thread,
                                    (void *)(long)avail_cpus[i]) < 0) {
@@ -419,6 +455,9 @@ void close_relayfs(void)
 			close(relay_fd[avail_cpus[i]]);
 		else
 			break;
+	}
+	for (i = 0; i < ncpus; i++) {
+		pthread_mutex_destroy(&mutex[avail_cpus[i]]);
 	}
 	dbug(2, "done\n");
 }
