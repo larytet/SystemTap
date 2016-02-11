@@ -13,6 +13,7 @@ expect {
     -timeout 30
     -re {^WARNING: no or bad debug frame hdr[^\r\n]*\r\n} { exp_continue }
     -re {^WARNING: No binary search table for eh frame, doing slow linear search for stap[^\r\n]*\r\n} { exp_continue }
+    -re {^WARNING: Missing unwind data for a module, rerun with[^\r\n]*\r\n} { exp_continue }
     -re {^[^\r\n ]*\r\n} { incr ok; exp_continue }
     -re {^ [^\r\n]*\r\n} { incr ok2; exp_continue }
 
