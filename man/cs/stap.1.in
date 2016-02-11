@@ -2127,7 +2127,13 @@ identifikuje daný "host" skript. Analogicky přepínač
 .BR \-DRELAYGUEST[=name]
 slouží k spuštění skriptu v "guest" režimu a zároveň jej přihlašuje k danému "host"
 skriptu prostřednictvím "name". Poznamenejme, že před ukončením host skriptu je
-třeba ukončit všechny připojené "guest" skripty, jinak dojde k chybě.
+třeba ukončit všechny připojené "guest" skripty, jinak dojde k chybě. Příklad:
+
+.SAMPLE
+% stap -ve 'probe begin{}' -o merged.out -DRELAY_HOST &
+% stap -ve 'probe begin{print("hello ");exit()}' -DRELAY_GUEST
+% stap -ve 'probe begin{print("world\n");exit()}' -DRELAY_GUEST
+.ESAMPLE
 
 .PP
 Vznikne-li problém při běhu programu

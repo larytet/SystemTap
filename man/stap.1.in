@@ -2171,7 +2171,13 @@ While running the host, execute stap with
 .BR \-DRELAYGUEST[=name]
 to add a guest script to the host.
 Note that you must unload guests before unloading a host. If there are some
-guests connected to the host, unloading the host will be failed.
+guests connected to the host, unloading the host will be failed. Example:
+
+.SAMPLE
+% stap -ve 'probe begin{}' -o merged.out -DRELAY_HOST &
+% stap -ve 'probe begin{print("hello ");exit()}' -DRELAY_GUEST
+% stap -ve 'probe begin{print("world\n");exit()}' -DRELAY_GUEST
+.ESAMPLE
 
 .PP
 In case something goes wrong with
