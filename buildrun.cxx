@@ -309,6 +309,7 @@ compile_pass (systemtap_session& s)
   //      mflags-y += -Iinclude/asm-x86/mach-default
   // but that path does not exist in an O= build tree.
   o << module_cflags << " += -Iinclude2/asm/mach-default" << endl;
+  o << module_cflags << " += -I" + s.kernel_build_tree << endl;
   if (s.kernel_source_tree != "")
     o << module_cflags << " += -I" + s.kernel_source_tree << endl;
   for (unsigned i = 0; i < s.kernel_extra_cflags.size(); i++)
@@ -888,6 +889,7 @@ make_tracequeries(systemtap_session& s, const map<string,string>& contents)
   // PR18389: disable GCC's Identical Code Folding, since the stubs may look identical
   omf << "EXTRA_CFLAGS += $(call cc-option,-fno-ipa-icf)" << endl;
 
+  omf << "EXTRA_CFLAGS += -I" + s.kernel_build_tree << endl;
   if (s.kernel_source_tree != "")
     omf << "EXTRA_CFLAGS += -I" + s.kernel_source_tree << endl;
   for (unsigned i = 0; i < s.kernel_extra_cflags.size(); i++)

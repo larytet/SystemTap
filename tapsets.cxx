@@ -10560,6 +10560,19 @@ tracepoint_derived_probe::print_dupe_stamp(ostream& o)
 }
 
 
+// Look for a particular header file in the build directory and the
+// source directory (if it exists). Return true if the header file was
+// found.
+static bool header_exists(systemtap_session& s, const string& header)
+{
+  if (file_exists(s.kernel_build_tree + header)
+      || (!s.kernel_source_tree.empty()
+	  && file_exists(s.kernel_source_tree + header)))
+    return true;
+  return false;
+}
+
+
 static vector<string> tracepoint_extra_decls (systemtap_session& s,
 					      const string& header,
 					      const bool tracequery)
@@ -10614,21 +10627,24 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
     // could change the types being mapped and we'd get a compile
     // error when the types don't match. So, we'll try to find the
     // xfs_types.h file in the kernel source tree.
-    if (s.kernel_source_tree != "") {
-      if (file_exists(s.kernel_source_tree + "/fs/xfs/xfs_linux.h"))
-	they_live.push_back ("#include \"fs/xfs/xfs_linux.h\"");
-      if (file_exists(s.kernel_source_tree + "/fs/xfs/libxfs/xfs_types.h"))
-	they_live.push_back ("#include \"fs/xfs/libxfs/xfs_types.h\"");
-      else if (file_exists(s.kernel_source_tree + "/fs/xfs/xfs_types.h"))
-	they_live.push_back ("#include \"fs/xfs/xfs_types.h\"");
+    if (header_exists(s, "/fs/xfs/xfs_linux.h"))
+      they_live.push_back ("#include \"fs/xfs/xfs_linux.h\"");
+    if (header_exists(s, "/fs/xfs/libxfs/xfs_types.h"))
+      they_live.push_back ("#include \"fs/xfs/libxfs/xfs_types.h\"");
+    else if (header_exists(s, "/fs/xfs/xfs_types.h"))
+      they_live.push_back ("#include \"fs/xfs/xfs_types.h\"");
 
-      // Sigh. xfs_types.h (no matter where it is), also needs
-      // xfs_linux.h. But, on newer kernels, xfs_linux.h includes
-      // xfs_types.h, but really needs a '-I' command to do so. So,
-      // we'll have to add a custom '-I' command.
+    // Sigh. xfs_types.h (no matter where it is), also needs
+    // xfs_linux.h. But, on newer kernels, xfs_linux.h includes
+    // xfs_types.h, but really needs a '-I' command to do so. So,
+    // we'll have to add a custom '-I' command.
+    if (file_exists(s.kernel_build_tree + "/fs/xfs/libxfs"))
+      s.kernel_extra_cflags.push_back ("-I" + s.kernel_build_tree
+				       + "/fs/xfs/libxfs");
+    else if (!s.kernel_source_tree.empty()
+	     && file_exists(s.kernel_source_tree + "/fs/xfs/libxfs"))
       s.kernel_extra_cflags.push_back ("-I" + s.kernel_source_tree
 				       + "/fs/xfs/libxfs");
-    }
 
     they_live.push_back ("struct xfs_mount;");
     they_live.push_back ("struct xfs_inode;");
@@ -10664,13 +10680,13 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
     // We need a definition of a 'stateid_t', which is a typedef of an
     // anonymous struct. So, we'll have to include the right kernel
     // header file.
-    if (s.kernel_source_tree != "")
+    if (header_exists(s, "/fs/nfsd/state.h"))
       they_live.push_back ("#include \"fs/nfsd/state.h\"");
 
     // We need a definition of the pnfs_update_layout_reason enum, so
     // we'll need the right kernel header file.
-    if (s.kernel_source_tree != ""
-	&& s.kernel_config["CONFIG_NFS_V4"] != string(""))
+    if (s.kernel_config["CONFIG_NFS_V4"] != string("")
+	&& header_exists(s, "/include/linux/nfs4.h"))
       they_live.push_back ("#include \"linux/nfs4.h\"");
   }
 
@@ -10686,9 +10702,10 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
   // linux 3.0
   they_live.push_back ("struct cpu_workqueue_struct;");
 
-  if (header.find("ext4") != string::npos && s.kernel_config["CONFIG_EXT4_FS"] != string(""))
-    if (s.kernel_source_tree != "")
-      they_live.push_back ("#include \"fs/ext4/ext4.h\""); // in kernel-source tree
+  if (header.find("ext4") != string::npos
+      && s.kernel_config["CONFIG_EXT4_FS"] != string("")
+      && header_exists(s, "/fs/ext4/ext4.h"))
+    they_live.push_back ("#include \"fs/ext4/ext4.h\"");
 
   if (header.find("ext3") != string::npos)
   {
@@ -10707,7 +10724,7 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
   // struct declared and the snd_soc_dapm_direction enum.
   if (header.find("asoc") != string::npos)
     {
-      if (s.kernel_source_tree != "")
+      if (header_exists(s, "/include/sound/soc.h"))
 	they_live.push_back ("#include \"sound/soc.h\"");
     }
 
@@ -10747,9 +10764,16 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
 
   // Argh, 3.11, i915_trace.h -> i915_drv.h -> i915_reg.h without
   // -I. So, we have to add a custom -I flag.
-  if (header.find("i915_trace") != string::npos && s.kernel_source_tree != "")
-    s.kernel_extra_cflags.push_back ("-I" + s.kernel_source_tree
-				     + "/drivers/gpu/drm/i915");
+  if (header.find("i915_trace") != string::npos)
+    {
+      if (file_exists(s.kernel_build_tree + "/drivers/gpu/drm/i915"))
+	s.kernel_extra_cflags.push_back ("-I" + s.kernel_build_tree
+					 + "/drivers/gpu/drm/i915");
+      else if (!s.kernel_source_tree.empty()
+	       && file_exists(s.kernel_source_tree + "/drivers/gpu/drm/i915"))
+	s.kernel_extra_cflags.push_back ("-I" + s.kernel_source_tree
+					 + "/drivers/gpu/drm/i915");
+    }
 
   if (header.find("/ath/") != string::npos)
     they_live.push_back ("struct ath5k_hw;");
@@ -10786,7 +10810,7 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
   if (header.find("migrate") != string::npos
       || header.find("compaction") != string::npos)
     {
-      if (s.kernel_source_tree != "")
+      if (header_exists(s, "/include/linux/migrate_mode.h"))
 	they_live.push_back ("#include <linux/migrate_mode.h>");
     }
 
