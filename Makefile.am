@@ -54,6 +54,11 @@ noinst_HEADERS = sdt_types.h
 stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @LIBINTL@ -lpthread
 stap_DEPENDENCIES =
 
+if HAVE_LIBREADLINE
+stap_SOURCES += interactive.cxx
+stap_LDADD += @READLINE_LIBS@
+endif
+
 if BUILD_VIRT
 bin_PROGRAMS += stapvirt
 stapvirt_SOURCES = stapvirt.c

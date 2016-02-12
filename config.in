@@ -62,6 +62,9 @@
 /* Define to 1 if you have the `elf' library (-lelf). */
 #undef HAVE_LIBELF
 
+/* Define if you have the readline library (-lreadline). */
+#undef HAVE_LIBREADLINE
+
 /* have librpm */
 #undef HAVE_LIBRPM
 

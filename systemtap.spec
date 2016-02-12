@@ -153,6 +153,10 @@ BuildRequires: jpackage-utils java-devel
 BuildRequires: libvirt-devel >= 1.0.2
 BuildRequires: libxml2-devel
 %endif
+BuildRequires: readline-devel
+%if 0%{?rhel} <= 5
+BuildRequires: ncurses-devel
+%endif
 
 # Install requirements
 Requires: systemtap-client = %{version}-%{release}

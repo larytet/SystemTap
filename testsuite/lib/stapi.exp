@@ -1,0 +1,221 @@
+set stapi_prompt "stap>"
+set stapi_spawn_id 0
+
+# stapi_start ARGS
+#
+# Start "stap -i" with ARGS.
+#
+# ARGS are the optional additional arguments to pass to systemtap.
+#
+# Returns:
+#    1 if starting systemtap failed,
+#    0 if systemtap was started.
+
+proc stapi_start { {args ""} } {
+    global stapi_spawn_id
+    global spawn_id
+
+    if {[info exists stapi_spawn_id] && $stapi_spawn_id != 0} { return }
+    if {![string match "" $args]} {
+	set rc [catch {spawn stap -i $args} out]
+    } else {
+	set rc [catch {spawn stap -i} out]
+    }
+    if {$rc} {
+	verbose -log "$out"
+	fail "Couldn't start \"stap -i\""
+	return 1
+    }
+    pass "Started stap -i"
+    set stapi_spawn_id $spawn_id
+    return 0
+}
+
+# stapi_exit
+#
+# Finish up the interactive systemtap.
+
+proc stapi_exit { } {
+    global stapi_spawn_id
+
+    if {![info exists stapi_spawn_id] || $stapi_spawn_id == 0} { return }
+    catch {
+	send -i $stapi_spawn_id "quit\n"
+	expect {
+	    -timeout 5
+	    timeout { verbose -log "quit timeout"; kill -INT -[exp_pid] }
+	    eof { }
+	}
+    }
+    # again for good measure with KILL after 3s
+    kill -INT -[exp_pid] 3
+    catch {close}; catch {wait}
+    set stapi_spawn_id 0
+}
+
+# stapi_test_no_output COMMAND MESSAGE
+#
+# Send a command to GDB and verify that this command generated no output.
+#
+# COMMAND is the command to execute.
+# MESSAGE is the message to be used in a pass/fail text. If MESSAGE is
+#   empty, no pass/fail will be reported.
+#
+# Returns:
+#    1 if the test failed,
+#    0 if the test passes.
+#   -1 if there was an internal error.
+
+proc stapi_test_no_output { command {message ""} } {
+    global stapi_prompt
+    global stapi_spawn_id
+    set rc 1
+
+    verbose -log "Sending \"$command\" to stapi"
+    if {! [info exists stapi_spawn_id]} { return }
+    send -i $stapi_spawn_id "$command\n"
+    expect {
+	-timeout 5
+	-re "(${command}\r\n$stapi_prompt )$" {
+	    set rc 0
+	}
+	eof { verbose -log "\"$command\" EOF"; set rc -1 }
+	timeout { verbose -log "\"$command\" timeout" }
+    }
+    if {![string match "" $message]} {
+	if {!$rc} {
+	    pass "$message"
+	} elseif {$rc < 0} {
+	    fail "$message (EOF)"
+	} else {
+	    fail "$message"
+	}
+    }
+    return $rc
+}
+
+# stapi_test_question COMMAND QUESTION RESPONSE MESSAGE
+#
+# Send a command to interactive stap (stap -i); expect a question, and
+# send an answer.
+#
+# COMMAND is the command to execute.
+# QUESTION is a question interactive stap may ask in response to
+#   COMMAND, like "are you sure?"
+# RESPONSE is the response to send when QUESTION appears.
+# MESSAGE is the message to be used in a pass/fail text. If MESSAGE is
+#   empty, no pass/fail will be reported.
+#
+# Returns:
+#    1 if the test failed,
+#    0 if the test passes.
+#   -1 if there was an internal error.
+
+proc stapi_test_question { command question response {message ""} } {
+    global stapi_prompt
+    global stapi_spawn_id
+    set rc 0
+
+    verbose -log "Sending \"$command\" to stapi"
+    send -i $stapi_spawn_id "$command\n"
+    expect {
+	-timeout 5
+	-re "(${question})$" {
+	    send -i $stapi_spawn_id "$response\n"
+	    incr rc
+	    exp_continue
+	}
+	-re "($response\r\n$stapi_prompt )$" {
+	    incr rc
+	}
+	eof { verbose -log "\"$command\" EOF"; set rc -1 }
+	timeout { verbose -log "\"$command\" timeout" }
+    }
+    if {$rc == 2} {
+	set rc 0
+    } elseif {$rc > 0} {
+	set rc 1
+    }
+    if {![string match "" $message]} {
+	if {!$rc} {
+	    pass "$message"
+	} elseif {$rc < 0} {
+	    fail "$message (EOF)"
+	} else {
+	    fail "$message"
+	}
+    }
+    return $rc
+}    
+
+# stapi_run_batch USE_CACHE
+#
+# Call "run" in interactive systemtap to compile a script.  This code
+# is somewhat analagous to stap_run_batch() in
+# testsuite/lib/systemtap.exp.
+#
+# USE_CACHE is set to 0 to indicate the cache should not have been
+#   used when compiling, 1 for cache use.
+#
+# Returns:
+#    2 if the script compiled, but the cache wasn't used appropriately.
+#    1 if the script couldn't be compiled.
+#    0 if the test passes.
+#   -1 if there was an internal error.
+#   -2 if there was a timeout error.
+
+proc stapi_run_batch { {use_cache 0} } {
+    global stapi_prompt
+    global stapi_spawn_id
+
+    verbose -log "Sending \"run\" to stapi"
+    send -i $stapi_spawn_id "run\n"
+    set rc 0
+    set error_seen 0
+    set cache_used 0
+    set eof_seen 0
+    set timeout_seen 0
+    expect {
+	-timeout 600
+	-re "compilation failed" { set error_seen 1; exp_continue } 
+	-re "semantic error:" { set error_seen 1; exp_continue }
+	-re {Pass\ ([1234]):[^\r]*\ in\ ([0-9]+)usr/([0-9]+)sys/([0-9]+)real\ ms\.\r\n} {
+	    incr rc; exp_continue
+	}
+	-re {Pass\ ([34]): using cached [^\r]+\r\n} {
+	    set cache_used 1
+	    incr rc; exp_continue
+	}
+	-re {Passes: via server [^\r]* using [^\r]* in [0-9]+usr/[0-9]+sys/[0-9]+real ms\.\r\n} {
+	    exp_continue
+	}
+        -re "$stapi_prompt" {
+	    # If this is the prompt after the script has been compiled
+	    # (we've seen some/all of the "Pass [1234]" lines, then we
+	    # can quit (by not calling 'exp_continue').
+	    if {$rc > 0} {
+		incr rc
+	    } else {
+		exp_continue
+	    }
+	}
+        eof { verbose -log "stapi_run_batch EOF"; set eof_seen 1 }
+	timeout { verbose -log "stapi_run_batch timeout"
+	    set timeout_seen 1 }
+    }
+
+    if {$eof_seen} {
+	return -1
+    } elseif {$timeout_seen} {
+	return -2
+    } elseif {$rc != 5 || $error_seen} {
+	return 1
+    }
+    # If rc == 5, we've seen 4 "Pass [1234]" lines and then the stap
+    # prompt, the compilation worked.
+    #
+    # But, even if the script compiled correctly, was the cache used
+    # (or not) correctly?
+    if {$cache_used == $use_cache} { return 0 }
+    return 2
+}

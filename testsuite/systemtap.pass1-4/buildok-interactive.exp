@@ -1,0 +1,259 @@
+set self buildok
+set test_suffix "(interactive)"
+
+if {! [readline_p]} { untested "${self} ${test_suffix}"; return }
+
+# Since we need a clean cache directory, we'll use a temporary
+# systemtap directory and cache (add user name so make check and
+# sudo make installcheck don't clobber each others)
+set local_systemtap_dir [exec pwd]/.cache_test-[exec whoami]
+exec /bin/rm -rf $local_systemtap_dir
+if [info exists env(SYSTEMTAP_DIR)] {
+    set old_systemtap_dir $env(SYSTEMTAP_DIR)
+}
+set env(SYSTEMTAP_DIR) $local_systemtap_dir
+
+#exp_internal 1
+set rc [stapi_start "-vp4"]
+if {$rc} { return }
+
+set effective_uid [exec /usr/bin/id -u]
+
+foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
+    set test "${self}/[file tail $file]"
+    set full_test "${test} ${test_suffix}"
+
+    # Set default flags
+    set guru_mode 0
+    set suppress_warnings 0
+    set panic_warnings 0
+    set timing 0
+    set unoptimized 0
+
+    # Most of the buildok test cases use '#! stap ...'. Try to read
+    # this information.
+    set f [open $file r]
+    set firstbits [gets $f]
+    close $f
+    if [regexp -line {\#! stap (.*)} $firstbits -> stap_args] {
+        verbose -log "running the equivalent of 'stap $stap_args $file'"
+	# Parse arguments.
+	set arg_fail 0
+	set skip_test 0
+	set last_pass "4"
+	foreach arg $stap_args {
+	    if {[ string index $arg 0 ] != "-" } { break }
+	    set ch_idx 1
+	    while {1} {
+		set opt_ch [ string index $arg $ch_idx ]
+		if { $opt_ch == "" } { break }
+		incr ch_idx
+		switch $opt_ch {
+		    p {
+			# We're already doing p4. Ignore this option
+			# as long as the next character is '4'.
+			set opt_ch [ string index $arg $ch_idx ]
+			incr ch_idx
+			if { $opt_ch != "4" } {
+			    set last_pass $opt_ch
+			    break
+			}
+			continue
+		    }
+		    g { set guru_mode 1; continue }
+		    t { set timing 1; continue }
+		    w { set suppress_warnings 1; continue }
+		    W { set panic_warnings 1; continue }
+		    u { set unoptimized 1; continue }
+		    - {
+			# Handle long arguments ("--FOO") by testing
+			# the whole argument.
+			switch -regexp $arg {
+			    {^--compatible=\d+(\.\d*)?} {
+				# We can't handle the '--compatible'
+				# option. Once the library scripts
+				# have been read, they are "set" at a
+				# particular version and can't be
+				# changed on the fly.
+				set skip_test 1
+				verbose -log "unsupported option '${arg}'"
+			    }
+			    default { set arg_fail 1 }
+			}
+			if {$arg_fail} {
+			    verbose -log "unknown long argument '${arg}'"
+			}
+			break
+		    }
+		    default {
+			verbose -log "unknown argument '${opt_ch}'"
+			set arg_fail 1
+			break
+		    }
+		}
+	    }
+	}
+	if {$arg_fail} {
+	    fail "${full_test} - arg parsing"
+	    continue
+	} elseif {$skip_test} {
+	    untested "${full_test} - unsupported option"
+	    continue
+	} else {
+	    pass "${full_test} - arg parsing"
+	}
+	if {$last_pass != "4"} {
+	    untested "$full_test - last pass isn't 4 ($last_pass)"
+	    continue
+	}
+    } else {
+	# If "stap" wasn't on the first line of the script, this isn't
+	# a systemtap script, but a shell script that will run
+	# systemtap. We'll have to skip these.
+	untested "$full_test - shell script"
+	continue
+    }
+    
+    # We need to "clean up" from our last run.  First, delete the last
+    # script.
+    set rc [stapi_test_question "delete" "Delete entire script.*y or n.*" "y"]
+
+    # Set all the flags, based on the arg parsing above.
+    if {!$rc} {set rc [stapi_test_no_output "set guru_mode $guru_mode"] }
+    if {!$rc} {set rc [stapi_test_no_output \
+			       "set suppress_warnings $suppress_warnings"] }
+    if {!$rc} {set rc [stapi_test_no_output \
+			       "set panic_warnings $panic_warnings"] }
+    if {!$rc} {set rc [stapi_test_no_output "set timing $timing"] }
+    if {!$rc} {set rc [stapi_test_no_output \
+			       "set unoptimized $unoptimized"] }
+    switch $rc {
+	0 { pass "${full_test} - reset" }
+	1 { fail "${full_test} - reset"; break }
+	-1 { fail "${full_test} - reset: crashed"; break }
+    }
+
+    # Now try to load the script. If the "load" command reports any
+    # output, the script didn't load properly.
+    set rc [stapi_test_no_output "load $file"]
+    switch $rc {
+	0 { pass "${full_test} - load" }
+	1 { fail "${full_test} - load"; continue }
+	-1 { fail "${full_test} - load: crashed"; break }
+    }
+
+    # Now try to compile the script by issuing the "run" command.
+    verbose -log "Running $file"
+    set rc [stapi_run_batch]
+    if {$rc < 0} {
+	switch $rc {
+	    -1 { fail "${full_test} - compile: crashed" }
+	    -2 { fail "${full_test} - compile timeout" }
+	    default { fail "${full_test} - unknown error" }
+	}
+	break
+    }
+
+    # Use setup_kfail <pr number> <target triplet> for known bugs.
+    #
+    # (Note that tcl doesn't like comments directly inside the switch
+    # statement, but comments can go in sub-blocks.)
+    switch $test {
+	buildok/memory-write_shared_copy.stp {
+	    if {$rc == 1} { setup_kfail 1155 *-*-* } }
+
+	buildok/memory-mmap.stp -
+	buildok/memory-write_shared_copy.stp -
+	buildok/networking-change_rx_flag.stp -
+	buildok/nfs-fop.check_flags.stp -
+	buildok/scheduler-cpu_off.stp -
+	buildok/scheduler-cpu_on.stp -
+	buildok/scheduler-ctxswitch.stp -
+	buildok/scheduler-migrate.stp -
+	buildok/signal-check_ignored.stp -
+	buildok/signal-handle.stp -
+	buildok/tty-resize.stp {
+	    # (Note that if a test fails because of debuginfo-quality
+	    # problems, don't kfail a tapset's entire test. Extract
+	    # the failing probe/function's test into a new file and
+	    # kfail that.)
+	    #
+	    # Use setup_kfail GCC <target triplet> for
+	    # debuginfo-quality problems.
+	    if {$rc == 1} { setup_kfail GCC *-*-* } }
+
+        buildok/per-process-syscall.stp -
+        buildok/utrace.stp {
+	    # Use setup_kfail UTRACE <target triplet> for systems
+	    # without utrace.
+	    if {$rc == 1 && ![utrace_p]} { setup_kfail UTRACE *-*-*} }
+
+	buildok/pretty-uprobes.stp -
+	buildok/ucontext-symbols-embedded.stp -
+	buildok/ucontext-unwind-embedded.stp {
+	    # Use setup_kfail UPROBES <target triplet> for systems
+	    # without uprobes. (ia64 has utrace, but not uprobes.)
+	    if {$rc == 1 && ![uprobes_p]} { setup_kfail UPROBES *-*-* } }
+
+	buildok/twentyeightprime.stp {
+	    # Use setup_kfail UPROBES <target triplet> for systems
+	    # without uprobes. (ia64 has utrace, but not uprobes.)
+	    if {$rc == 1 && ![uprobes_p]} { setup_kfail UPROBES *-*-* }
+
+	    # Use setup_kfail INODE_UPROBES <target triplet> for
+	    # systems with inode uprobes, where absolute probes don't
+	    # work.
+	    if {$rc == 1 && [inode_uprobes_p]} {
+		setup_kfail INODE_UPROBES *-*-* }
+	}
+
+	buildok/context-symbols-embedded.stp -
+	buildok/context-unwind-embedded.stp {
+	    # Use setup_kfail UNWIND <target triplet> for systems
+	    # with an unsupported dwarf unwind architecture
+	    if {$rc == 1 && [istarget ia64-*-*]} {
+		setup_kfail UNWIND ia64-*-* } }
+
+	buildok/fortyseven.stp {
+	    if {$rc == 1} { setup_kfail 15065 *-*-* } }
+
+	buildok/stap_staticmarkers-detailed.stp {
+	    # Use setup_kfail ROOT_ONLY for tests that must be run as
+	    # root.
+	    #
+	    # In the case of stap_staticmarkers-detailed.stp, it
+	    # probes "staprun", which is only readable by root.
+	    if {$rc != 0 && $effective_uid != 0} {
+		setup_kfail ROOT_ONLY *-*-* }
+
+	    # Use setup_kfail UPROBES <target triplet> for systems
+	    # without uprobes. (ia64 has utrace, but not uprobes.)
+	    if {$rc != 0 && ![uprobes_p]} { setup_kfail UPROBES *-*-* }
+	}
+    }
+    switch $rc {
+	0 { pass "${full_test} - compile" }
+	1 { fail "${full_test} - compile"; continue }
+	2 { fail "${full_test} - compile: cache used"; continue }
+    }
+
+    # If we're here, then the previous compilation worked. Compile the
+    # script again, making sure the cache was used.
+    verbose -log "Running $file again"
+    set rc [stapi_run_batch 1]
+    switch $rc {
+	-1 { fail "${full_test} - cached compile: crashed"; break }
+	0 { pass "${full_test} - cached compile" }
+	1 { fail "${full_test} - cached compile" }
+	2 { fail "${full_test} - cached compile: no cache use" }
+    }
+}
+
+# Cleanup.
+stapi_exit
+exec /bin/rm -rf $local_systemtap_dir
+if [info exists old_systemtap_dir] {
+    set env(SYSTEMTAP_DIR) $old_systemtap_dir
+} else {
+    unset env(SYSTEMTAP_DIR)
+}

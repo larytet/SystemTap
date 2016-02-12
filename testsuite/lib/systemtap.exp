@@ -104,6 +104,11 @@ proc hwbkpt_probes_p {} {
    return $have_hw_breakpoint_p
 }
 
+proc readline_p {} {
+   global systemtap_readline_p
+   return $systemtap_readline_p
+}
+
 # Callee probes require GCC v4.7 and stap compiled
 # with elfutils 0.153
 proc callee_probes_p {} {
@@ -203,7 +208,7 @@ proc print_systemtap_version {} {
 proc setup_systemtap_environment {} {
     global srcdir env server_pid logfile systemtap_dyninst_p
     global systemtap_nss_p systemtap_java_p
-    global have_hw_breakpoint_p
+    global have_hw_breakpoint_p systemtap_readline_p
     global kill_needs_doubledash
 
     # need an absolute SRCDIR for the top-level src/ tree
@@ -289,6 +294,14 @@ proc setup_systemtap_environment {} {
         set have_hw_breakpoint_p 1
     } else {
         set have_hw_breakpoint_p 0
+    }
+
+    # Remember if this selfsame version of systemtap compiled with
+    # readline support
+    if {! [catch {exec sh -c "stap -V 2>&1 | grep -q READLINE"} dummy]} {
+        set systemtap_readline_p 1
+    } else {
+        set systemtap_readline_p 0
     }
 
     # There are some kill executables that had issues with -SIG -PID, thinking

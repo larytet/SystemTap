@@ -90,6 +90,8 @@ bool is_fully_resolved(const std::string& name,
 const std::string cmdstr_quoted(const std::string& cmd);
 const std::string detox_path(const std::string& str);
 const std::string cmdstr_join(const std::vector<std::string>& cmds);
+const std::string join(const std::vector<std::string>& cmds,
+		       const std::string& delim);
 int stap_waitpid(int verbose, pid_t pid);
 pid_t stap_spawn(int verbose, const std::vector<std::string>& args);
 pid_t stap_spawn(int verbose, const std::vector<std::string>& args,
@@ -103,6 +105,7 @@ inline int stap_system(int verbose, const std::vector<std::string>& args,
                        bool null_out=false, bool null_err=false)
 { return stap_system(verbose, args.front(), args, null_out, null_err); }
 int stap_system_read(int verbose, const std::vector<std::string>& args, std::ostream& out);
+std::pair<bool,int> stap_fork_read(int verbose, std::ostream& out);
 int kill_stap_spawn(int sig);
 void assert_regexp_match (const std::string& name, const std::string& value, const std::string& re);
 int regexp_match (const std::string& value, const std::string& re, std::vector<std::string>& matches);

@@ -379,6 +379,42 @@ if test "$with_rpm" != "no"; then
   fi
 fi
 
+dnl Look for readline.
+dnl
+dnl First save the orignal value of LIBS.
+LIBS_no_readline=$LIBS
+
+dnl Check how for readline presence and how to link with it. On some
+dnl systems you need to add a termcap compatible library.
+have_libreadline="no"
+AC_MSG_CHECKING([how to link readline libs])
+for libtermcap in "" tinfo ncursesw ncurses curses termcap; do
+  if test -z "$libtermcap"; then
+    READLINE_LIBS="-lreadline"
+  else
+    READLINE_LIBS="-lreadline -l$libtermcap"
+  fi
+  LIBS="$READLINE_LIBS $LIBS_no_readline"
+  AC_LINK_IFELSE(
+    [AC_LANG_CALL([],[readline])],
+    [have_libreadline="yes"])
+  if test "$have_libreadline" = "yes"; then
+    break
+  fi
+done
+if test "$have_libreadline" = "no"; then
+  AC_MSG_RESULT([none])
+  READLINE_LIBS=""
+else
+  AC_MSG_RESULT([$READLINE_LIBS])
+  AC_DEFINE(HAVE_LIBREADLINE, [1],
+	    [Define if you have the readline library (-lreadline).])
+fi
+AC_SUBST([READLINE_LIBS])
+AM_CONDITIONAL([HAVE_LIBREADLINE], [test "$have_libreadline" == "yes"])
+
+dnl End of readline checks: restore LIBS
+LIBS=$LIBS_no_readline
 
 dnl Allow user to choose python3 for /usr/bin/dtrace
 AC_ARG_WITH([python3],

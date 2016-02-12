@@ -671,6 +671,9 @@ elfutils_abs_srcdir
 BUILD_ELFUTILS_FALSE
 BUILD_ELFUTILS_TRUE
 python
+HAVE_LIBREADLINE_FALSE
+HAVE_LIBREADLINE_TRUE
+READLINE_LIBS
 HAVE_AVAHI_FALSE
 HAVE_AVAHI_TRUE
 avahi_LIBS
@@ -10402,6 +10405,67 @@ $as_echo "$as_me: WARNING: cannot find librpmio" >&2;}
   fi
 fi
 
+LIBS_no_readline=$LIBS
+
+have_libreadline="no"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking how to link readline libs" >&5
+$as_echo_n "checking how to link readline libs... " >&6; }
+for libtermcap in "" tinfo ncursesw ncurses curses termcap; do
+  if test -z "$libtermcap"; then
+    READLINE_LIBS="-lreadline"
+  else
+    READLINE_LIBS="-lreadline -l$libtermcap"
+  fi
+  LIBS="$READLINE_LIBS $LIBS_no_readline"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char readline ();
+int
+main ()
+{
+return readline ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  have_libreadline="yes"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  if test "$have_libreadline" = "yes"; then
+    break
+  fi
+done
+if test "$have_libreadline" = "no"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: none" >&5
+$as_echo "none" >&6; }
+  READLINE_LIBS=""
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $READLINE_LIBS" >&5
+$as_echo "$READLINE_LIBS" >&6; }
+
+$as_echo "#define HAVE_LIBREADLINE 1" >>confdefs.h
+
+fi
+
+ if test "$have_libreadline" == "yes"; then
+  HAVE_LIBREADLINE_TRUE=
+  HAVE_LIBREADLINE_FALSE='#'
+else
+  HAVE_LIBREADLINE_TRUE='#'
+  HAVE_LIBREADLINE_FALSE=
+fi
+
+
+LIBS=$LIBS_no_readline
 
 
 # Check whether --with-python3 was given.
@@ -11942,6 +12006,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_AVAHI_TRUE}" && test -z "${HAVE_AVAHI_FALSE}"; then
   as_fn_error $? "conditional \"HAVE_AVAHI\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_LIBREADLINE_TRUE}" && test -z "${HAVE_LIBREADLINE_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_LIBREADLINE\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${BUILD_ELFUTILS_TRUE}" && test -z "${BUILD_ELFUTILS_FALSE}"; then

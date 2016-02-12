@@ -23,6 +23,7 @@
 #include "git_version.h"
 #include "version.h"
 #include "stringtable.h"
+#include "tapsets.h"
 
 #include <cerrno>
 #include <cstdlib>
@@ -174,6 +175,8 @@ systemtap_session::systemtap_session ():
   color_mode = color_auto;
   color_errors = isatty(STDERR_FILENO) // conditions for coloring when
     && strcmp(getenv("TERM") ?: "notdumb", "dumb"); // on auto
+  interactive_mode = false;
+  pass_1a_complete = false;
 
   // PR12443: put compiled-in / -I paths in front, to be preferred during 
   // tapset duplicate-file elimination
@@ -356,6 +359,8 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   suppress_time_limits = other.suppress_time_limits;
   color_errors = other.color_errors;
   color_mode = other.color_mode;
+  interactive_mode = other.interactive_mode;
+  pass_1a_complete = other.pass_1a_complete;
 
   include_path = other.include_path;
   runtime_path = other.runtime_path;
@@ -497,6 +502,9 @@ systemtap_session::version ()
 #ifdef HAVE_TR1_UNORDERED_MAP
        << " TR1_UNORDERED_MAP"
 #endif
+#ifdef HAVE_LIBREADLINE
+       << " READLINE"
+#endif
        << endl;
 }
 
@@ -542,11 +550,18 @@ systemtap_session::usage (int exitcode)
      "   -g         guru mode %s\n"
      "   -P         prologue-searching for function probes %s\n"
      "   -b         bulk (percpu file) mode %s\n"
+#ifdef HAVE_LIBREADLINE
+     "   -i         interactive mode %s\n"
+#endif
      "   -s NUM     buffer size in megabytes, instead of %d\n"
      "   -I DIR     look in DIR for additional .stp script files", (unoptimized ? _(" [set]") : ""),
          (suppress_warnings ? _(" [set]") : ""), (panic_warnings ? _(" [set]") : ""),
          (guru_mode ? _(" [set]") : ""), (prologue_searching_mode == prologue_searching_always ? _(" [set]") : ""),
-         (bulk_mode ? _(" [set]") : ""), buffer_size);
+         (bulk_mode ? _(" [set]") : ""),
+#ifdef HAVE_LIBREADLINE
+         (interactive_mode ? _(" [set]") : ""),
+#endif
+	 buffer_size);
   if (include_path.size() == 0)
     cout << endl;
   else
@@ -858,6 +873,13 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  server_args.push_back (string ("-") + (char)grc);
           guru_mode = true;
           break;
+
+	case 'i':
+#ifdef HAVE_LIBREADLINE
+          if (client_options) { cerr << _F("ERROR: %s invalid with %s", "-i", "--client-options") << endl; return 1; } 
+	  interactive_mode = true;
+#endif
+	  break;
 
         case 'P':
 	  server_args.push_back (string ("-") + (char)grc);
@@ -1533,7 +1555,7 @@ systemtap_session::check_options (int argc, char * const argv [])
   // We don't need a script with --list-servers, --trust-servers, or any dump mode
   bool need_script = server_status_strings.empty () &&
                      server_trust_spec.empty () &&
-                     !dump_mode;
+                     !dump_mode && !interactive_mode;
 
   if (benchmark_sdt_loops > 0 || benchmark_sdt_threads > 0)
     {
@@ -1568,6 +1590,13 @@ systemtap_session::check_options (int argc, char * const argv [])
   if (dump_mode && last_pass != 5)
     {
       cerr << _("Cannot specify -p with -l/-L/--dump-* switches.") << endl;
+      usage(1);
+    }
+  // FIXME: we need to think through other options that shouldn't be
+  // used with '-i'.
+  if (interactive_mode && have_script)
+    {
+      cerr << _("Cannot specify a script with -i") << endl;
       usage(1);
     }
 
@@ -2629,6 +2658,21 @@ systemtap_session::is_primary_probe (derived_probe *dp)
   dp->collect_derivation_chain (chain);
   const source_loc& origin = chain.back()->tok->location;
   return origin.file == user_files[0];
+}
+
+void
+systemtap_session::clear_script_data()
+{
+  delete pattern_root;
+  pattern_root = new match_node;
+
+  // We need to be sure to reset all our error counts, so that an
+  // error on one script won't be counted against the next script.
+  seen_warnings.clear();
+  suppressed_warnings = 0;
+  seen_errors.clear();
+  suppressed_errors = 0;
+  warningerr_count = 0;
 }
 
 // --------------------------------------------------------------------------
