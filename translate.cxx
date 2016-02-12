@@ -1728,6 +1728,7 @@ c_unparser::emit_module_init ()
       // run a probe compiled for a different version.  Catch this early,
       // just in case modversions didn't.
       o->newline() << "{";
+      o->newline() << "#ifndef STP_NO_VERREL_CHECK";
       o->newline(1) << "const char* release = UTS_RELEASE;";
       o->newline() << "#ifdef STAPCONF_GENERATED_COMPILE";
       o->newline() << "const char* version = UTS_VERSION;";
@@ -1761,6 +1762,7 @@ c_unparser::emit_module_init ()
 		    << ");";
       o->newline() << "rc = -EINVAL;";
       o->newline(-1) << "}";
+      o->newline() << "#endif";
       o->newline() << "#endif";
 
       // perform buildid-based checking if able
