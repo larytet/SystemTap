@@ -10,7 +10,9 @@ foreach runtime [get_runtime_list] {
 	set args "--runtime=$runtime"
     }
 
-    spawn stap $srcdir/$subdir/beginenderror.stp $args
+    # The VERREL stuff is just for compile-testing that option; it plays no
+    # real role in this test.
+    spawn stap -DSTP_NO_VERREL_CHECK $srcdir/$subdir/beginenderror.stp $args
     set ok1 0
     set ok2 0
     set ko 0
