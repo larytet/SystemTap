@@ -102,6 +102,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	buildok/proc_mem-embedded.stp -
 	buildok/process_test.stp -
 	buildok/procfs01.stp -
+	buildok/profiletimer.stp -
 	buildok/queue_stats-embedded.stp -
 	buildok/rcu.stp -
 	buildok/rpc-all-probes.stp -
