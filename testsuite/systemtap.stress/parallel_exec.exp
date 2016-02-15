@@ -21,7 +21,16 @@ set script {
 #
 # Note that executing this here preloads the cache with the script for
 # the stap invocations in the loop below.
-set num [exec stap -e "$script" -c "cat /etc/hosts > /dev/null" | grep {\(open\|close\)} | wc -l]
+set num 0
+spawn stap -e "$script" -c "cat /etc/hosts > /dev/null"
+expect {
+    -timeout 60
+    -re {^(open|close)\r\n} {
+        incr num
+        exp_continue
+    }
+}
+catch {close}; catch {wait}
 
 set spawn_ids {}
 for { set i 0 } { $i < $process_num } { incr i } {
