@@ -759,6 +759,12 @@ keywords: security guru
   historical emergency security band-aid, for reference/education only
 
 
+security-band-aids/cve-2015-7547.stp - cve-2015-7547 security band-aid
+keywords: security guru
+
+  historical emergency security band-aid, for reference/education only
+
+
 security-band-aids/cve-2016-0728.stp - cve-2016-0728 security band-aid
 keywords: security guru
 
@@ -2517,6 +2523,12 @@ keywords: security guru
 
 
 security-band-aids/cve-2015-3456.stp - cve-2015-3456 security band-aid
+keywords: security guru
+
+  historical emergency security band-aid, for reference/education only
+
+
+security-band-aids/cve-2015-7547.stp - cve-2015-7547 security band-aid
 keywords: security guru
 
   historical emergency security band-aid, for reference/education only
