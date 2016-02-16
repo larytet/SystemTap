@@ -1,0 +1,37 @@
+set test "pr19525"
+
+# This tests that stap doesn't stall per PR19525
+# Note that `stap -o` would break the reproducer
+# So we use temporary folder for testing
+
+catch {exec mktemp -d} tempd
+set origd [pwd]
+cd $tempd
+
+# Test PR19525
+set num 0
+spawn bash -c "stap --poison-cache -vbe 'probe begin { exit() }' 2>&1"
+expect {
+    -timeout 60
+    -re {^Pass [1-4]:[^\r\n]*\r\n} {
+        exp_continue
+    }
+    -re {^Pass 5: starting run.\r\n} {
+        exp_continue
+    }
+    -re {^Pass 5: run completed[^\r\n]*\r\n} {
+        incr num
+        exp_continue
+    }
+}
+catch {close}; catch {wait}
+
+if {$num == 1} then {
+    pass "$test"
+} else {
+    fail "$test ($num)"
+}
+
+# Remove temporary directory
+cd $origd
+file delete -force -- $tempd
