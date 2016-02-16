@@ -391,7 +391,7 @@ set subsubtest "probing .callee(foo).call"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list main foo]
+   set expout [list main foo main foo]
    passfail [expect_probe main foo $expout 0 0 1]
 }
 
