@@ -248,10 +248,17 @@ static int _stp_module_update_self (void)
 			found_eh_frame = true;
 		}
 		else if (!strcmp(".symtab", attr->name)) {
-			_stp_module_self.sections[0].static_addr = attr->address;
+#ifdef STAPCONF_MOD_KALLSYMS
+			struct mod_kallsyms *kallsyms = rcu_dereference_sched(mod->kallsyms);
+			if (attr->address == (unsigned long) kallsyms->symtab)
+				_stp_module_self.sections[0].size =
+					kallsyms->num_symtab * sizeof(kallsyms->symtab[0]);
+#else
 			if (attr->address == (unsigned long) mod->symtab)
 				_stp_module_self.sections[0].size =
 					mod->num_symtab * sizeof(mod->symtab[0]);
+#endif
+			_stp_module_self.sections[0].static_addr = attr->address;
 		}
 		else if (!strcmp(".text", attr->name)) {
 			_stp_module_self.sections[1].static_addr = attr->address;

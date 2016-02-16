@@ -444,6 +444,8 @@ compile_pass (systemtap_session& s)
 
   output_autoconf(s, o, "autoconf-module_layout.c",
 		  "STAPCONF_MODULE_LAYOUT", NULL);
+  output_autoconf(s, o, "autoconf-mod_kallsyms.c",
+		  "STAPCONF_MOD_KALLSYMS", NULL);
 
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
