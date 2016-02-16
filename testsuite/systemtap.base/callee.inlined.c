@@ -28,6 +28,6 @@ int main(int argc, char** argv) {
    a = foo(a, a);
    a = bar(a, a);
    a = foo(a, a);
-   return a;
+   return ((a > 100) ? 0 : 1);
 }
 

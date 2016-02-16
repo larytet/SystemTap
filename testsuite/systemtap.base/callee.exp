@@ -170,6 +170,7 @@ proc expect_probe { func callee expout {inlined 0} {return_p 0} {call_p 0} } {
       append regexp $cregexp
       incr n
    }
+   verbose -log "expecting $n line(s): '$regexp'"
 
    # Spawn stap
    spawn stap -e "$script" -c "./$test ; true"
@@ -481,8 +482,9 @@ set failed 0
 set subsubtest "shlib compilation"
 if {!$failed} {
    set libso "lib$subtest.so"
-   catch {exec gcc -g -O -fPIC -shared -o $libso "${testpath}/${test}.${subtest}.lib.c"} err
-   if {$err == "" && [file exists $libso]} {
+   set res [target_compile "${testpath}/${test}.${subtest}.lib.c" \
+	    $libso executable "additional_flags=-g additional_flags=-O additional_flags=-shared additional_flags=-fPIC"]
+   if {$res == "" && [file exists $libso]} {
       pass "$test ($subtest - $subsubtest)"
    } else {
       fail "$test ($subtest - $subsubtest)"
@@ -493,9 +495,10 @@ if {!$failed} {
 # Compile executable
 set subsubtest "exe compilation"
 if {!$failed} {
-   catch {exec gcc -L[pwd] -o $subtest -l$subtest -Wl,-rpath,[pwd] \
-          "${testpath}/${test}.${subtest}.c"} err
-   if {$err == "" && [file exists "$subtest"]} {
+   set res [target_compile "${testpath}/${test}.${subtest}.c" \
+		$subtest executable \
+		"additional_flags=-g additional_flags=-O additional_flags=-Wl,-rpath,[pwd] additional_flags=-L[pwd] additional_flags=-l$subtest"]
+   if {$res == "" && [file exists "$subtest"]} {
       pass "$test ($subtest - $subsubtest)"
    } else {
       fail "$test ($subtest - $subsubtest)"
