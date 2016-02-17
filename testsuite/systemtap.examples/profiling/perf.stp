@@ -31,17 +31,17 @@ probe process("/usr/bin/find").function("visit").return !,
 {
     dividend = (@perf("find_cycles") - insn["find_cycles"])
     divisor =  (@perf("find_insns") - insn["find_insns"])
-    q = dividend / divisor
+    q = (divisor > 0 ? dividend / divisor : 0)
     if (q > 0)
 	cycles_per_insn <<< q
 
     dividend = (@perf("find_branches") - insn["find_branches"])
-    q = dividend / divisor
+    q = (divisor > 0 ? dividend / divisor : 0)
     if (q > 0)
 	branch_per_insn <<< q
 
     dividend = (@perf("find_cycles") - insn["find_cycles"])
-    q = dividend / divisor
+    q = (divisor > 0 ? dividend / divisor : 0)
     if (q > 0)
 	cacheref_per_insn <<< q
 }

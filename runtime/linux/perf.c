@@ -248,14 +248,20 @@ long _stp_perf_read (int ncpu, unsigned i)
 
   if (i > sizeof(stap_perf_probes)/sizeof(struct stap_perf_probe))
     {
-      _stp_error ("_stp_perf_read\n");
+      _stp_error ("_stp_perf_read - out of range");
       return 0;
     }
   stp = & stap_perf_probes[i]; 
     
   if (stp == NULL || stp->e.t.per_thread_event == NULL)
     {
-      _stp_error ("_stp_perf_read\n");
+      _stp_error ("_stp_perf_read - probe '%s' is not supported by this kernel",
+#ifdef STP_NEED_PROBE_NAME
+		  (stp ? stp->probe->pn : "unknown")
+#else
+		  (stp ? stp->probe->pp : "unknown")
+#endif
+	      );
       return 0;
     }
 
