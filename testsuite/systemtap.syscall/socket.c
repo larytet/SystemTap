@@ -86,7 +86,7 @@ int main()
   //staptest// socket (PF_INET, 0x0, IPPROTO_IP) = -NNNN (ESOCKTNOSUPPORT)
 
   socket(PF_INET, SOCK_STREAM, -1);
-  //staptest// socket (PF_INET, SOCK_STREAM, -1) = NNNN (EPROTONOSUPPORT)
+  //staptest// socket (PF_INET, SOCK_STREAM, -1) = -NNNN
 
   return 0;
 }
