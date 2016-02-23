@@ -321,7 +321,7 @@ compile_pass (systemtap_session& s)
 
   o << "STAPCONF_HEADER := " << s.tmpdir << "/" << s.stapconf_name << endl;
   o << "$(STAPCONF_HEADER):" << endl;
-  o << "\t@echo -n > $@" << endl;
+  o << "\t@> $@" << endl;
   output_autoconf(s, o, "autoconf-hrtimer-rel.c", "STAPCONF_HRTIMER_REL", NULL);
   output_exportconf(s, o, "hrtimer_get_res", "STAPCONF_HRTIMER_GET_RES");
   output_autoconf(s, o, "autoconf-generated-compile.c", "STAPCONF_GENERATED_COMPILE", NULL);
