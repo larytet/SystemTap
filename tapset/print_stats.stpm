@@ -1,0 +1,6 @@
+/* emulate the built-in unread-global auto-printer for statistics variable */
+ 
+@define prints(s) %(
+  printf("@count=%d @min=%d @max=%d @sum=%d @avg=%d\n",
+         @count(@s), @min(@s), @max(@s), @sum(@s), @avg(@s))
+%)
