@@ -2065,20 +2065,52 @@ spawn_and_wait (const vector<string> &argv, int *spawnrc,
 int
 check_request_size (const char * zip_file)
 {
-  int rc = 0;
-  (void) zip_file;
   vector<string> args;
-  (void) args;
+  ostringstream result;
+  size_t max_uncomp_size = 100000; /* 100 KB */
 
-  // Check that the compressed file size is no too large.
+  // Check the compressed file size.
   struct stat st;
   stat(zip_file, &st);
   size_t size = st.st_size;
+  log (_F("Compressed request file size is: %zu", size));
   if (size > 5000 /* ~5 KB */) {
     server_error (_F("Compressed request size is %zu bytes, exceeding the 5000 bytes limit.", size));
     return -1;
   }
-  return rc;
+
+  // Check the uncompressed file size.
+  args.push_back("unzip");
+  args.push_back("-Zt");
+  args.push_back(zip_file);
+
+  int rc = stap_system_read (0, args, result);
+  if (rc != 0)
+    {
+    server_error (_F("Unable to check the zipefile size. Error code: %d .", rc));
+    return rc;
+    }
+  log (_F("Result of the unzip -Zt call is:\n%s", result.str().c_str()));
+
+  // Parse the result from the unzip call, looking for the third token
+  vector<string> toks;
+  tokenize(result.str(), toks, " ");
+  if (toks.size() < 3)
+    {
+      // Something went wrong and the format is probably not what we expect.
+      server_error("Unable to check the uncompressed zipfile size. Output came in an unexpected format.");
+      return -1;
+    }
+
+  long uncomp_size = atol(toks[2].c_str());
+  if (uncomp_size < 1 || (unsigned)uncomp_size > max_uncomp_size)
+    {
+      server_error(_F("Uncompressed request size of %ld bytes is not within the expected range of 1 to %zu bytes.",
+                      uncomp_size,max_uncomp_size));
+      return -1;
+    }
+
+  return 0; // If it got to this point, everthing went well.
 }
 
 /* Function:  void *handle_connection()
