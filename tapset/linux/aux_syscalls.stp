@@ -5389,7 +5389,6 @@ function _stp_siginfo_u:string(uaddr:long)
 			    || sinfo.si_code == POLL_MSG)
 				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
 					 ", si_band=%ld", (long)sinfo.si_band);
-				break;
 			break;
 #if defined(SIGSYS) && defined(__ARCH_SIGSYS)
 		case SIGSYS:
@@ -5537,7 +5536,6 @@ function _stp_compat_siginfo_u:string(uaddr:long)
 			    || sinfo.si_code == POLL_MSG)
 				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
 					 ", si_band=%ld", (long)sinfo.si_band);
-				break;
 			break;
 // Checking for SIGSYS/__ARCH_SIGSYS is fine for the "real" siginfo_t,
 // but the compat version can be without the SIGSYS fields, so we'll
