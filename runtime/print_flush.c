@@ -18,7 +18,7 @@
 
 static STP_DEFINE_SPINLOCK(_stp_print_lock);
 
-void EXPORT_FN(stp_print_flush)(_stp_pbuf *pb)
+void stp_print_flush(_stp_pbuf *pb)
 {
 	size_t len = pb->len;
 	void *entry = NULL;

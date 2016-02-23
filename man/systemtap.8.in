@@ -32,8 +32,7 @@ to integrate scripts in the initramfs and have them start during early-boot.
 
 There are various parameters and options available to modify global behaviour,
 as well as script behaviour. Dependencies between scripts can be established so
-that starting one starts others (especially convenient when using the
--DRELAY_HOST and -DRELAY_GUEST options of \fIstap\fR(1)).
+that starting one starts others.
 
 The configuration file of the initscript is located at
 \fB@sysconfdir@/systemtap/config\fR. Acceptable parameters are detailed in the
@@ -274,8 +273,8 @@ Specify multiple scripts by separating their names by spaces.
 .PP
 Here is a script configuration file example:
 .SAMPLE
-script1_OPT="-o /var/log/script1.out -DRELAY_HOST=group1"
-script2_OPT="-DRELAY_GUEST=group1"
+script1_OPT="-o /var/log/script1.out"
+script2_OPT="-o /var/log/script2.out"
 script2_REQ="script1"
 .ESAMPLE
 
@@ -290,14 +289,14 @@ We first copy a SystemTap script (e.g. "script1.stp") into the script directory:
 We can then set any script options, for example:
 .SAMPLE
 \fB#\fR vi /etc/systemtap/conf.d/group1
-script1_OPT="-o /var/log/group1.out -DRELAY_HOST=group1"
+script1_OPT="-o /var/log/group1.out"
 .ESAMPLE
-If we then install a script (e.g. "script2.stp") which shares a buffer with
-script1, there is a dependency. In this case, we can do the following:
+We then install a script (e.g. "script2.stp") which needs to run after
+script1. In this case, we can do the following:
 .SAMPLE
 \fB#\fR cp script2.stp /etc/systemtap/script.d/
 \fB#\fR vi /etc/systemtap/conf.d/group1
-script2_OPT="-DRELAY_GUEST=group1"
+script2_OPT="-o /var/log/group2.out"
 script2_REQ="script1"
 .ESAMPLE
 This way, if \fIstap\fR(1) fails to run script1, the initscript will not even

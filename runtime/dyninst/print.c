@@ -17,9 +17,6 @@
 #ifdef STP_USE_RING_BUFFER
 #error "Ring buffer output not supported for --runtime=dyninst"
 #endif
-#if defined(RELAY_GUEST) || defined(RELAY_HOST)
-#error "Relay host/guest output not supported for --runtime=dyninst"
-#endif
 
 #include "transport.c"
 #include "vsprintf.c"
