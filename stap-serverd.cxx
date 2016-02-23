@@ -2060,6 +2060,27 @@ spawn_and_wait (const vector<string> &argv, int *spawnrc,
 #undef CHECKRC
 }
 
+/* Given the path to the request file, return 0 if the size of the request
+ * is within the determined limits. */
+int
+check_request_size (const char * zip_file)
+{
+  int rc = 0;
+  (void) zip_file;
+  vector<string> args;
+  (void) args;
+
+  // Check that the compressed file size is no too large.
+  struct stat st;
+  stat(zip_file, &st);
+  size_t size = st.st_size;
+  if (size > 5000 /* ~5 KB */) {
+    server_error (_F("Compressed request size is %zu bytes, exceeding the 5000 bytes limit.", size));
+    return -1;
+  }
+  return rc;
+}
+
 /* Function:  void *handle_connection()
  *
  * Purpose: Handle a connection to a socket.  Copy in request zip
@@ -2185,6 +2206,13 @@ handle_connection (void *arg)
 	goto cleanup;
     }
 #endif
+
+  /* Just before we do any kind of processing, we want to check that the request there will
+   * be enough memory to unzip the file. */
+  if (check_request_size(requestFileName))
+    {
+      goto cleanup;
+    }
 
   /* Unzip the request. */
   secStatus = SECFailure;
