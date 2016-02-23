@@ -74,9 +74,7 @@ arrayindex::arrayindex ():
 {
 }
 
-
-functioncall::functioncall ():
-  referent (0)
+functioncall::functioncall ()
 {
 }
 
@@ -214,7 +212,7 @@ vardecl::compatible_arity (int a)
 
 
 functiondecl::functiondecl ():
-  body (0), synthetic (false), mangle_oldstyle (false)
+  body (0), synthetic (false), mangle_oldstyle (false), priority(1)
 {
 }
 
@@ -2303,20 +2301,24 @@ functioncall_traversing_visitor::visit_functioncall (functioncall* e)
 void
 functioncall_traversing_visitor::enter_functioncall (functioncall* e)
 {
-  // prevent infinite recursion
-  if (nested.find (e->referent) == nested.end ())
+  for (unsigned i = 0; i < e->referents.size(); i++)
     {
-      if (seen.find(e->referent) == seen.end())
-        seen.insert (e->referent);
-      nested.insert (e->referent);
-      // recurse
-      functiondecl* last_current_function = current_function;
-      current_function = e->referent;
-      e->referent->body->visit (this);
-      current_function = last_current_function;
-      nested.erase (e->referent);
+      functiondecl* referent = e->referents[i];
+      // prevent infinite recursion
+      if (nested.find (referent) == nested.end ())
+        {
+          if (seen.find(referent) == seen.end())
+            seen.insert (referent);
+          nested.insert (referent);
+          // recurse
+          functiondecl* last_current_function = current_function;
+          current_function = referent;
+          referent->body->visit (this);
+          current_function = last_current_function;
+          nested.erase (referent);
+        }
+      else { this->note_recursive_functioncall(e); }
     }
-  else { this->note_recursive_functioncall(e); }
 }
 
 void
@@ -3652,7 +3654,7 @@ void
 deep_copy_visitor::visit_functioncall (functioncall* e)
 {
   functioncall* n = new functioncall(*e);
-  n->referent = NULL; // don't copy!
+  n->referents.clear(); // don't copy!
   update_visitor::visit_functioncall(n);
 }
 

@@ -36,15 +36,15 @@ begin /* <- begin */
 (__global_arr2[(idx2) = (2)]) = (20);
 (__global_arr2[3]) = (30);
 (__global_arr2[(j) = (4)]) = (40);
-(__global_arr1[__global_fna((k) = (0)), k]) = (1);
+(__global_arr1[__global_fna__overload_0((k) = (0)), k]) = (1);
 (__global_arr1[(b) = (1), b]) = (2);
 (__global_arr1[2, 2]) = (3);
 (__global_arr3[0]) = (4);
 (m) = (1);
 for (2; (m) <= (10); (m)++) (__global_arr2[m]) = ((m) * (10));
 printf("%d %d %d %d\\n", __global_arr1[0, 0], __global_arr2[0], idx2, j);
-(aa) = (__global_fna(1));
-(bb) = (__global_fnb((cc) = (1), (__global_elide_global_a) = (2)));
+(aa) = (__global_fna__overload_0(1));
+(bb) = (__global_fnb__overload_0((cc) = (1), (__global_elide_global_a) = (2)));
 for (1; (bb) < (10); (bb)++) (cc) += (bb);
 for ((dd) = (1); (dd) < (10); 1) (dd) += (1);
 if ((__global_elide_global_b) = (1)) (ee) = (1)
@@ -52,7 +52,7 @@ if ((__global_elide_global_b) = (1)) (ee) = (1)
 (cc) = ((dd) = (5));
 (cc) = ((4) + ((cc) = (1)));
 printf("%d %d %d %d %d\\n", aa, bb, cc, dd, ee);
-__global_exit();
+__global_exit__overload_0();
 }
 end /* <- end */
   # locals

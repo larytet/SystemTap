@@ -54,7 +54,7 @@ public:
   symresolution_info (systemtap_session& s);
 
   vardecl* find_var (interned_string name, int arity, const token *tok);
-  functiondecl* find_function (const std::string& name, unsigned arity, const token *tok);
+  std::vector<functiondecl*> find_functions (const std::string& name, unsigned arity, const token *tok);
   std::set<std::string> collect_functions(void);
 
   void visit_block (block *s);

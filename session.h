@@ -334,6 +334,7 @@ public:
   std::vector<stapfile*> files;
   std::vector<vardecl*> globals;
   std::map<std::string,functiondecl*> functions;
+  std::map<std::string,unsigned> overload_count;
   // probe counter name -> probe associated with counter
   std::vector<std::pair<std::string,std::string> > perf_counters;
   std::vector<derived_probe*> probes; // see also *_probes groups below

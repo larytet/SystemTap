@@ -1207,21 +1207,24 @@ struct no_var_mutation_during_iteration_check
 
   void visit_functioncall (functioncall* e)
   {
-    map<functiondecl *,set<vardecl *> *>::const_iterator i
-      = function_mutates_vars.find (e->referent);
-
-    if (i != function_mutates_vars.end())
+    for (unsigned fd = 0; fd < e->referents.size(); fd++)
       {
-	for (unsigned j = 0; j < vars_being_iterated.size(); ++j)
-	  {
-	    vardecl *m = vars_being_iterated[j];
-	    if (i->second->find (m) != i->second->end())
-	      {
-                string err = _F("function call modifies var '%s' during 'foreach' iteration",
-                                m->unmangled_name.to_string().c_str());
-		session.print_error (SEMANTIC_ERROR (err, e->tok));
-	      }
-	  }
+        map<functiondecl *,set<vardecl *> *>::const_iterator i
+          = function_mutates_vars.find (e->referents[fd]);
+
+        if (i != function_mutates_vars.end())
+          {
+            for (unsigned j = 0; j < vars_being_iterated.size(); ++j)
+              {
+                vardecl *m = vars_being_iterated[j];
+                if (i->second->find (m) != i->second->end())
+                  {
+                    string err = _F("function call modifies var '%s' during 'foreach' iteration",
+                                    m->unmangled_name.to_string().c_str());
+                    session.print_error (SEMANTIC_ERROR (err, e->tok));
+                  }
+              }
+          }
       }
 
     traversing_visitor::visit_functioncall (e);
@@ -2556,15 +2559,17 @@ symresolution_info::visit_functioncall (functioncall* e)
   for (unsigned i=0; i<e->args.size(); i++)
     e->args[i]->visit (this);
 
-  if (e->referent)
+  if (!e->referents.empty())
     return;
 
-  functiondecl* d = find_function (e->function, e->args.size (), e->tok);
-  if (d)
-  {
-    e->referent = d;
-    e->function = d->name;
-  }
+  vector<functiondecl*> fds = find_functions (e->function, e->args.size (), e->tok);
+  if (!fds.empty())
+    {
+      e->referents = fds;
+      function_priority_order order;
+      stable_sort(e->referents.begin(), e->referents.end(), order); // preserve declaration order
+      e->function = e->referents[0]->name;
+    }
   else
     {
       string sugs = levenshtein_suggest(e->function, collect_functions(), 5); // print 5 funcs
@@ -2577,7 +2582,7 @@ symresolution_info::visit_functioncall (functioncall* e)
   // to the master list at the same time as the other functions so we must add them here to
   // allow the translator to generate the functions in the module.
   if (session.monitor && session.functions.find(e->function) == session.functions.end())
-    session.functions[e->function] = d;
+    session.functions[e->function] = fds[0]; // no overload
 }
 
 /*find_var will return an argument other than zero if the name matches the var
@@ -2661,11 +2666,11 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
 }
 
 
-functiondecl*
-symresolution_info::find_function (const string& name, unsigned arity, const token *tok)
+vector<functiondecl*>
+symresolution_info::find_functions (const string& name, unsigned arity, const token *tok)
 {
-  string gname = "__global_" + string(name);
-  string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
+  vector<functiondecl*> functions;
+  functiondecl* last = 0; // used for error message
 
   // the common path
 
@@ -2675,68 +2680,87 @@ symresolution_info::find_function (const string& name, unsigned arity, const tok
       functiondecl* fd = session.functions[name];
       assert (fd->name == name);
       if (fd->formal_args.size() == arity)
-        return fd;
-
-      throw SEMANTIC_ERROR(_F("arity mismatch found (function '%s' takes %zu args)",
-                              name.c_str(), fd->formal_args.size()), tok, fd->tok);
+        functions.push_back(fd);
+      else
+        last = fd;
     }
 
-  // tapset or user script global functions coming from the parser
-  if (session.functions.find(gname) != session.functions.end())
+  // functions scanned by the parser are overloaded
+  unsigned alternatives = session.overload_count[name];
+  for (unsigned alt = 0; alt < alternatives; alt++)
     {
-      functiondecl* fd = session.functions[gname];
-      assert (fd->name == gname);
-      if (fd->formal_args.size() == arity)
-        return fd;
+      bool found = false; // multiple inclusion guard
+      string gname = "__global_" + string(name) + "__overload_" + lex_cast(alt);
+      string pname = "__private_" + detox_path(tok->location.file->name) + string(name) +
+        "__overload_" + lex_cast(alt);
 
-      throw SEMANTIC_ERROR(_F("arity mismatch found (function '%s' takes %zu args)",
-                              name.c_str(), fd->formal_args.size()), tok, fd->tok);
-    }
+      // tapset or user script global functions coming from the parser
+      if (!found && session.functions.find(gname) != session.functions.end())
+        {
+          functiondecl* fd = session.functions[gname];
+          assert (fd->name == gname);
+          if (fd->formal_args.size() == arity)
+            {
+              functions.push_back(fd);
+              found = true;
+            }
+          else
+            last = fd;
+        }
 
-  // tapset or user script private functions coming from the parser
-  if (session.functions.find(pname) != session.functions.end())
-    {
-      functiondecl* fd = session.functions[pname];
-      assert (fd->name == pname);
-      if (fd->formal_args.size() == arity)
-        return fd;
+      // tapset or user script private functions coming from the parser
+      if (!found && session.functions.find(pname) != session.functions.end())
+        {
+          functiondecl* fd = session.functions[pname];
+          assert (fd->name == pname);
+          if (fd->formal_args.size() == arity)
+            {
+              functions.push_back(fd);
+              found = true;
+            }
+          else
+            last = fd;
+        }
 
-      throw SEMANTIC_ERROR(_F("arity mismatch found (function '%s' takes %zu args)",
-                              name.c_str(), fd->formal_args.size()), tok, fd->tok);
-    }
-
-  // search library functions
-  for (unsigned i=0; i<session.library_files.size(); i++)
-    {
-      stapfile* f = session.library_files[i];
-      for (unsigned j=0; j<f->functions.size(); j++)
-      {
-        if ((f->functions[j]->name == gname) ||
-            (f->functions[j]->name == pname))
+      // search library functions
+      for (unsigned i=0; !found && i<session.library_files.size(); i++)
+        {
+          stapfile* f = session.library_files[i];
+          for (unsigned j=0; !found && j<f->functions.size(); j++)
           {
-            if (f->functions[j]->formal_args.size() == arity)
+            if ((f->functions[j]->name == gname) ||
+                (f->functions[j]->name == pname))
               {
-                // put library into the queue if not already there
-                if (0) // session.verbose_resolution
-                  cerr << _F("      function %s is defined from %s",
-                             name.c_str(), f->name.c_str()) << endl;
+                if (f->functions[j]->formal_args.size() == arity)
+                  {
+                    // put library into the queue if not already there
+                    if (0) // session.verbose_resolution
+                      cerr << _F("      function %s is defined from %s",
+                                 name.c_str(), f->name.c_str()) << endl;
 
-                if (find (session.files.begin(), session.files.end(), f)
-                    == session.files.end())
-                  session.files.push_back (f);
-                // else .. print different message?
+                    if (find (session.files.begin(), session.files.end(), f)
+                        == session.files.end())
+                      session.files.push_back (f);
+                    // else .. print different message?
 
-                return f->functions[j];
+                    functions.push_back(f->functions[j]);
+                    found = true;
+                  }
+                else
+                  last = f->functions[j];
               }
-
-            throw SEMANTIC_ERROR(_F("arity mismatch found (function '%s' takes %zu args)",
-                                    name.c_str(), f->functions[j]->formal_args.size()),
-                                    tok, f->functions[j]->tok);
           }
-      }
+        }
     }
 
-  return 0;
+  // suggest last found function with matching name
+  if (last && functions.empty())
+    {
+      throw SEMANTIC_ERROR(_F("arity mismatch found (function '%s' takes %zu args)",
+                              name.c_str(), last->formal_args.size()), tok, last->tok);
+    }
+
+  return functions;
 }
 
 set<string>
@@ -3694,17 +3718,27 @@ void_statement_reducer::visit_functioncall (functioncall* e)
   // If a function call is pure and its result ignored, we can elide the call
   // and just evaluate the arguments in sequence
 
-  if (!e->args.size())
+  if (e->args.empty())
     {
       provide (e);
       return;
     }
 
-  varuse_collecting_visitor vut(session);
-  vut.seen.insert (e->referent);
-  vut.current_function = e->referent;
-  e->referent->body->visit (& vut);
-  if (!vut.side_effect_free_wrt (focal_vars))
+  bool side_effect_free = true;
+  for (unsigned i = 0; i < e->referents.size(); i++)
+    {
+      varuse_collecting_visitor vut(session);
+      vut.seen.insert (e->referents[i]);
+      vut.current_function = e->referents[i];
+      e->referents[i]->body->visit (& vut);
+      if (!vut.side_effect_free_wrt(focal_vars))
+        {
+          side_effect_free = false;
+          break;
+        }
+    }
+
+  if (!side_effect_free)
     {
       provide (e);
       return;
@@ -4519,17 +4553,21 @@ duplicate_function_remover::visit_functioncall (functioncall *e)
 {
   functioncall_traversing_visitor::visit_functioncall (e);
 
-  // If the current function call reference points to a function that
+  // If any of the current function call references points to a function that
   // is a duplicate, replace it.
-  if (duplicate_function_map.count(e->referent) != 0)
+  for (unsigned i = 0; i < e->referents.size(); i++)
     {
-      if (s.verbose>2)
-          clog << _F("Changing %s reference to %s reference\n",
-                     e->referent->unmangled_name.to_string().c_str(),
-                     duplicate_function_map[e->referent]->unmangled_name.to_string().c_str());
-      e->tok = duplicate_function_map[e->referent]->tok;
-      e->function = duplicate_function_map[e->referent]->name;
-      e->referent = duplicate_function_map[e->referent];
+      functiondecl* referent = e->referents[i];
+      if (duplicate_function_map.count(referent) != 0)
+        {
+          if (s.verbose>2)
+              clog << _F("Changing %s reference to %s reference\n",
+                         referent->unmangled_name.to_string().c_str(),
+                         duplicate_function_map[referent]->unmangled_name.to_string().c_str());
+          e->tok = duplicate_function_map[referent]->tok;
+          e->function = duplicate_function_map[referent]->name;
+          e->referents[i] = duplicate_function_map[referent];
+        }
     }
 }
 
@@ -4547,7 +4585,7 @@ get_functionsig (functiondecl* f)
 
   // printsig puts f->name + ':' on the front.  Remove this
   // (otherwise, functions would never compare equal).
-  string str = s.str().erase(0, f->name.size() + 1);
+  string str = s.str().erase(0, f->unmangled_name.size() + 1);
 
   // Return the function signature.
   return str;
@@ -4865,7 +4903,7 @@ void stable_functioncall_visitor::visit_functioncall (functioncall* e)
           functioncall* fc = new functioncall;
           fc->tok = e->tok;
           fc->function = e->function;
-          fc->referent = e->referent;
+          fc->referents = e->referents;
           fc->type = e->type;
 
           assignment* a = new assignment;
@@ -5077,9 +5115,9 @@ struct autocast_expanding_visitor: public var_expanding_visitor
 
       // NB: synthetic functions get tacked onto the origin file, so we won't
       // see them growing s.files[].  Traverse it directly.
-      if (fc->referent)
+      for (unsigned i = 0; i < fc->referents.size(); i++)
         {
-          functiondecl* fd = fc->referent;
+          functiondecl* fd = fc->referents[i];
           sym.current_function = fd;
           sym.current_probe = 0;
           fd->body->visit (&sym);
@@ -5991,46 +6029,50 @@ typeresolution_info::visit_arrayindex (arrayindex* e)
 void
 typeresolution_info::visit_functioncall (functioncall* e)
 {
-  if (e->referent == 0)
+  if (e->referents.empty())
     throw SEMANTIC_ERROR (_F("internal error: unresolved function call to '%s'",
                              e->function.to_string().c_str()), e->tok);
 
-  resolve_2types (e, e->referent, this, t, true); // accept unknown type
-
-  if (e->type == pe_stats)
-    invalid (e->tok, e->type);
-
-  const exp_type_ptr& func_type = e->referent->type_details;
-  if (func_type && e->referent->type == e->type
-      && (!e->type_details || *func_type != *e->type_details))
-    resolved_details(e->referent->type_details, e->type_details);
-
-  // now resolve the function parameters
-  if (e->args.size() != e->referent->formal_args.size())
-    unresolved (e->tok); // symbol resolution should prevent this
-  else for (unsigned i=0; i<e->args.size(); i++)
+  for (unsigned fd = 0; fd < e->referents.size(); fd++)
     {
-      expression* ee = e->args[i];
-      exp_type& ft = e->referent->formal_args[i]->type;
-      const token* fe_tok = e->referent->formal_args[i]->tok;
-      t = ft;
-      ee->visit (this);
-      exp_type at = ee->type;
+      functiondecl* referent = e->referents[fd];
+      resolve_2types (e, referent, this, t, true); // accept unknown type
 
-      if (((at == pe_string) || (at == pe_long)) && ft == pe_unknown)
+      if (e->type == pe_stats)
+        invalid (e->tok, e->type);
+
+      const exp_type_ptr& func_type = referent->type_details;
+      if (func_type && referent->type == e->type
+          && (!e->type_details || *func_type != *e->type_details))
+        resolved_details(referent->type_details, e->type_details);
+
+      // now resolve the function parameters
+      if (e->args.size() != referent->formal_args.size())
+        unresolved (e->tok); // symbol resolution should prevent this
+      else for (unsigned i=0; i<e->args.size(); i++)
         {
-          // propagate to formal arg
-          ft = at;
-          resolved (ee->tok, ft, e->referent->formal_args[i], i);
+          expression* ee = e->args[i];
+          exp_type& ft = referent->formal_args[i]->type;
+          const token* fe_tok = referent->formal_args[i]->tok;
+          t = ft;
+          ee->visit (this);
+          exp_type at = ee->type;
+
+          if (((at == pe_string) || (at == pe_long)) && ft == pe_unknown)
+            {
+              // propagate to formal arg
+              ft = at;
+              resolved (ee->tok, ft, referent->formal_args[i], i);
+            }
+          if (at == pe_stats)
+            invalid (ee->tok, at);
+          if (ft == pe_stats)
+            invalid (fe_tok, ft);
+          if (at != pe_unknown && ft != pe_unknown && ft != at)
+            mismatch (ee->tok, ee->type, referent->formal_args[i], i);
+          if (at == pe_unknown)
+            unresolved (ee->tok);
         }
-      if (at == pe_stats)
-        invalid (ee->tok, at);
-      if (ft == pe_stats)
-        invalid (fe_tok, ft);
-      if (at != pe_unknown && ft != pe_unknown && ft != at)
-        mismatch (ee->tok, ee->type, e->referent->formal_args[i], i);
-      if (at == pe_unknown)
-        unresolved (ee->tok);
     }
 }
 

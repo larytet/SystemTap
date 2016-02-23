@@ -428,7 +428,7 @@ struct functioncall: public expression
 {
   interned_string function;
   std::vector<expression*> args;
-  functiondecl *referent;
+  std::vector<functiondecl*> referents;
   functioncall ();
   void print (std::ostream& o) const;
   void visit (visitor* u);
@@ -628,11 +628,20 @@ struct functiondecl: public symboldecl
   statement* body;
   bool synthetic;
   bool mangle_oldstyle;
+  int64_t priority;
   functiondecl ();
   void print (std::ostream& o) const;
   void printsig (std::ostream& o) const;
   void printsigtags (std::ostream& o, bool all_tags) const;
   void join (systemtap_session& s); // for synthetic functions only
+};
+
+struct function_priority_order
+{
+  bool operator() (const functiondecl* f1, const functiondecl* f2)
+  {
+    return f1->priority < f2->priority;
+  }
 };
 
 

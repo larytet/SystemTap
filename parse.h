@@ -103,6 +103,7 @@ enum parse_flag
     pf_guru = 1,
     pf_no_compatible = 2,
     pf_squash_errors = 4,
+    pf_user_file = 8,
   };
 
 

@@ -3132,7 +3132,7 @@ dwarf_pretty_print::expand ()
   fdecl->type = pe_string;
 
   functioncall* fcall = new functioncall;
-  fcall->referent = fdecl;
+  fcall->referents.push_back(fdecl);
   fcall->tok = ts->tok;
   fcall->function = fdecl->name;
   fcall->type = pe_string;
@@ -3630,7 +3630,7 @@ synthetic_embedded_deref_call(dwflpp& dw,
   // Synthesize a functioncall.
   functioncall* fcall = new functioncall;
   fcall->tok = e->tok;
-  fcall->referent = fdecl;
+  fcall->referents.push_back(fdecl);
   fcall->function = fdecl->name;
   fcall->type = fdecl->type;
   fcall->type_details = fdecl->type_details;

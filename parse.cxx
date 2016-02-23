@@ -104,6 +104,7 @@ private:
   lexer input;
   bool errs_as_warnings;
   bool privileged;
+  bool user_file;
   parse_context context;
 
   // preprocessing subordinate, first pass (macros)
@@ -283,7 +284,8 @@ parse_synthetic_probe (systemtap_session &s, istream& i, const token* tok)
 parser::parser (systemtap_session& s, const string &n, istream& i, unsigned flags):
   session (s), input_name (n), input (i, input_name, s, !(flags & pf_no_compatible)),
   errs_as_warnings(flags & pf_squash_errors), privileged (flags & pf_guru),
-  context(con_unknown), systemtap_v_seen(0), last_t (0), next_t (0), num_errors (0)
+  user_file (flags & pf_user_file), context(con_unknown), systemtap_v_seen(0),
+  last_t (0), next_t (0), num_errors (0)
 {
 }
 
@@ -2338,14 +2340,7 @@ parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
   string gname = "__global_" + string(t->content);
   string pname = "__private_" + detox_path(fname) + string(t->content);
   string name = priv ? pname : gname;
-
-  for (unsigned i=0; i<functions.size(); i++)
-  {
-    if (functions[i]->name == name)
-      throw PARSE_ERROR (_("duplicate function name"));
-    if ((functions[i]->name == gname) || (functions[i]->name == pname))
-      throw PARSE_ERROR (_("global versus private function declaration conflict"));
-  }
+  name += "__overload_" + lex_cast(session.overload_count[t->content]++);
 
   functiondecl *fd = new functiondecl ();
   fd->unmangled_name = t->content;
@@ -2414,6 +2409,24 @@ parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
 	}
       else
 	throw PARSE_ERROR (_("expected ',' or ')'"));
+    }
+
+  t = peek();
+  if (t->type == tok_operator && t->content == ":")
+    {
+      int64_t priority;
+      swallow();
+      expect_number(priority);
+      fd->priority = priority;
+      // reserve priority 0 for user script implementation
+      if (priority < 1)
+        throw PARSE_ERROR (_("specified priority must be > 0"));
+    }
+  else if (user_file)
+    {
+      // allow script file implementation override automatically when
+      // priority not specified
+      fd->priority = 0;
     }
 
   t = peek ();
@@ -2808,8 +2821,6 @@ parser::parse_next_statement ()
   const token* t = next ();
   if (! (t->type == tok_keyword && t->content == "next"))
     throw PARSE_ERROR (_("expected 'next'"));
-  if (context != con_probe)
-    throw PARSE_ERROR (_("found 'next' not in probe context"));
   next_statement* s = new next_statement;
   s->tok = t;
   return s;

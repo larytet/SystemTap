@@ -709,6 +709,7 @@ passes_0_4 (systemtap_session &s)
       s.dump_mode == systemtap_session::dump_matched_probes_vars)
     {
       unsigned user_flags = s.guru_mode ? pf_guru : 0;
+      user_flags |= pf_user_file;
       if (s.script_file == "-")
         {
           s.user_files.push_back (parse (s, "<input>", cin, user_flags));

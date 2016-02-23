@@ -607,7 +607,7 @@ General syntax:
 
 \begin{vindent}
 \begin{verbatim}
-function <name>[:<type>] ( <arg1>[:<type>], ... ) { <stmts> }
+function <name>[:<type>] ( <arg1>[:<type>], ... )[:<priority>] { <stmts> }
 \end{verbatim}
 \end{vindent}
 SystemTap scripts may define subroutines to factor out common work. Functions
@@ -653,6 +653,56 @@ private function three:long () { return 3 }
 
 Functions terminating without reaching an explicit return statement will
 return an implicit 0 or \verb+""+, determined by type inference.
+
+Functions may be overloaded during both runtime and compile time.
+
+Runtime overloading allows the executed function to be selected while the
+module is running based on runtime conditions and is achieved using the
+"next" statement in script functions and \texttt{STAP\_NEXT} macro for embedded-C
+functions. For example,
+
+\begin{vindent}
+\begin{verbatim}
+function f() { if (condition) next; print("first function") }
+function f() %{ STAP_NEXT; print("second function") %}
+function f() { print("third function") }
+\end{verbatim}
+\end{vindent}
+
+will transfer execution to the third function through the "next" statement,
+if condition evaluates to true.
+
+Parameter overloading allows the function to be executed to be selected
+at compile time based on the number of arguments provided to the
+functioncall. For example,
+
+\begin{vindent}
+\begin{verbatim}
+function f() { print("first function") }
+function f(x) { print("second function") }
+\end{verbatim}
+\end{vindent}
+
+Note that runtime overloading is not possible in the above example, as exactly
+one function will be resolved for the functioncall. Runtime overloading
+will only occur if the functions have the same arity, functions with
+the same name but different number of parameters are completely unrelated.
+
+It is an error for the "next" statement to be used in a function with no
+remaining overloads.
+
+Execution order is determined by a priority value which may be specified.
+If no explicit priority is specified, user script functions are given a
+higher priority than library functions. Functions with the same priority
+are executed in declaration order. For example,
+
+\begin{vindent}
+\begin{verbatim}
+function f():3 { if (condition) next; print("first function") }
+function f():1 { if (condition) next; print("second function") }
+function f():2 { print("third function") }
+\end{verbatim}
+\end{vindent}
 
 \subsection{Embedded C\label{sub:Embedded-C}}
 \index{embedded C}
@@ -702,7 +752,7 @@ General syntax:
 
 \begin{vindent}
 \begin{verbatim}
-function <name>:<type> ( <arg1>:<type>, ... ) %{ <C_stmts> %}
+function <name>:<type> ( <arg1>:<type>, ... )[:<priority>] %{ <C_stmts> %}
 \end{verbatim}
 \end{vindent}
 Embedded C code is permitted in a function body.

@@ -118,7 +118,7 @@ debugger.
 
 .SH "DOCUMENTATION OVERVIEW"
 
-systemtap comes with variety of educational, documentation and
+systemtap comes with a variety of educational, documentation and
 reference resources.  They come online and/or packaged for offline
 use.  For online documentation, see the project web site,
 .nh
@@ -1389,6 +1389,54 @@ private function three:long () { return 3 }
 
 Functions terminating without reaching an explicit return statement will
 return an implicit 0 or "", determined by type inference.
+
+Functions may be overloaded during both runtime and compile time.
+
+Runtime overloading allows the executed function to be selected while the
+module is running based on runtime conditions and is achieved using the
+"next" statement in script functions and STAP_NEXT macro for embedded-C
+functions. For example,
+
+.SAMPLE
+function f() { if (condition) next; print("first function") }
+function f() %{ STAP_NEXT; print("second function") %}
+function f() { print("third function") }
+.ESAMPLE
+
+will transfer execution to the third function through the "next" statement,
+if condition evaluates to true.
+
+Parameter overloading allows the function to be executed to be selected
+at compile time based on the number of arguments provided to the
+functioncall. For example,
+
+.SAMPLE
+function f() { print("first function") }
+function f(x) { print("second function") }
+.ESAMPLE
+
+Note that runtime overloading is not possible in the above example, as exactly
+one function will be resolved for the functioncall. Runtime overloading
+will only occur if the functions have the same arity, functions with
+the same name but different number of parameters are completely unrelated.
+
+It is an error for the "next" statement to be used in a function with no
+remaining overloads.
+
+Execution order is determined by a priority value which may be specified.
+If no explicit priority is specified, user script functions are given a
+higher priority than library functions. Functions with the same priority
+are executed in declaration order. For example,
+
+.SAMPLE
+function f():3 { if (condition) next; print("first function") }
+function f():1 { if (condition) next; print("second function") }
+function f():2 { print("third function") }
+.ESAMPLE
+
+Since the second function has highest priority, it is executed first.
+The first function is never executed as there no "next" statements in
+the third function to transfer execution.
 
 .SS PRINTING
 

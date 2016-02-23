@@ -1,4 +1,0 @@
-#! stap -p1
-
-function foo () {}
-function foo () {}

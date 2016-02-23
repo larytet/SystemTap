@@ -83,6 +83,7 @@ struct c_unparser: public unparser, public visitor
   unsigned tmpvar_counter;
   unsigned label_counter;
   unsigned action_counter;
+  unsigned fc_counter;
   bool already_checked_action_count;
 
   varuse_collecting_visitor vcv_needs_global_locks;
@@ -94,7 +95,7 @@ struct c_unparser: public unparser, public visitor
   c_unparser (systemtap_session* ss, translator_output* op=NULL):
     session (ss), o (op ?: ss->op), current_probe(0), current_function (0),
     assigned_functioncall (0), assigned_functioncall_retval (0),
-    tmpvar_counter (0), label_counter (0), action_counter(0),
+    tmpvar_counter (0), label_counter (0), action_counter(0), fc_counter(0),
     already_checked_action_count(false), vcv_needs_global_locks (*ss) {}
   ~c_unparser () {}
 
@@ -2487,6 +2488,10 @@ c_unparser::emit_function (functiondecl* v)
   o->newline(1) << "c->nesting ++;";
   o->newline(-1) << "}";
 
+  // initialize runtime overloading flag
+  o->newline() << "c->next = 0;";
+  o->newline() << "#define STAP_NEXT c->next = 1";
+
   // initialize locals
   // XXX: optimization: use memset instead
   for (unsigned i=0; i<v->locals.size(); i++)
@@ -2557,6 +2562,7 @@ c_unparser::emit_function (functiondecl* v)
 
   o->newline() << "#undef CONTEXT";
   o->newline() << "#undef THIS";
+  o->newline() << "#undef STAP_NEXT";
   for (unsigned i = 0; i < v->formal_args.size(); i++) {
     o->newline() << c_arg_undef(v->formal_args[i]->name); // #undef STAP_ARG_foo
   }
@@ -4287,8 +4293,9 @@ c_unparser::visit_return_statement (return_statement* s)
 void
 c_unparser::visit_next_statement (next_statement* s)
 {
-  if (current_probe == 0)
-    throw SEMANTIC_ERROR (_("cannot 'next' from function"), s->tok);
+  /* Set next flag to indicate to caller to call next alternative function */
+  if (current_function != 0)
+    o->newline() << "c->next = 1;";
 
   record_actions(1, s->tok, true);
   o->newline() << "goto out;";
@@ -5398,13 +5405,36 @@ c_unparser_assignment::visit_arrayindex (arrayindex *e)
 void
 c_unparser::visit_functioncall (functioncall* e)
 {
-  assert (e->referent != 0);
-  functiondecl* r = e->referent;
-
-  if (r->formal_args.size() != e->args.size())
-    throw SEMANTIC_ERROR (_("invalid length argument list"), e->tok);
+  assert (!e->referents.empty());
 
   stmt_expr block(*this);
+
+  // limit scope of exit label
+  o->newline() << "__label__ fc_end_" << fc_counter << ";";
+
+  vector<bool> cp_arg(e->referents.size(), true);
+  for (unsigned fd = 0; fd < e->referents.size(); fd++)
+    {
+      functiondecl* r = e->referents[fd];
+
+      if (r->formal_args.size() != e->args.size())
+        throw SEMANTIC_ERROR (_("invalid length argument list"), e->tok);
+
+      for (unsigned i = 0; i < e->args.size(); i++)
+        {
+          if (r->formal_args[i]->type != e->args[i]->type)
+            throw SEMANTIC_ERROR (_("function argument type mismatch"),
+                                  e->args[i]->tok, r->formal_args[i]->tok);
+        }
+
+      // all alternative functions must be compatible if passing by
+      // char pointer
+      for (unsigned i = 0; i < r->formal_args.size(); i++)
+        {
+          if (!r->formal_args[i]->char_ptr_arg)
+            cp_arg[i] = false;
+        }
+    }
 
   // NB: we store all actual arguments in temporary variables,
   // to avoid colliding sharing of context variables with
@@ -5412,89 +5442,116 @@ c_unparser::visit_functioncall (functioncall* e)
 
   // compute actual arguments
   vector<tmpvar> tmp;
-
   for (unsigned i=0; i<e->args.size(); i++)
     {
       tmpvar t = gensym(e->args[i]->type);
 
-      if (r->formal_args[i]->type != e->args[i]->type)
-	throw SEMANTIC_ERROR (_("function argument type mismatch"),
-			      e->args[i]->tok, r->formal_args[i]->tok);
-
       symbol *sym_out;
-      if (r->formal_args[i]->char_ptr_arg && e->args[i]->is_symbol(sym_out)
-	  && is_local(sym_out->referent, sym_out->tok))
-	t.override(getvar(sym_out->referent, sym_out->tok).value());
+      if (cp_arg[i] && e->args[i]->is_symbol(sym_out)
+          && is_local(sym_out->referent, sym_out->tok))
+        t.override(getvar(sym_out->referent, sym_out->tok).value());
       else
-	c_assign (t, e->args[i],
-		  _("function actual argument evaluation"));
+        c_assign (t, e->args[i],
+                  _("function actual argument evaluation"));
       tmp.push_back(t);
     }
 
-  // copy in actual arguments
-  for (unsigned i=0; i<e->args.size(); i++)
-    {
-      if (r->formal_args[i]->type != e->args[i]->type)
-	throw SEMANTIC_ERROR (_("function argument type mismatch"),
-			      e->args[i]->tok, r->formal_args[i]->tok);
-
-      if (r->formal_args[i]->char_ptr_arg)
-        o->newline() << "c->locals[c->nesting+1]." + c_funcname (r->name) + "."
-                        + c_localname (r->formal_args[i]->name) << " = "
-                     << tmp[i].value() << ";";
-      else
-        c_assign ("c->locals[c->nesting+1]." +
-                  c_funcname (r->name) + "." +
-                  c_localname (r->formal_args[i]->name),
-                  tmp[i].value(),
-                  e->args[i]->type,
-                  "function actual argument copy",
-                  e->args[i]->tok);
-    }
+  // overloading execution logic for functioncall:
+  //
+  // - copy in computed function arguments for overload_0
+  // - make the functioncall for overload_0 and overwrite return variable
+  // - if context next flag is not set, goto fc_end
+  //                    *
+  //                    *
+  //                    *
+  // - copy in computed function arguments for overload_n
+  // - make the functioncall for overload_n and overwrite return variable
+  // fc_end:
+  // - yield return value
 
   // store the return value after the function arguments have been worked out
   // to avoid problems that may occure with nesting.
   tmpvar tmp_ret = gensym (e->type);
+  bool yield = false; // set if statement expression is non void
 
-  // optimized string returns need a local storage pointer.
-  bool pointer_ret = (e->type == pe_string && !session->unoptimized);
-  if (pointer_ret)
+  for (unsigned fd = 0; fd < e->referents.size(); fd++)
     {
-      if (e == assigned_functioncall)
-	tmp_ret.override (*assigned_functioncall_retval);
-      o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
-		   << ".__retvalue = &" << tmp_ret.value() << "[0];";
+      functiondecl* r = e->referents[fd];
+
+      // copy in actual arguments
+      for (unsigned i=0; i<e->args.size(); i++)
+        {
+          if (r->formal_args[i]->char_ptr_arg)
+            o->newline() << "c->locals[c->nesting+1]." + c_funcname (r->name) + "."
+                            + c_localname (r->formal_args[i]->name) << " = "
+                         << tmp[i].value() << ";";
+          else
+            c_assign ("c->locals[c->nesting+1]." +
+                      c_funcname (r->name) + "." +
+                      c_localname (r->formal_args[i]->name),
+                      tmp[i].value(),
+                      e->args[i]->type,
+                      "function actual argument copy",
+                      e->args[i]->tok);
+        }
+      // optimized string returns need a local storage pointer.
+      bool pointer_ret = (e->type == pe_string && !session->unoptimized);
+      if (pointer_ret)
+        {
+          if (e == assigned_functioncall)
+            tmp_ret.override (*assigned_functioncall_retval);
+          o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
+                       << ".__retvalue = &" << tmp_ret.value() << "[0];";
+        }
+
+      // call function
+      o->newline() << c_funcname (r->name) << " (c);";
+      o->newline() << "if (unlikely(c->last_error)) goto out;";
+
+      if (!already_checked_action_count && !session->suppress_time_limits
+          && !session->unoptimized)
+        {
+          max_action_info mai (*session);
+          r->body->visit(&mai);
+          // if an unoptimized function/probe called an optimized function, then
+          // increase the counter, since the subtraction isn't done within an
+          // optimized function
+          if(mai.statement_count_finite())
+            record_actions (mai.statement_count, e->tok, true);
+        }
+
+      if (r->type == pe_unknown || tmp_ret.is_overridden())
+        // If we passed typechecking with pe_unknown, or if we directly assigned
+        // the functioncall retval, then nothing will use this return value
+        yield = false;
+      else
+        {
+          if (!pointer_ret)
+            {
+              // overwrite the previous return value
+              string value = "c->locals[c->nesting+1]." + c_funcname(r->name) + ".__retvalue";
+              c_assign (tmp_ret.value(), value, e->type,
+                        _("function return result evaluation"), e->tok);
+            }
+          yield = true;
+        }
+
+      // branch to end of the enclosing statement-expression if one of the
+      // function alternatives is selected
+      o->newline() << "if (!c->next) goto fc_end_" << fc_counter << ";";
     }
 
-  // call function
-  o->newline() << c_funcname (r->name) << " (c);";
-  o->newline() << "if (unlikely(c->last_error)) goto out;";
+  // end label and increment counter
+  o->newline() << "fc_end_" << fc_counter++ << ":";
 
-  if (!already_checked_action_count && !session->suppress_time_limits
-      && !session->unoptimized)
-    {
-      max_action_info mai (*session);
-      e->referent->body->visit(&mai);
-      // if an unoptimized function/probe called an optimized function, then
-      // increase the counter, since the subtraction isn't done within an
-      // optimized function
-      if(mai.statement_count_finite())
-        record_actions (mai.statement_count, e->tok, true);
-    }
+  o->newline() << "if (c->next) { c->last_error = \"all functions exhausted\"; goto out; }";
 
   // return result from retvalue slot NB: this must be last, for the
   // enclosing statement-expression ({ ... }) to carry this value.
-  if (r->type == pe_unknown || tmp_ret.is_overridden())
-    // If we passed typechecking with pe_unknown, or if we directly assigned
-    // the functioncall retval, then nothing will use this return value
-    o->newline() << "(void) 0;";
-  else if (!pointer_ret)
-    o->newline() << "c->locals[c->nesting+1]"
-                 << "." << c_funcname (r->name)
-                 << ".__retvalue;";
-  else
+  if (yield)
     o->newline() << tmp_ret.value() << ";";
-
+  else
+    o->newline() << "(void) 0;";
 }
 
 
@@ -7458,31 +7515,35 @@ struct recursion_info: public traversing_visitor
   void visit_functioncall (functioncall* e) {
     traversing_visitor::visit_functioncall (e); // for arguments
 
-    // check for nesting level
-    unsigned nesting_depth = current_nesting.size() + 1;
-    if (nesting_max < nesting_depth)
+    for (unsigned fd = 0; fd < e->referents.size(); fd++)
       {
-        if (sess.verbose > 3)
-          clog << _F("identified max-nested function: %s (%d)",
-                     e->referent->name.to_string().c_str(), nesting_depth) << endl;
-        nesting_max = nesting_depth;
+        functiondecl* referent = e->referents[fd];
+        // check for nesting level
+        unsigned nesting_depth = current_nesting.size() + 1;
+        if (nesting_max < nesting_depth)
+          {
+            if (sess.verbose > 3)
+              clog << _F("identified max-nested function: %s (%d)",
+                         referent->name.to_string().c_str(), nesting_depth) << endl;
+            nesting_max = nesting_depth;
+          }
+
+        // check for (direct or mutual) recursion
+        for (unsigned j=0; j<current_nesting.size(); j++)
+          if (current_nesting[j] == referent)
+            {
+              recursive = true;
+              if (sess.verbose > 3)
+                clog << _F("identified recursive function: %s",
+                           referent->name.to_string().c_str()) << endl;
+              return;
+            }
+
+        // non-recursive traversal
+        current_nesting.push_back (referent);
+        referent->body->visit (this);
+        current_nesting.pop_back ();
       }
-
-    // check for (direct or mutual) recursion
-    for (unsigned j=0; j<current_nesting.size(); j++)
-      if (current_nesting[j] == e->referent)
-        {
-          recursive = true;
-          if (sess.verbose > 3)
-            clog << _F("identified recursive function: %s",
-		       e->referent->name.to_string().c_str()) << endl;
-          return;
-        }
-
-    // non-recursive traversal
-    current_nesting.push_back (e->referent);
-    e->referent->body->visit (this);
-    current_nesting.pop_back ();
   }
 };
 

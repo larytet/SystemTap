@@ -12,6 +12,27 @@
   probe oneshot { a <<< 1; b[tid()] <<< 2 }
   probe end { @prints(a); @prints1(b) }
 
+- Functions may now be overloaded during module runtime using the "next"
+  statement in script functions and STAP_NEXT macro for embedded-C functions.
+  They may also be overloaded by number of parameters during compile time.
+  For example,
+
+  Runtime overloading:
+  function f() { if (condition) next; print("first function") }
+  function f() %{ STAP_NEXT; print("second function") %}
+  function f() { print("third function") }
+
+  In the example above, the third function will be executed if condition
+  evaluates to true.
+
+  Parameter overloading:
+  function f() { print("first function") }
+  function f(x) { print("second function") }
+
+  Note that runtime overloading is not possible in the above example as the
+  number of parameters differ. The function candidates are selected at compile
+  time and is determined by the number of arguments provided for the functioncall.
+
 - Add Czech version of manual pages.
 
 - The stap compile server will log the stap client's options that are passed

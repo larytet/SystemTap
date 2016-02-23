@@ -66,6 +66,10 @@ int actionremaining;
    c->locals[c->nesting], see c_unparser::emit_function ().  */
 int nesting;
 
+/* A flag used for runtime function overloading. It is unset by a function
+ * if no more alternatives are to be executed. */
+int next;
+
 /* A place to format error messages into if some error occurs, last_error
    will then be pointed here.  */
 string_t error_buffer;

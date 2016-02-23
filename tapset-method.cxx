@@ -55,7 +55,7 @@ struct java_details_inspection: public functioncall_traversing_visitor
 void
 java_details_inspection::visit_functioncall(functioncall* e)
 {
-  assert(!e->referent); // we haven't elborated yet, so there should never be referents, bail if here is
+  assert(e->referents.empty()); // we haven't elborated yet, so there should never be referents, bail if here is
   if (e->function == "sprint_java_backtrace" || e->function == "print_java_backtrace" ){
     java_backtrace = true;
     return; // no need to search anymore we know we'll need the extra information

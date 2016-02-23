@@ -504,7 +504,7 @@ utrace_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
 	  functioncall* n = new functioncall; //same as the following
 	  n->tok = e->tok;
 	  n->function = "_utrace_syscall_arg";
-	  n->referent = 0;
+	  n->referents.clear();
 	  literal_number *num = new literal_number(i);
 	  num->tok = e->tok;
 	  n->args.push_back(num);
@@ -546,7 +546,7 @@ utrace_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
         functioncall* n = new functioncall;
         n->tok = e->tok;
         n->function = "_utrace_syscall_arg";
-        n->referent = 0; // NB: must not resolve yet, to ensure inclusion in session
+        n->referents.clear(); // NB: must not resolve yet, to ensure inclusion in session
 
         literal_number *num = new literal_number(argnum - 1);
         num->tok = e->tok;
@@ -607,7 +607,7 @@ utrace_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
   functioncall* n = new functioncall;
   n->tok = e->tok;
   n->function = fname;
-  n->referent = 0; // NB: must not resolve yet, to ensure inclusion in session
+  n->referents.clear(); // NB: must not resolve yet, to ensure inclusion in session
 
   provide (n);
 }
