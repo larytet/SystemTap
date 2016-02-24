@@ -14,7 +14,12 @@
 
 global size = 0;
 
-probe process("/lib*/libpthread.so.*").function("allocate_stack") {
+# Notice we're probing "/lib*/*/libpthread.so.*". On RHEL7 ppc64
+# systems, the pthread library that gets used is located in
+# /lib64/power8/.
+probe process("/lib*/libpthread.so.*").function("allocate_stack"),
+      process("/lib*/*/libpthread.so.*").function("allocate_stack")?
+{
     old_size = @choose_defined($__default_stacksize,
 			       $__default_pthread_attr->stacksize)
     if ((size != 0) && (old_size != size)) {  /* requested but not yet changed */

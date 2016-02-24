@@ -14,6 +14,14 @@ if { $res != "" } {
     pass "$test compiling"
 }
 
+# For ppc64, 0x10000 is too small. For x86_64, 0x20000 is invalid. So,
+# we'll default to 0x10000 unless we're on ppc64.
+if {[string match ppc* $::tcl_platform(machine)]} {
+    set new_stack_size 0x20000
+} else {
+    set new_stack_size 0x10000
+}
+
 # This test won't work if we don't have glibc's debuginfo
 # installed. So, try to compile threadstacks.stp first to see if we've
 # got glibc debuginfo. Note that on multilib systems like x86_64, you
@@ -21,7 +29,7 @@ if { $res != "" } {
 # since we're only compiling for the "native" arch.
 set test "pthread_stacks debuginfo check"
 spawn stap -gp4 $srcdir/systemtap.examples/process/threadstacks.stp \
-    -Gsize=65536 -d $exepath
+    -Gsize=${new_stack_size} -d $exepath
 set compile_errors 0
 expect {
     -timeout 60
@@ -59,7 +67,7 @@ if { $ok == 1 } then { pass $test } else { fail "$test ($ok $ko)" }
 
 
 set test "pthread_stacks -Gsize"
-spawn stap -g $srcdir/systemtap.examples/process/threadstacks.stp -Gsize=65536 -c "$exepath 1024 0" -d $exepath
+spawn stap -g $srcdir/systemtap.examples/process/threadstacks.stp -Gsize=${new_stack_size} -c "$exepath 1024 0" -d $exepath
 set ok 0
 set ko 0
 expect {
