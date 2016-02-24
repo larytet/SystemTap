@@ -4241,6 +4241,7 @@ dwflpp::build_kernel_blacklist()
   blfile += "kernel/kprobes\\.c"; // first alternative, no "|"
   blfile += "|arch/.*/kernel/kprobes\\.c";
   blfile += "|.*/include/asm/io\\.h";
+  blfile += "|.*/include/asm/io-defs\\.h";
   blfile += "|.*/include/asm/io_64\\.h";
   blfile += "|.*/include/asm/bitops\\.h";
   blfile += "|drivers/ide/ide-iops\\.c";

@@ -1,6 +1,7 @@
 set self semok
 
 proc dyninst_kfails {test} {
+    global plt_probes_p
     # Use setup_kfail <pr number> <target triplet> for known bugs.
     #
     # (Note that tcl doesn't like comments directly inside the switch
@@ -67,6 +68,14 @@ proc dyninst_kfails {test} {
 	    # failures when running with the dyninst runtime (scripts
 	    # that use utrace-like probes)
 	    setup_kfail 14708 *-*-*
+	}
+
+	semok/plt1.stp -
+	semok/plt2.stp {
+	    # Note that this isn't quite right. plt_probes_p really
+	    # checks for kenel-runtime plt probe support, but it is
+	    # close enough for our purposes.
+	    if {!$plt_probes_p} { setup_kfail PLT *-*-* }
 	}
     }
 }
