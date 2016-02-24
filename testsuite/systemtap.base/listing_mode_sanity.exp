@@ -68,7 +68,10 @@ if {[catch {exec stap -l kernel.function("vfs_read") 2>@1} output]} {
    pass "$test (stap -l vfs_read exited ok)"
 }
 
-if {[catch {exec stap -L kernel.function("vfs_read") 2>@1} outputL]} {
+# Make sure we use the '.call' version, since on some kernels (like
+# 3.10.0-327.el7.ppc64) vfs_read() can be inlined and we can't find
+# the parameters in the inlined version.
+if {[catch {exec stap -L kernel.function("vfs_read").call 2>@1} outputL]} {
    fail "$test (stap -L vfs_read exited badly)"
    return
 } else {
@@ -85,7 +88,7 @@ if {[regexp "^kernel\\.function\\(\"vfs_read@\[^\"\]*\"\\)$" $output]} {
 
 set subtest "verbatim stap -L vfs_read"
 verbose -log "output is $outputL"
-if {[regexp "^kernel\\.function\\(\"vfs_read@\[^\"\]*\"\\) \\\$file:struct file\\* \\\$buf:char\\* \\\$count:size_t \\\$pos:loff_t\\*$" $outputL]} {
+if {[regexp "^kernel\\.function\\(\"vfs_read@\[^\"\]*\"\\).call \\\$file:struct file\\* \\\$buf:char\\* \\\$count:size_t \\\$pos:loff_t\\*$" $outputL]} {
    pass "$test ($subtest)"
 } else {
    fail "$test ($subtest)"
