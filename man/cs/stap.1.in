@@ -2115,27 +2115,6 @@ Nicméně, sondy v NMI handlerech a v samotném procesu stap, mohou stále být
 přeskočeny, aby se zamezilo reentranci.
 
 .PP
-Do výstupního bufferu skriptu může za jistých okolností zapisovat více jiných
-skriptů najednou. Skript běžící v režimu "host" poskytuje svůj buffer ostatním
-skriptům běžícím v režimu "guest". V takovém případě je výstup skriptů proložen
-v rámci jediného výstupního proudu. Pro spuštění skriptu v režimu "host"
-použijte přepínač
-.BR \-DRELAYHOST[=name]
-kde
-.BR name
-identifikuje daný "host" skript. Analogicky přepínač
-.BR \-DRELAYGUEST[=name]
-slouží k spuštění skriptu v "guest" režimu a zároveň jej přihlašuje k danému "host"
-skriptu prostřednictvím "name". Poznamenejme, že před ukončením host skriptu je
-třeba ukončit všechny připojené "guest" skripty, jinak dojde k chybě. Příklad:
-
-.SAMPLE
-% stap -ve 'probe begin{}' -o merged.out -DRELAY_HOST &
-% stap -ve 'probe begin{print("hello ");exit()}' -DRELAY_GUEST
-% stap -ve 'probe begin{print("world\n");exit()}' -DRELAY_GUEST
-.ESAMPLE
-
-.PP
 Vznikne-li problém při běhu programu
 .IR stap " nebo " staprun
 když už sondy běží, je možné bezpečně zabít oba tyto uživatelské procesy a

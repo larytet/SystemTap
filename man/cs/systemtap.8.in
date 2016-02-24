@@ -32,8 +32,7 @@ skripty do initramfs a mít je spuštěné během boot procesu.
 
 Existují volby a parametry, které ovlivňují globální chování služby nebo
 jednotlivých skriptů.  Mezi skripty lze vytvořit závislosti, tak že nastartování
-jednoho automaticky způsobí nastartování jiného (obzvlášť výhodné v kombinaci
-s volbami -DRELAY_HOST a -DRELAY_GUEST příkazu \fIstap\fR(1)).
+jednoho automaticky způsobí nastartování jiného.
 
 Konfigurační soubor initskriptu se nachází v
 \fB@sysconfdir@/systemtap/config\fR.  Přijatelné parametry jsou detailně popsány
@@ -267,8 +266,8 @@ Více skriptů lze nastavit jako mezerami oddělený seznam.
 .PP
 Příklad konfiguračního souboru:
 .SAMPLE
-script1_OPT="-o /var/log/script1.out -DRELAY_HOST=group1"
-script2_OPT="-DRELAY_GUEST=group1"
+script1_OPT="-o /var/log/script1.out"
+script2_OPT="-o /var/log/script2.out"
 script2_REQ="script1"
 .ESAMPLE
 
@@ -283,14 +282,14 @@ Nakopírujme SystemTap skript (např. "script1.stp") do relevantního adresáře
 Pak můžeme nastavit volby pro daný skript.  Například:
 .SAMPLE
 \fB#\fR vi /etc/systemtap/conf.d/group1
-script1_OPT="-o /var/log/group1.out -DRELAY_HOST=group1"
+script1_OPT="-o /var/log/group1.out"
 .ESAMPLE
-Pokud poté nainstalujeme skript (např. "script2.stp"), který sdílí s předchozím
-skriptem buffer, máme zde závislost mezi skripty.  Tu ošetříme následovně:
+Pokud poté nainstalujeme skript, např. "script2.stp", který má být spuštěn po
+"script1.stp", máme zde závislost mezi skripty.  Tu ošetříme následovně:
 .SAMPLE
 \fB#\fR cp script2.stp /etc/systemtap/script.d/
 \fB#\fR vi /etc/systemtap/conf.d/group1
-script2_OPT="-DRELAY_GUEST=group1"
+script2_OPT="-o /var/log/group2.out"
 script2_REQ="script1"
 .ESAMPLE
 V tomto případě, pokud \fIstap\fR(1) selže při startu, služba SystemTap se ani
