@@ -241,6 +241,12 @@ to handle concurrent requests. If \fIthreads\fR == 0, each request will be
 handled on the main thread, serially.  The default is the number of available
 processor cores.
 
+.TP
+\fB\-\-max\-request\-size\fR \fIsize\fR
+This options allows the specification of the maximum size of an uncompressed
+client request. The arguement \fIsize\fR is specified in bytes. The
+default is the 50000 bytes.
+
 .SH CONFIGURATION
 
 Configuration files allow us to:
@@ -373,6 +379,11 @@ to the
 .B MAXTHREADS
 Specifies the maximum number of worker threads to handle concurrent requests to be used by this server
 and corresponds to the \fB\-\-max\-threads\fR option (see \fIOPTIONS\fR).
+
+.TP
+.B MAXREQSIZE
+Specifies the maximum size of an uncompressed client request, to be used by
+this and correspnds to the  \fB\-\-max\-request\-size\fR option (see \fIOPTIONS\fR).
 
 .PP
 Here is an example of a server configuration file:
