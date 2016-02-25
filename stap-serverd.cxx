@@ -104,6 +104,7 @@ extern int optind;
 static bool use_db_password;
 static unsigned short port;
 static long max_threads;
+static size_t max_uncompressed_req_size;
 static string cert_db_path;
 static string stap_options;
 static string uname_r;
@@ -208,19 +209,22 @@ parse_options (int argc, char **argv)
     {
       char *num_endptr;
       long port_tmp;
+      long maxsize_tmp;
       // NB: The values of these enumerators must not conflict with the values of ordinary
       // characters, since those are returned by getopt_long for short options.
       enum {
 	LONG_OPT_PORT = 256,
 	LONG_OPT_SSL,
 	LONG_OPT_LOG,
-	LONG_OPT_MAXTHREADS
+	LONG_OPT_MAXTHREADS,
+        LONG_OPT_MAXREQSIZE = 255 /* need ot set a value otherwise there are conflicts */
       };
       static struct option long_options[] = {
         { "port", 1, NULL, LONG_OPT_PORT },
         { "ssl", 1, NULL, LONG_OPT_SSL },
         { "log", 1, NULL, LONG_OPT_LOG },
         { "max-threads", 1, NULL, LONG_OPT_MAXTHREADS },
+        { "max-request-size", 1, NULL, LONG_OPT_MAXREQSIZE},
         { NULL, 0, NULL, 0 }
       };
       int grc = getopt_long (argc, argv, "a:B:D:I:kPr:R:", long_options, NULL);
@@ -280,6 +284,15 @@ parse_options (int argc, char **argv)
 	    fatal (_F("%s: invalid entry: max threads must not be negative '--max-threads=%s'",
 		      argv[0], optarg));
 	  break;
+        case LONG_OPT_MAXREQSIZE:
+          maxsize_tmp =  strtoul(optarg, &num_endptr, 0); // store as a long for now
+	  if (*num_endptr != '\0')
+	    fatal (_F("%s: cannot parse number '--max-request-size=%s'", argv[0], optarg));
+          else if (maxsize_tmp < 1)
+	    fatal (_F("%s: invalid entry: max request size must not be greater than 0 '--max-request-size=%s'",
+		      argv[0], optarg));
+          max_uncompressed_req_size = (size_t) maxsize_tmp; // convert the long to an unsigned
+          break;
 	case '?':
 	  // Invalid/unrecognized option given. Message has already been issued.
 	  break;
@@ -961,6 +974,7 @@ initialize (int argc, char **argv) {
   use_db_password = false;
   port = 0;
   max_threads = sysconf( _SC_NPROCESSORS_ONLN ); // Default to number of processors
+  max_uncompressed_req_size = 50000; // 50 KB <- default max compressed request size
   keep_temp = false;
   struct utsname utsname;
   uname (& utsname);
@@ -2067,15 +2081,15 @@ check_request_size (const char * zip_file)
 {
   vector<string> args;
   ostringstream result;
-  size_t max_uncomp_size = 100000; /* 100 KB */
+  size_t max_comp_size = max_uncompressed_req_size * 0.1; // Est about 10% compression
 
   // Check the compressed file size.
   struct stat st;
   stat(zip_file, &st);
   size_t size = st.st_size;
   log (_F("Compressed request file size is: %zu", size));
-  if (size > 5000 /* ~5 KB */) {
-    server_error (_F("Compressed request size is %zu bytes, exceeding the 5000 bytes limit.", size));
+  if (size > max_comp_size) {
+    server_error (_F("Compressed request size is %zu bytes, exceeding the %zu bytes limit.", size, max_comp_size));
     return -1;
   }
 
@@ -2103,10 +2117,10 @@ check_request_size (const char * zip_file)
     }
 
   long uncomp_size = atol(toks[2].c_str());
-  if (uncomp_size < 1 || (unsigned)uncomp_size > max_uncomp_size)
+  if (uncomp_size < 1 || (unsigned)uncomp_size > max_uncompressed_req_size)
     {
       server_error(_F("Uncompressed request size of %ld bytes is not within the expected range of 1 to %zu bytes.",
-                      uncomp_size,max_uncomp_size));
+                      uncomp_size,max_uncompressed_req_size));
       return -1;
     }
 

@@ -50,6 +50,7 @@ OPT_PORT_IX=0
 OPT_LOG_IX=0
 OPT_SSL_IX=0
 OPT_MAXTHREADS_IX=0
+OPT_MAXREQSIZE_IX=0
 
 echo_usage () {
   echo $"Usage: $prog {start|stop|restart|condrestart|try-restart|force-reload|status} [options]"
@@ -271,6 +272,10 @@ parse_args () { # arguments
 	OPT_MAXTHREADS+=("$2")
         shift 1
 	;;
+      --max-request-size)
+	OPT_MAXREQSIZE+=("$2")
+        shift 1
+	;;
       --)
         ;;
       *)
@@ -324,6 +329,13 @@ add_distributed_options () {
 	OPT_MAXTHREADS_IX=$(($OPT_MAXTHREADS_IX + 1))
     else
 	SERVER_CMDS+=("MAXTHREADS=\"\"")
+    fi
+    # The --max-request-size option
+    if test -n "${OPT_MAXREQSIZE[$OPT_MAXREQSIZE_IX]}"; then
+	SERVER_CMDS+=("MAXREQSIZE=\"`quote_for_cmd "${OPT_MAXREQSIZE[$OPT_MAXREQSIZE_IX]}"`\"")
+	OPT_MAXREQSIZE_IX=$(($OPT_MAXREQSIZE_IX + 1))
+    else
+	SERVER_CMDS+=("MAXREQSIZE=\"\"")
     fi
 }
 
@@ -453,6 +465,7 @@ add_server_commands () {
     test -n "$PORT" && SERVER_CMDS+=("PORT=\"`quote_for_cmd "$PORT"`\"")
     test -n "$SSL" && SERVER_CMDS+=("SSL=\"`quote_for_cmd "$SSL"`\"")
     test -n "$MAXTHREADS" && SERVER_CMDS+=("MAXTHREADS=\"`quote_for_cmd "$MAXTHREADS"`\"")
+    test -n "$MAXREQSIZE" && SERVER_CMDS+=("MAXREQSIZE=\"`quote_for_cmd "$MAXREQSIZE"`\"")
 }
 
 echo_server_options () {
@@ -475,6 +488,7 @@ echo_server_options () {
     test -n "$PORT" && echo -n " --port \"`quote_for_cmd "$PORT"`\""
     test -n "$SSL" && echo -n " --ssl \"`quote_for_cmd "$SSL"`\""
     test -n "$MAXTHREADS" && echo -n " --max-threads \"`quote_for_cmd "$MAXTHREADS"`\""
+    test -n "$MAXREQSIZE" && echo -n " --max-request-size \"`quote_for_cmd "$MAXREQSIZE"`\""
     echo
 }
 
@@ -510,6 +524,7 @@ init_server_opts () {
   PORT=
   SSL=
   MAXTHREADS=
+  MAXREQSIZE=
 }
 
 # Double quotes, backslashes within generated command
@@ -581,6 +596,7 @@ interpret_server_config () {
     local local_PORT=
     local local_SSL=
     local local_MAXTHREADS=
+    local local_MAXREQSIZE=
 
     local input
     while read -r -u3 input
@@ -646,6 +662,9 @@ interpret_server_config () {
 	    MAXTHREADS=*)
               local_MAXTHREADS="${input:11}"
 	      ;;
+	    MAXREQSIZE=*)
+              local_MAXREQSIZE="${input:11}"
+	      ;;
 	    \#*)
 	      ;; # Comment, do nothing
 	    "")
@@ -671,6 +690,7 @@ interpret_server_config () {
     PORT="$local_PORT"
     SSL="$local_SSL"
     MAXTHREADS="$local_MAXTHREADS"
+    MAXREQSIZE="$local_MAXREQSIZE"
 }
 
 # Interpret the contents of a server status file.
@@ -697,6 +717,7 @@ load_server_config () {
       local PORT=
       local SSL=
       local MAXTHREADS=
+      local MAXREQSIZE=
       interpret_server_config "$f" || continue
       # Other options default to empty. These ones don't.
       [ -z "$ARCH" ]     && ARCH=`get_arch`
@@ -732,6 +753,7 @@ get_server_pid_by_config () {
     local target_PORT="$PORT"
     local target_SSL="$SSL"
     local target_MAXTHREADS="$MAXTHREADS"
+    local target_MAXREQSIZE="$MAXREQSIZE"
 
     # Check the status file for each running server to see if it matches
     # the one currently configured. We're checking for a given configuration,
@@ -750,6 +772,7 @@ get_server_pid_by_config () {
 	test "X$PORT"         = "X$target_PORT"         || continue
 	test "X$SSL"          = "X$target_SSL"          || continue
 	test "X$MAXTHREADS"   = "X$target_MAXTHREADS"   || continue
+	test "X$MAXREQSIZE"   = "X$target_MAXREQSIZE"   || continue
 	echo `basename "$f" | sed 's/.stat//'` # Server has a pid
 	return
     done
@@ -766,6 +789,7 @@ get_server_pid_by_config () {
     PORT="$target_PORT"
     SSL="$target_SSL"
     MAXTHREADS="$target_MAXTHREADS"
+    MAXREQSIZE="$target_MAXREQSIZE"
 }
 
 get_server_pid_by_nickname () {
@@ -840,6 +864,7 @@ start_server () {
     test -n "$PORT" && server_cmd="$server_cmd --port \"`quote_for_cmd "$PORT"`\""
     test -n "$SSL" && server_cmd="$server_cmd --ssl \"`quote_for_cmd "$SSL"`\""
     test -n "$MAXTHREADS" && server_cmd="$server_cmd --max-threads \"`quote_for_cmd "$MAXTHREADS"`\""
+    test -n "$MAXREQSIZE" && server_cmd="$server_cmd --max-request-size \"`quote_for_cmd "$MAXREQSIZE"`\""
 
     # Start the server here.
     local pid
@@ -879,6 +904,7 @@ start_server () {
     echo "PORT=$PORT" >> "$server_status_file"
     echo "SSL=$SSL" >> "$server_status_file"
     echo "MAXTHREADS=$MAXTHREADS" >> "$server_status_file"
+    echo "MAXREQSIZE=$MAXREQSIZE" >> "$server_status_file"
 
     do_success $"$prog start `echo_server_options`"
 }
@@ -1218,6 +1244,7 @@ OPTS=`getopt -s bash -u --options 'a:B:c:D:iI:n:p:kPr:R:u:' \
                         --longoptions 'port:' \
                         --longoptions 'ssl:' \
                         --longoptions 'max-threads:' \
+                        --longoptions 'max-request-size:' \
                         -- "$@"`
 if [ $? -ne 0 ]; then
   echo "Error: Argument parse error: $@" >&2
