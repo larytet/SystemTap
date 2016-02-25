@@ -20,6 +20,13 @@ set test_script {
     }
 }
 
-# We expect that the caller of vfs_write() will be sys_write().
-set output {[Ss]y[Ss]_write 0x[0-9a-f]+\r\n}
+# We expect that the caller of vfs_write() will be sys_write(). This
+# works on most systems, except for ppc64 (3.10.0-327.el7.ppc64),
+# where vfs_write() can get inlined. So, we expect system_call() or
+# vfs_write() on ppc64.
+if {[string match ppc* $::tcl_platform(machine)]} {
+    set output {([Ss]y[Ss]_write|system_call) 0x[0-9a-f]+\r\n}
+} else {
+    set output {[Ss]y[Ss]_write 0x[0-9a-f]+\r\n}
+}
 stap_run $test no_load $output -e $test_script -c "echo hi > /dev/null"
