@@ -56,4 +56,4 @@ expect {
 }
 kill -INT -[exp_pid] 2
 catch { close }
-wait
+catch { wait }

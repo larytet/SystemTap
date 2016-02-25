@@ -245,4 +245,4 @@ if {$script_exit == 1} {
 }
 
 catch { close }
-wait
+catch { wait }

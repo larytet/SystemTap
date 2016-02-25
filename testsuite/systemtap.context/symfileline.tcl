@@ -26,4 +26,4 @@ if { $correct_line } { pass "symline ()" } { fail "symline ()" }
 if { $pp_matched } { pass "symfileline in pp ()" } { fail "symfileline in pp ()" }
 
 catch { close }
-wait
+catch { wait }
