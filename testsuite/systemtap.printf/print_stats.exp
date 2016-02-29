@@ -1,0 +1,28 @@
+set test "print_stats"
+set ::result_string {@count=1 @min=1 @max=1 @sum=1 @avg=1
+[1] @count=2 @min=2 @max=3 @sum=5 @avg=2
+[2] @count=1 @min=4 @max=4 @sum=4 @avg=4
+[1,1] @count=2 @min=2 @max=3 @sum=5 @avg=2
+[2,2] @count=1 @min=4 @max=4 @sum=4 @avg=4
+[1,1,1] @count=2 @min=2 @max=3 @sum=5 @avg=2
+[2,2,2] @count=1 @min=4 @max=4 @sum=4 @avg=4
+[1,1,1,1] @count=2 @min=2 @max=3 @sum=5 @avg=2
+[2,2,2,2] @count=1 @min=4 @max=4 @sum=4 @avg=4
+[1,1,1,1,1] @count=2 @min=2 @max=3 @sum=5 @avg=2
+[2,2,2,2,2] @count=1 @min=4 @max=4 @sum=4 @avg=4
+[1,1,1,1,1,1] @count=2 @min=2 @max=3 @sum=5 @avg=2
+[2,2,2,2,2,2] @count=1 @min=4 @max=4 @sum=4 @avg=4
+[1,1,1,1,1,1,1,] @count=2 @min=2 @max=3 @sum=5 @avg=2
+[2,2,2,2,2,2,2,] @count=1 @min=4 @max=4 @sum=4 @avg=4
+[1,1,1,1,1,1,1,1] @count=2 @min=2 @max=3 @sum=5 @avg=2
+[2,2,2,2,2,2,2,2] @count=1 @min=4 @max=4 @sum=4 @avg=4
+[1,1,1,1,1,1,1,1,1] @count=2 @min=2 @max=3 @sum=5 @avg=2
+[2,2,2,2,2,2,2,2,2] @count=1 @min=4 @max=4 @sum=4 @avg=4}
+
+foreach runtime [get_runtime_list] {
+    if {$runtime != ""} {
+	stap_run2 $srcdir/$subdir/$test.stp --runtime=$runtime
+    } else {
+	stap_run2 $srcdir/$subdir/$test.stp
+    }
+}

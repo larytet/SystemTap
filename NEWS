@@ -4,6 +4,14 @@
   command-line prompt where you can build up a script, run it, edit
   it, run it again, etc. Type "help" for a list of commands.
 
+- Add macros @prints to print a scalar aggregate variable, @prints[1-9]
+  to print an array aggregate (of given index-arity), formatted similarly
+  to the automatic printing of written-only global variables.
+
+  global a, b
+  probe oneshot { a <<< 1; b[tid()] <<< 2 }
+  probe end { @prints(a); @prints1(b) }
+
 - Add Czech version of manual pages.
 
 - The stap compile server will log the stap client's options that are passed

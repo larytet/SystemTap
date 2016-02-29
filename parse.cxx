@@ -667,7 +667,7 @@ parser::scan_pp1 (bool ignore_macros = false)
     }
 }
 
-// Consume a single macro invocation's parameters, heeding nested ( )
+// Consume a single macro invocation's parameters, heeding nesting
 // brackets and stopping on an unbalanced ')' or an unbracketed ','
 // (and returning the final separator token).
 const token*
@@ -681,9 +681,10 @@ parser::slurp_pp1_param (vector<const token*>& param)
 
       if (!t)
         break;
-      if (t->type == tok_operator && t->content == "(")
+      // [ needed in case macro paramater is used as prefix for array-deref operation
+      if (t->type == tok_operator && (t->content == "(" || t->content == "["))
         ++nesting;
-      else if (nesting && t->type == tok_operator && t->content == ")")
+      else if (nesting && t->type == tok_operator && (t->content == ")" || t->content == "]"))
         --nesting;
       else if (!nesting && t->type == tok_operator
                && (t->content == ")" || t->content == ","))
