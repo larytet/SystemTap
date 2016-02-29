@@ -453,9 +453,12 @@ public:
     // Skip past the add command itself by removing the 1st token.
     tokens.erase(tokens.begin());
 
-    // Put the individual tokens back together as a single string,
-    // then add the resulting string to the script vector.
-    script_vec.push_back(join(tokens, " "));
+    if (tokens.size() > 0)
+      {
+	// Put the individual tokens back together as a single string,
+	// then add the resulting string to the script vector.
+	script_vec.push_back(join(tokens, " "));
+      }
     return false;
   }
 };
