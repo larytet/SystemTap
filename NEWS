@@ -1,4 +1,9 @@
 * What's new in version 3.0
+
+- The new "interactive" mode, specified by "stap -i" drops you into a
+  command-line prompt where you can build up a script, run it, edit
+  it, run it again, etc. Type "help" for a list of commands.
+
 - Add Czech version of manual pages.
 
 - The stap compile server will log the stap client's options that are passed
