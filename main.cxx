@@ -883,6 +883,8 @@ passes_0_4 (systemtap_session &s)
          << endl;
   }
 
+  missing_rpm_list_print(s, "-debuginfo");
+
   if (rc && !s.dump_mode && !s.try_server ())
     cerr << _("Pass 2: analysis failed.  [man error::pass2]") << endl;
 
