@@ -517,8 +517,8 @@ public:
   delete_cmd()
   {
     name = "delete";
-    usage = "delete LINE_NUM";
-    _help_text = "Delete a script line by its number.";
+    usage = "delete LINE_NUM_RANGE";
+    _help_text = "Delete script line(s) by line numbers. To delete a single line, specify LINE_NUM_RANGE as \"10\". To delete a range of lines, specify LINE_NUM_RANGE as \"12-20\". To delete the entire script, give no argument.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
 	       vector<string> &tokens,
@@ -546,35 +546,75 @@ public:
 	  }
 	return false;
       }
-    else if (tokens.size() != 2)
+    // At this point, we've either got a single number or a range. So,
+    // the max number of extra tokens we could have would be 3 (NUM1 -
+    // NUM2). 
+    else if (tokens.size() > 4)
       {
 	cout << endl << "Invalid command" << endl;
 	interactive_usage();
 	return false;
       }
 
-    // Convert the 2nd token to a number.
+    // If we've got more than 1 token, smash them together.
+    string line_number_range = tokens[1];
+    if (tokens.size() == 3)
+	line_number_range += tokens[2];
+    if (tokens.size() == 4)
+	line_number_range += tokens[3];
+
+    // Look for the 1st number in the (potential) range.
     char *end;
     long val;
+    const char *lnr = line_number_range.c_str();
 
     errno = 0;
-    val = strtol (tokens[1].c_str(), &end, 10);
-    if (errno != 0 || *end != '\0' || val < 0)
+    val = strtol (lnr, &end, 10);
+    if (errno != 0 || (*end != '\0' && *end != '-') || val < 0)
       {
-	cout << "Invalid script line value" << endl;
+	cout << _("Invalid starting script line range value.") << endl;
 	return false;
       }
 
     // Does this script line exist?
-    size_t item_num = val - 1;
-    if (item_num > script_vec.size())
+    size_t line_start = val - 1;
+    if (line_start > script_vec.size())
       {
-	cout << "No line " << val << endl;
+	cout << _F("No line %ld present in script.", val) << endl;
 	return false;
       }
       
-    // Delete probe/function
-    script_vec.erase(script_vec.begin() + item_num);
+    size_t line_end = line_start;
+    if (*end == '-')
+      {
+	errno = 0;
+	char *start = end + 1;
+	val = strtol (start, &end, 10);
+	if (errno != 0 || *end != '\0' || val < 0)
+	  {
+	    cout << _("Invalid ending script line range value.") << endl;
+	    return false;
+	  }
+	line_end = val;
+
+	if (line_end > script_vec.size())
+	  {
+	    cout << _F("No line %ld present in script.", line_end) << endl;
+	    return false;
+	  }
+	else if (line_end < line_start)
+	  {
+	    cout << _("Invalid script line range value - starting line is greater than ending line.") << endl;
+	    return false;
+	  }
+      }
+
+    // Delete script line(s).
+    if (line_start == line_end)
+      script_vec.erase(script_vec.begin() + line_start);
+    else
+      script_vec.erase(script_vec.begin() + line_start,
+		       script_vec.begin() + line_end);
     return false;
   }
 };
