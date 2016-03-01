@@ -1627,7 +1627,14 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   while (1)
     {
       char *line_tmp = readline("stap> ");
-      if (line_tmp && *line_tmp)
+      if (line_tmp == NULL)		// C-d
+        {
+	  clog << endl;
+	  if (query(_("Quit? "), default_yes))
+	    break;
+	  continue;
+	}
+      else if (*line_tmp)
 	add_history(line_tmp);
       else
 	continue;
