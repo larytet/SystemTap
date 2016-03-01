@@ -51,6 +51,7 @@ OPT_LOG_IX=0
 OPT_SSL_IX=0
 OPT_MAXTHREADS_IX=0
 OPT_MAXREQSIZE_IX=0
+OPT_MAXCOMPRESSEDREQ_IX=0
 
 echo_usage () {
   echo $"Usage: $prog {start|stop|restart|condrestart|try-restart|force-reload|status} [options]"
@@ -279,6 +280,10 @@ parse_args () { # arguments
 	OPT_MAXREQSIZE+=("$2")
         shift 1
 	;;
+      --max-compressed-request)
+	OPT_MAXCOMPRESSEDREQ+=("$2")
+        shift 1
+	;;
       --)
         ;;
       *)
@@ -339,6 +344,13 @@ add_distributed_options () {
 	OPT_MAXREQSIZE_IX=$(($OPT_MAXREQSIZE_IX + 1))
     else
 	SERVER_CMDS+=("MAXREQSIZE=\"\"")
+    fi
+    # The --max-compressed-request option
+    if test -n "${OPT_MAXCOMPRESSEDREQ[$OPT_MAXCOMPRESSEDREQ_IX]}"; then
+	SERVER_CMDS+=("MAXCOMPRESSEDREQ=\"`quote_for_cmd "${OPT_MAXCOMPRESSEDREQ[$OPT_MAXCOMPRESSEDREQ_IX]}"`\"")
+	OPT_MAXCOMPRESSEDREQ_IX=$(($OPT_MAXCOMPRESSEDREQ_IX + 1))
+    else
+	SERVER_CMDS+=("MAXCOMPRESSEDREQ=\"\"")
     fi
 }
 
@@ -469,6 +481,7 @@ add_server_commands () {
     test -n "$SSL" && SERVER_CMDS+=("SSL=\"`quote_for_cmd "$SSL"`\"")
     test -n "$MAXTHREADS" && SERVER_CMDS+=("MAXTHREADS=\"`quote_for_cmd "$MAXTHREADS"`\"")
     test -n "$MAXREQSIZE" && SERVER_CMDS+=("MAXREQSIZE=\"`quote_for_cmd "$MAXREQSIZE"`\"")
+    test -n "$MAXCOMPRESSEDREQ" && SERVER_CMDS+=("MAXCOMPRESSEDREQ=\"`quote_for_cmd "$MAXCOMPRESSEDREQ"`\"")
 }
 
 echo_server_options () {
@@ -492,6 +505,7 @@ echo_server_options () {
     test -n "$SSL" && echo -n " --ssl \"`quote_for_cmd "$SSL"`\""
     test -n "$MAXTHREADS" && echo -n " --max-threads \"`quote_for_cmd "$MAXTHREADS"`\""
     test -n "$MAXREQSIZE" && echo -n " --max-request-size \"`quote_for_cmd "$MAXREQSIZE"`\""
+    test -n "$MAXCOMPRESSEDREQ" && echo -n " --max-compressed-request \"`quote_for_cmd "$MAXCOMPRESSEDREQ"`\""
     echo
 }
 
@@ -528,6 +542,7 @@ init_server_opts () {
   SSL=
   MAXTHREADS=
   MAXREQSIZE=
+  MAXCOMPRESSEDREQ=
 }
 
 # Double quotes, backslashes within generated command
@@ -600,6 +615,7 @@ interpret_server_config () {
     local local_SSL=
     local local_MAXTHREADS=
     local local_MAXREQSIZE=
+    local local_MAXCOMPRESSEDREQ=
 
     local input
     while read -r -u3 input
@@ -668,6 +684,9 @@ interpret_server_config () {
 	    MAXREQSIZE=*)
               local_MAXREQSIZE="${input:11}"
 	      ;;
+	    MAXCOMPRESSEDREQ=*)
+              local_MAXCOMPRESSEDREQ="${input:17}"
+	      ;;
 	    \#*)
 	      ;; # Comment, do nothing
 	    "")
@@ -694,6 +713,7 @@ interpret_server_config () {
     SSL="$local_SSL"
     MAXTHREADS="$local_MAXTHREADS"
     MAXREQSIZE="$local_MAXREQSIZE"
+    MAXCOMPRESSEDREQ="$local_MAXCOMPRESSEDREQ"
 }
 
 # Interpret the contents of a server status file.
@@ -721,6 +741,7 @@ load_server_config () {
       local SSL=
       local MAXTHREADS=
       local MAXREQSIZE=
+      local MAXCOMPRESSEDREQ=
       interpret_server_config "$f" || continue
       # Other options default to empty. These ones don't.
       [ -z "$ARCH" ]     && ARCH=`get_arch`
@@ -757,6 +778,7 @@ get_server_pid_by_config () {
     local target_SSL="$SSL"
     local target_MAXTHREADS="$MAXTHREADS"
     local target_MAXREQSIZE="$MAXREQSIZE"
+    local target_MAXCOMPRESSEDREQ="$MAXCOMPRESSEDREQ"
 
     # Check the status file for each running server to see if it matches
     # the one currently configured. We're checking for a given configuration,
@@ -776,6 +798,7 @@ get_server_pid_by_config () {
 	test "X$SSL"          = "X$target_SSL"          || continue
 	test "X$MAXTHREADS"   = "X$target_MAXTHREADS"   || continue
 	test "X$MAXREQSIZE"   = "X$target_MAXREQSIZE"   || continue
+	test "X$MAXCOMPRESSEDREQ"   = "X$target_MAXCOMPRESSEDREQ"   || continue
 	echo `basename "$f" | sed 's/.stat//'` # Server has a pid
 	return
     done
@@ -793,6 +816,7 @@ get_server_pid_by_config () {
     SSL="$target_SSL"
     MAXTHREADS="$target_MAXTHREADS"
     MAXREQSIZE="$target_MAXREQSIZE"
+    MAXCOMPRESSEDREQ="$target_MAXCOMPRESSEDREQ"
 }
 
 get_server_pid_by_nickname () {
@@ -868,6 +892,7 @@ start_server () {
     test -n "$SSL" && server_cmd="$server_cmd --ssl \"`quote_for_cmd "$SSL"`\""
     test -n "$MAXTHREADS" && server_cmd="$server_cmd --max-threads \"`quote_for_cmd "$MAXTHREADS"`\""
     test -n "$MAXREQSIZE" && server_cmd="$server_cmd --max-request-size \"`quote_for_cmd "$MAXREQSIZE"`\""
+    test -n "$MAXCOMPRESSEDREQ" && server_cmd="$server_cmd --max-compressed-request \"`quote_for_cmd "$MAXCOMPRESSEDREQ"`\""
 
     # Start the server here.
     local pid
@@ -908,6 +933,7 @@ start_server () {
     echo "SSL=$SSL" >> "$server_status_file"
     echo "MAXTHREADS=$MAXTHREADS" >> "$server_status_file"
     echo "MAXREQSIZE=$MAXREQSIZE" >> "$server_status_file"
+    echo "MAXCOMPRESSEDREQ=$MAXCOMPRESSEDREQ" >> "$server_status_file"
 
     do_success $"$prog start `echo_server_options`"
 }
@@ -1248,6 +1274,7 @@ OPTS=`getopt -s bash -u --options 'a:B:c:D:iI:n:p:kPr:R:u:' \
                         --longoptions 'ssl:' \
                         --longoptions 'max-threads:' \
                         --longoptions 'max-request-size:' \
+                        --longoptions 'max-compressed-request:' \
                         -- "$@"`
 if [ $? -ne 0 ]; then
   echo "Error: Argument parse error: $@" >&2

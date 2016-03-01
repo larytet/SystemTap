@@ -218,7 +218,8 @@ parse_options (int argc, char **argv)
 	LONG_OPT_SSL,
 	LONG_OPT_LOG,
 	LONG_OPT_MAXTHREADS,
-        LONG_OPT_MAXREQSIZE = 255 /* need ot set a value otherwise there are conflicts */
+        LONG_OPT_MAXREQSIZE = 254,
+        LONG_OPT_MAXCOMPRESSEDREQ = 255 /* need to set a value otherwise there are conflicts */
       };
       static struct option long_options[] = {
         { "port", 1, NULL, LONG_OPT_PORT },
@@ -226,6 +227,7 @@ parse_options (int argc, char **argv)
         { "log", 1, NULL, LONG_OPT_LOG },
         { "max-threads", 1, NULL, LONG_OPT_MAXTHREADS },
         { "max-request-size", 1, NULL, LONG_OPT_MAXREQSIZE},
+        { "max-compressed-request", 1, NULL, LONG_OPT_MAXCOMPRESSEDREQ},
         { NULL, 0, NULL, 0 }
       };
       int grc = getopt_long (argc, argv, "a:B:D:I:kPr:R:", long_options, NULL);
@@ -290,9 +292,18 @@ parse_options (int argc, char **argv)
 	  if (*num_endptr != '\0')
 	    fatal (_F("%s: cannot parse number '--max-request-size=%s'", argv[0], optarg));
           else if (maxsize_tmp < 1)
-	    fatal (_F("%s: invalid entry: max request size must not be greater than 0 '--max-request-size=%s'",
+	    fatal (_F("%s: invalid entry: max (uncompressed) request size must not be greater than 0 '--max-request-size=%s'",
 		      argv[0], optarg));
           max_uncompressed_req_size = (size_t) maxsize_tmp; // convert the long to an unsigned
+          break;
+        case LONG_OPT_MAXCOMPRESSEDREQ:
+          maxsize_tmp =  strtoul(optarg, &num_endptr, 0); // store as a long for now
+	  if (*num_endptr != '\0')
+	    fatal (_F("%s: cannot parse number '--max-compressed-request=%s'", argv[0], optarg));
+          else if (maxsize_tmp < 1)
+	    fatal (_F("%s: invalid entry: max compressed request size must not be greater than 0 '--max-compressed-request=%s'",
+		      argv[0], optarg));
+          max_compressed_req_size = (size_t) maxsize_tmp; // convert the long to an unsigned
           break;
 	case '?':
 	  // Invalid/unrecognized option given. Message has already been issued.
