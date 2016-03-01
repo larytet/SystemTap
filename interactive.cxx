@@ -152,7 +152,8 @@ public:
   }
 
   // handler() is the code associated with a command/option
-  virtual bool handler(systemtap_session &s, vector<string> &tokens) = 0;
+  virtual bool handler(systemtap_session &s, vector<string> &tokens,
+		       string &input) = 0;
 };
 
 typedef vector<cmdopt*> cmdopt_vector;
@@ -269,7 +270,8 @@ public:
     _help_text = "Print this command list.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
-	       vector<string> &tokens __attribute ((unused)))
+	       vector<string> &tokens __attribute ((unused)),
+	       string &input __attribute ((unused)))
   {
     interactive_usage();
     return false;
@@ -285,7 +287,8 @@ public:
     _help_text = "Display the current script.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
-	       vector<string> &tokens __attribute ((unused)))
+	       vector<string> &tokens __attribute ((unused)),
+	       string &input __attribute ((unused)))
   {
     // FIXME: We will want to use 'printscript' here, once we store
     // parser output instead of strings.
@@ -337,7 +340,7 @@ public:
       }
     return buffer.str();
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens, string &input)
   {
     bool option_found = false;
     if (tokens.size() < 3)
@@ -354,7 +357,7 @@ public:
 	if (tokens[1] == (*it)->name)
 	{
 	  option_found = true;
-	  (*it)->handler(s, tokens);
+	  (*it)->handler(s, tokens, input);
 	  break;
 	}
       }
@@ -376,7 +379,7 @@ public:
     usage = "show OPTION";
     _help_text = "Show option value.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens, string &input)
   {
     bool option_found = false;
 
@@ -386,7 +389,7 @@ public:
 	for (cmdopt_vector_iterator it = option_vec.begin();
 	     it != option_vec.end(); ++it)
 	  {
-	    (*it)->handler(s, tokens);
+	    (*it)->handler(s, tokens, input);
 	  }
 	return false;
       }
@@ -404,7 +407,7 @@ public:
 	if (tokens[1] == (*it)->name)
 	  {
 	    option_found = true;
-	    (*it)->handler(s, tokens);
+	    (*it)->handler(s, tokens, input);
 	    break;
 	  }
       }
@@ -426,7 +429,8 @@ public:
     _help_text = "Quit systemtap.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
-	       vector<string> &tokens __attribute ((unused)))
+	       vector<string> &tokens __attribute ((unused)),
+	       string &input __attribute ((unused)))
   {
     return true;
   }
@@ -441,24 +445,30 @@ public:
     _help_text = "Add a global, probe, or function.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
-	       vector<string> &tokens)
+	       vector<string> &tokens __attribute ((unused)),
+	       string &input)
   {
-    // FIXME: note this isn't quite right. If someone was trying to
-    // print "    ", tokenizing the string will have messed up those
-    // embedded spaces. But, for now...
-
-    // FIXME 2: At some point, we really should store the stap's
-    // parser output instead of just a string.
+    // NB: At some point, we might store stap's parser output instead
+    // of just a string.
 
     // Skip past the add command itself by removing the 1st token.
     tokens.erase(tokens.begin());
+    if (tokens.size() == 0)
+      return false;
 
-    if (tokens.size() > 0)
-      {
-	// Put the individual tokens back together as a single string,
-	// then add the resulting string to the script vector.
-	script_vec.push_back(join(tokens, " "));
-      }
+    // Find the "add" command text and skip past it.  Note that we're
+    // using the "raw" (not tokenized) input, so that if someone was
+    // trying to print "1    2", we preserve those embedded spaces.
+    string::size_type add_pos = input.find("add");
+    if (add_pos == string::npos)
+	return false;			// shouldn't happen...
+    string::size_type input_pos = input.find_first_not_of(" ", add_pos + 3);
+    if (input_pos == string::npos)
+	return false;			// shouldn't happen...
+
+    // Add the rest of the line to the script vector.
+    string line = input.substr(input_pos);
+    script_vec.push_back(line);
     return false;
   }
 };
@@ -473,7 +483,8 @@ public:
     _help_text = "Delete a script line by its number.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
-	       vector<string> &tokens)
+	       vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     // FIXME 2: Unlike gdb, our numbers get rearranged after a
     // delete. Example:
@@ -540,7 +551,8 @@ public:
     _help_text = "Load a script from a file into the current session.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
-	       vector<string> &tokens)
+	       vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     if (tokens.size() != 2)
       {
@@ -582,7 +594,8 @@ public:
     _help_text = "Save a script to a file from the current session.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
-	       vector<string> &tokens)
+	       vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     if (tokens.size() != 2)
       {
@@ -616,7 +629,8 @@ public:
     _help_text = "Run the current script.";
   }
   bool handler(systemtap_session &s,
-	       vector<string> &tokens __attribute ((unused)))
+	       vector<string> &tokens __attribute ((unused)),
+	       string &input __attribute ((unused)))
   {
     if (script_vec.empty())
       {
@@ -660,7 +674,8 @@ public:
     _help_text = "Edit the current script. Uses EDITOR environment variable contents as editor (or ex as default).";
   }
   bool handler(systemtap_session &s,
-	       vector<string> &tokens __attribute ((unused)))
+	       vector<string> &tokens __attribute ((unused)),
+	       string &input __attribute ((unused)))
   {
     const char *editor;
     char temp_path[] = "/tmp/stapXXXXXX";
@@ -762,7 +777,8 @@ public:
     name = "keep_tmpdir";
     _help_text = "Keep temporary directory.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     bool set = (tokens[0] == "set");
     if (set)
@@ -781,7 +797,8 @@ public:
       name = "last_pass";
       _help_text = "Stop after pass NUM 1-5.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     bool set = (tokens[0] == "set");
     if (set)
@@ -810,7 +827,8 @@ public:
     name = "verbose";
     _help_text = "Add verbosity to all passes.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     bool set = (tokens[0] == "set");
     if (set)
@@ -843,7 +861,8 @@ public:
     name = "guru_mode";
     _help_text = "Guru mode.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     bool set = (tokens[0] == "set");
     if (set)
@@ -862,7 +881,8 @@ public:
     name = "suppress_warnings";
     _help_text = "Suppress warnings.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     bool set = (tokens[0] == "set");
     if (set)
@@ -882,7 +902,8 @@ public:
     name = "panic_warnings";
     _help_text = "Turn warnings into errors.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     bool set = (tokens[0] == "set");
     if (set)
@@ -901,7 +922,8 @@ public:
     name = "timing";
     _help_text = "Collect probe timing information.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     bool set = (tokens[0] == "set");
     if (set)
@@ -920,7 +942,8 @@ public:
     name = "unoptimized";
     _help_text = "Unoptimized translation.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     bool set = (tokens[0] == "set");
     if (set)
@@ -939,7 +962,8 @@ public:
     name = "target_pid";
     _help_text = "Sets target() to PID.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     bool set = (tokens[0] == "set");
     if (set)
@@ -975,7 +999,8 @@ public:
     name = "cmd";
     _help_text = "Start the probes, run CMD, and exit when it finishes.";
   }
-  bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens,
+	       string &input __attribute ((unused)))
   {
     bool set = (tokens[0] == "set");
     if (set)
@@ -1542,7 +1567,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
 	      if (tokens[0] == (*it)->name)
 	        {
 		  input_handled = true;
-		  quit = (*it)->handler(s, tokens);
+		  quit = (*it)->handler(s, tokens, line);
 		  break;
 		}
 	    }
