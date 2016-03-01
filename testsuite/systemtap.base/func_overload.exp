@@ -1,0 +1,193 @@
+set test "func_overload"
+
+if {![installtest_p]} {untested $test; return}
+
+proc run_test {test script expected} {
+    set success 0
+    spawn stap -g -e $script
+    expect {
+        -timeout 30
+        -re "$expected" {pass $test}
+        default {fail $test}
+    }
+    catch { close }; catch { wait }
+}
+
+# unconditional next
+set script1 {
+  function f() {
+    next
+    return "first function"
+  }
+
+  function f() {
+    return "second function"
+  }
+
+  probe begin {
+    println(f())
+    exit()
+  }
+}
+
+# overload using global variable
+set script2 {
+  global x = 0
+
+  function f() {
+    if (x == 100)
+      return "first function"
+    else
+      next
+  }
+
+  function f() {
+    return "second function"
+  }
+
+  probe begin {
+    println(f())
+    x = 100
+    println(f())
+    exit()
+  }
+}
+
+# overload using function arguments
+set script3 {
+  function f(x, y) {
+    if (x == 500 || y == "hello")
+      return "first function"
+    else
+      next
+  }
+
+  function f(x, y) {
+    return "second function"
+  }
+
+  probe begin {
+    println(f(200, "asd"))
+    println(f(900, "hello"))
+    exit()
+  }
+}
+
+# overload using argument and global variable
+set script4 {
+  global x = 0
+
+  function f(y) {
+    if (x == 100 || y == 200)
+      return "first function"
+    else
+      next
+  }
+
+  function f(x) {
+    return "second function"
+  }
+
+  probe begin {
+    println(f(0))
+    println(f(200))
+    x = 100
+    println(f(0))
+    exit()
+  }
+}
+
+# priority ordering
+set script5 {
+  function f():1 %{
+    STAP_NEXT;
+    STAP_RETURN("first function");
+  %}
+
+  function f():3 {
+    return "second function"
+  }
+
+  function f():2 {
+    return "third function"
+  }
+
+  probe begin {
+    println(f())
+    exit()
+  }
+}
+
+# compile time arity overloading
+set script6 {
+  function adder(x) {
+    return x
+  }
+
+  function adder(x, y) {
+    return x + y
+  }
+
+  function adder(x, y, z) {
+    return x + y + z
+  }
+
+  probe begin {
+    println(adder(1))
+    println(adder(1, 2))
+    println(adder(1, 2, 3))
+    exit()
+  }
+}
+
+# runtime overload and compile time overload
+set script7 {
+  function adder(x) {
+    if (x != 1)
+      return 1000
+    else
+      next
+  }
+
+  function adder(x) {
+    return x
+  }
+
+  function adder(x, y) {
+    return x + y
+  }
+
+  function adder(x, y, z) {
+    return x + y + z
+  }
+
+  probe begin {
+    println(adder(0))
+    println(adder(1))
+    println(adder(1, 2))
+    println(adder(1, 2, 3))
+    exit()
+  }
+}
+
+# all functions exhausted runtime error
+set script8 {
+  function f() {
+    next
+    return 0
+  }
+
+  probe begin {
+    println(f())
+    exit()
+  }
+}
+
+run_test unconditional_next $script1 "second function\r\n"
+run_test runtime_global $script2 "second function\r\nfirst function\r\n"
+run_test runtime_arguments $script3 "second function\r\nfirst function\r\n"
+run_test runtime_conditions $script4 "second function\r\nfirst function\r\nfirst function\r\n"
+run_test runtime_priority $script5 "third function\r\n"
+run_test arity $script6 "1\r\n3\r\n6\r\n"
+run_test mix $script7 "1000\r\n1\r\n3\r\n6\r\n"
+run_test overload_exception $script8 "all functions exhausted"

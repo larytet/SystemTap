@@ -18,20 +18,25 @@
   For example,
 
   Runtime overloading:
-  function f() { if (condition) next; print("first function") }
-  function f() %{ STAP_NEXT; print("second function") %}
-  function f() { print("third function") }
+    function f() { if (condition) next; print("first function") }
+    function f() %{ STAP_NEXT; print("second function") %}
+    function f() { print("third function") }
 
-  In the example above, the third function will be executed if condition
-  evaluates to true.
+  For the given functions above, a functioncall f(), will execute the body of the
+  third function if condition evaluates to true and print "third function".
+  Note that the second function is unconditionally nexted.
 
   Parameter overloading:
-  function f() { print("first function") }
-  function f(x) { print("second function") }
+    function g() { print("first function") }
+    function g(x) { print("second function") }
+    g() -> "first function"
+    g(1) -> "second function"
 
-  Note that runtime overloading is not possible in the above example as the
-  number of parameters differ. The function candidates are selected at compile
-  time and is determined by the number of arguments provided for the functioncall.
+  Note that runtime overloading does not occur in the above example as the number
+  of parameters of the functions differ. The use of a next statement inside a function
+  while no more overloads remain will trigger a runtime exception. The function
+  candidates are selected at compile time and is determined by the number of arguments
+  provided for the functioncall.
 
 - Add Czech version of manual pages.
 

@@ -5409,9 +5409,6 @@ c_unparser::visit_functioncall (functioncall* e)
 
   stmt_expr block(*this);
 
-  // limit scope of exit label
-  o->newline() << "__label__ fc_end_" << fc_counter << ";";
-
   vector<bool> cp_arg(e->referents.size(), true);
   for (unsigned fd = 0; fd < e->referents.size(); fd++)
     {
@@ -5536,15 +5533,19 @@ c_unparser::visit_functioncall (functioncall* e)
           yield = true;
         }
 
-      // branch to end of the enclosing statement-expression if one of the
-      // function alternatives is selected
-      o->newline() << "if (!c->next) goto fc_end_" << fc_counter << ";";
+      if (e->referents.size() > 1)
+        // branch to end of the enclosing statement-expression if one of the
+        // function alternatives is selected
+        o->newline() << "if (!c->next) goto fc_end_" << fc_counter << ";";
     }
 
-  // end label and increment counter
-  o->newline() << "fc_end_" << fc_counter++ << ":";
+  if (e->referents.size() > 1)
+    {
+      // end label and increment counter
+      o->newline() << "fc_end_" << fc_counter++ << ":";
+    }
 
-  o->newline() << "if (c->next) { c->last_error = \"all functions exhausted\"; goto out; }";
+  o->newline() << "if (unlikely(c->next)) { c->last_error = \"all functions exhausted\"; goto out; }";
 
   // return result from retvalue slot NB: this must be last, for the
   // enclosing statement-expression ({ ... }) to carry this value.

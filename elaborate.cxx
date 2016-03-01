@@ -2021,7 +2021,7 @@ static void create_monitor_function(systemtap_session& s)
 {
   functiondecl* fd = new functiondecl;
   fd->synthetic = true;
-  fd->unmangled_name = fd->name = "__global___monitor_data_function_probes";
+  fd->unmangled_name = fd->name = "__private___monitor_data_function_probes";
   fd->type = pe_string;
 
   vardecl* v = new vardecl;
@@ -2140,7 +2140,7 @@ static void monitor_mode_read(systemtap_session& s)
       /* Escape quotes once for systemtap parser and once more for json parser */
       name = lex_cast_qstring(lex_cast_qstring(name));
 
-      code << "$value .= sprintf(\"{%s\", __monitor_data_function_probes("
+      code << "$value .= sprintf(\"{%s\", __private___monitor_data_function_probes("
            << it-s.probes.begin() << "))" << endl;
       code << "$value .= sprintf(\"\\\"name\\\": %s}\", " << name << ")" << endl;
     }
@@ -6033,8 +6033,10 @@ typeresolution_info::visit_functioncall (functioncall* e)
     throw SEMANTIC_ERROR (_F("internal error: unresolved function call to '%s'",
                              e->function.to_string().c_str()), e->tok);
 
+  exp_type original = t;
   for (unsigned fd = 0; fd < e->referents.size(); fd++)
     {
+      t = original; // type may be changed by overloaded functions so restore it
       functiondecl* referent = e->referents[fd];
       resolve_2types (e, referent, this, t, true); // accept unknown type
 

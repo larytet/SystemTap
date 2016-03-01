@@ -2414,13 +2414,13 @@ parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
   t = peek();
   if (t->type == tok_operator && t->content == ":")
     {
-      int64_t priority;
       swallow();
-      expect_number(priority);
-      fd->priority = priority;
+      literal* literal = parse_literal();
+      fd->priority = dynamic_cast<literal_number*>(literal)->value;
       // reserve priority 0 for user script implementation
-      if (priority < 1)
+      if (fd->priority < 1)
         throw PARSE_ERROR (_("specified priority must be > 0"));
+      delete literal;
     }
   else if (user_file)
     {

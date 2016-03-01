@@ -669,8 +669,9 @@ function f() { print("third function") }
 \end{verbatim}
 \end{vindent}
 
-will transfer execution to the third function through the "next" statement,
-if condition evaluates to true.
+During a functioncall f(), the execution will transfer to the third function
+if condition evaluates to true and print "third function". Note that the second
+function is unconditionally nexted.
 
 Parameter overloading allows the function to be executed to be selected
 at compile time based on the number of arguments provided to the
@@ -678,23 +679,25 @@ functioncall. For example,
 
 \begin{vindent}
 \begin{verbatim}
-function f() { print("first function") }
-function f(x) { print("second function") }
+function g() { print("first function") }
+function g(x) { print("second function") }
+g() -> "first function"
+g(1) -> "second function"
 \end{verbatim}
 \end{vindent}
 
-Note that runtime overloading is not possible in the above example, as exactly
-one function will be resolved for the functioncall. Runtime overloading
-will only occur if the functions have the same arity, functions with
-the same name but different number of parameters are completely unrelated.
-
-It is an error for the "next" statement to be used in a function with no
-remaining overloads.
+Note that runtime overloading does not occur in the above example, as exactly
+one function will be resolved for the functioncall. The use of a next statement
+inside a function while no more overloads remain will trigger a runtime exception
+Runtime overloading will only occur if the functions have the same arity,
+functions with the same name but different number of parameters are completely
+unrelated.
 
 Execution order is determined by a priority value which may be specified.
 If no explicit priority is specified, user script functions are given a
-higher priority than library functions. Functions with the same priority
-are executed in declaration order. For example,
+higher priority than library functions. User script functions and library
+functions are assigned a default priority value of 0 and 1 respectively.
+Functions with the same priority are executed in declaration order. For example,
 
 \begin{vindent}
 \begin{verbatim}
