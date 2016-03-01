@@ -43,6 +43,9 @@ pass_5 (systemtap_session &s, vector<remote*> targets);
 static int
 forked_passes_0_4 (systemtap_session &s);
 
+static int
+forked_parse_pass (systemtap_session &s, vector<string> &script);
+
 // Ask user a y-or-n question and return 1 iff answer is yes.  The
 // prompt argument should end in "? ". Note that this is a simplified
 // version of gdb's defaulted_query() function.
@@ -444,10 +447,12 @@ public:
     name = usage = "add";
     _help_text = "Add a global, probe, or function.";
   }
-  bool handler(systemtap_session &s __attribute ((unused)),
+  bool handler(systemtap_session &s,
 	       vector<string> &tokens __attribute ((unused)),
 	       string &input)
   {
+    vector<string> tmp_script_vec;
+
     // NB: At some point, we might store stap's parser output instead
     // of just a string.
 
@@ -466,9 +471,42 @@ public:
     if (input_pos == string::npos)
 	return false;			// shouldn't happen...
 
-    // Add the rest of the line to the script vector.
+    // Add the rest of the line to the temporary script vector.
     string line = input.substr(input_pos);
-    script_vec.push_back(line);
+    tmp_script_vec.push_back(line);
+
+    // Try to parse the input. If it worked, return.
+    int rc = forked_parse_pass(s, tmp_script_vec);
+    if (rc == 0)
+      {
+	script_vec.insert(script_vec.end(), tmp_script_vec.begin(),
+			  tmp_script_vec.end());
+	return false;
+      }
+
+    // If parsing above didn't work, we've either got a syntax error
+    // or the user hasn't completed the function or probe he's
+    // entering. So, prompt for more input.
+    while (1)
+      {
+	char *response;
+	response = readline("stap>>> ");
+	if (response == NULL)		// C-d
+	  {
+	    clog << endl;
+	    break;
+	  }
+
+	// Try to parse the entire "add" command input.
+	tmp_script_vec.push_back(response);
+	int rc = forked_parse_pass(s, tmp_script_vec);
+	if (rc == 0)
+	  break;
+      }
+
+    // Add the "add" command input to the script.
+    script_vec.insert(script_vec.end(), tmp_script_vec.begin(),
+		      tmp_script_vec.end());
     return false;
   }
 };
@@ -1406,6 +1444,50 @@ forked_passes_0_4 (systemtap_session &s)
     ss >> s.module_name >> s.uprobes_path;
 
   return ret.second;
+}
+
+static int
+forked_parse_pass (systemtap_session &s, vector<string> &script)
+{
+  // Save current session info.
+  int saved_last_pass = s.last_pass;
+  unsigned saved_verbose = s.verbose;
+  unsigned saved_perpass_verbose[5];
+  for (unsigned i=0; i<5; i++)
+    saved_perpass_verbose[i] = s.perpass_verbose[i];
+    
+  // Set up session to only run pass 1.
+  s.last_pass = 1;
+  s.verbose = 0;
+  for (unsigned i=0; i<5; i++)
+    s.perpass_verbose[i] = 0;
+
+  // Add the script
+  s.cmdline_script = join(script, "\n");
+  s.have_script = true;
+
+  // We don't want to see any of the parser output, which normally
+  // goes to 'cout' and 'cerr'. So, redirect where 'cout' and 'cerr'
+  // go, run the command, then restore 'cout' and 'cerr'.
+  //
+  // Why don't we want to see the parser output? The user may have
+  // just entered "function foo() {" and intends to continue adding
+  // more lines to the function.
+  ofstream file("/dev/null");
+  streambuf *former_cout = cout.rdbuf(file.rdbuf());
+  streambuf *former_cerr = cerr.rdbuf(file.rdbuf());
+  int rc = forked_passes_0_4 (s);
+  cout.rdbuf(former_cout);
+  cerr.rdbuf(former_cerr);
+  file.close();
+
+  // Restore the session values we changed.
+  s.last_pass = saved_last_pass;
+  s.verbose = saved_verbose;
+  for (unsigned i=0; i<5; i++)
+    s.perpass_verbose[i] = saved_perpass_verbose[i];
+
+  return rc;
 }
 
 //
