@@ -2112,7 +2112,6 @@ check_uncompressed_request_size (const char * zip_file)
     server_error (_F("Unable to check the zipefile size. Error code: %d .", rc));
     return rc;
     }
-  log (_F("Result of the unzip -Zt call is:\n%s", result.str().c_str()));
 
   // Parse the result from the unzip call, looking for the third token
   vector<string> toks;
