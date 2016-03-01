@@ -105,6 +105,7 @@ static bool use_db_password;
 static unsigned short port;
 static long max_threads;
 static size_t max_uncompressed_req_size;
+static size_t max_compressed_req_size;
 static string cert_db_path;
 static string stap_options;
 static string uname_r;
@@ -974,7 +975,8 @@ initialize (int argc, char **argv) {
   use_db_password = false;
   port = 0;
   max_threads = sysconf( _SC_NPROCESSORS_ONLN ); // Default to number of processors
-  max_uncompressed_req_size = 50000; // 50 KB <- default max compressed request size
+  max_uncompressed_req_size = 50000; // 50 KB <- default max uncompressed request size
+  max_compressed_req_size = 5000; // 5 KB <- default max compressed request size
   keep_temp = false;
   struct utsname utsname;
   uname (& utsname);
@@ -1038,7 +1040,6 @@ readDataFromSocket(PRFileDesc *sslSocket, const char *requestFileName)
   char        buffer[READ_BUFFER_SIZE];
 
   // Read the number of bytes to be received.
-  /* XXX: impose a limit to prevent disk space consumption DoS */
   numBytesRead = PR_Read_Complete (sslSocket, & numBytesExpected,
 				   (PRInt32)sizeof (numBytesExpected));
   if (numBytesRead == 0) /* EOF */
@@ -1060,6 +1061,13 @@ readDataFromSocket(PRFileDesc *sslSocket, const char *requestFileName)
      There is no client request. */
   if (numBytesExpected == 0)
     return 0;
+
+  /* Impose a limit to prevent disk space consumption DoS */
+  if (numBytesExpected > (PRInt32) max_compressed_req_size)
+    {
+      server_error (_("Error size of (compressed) request file is too large"));
+      goto done;
+    }
 
   /* Open the output file.  */
   local_file_fd = PR_Open(requestFileName, PR_WRONLY | PR_CREATE_FILE | PR_TRUNCATE,
@@ -2074,24 +2082,13 @@ spawn_and_wait (const vector<string> &argv, int *spawnrc,
 #undef CHECKRC
 }
 
-/* Given the path to the request file, return 0 if the size of the request
- * is within the determined limits. */
+/* Given the path to the compressed request file, return 0 if the size of the
+ * uncompressed request is within the determined limits. */
 int
-check_request_size (const char * zip_file)
+check_uncompressed_request_size (const char * zip_file)
 {
   vector<string> args;
   ostringstream result;
-  size_t max_comp_size = max_uncompressed_req_size * 0.1; // Est about 10% compression
-
-  // Check the compressed file size.
-  struct stat st;
-  stat(zip_file, &st);
-  size_t size = st.st_size;
-  log (_F("Compressed request file size is: %zu", size));
-  if (size > max_comp_size) {
-    server_error (_F("Compressed request size is %zu bytes, exceeding the %zu bytes limit.", size, max_comp_size));
-    return -1;
-  }
 
   // Check the uncompressed file size.
   args.push_back("unzip");
@@ -2255,7 +2252,7 @@ handle_connection (void *arg)
 
   /* Just before we do any kind of processing, we want to check that the request there will
    * be enough memory to unzip the file. */
-  if (check_request_size(requestFileName))
+  if (check_uncompressed_request_size(requestFileName))
     {
       goto cleanup;
     }
