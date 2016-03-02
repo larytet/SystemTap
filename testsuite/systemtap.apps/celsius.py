@@ -7,7 +7,7 @@ aglobal9 = 9
 def celsius_to_farenheit(celsius):
     atuple = "a", "b", "c"
     alist = [1, 2, 3]
-    aset = {1, 2, 3}
+    aset = set([1, 2, 3])
     adict = { 1 : "a", 2 : "b", 3 : "c" }
 
     nine = aglobal9
