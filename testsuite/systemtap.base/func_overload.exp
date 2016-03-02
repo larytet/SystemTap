@@ -101,19 +101,19 @@ set script4 {
 set script5 {
   function f():1 %{
     STAP_NEXT;
-    STAP_RETURN("first function");
+    STAP_PRINTF("first function\n");
   %}
 
   function f():3 {
-    return "second function"
+    println("second function")
   }
 
-  function f():2 {
-    return "third function"
-  }
+  function f():2 %{
+    STAP_PRINTF("third function\n");
+  %}
 
   probe begin {
-    println(f())
+    f()
     exit()
   }
 }
