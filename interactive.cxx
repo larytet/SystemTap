@@ -45,6 +45,8 @@ forked_passes_0_4 (systemtap_session &s);
 
 static int
 forked_parse_pass (systemtap_session &s, vector<string> &script);
+static int
+forked_semantic_pass (systemtap_session &s, vector<string> &script);
 
 // Ask user a y-or-n question and return 1 iff answer is yes.  The
 // prompt argument should end in "? ". Note that this is a simplified
@@ -172,6 +174,7 @@ static cmdopt_vector option_vec;
 // A vector containing the user's script, one probe/function/etc. per
 // string.
 static vector<string> script_vec;
+static bool auto_analyze = true;
 
 struct match_item;
 typedef map<string, match_item*> match_item_map;
@@ -475,38 +478,37 @@ public:
     string line = input.substr(input_pos);
     tmp_script_vec.push_back(line);
 
-    // Try to parse the input. If it worked, return.
+    // Try to parse the input. If it worked, we're done (since the
+    // user entered an entire probe/function/global).
     int rc = forked_parse_pass(s, tmp_script_vec);
-    if (rc == 0)
+    if (rc != 0)
       {
-	script_vec.insert(script_vec.end(), tmp_script_vec.begin(),
-			  tmp_script_vec.end());
-	return false;
-      }
-
-    // If parsing above didn't work, we've either got a syntax error
-    // or the user hasn't completed the function or probe he's
-    // entering. So, prompt for more input.
-    while (1)
-      {
-	char *response;
-	response = readline("stap>>> ");
-	if (response == NULL)		// C-d
+	// If parsing above didn't work, we've either got a syntax
+	// error or the user hasn't completed the function or probe
+	// he's entering. So, prompt for more input.
+	while (1)
 	  {
-	    clog << endl;
-	    break;
-	  }
+	    char *response;
+	    response = readline("stap>>> ");
+	    if (response == NULL)		// C-d
+	      {
+		clog << endl;
+		break;
+	      }
 
-	// Try to parse the entire "add" command input.
-	tmp_script_vec.push_back(response);
-	int rc = forked_parse_pass(s, tmp_script_vec);
-	if (rc == 0)
-	  break;
+	    // Try to parse the entire "add" command input.
+	    tmp_script_vec.push_back(response);
+	    int rc = forked_parse_pass(s, tmp_script_vec);
+	    if (rc == 0)
+	      break;
+	  }
       }
 
     // Add the "add" command input to the script.
     script_vec.insert(script_vec.end(), tmp_script_vec.begin(),
 		      tmp_script_vec.end());
+    if (auto_analyze)
+      (void)forked_semantic_pass(s, script_vec);
     return false;
   }
 };
@@ -615,6 +617,8 @@ public:
     else
       script_vec.erase(script_vec.begin() + line_start,
 		       script_vec.begin() + line_end);
+    if (auto_analyze)
+      (void)forked_semantic_pass(s, script_vec);
     return false;
   }
 };
@@ -839,6 +843,8 @@ public:
 
     (void)fclose(fp);
     (void)unlink(temp_path);
+    if (auto_analyze)
+      (void)forked_semantic_pass(s, script_vec);
     return false;
   }
 };
@@ -1108,6 +1114,26 @@ public:
       }
     else
       cout << name << ": \"" << s.cmd << "\"" << endl;
+    return false;
+  }
+};
+
+class auto_analyze_opt: public cmdopt
+{
+public:
+  auto_analyze_opt()
+  {
+    name = "auto_analyze";
+    _help_text = "Automatically analyze the current script after changes.";
+  }
+  bool handler(systemtap_session &s __attribute ((unused)),
+	       vector<string> &tokens, string &input __attribute ((unused)))
+  {
+    bool set = (tokens[0] == "set");
+    if (set)
+      auto_analyze = (tokens[2] != "0");
+    else
+      cout << name << ": " << auto_analyze << endl;
     return false;
   }
 };
@@ -1530,6 +1556,40 @@ forked_parse_pass (systemtap_session &s, vector<string> &script)
   return rc;
 }
 
+static int
+forked_semantic_pass (systemtap_session &s, vector<string> &script)
+{
+  clog << _("Script analysis:") << endl;
+
+  // Save current session info.
+  int saved_last_pass = s.last_pass;
+  unsigned saved_verbose = s.verbose;
+  unsigned saved_perpass_verbose[5];
+  for (unsigned i=0; i<5; i++)
+    saved_perpass_verbose[i] = s.perpass_verbose[i];
+    
+  // Set up session to only run through pass 2.
+  s.last_pass = 2;
+  s.verbose = 0;
+  for (unsigned i=0; i<5; i++)
+    s.perpass_verbose[i] = 0;
+
+  // Add the script
+  s.cmdline_script = join(script, "\n");
+  s.have_script = true;
+
+  // We want the output, so we won't bother with redirection.
+  int rc = forked_passes_0_4 (s);
+
+  // Restore the session values we changed.
+  s.last_pass = saved_last_pass;
+  s.verbose = saved_verbose;
+  for (unsigned i=0; i<5; i++)
+    s.perpass_verbose[i] = saved_perpass_verbose[i];
+
+  return rc;
+}
+
 //
 // Interactive mode, passes 0 through 5 and back again.
 //
@@ -1576,6 +1636,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   option_vec.push_back(new unoptimized_opt);
   option_vec.push_back(new target_pid_opt);
   option_vec.push_back(new cmd_opt);
+  option_vec.push_back(new auto_analyze_opt);
 
   // FIXME: It might be better to wait to get the list of probes and
   // aliases until they are needed.
