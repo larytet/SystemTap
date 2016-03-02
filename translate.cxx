@@ -2490,7 +2490,7 @@ c_unparser::emit_function (functiondecl* v)
 
   // initialize runtime overloading flag
   o->newline() << "c->next = 0;";
-  o->newline() << "#define STAP_NEXT c->next = 1";
+  o->newline() << "#define STAP_NEXT do { c->next = 1; goto out; } while(0)";
 
   // initialize locals
   // XXX: optimization: use memset instead
