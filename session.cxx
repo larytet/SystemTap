@@ -1592,6 +1592,16 @@ systemtap_session::check_options (int argc, char * const argv [])
       cerr << _("Cannot specify -p with -l/-L/--dump-* switches.") << endl;
       usage(1);
     }
+  if (dump_mode && interactive_mode)
+    {
+      cerr << _("Cannot specify -i with -l/-L/--dump-* switches.") << endl;
+      usage(1);
+    }
+  if (dump_mode && monitor)
+    {
+      cerr << _("Cannot specify --monitor with -l/-L/--dump-* switches.") << endl;
+      usage(1);
+    }
   // FIXME: we need to think through other options that shouldn't be
   // used with '-i'.
   if (interactive_mode && have_script)

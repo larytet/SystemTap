@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# --monitor (monitor mode) can't be specified with any of the "dump"
+# -options (-l/-L/--dump-*).
+
+stap $@ --monitor -l 'kernel.function("sys_open")'
