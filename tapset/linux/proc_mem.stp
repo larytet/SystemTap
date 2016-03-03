@@ -292,9 +292,8 @@ function proc_mem_data:long ()
   if (_stp_valid_task(task)) {
     mm = task->mm
     if (mm != 0) {
-      t = mm->total_vm
-      s = mm->shared_vm
-      return (t - s)
+      return (@defined(&@mm(0)->data_vm) ? (mm->data_vm + mm->stack_vm)
+	      : (mm->total_vm - mm->shared_vm))
     }
   }
   return 0
@@ -315,9 +314,8 @@ function proc_mem_data_pid:long (pid:long)
   if (_stp_valid_task(task)) {
     mm = task->mm
     if (mm != 0) {
-      t = mm->total_vm
-      s = mm->shared_vm
-      return t - s
+      return (@defined(&@mm(0)->data_vm) ? (mm->data_vm + mm->stack_vm)
+	      : (mm->total_vm - mm->shared_vm))
     }
   }
   return 0
