@@ -4,10 +4,23 @@ set test "utrace_syscall_args"
 if {![installtest_p]} { untested "$test"; return }
 if {![utrace_p]} { untested "$test"; return }
 
+# Create a tempory directory.
+if {[catch {exec mktemp -d -t staptestXXXXXX} tmpdir]} {
+    verbose -log "Failed to create temporary directory: $tmpdir"
+    return
+}
+
 set flags ""
-set srcpath "$srcdir/$subdir/utrace_syscall_args.c"
-set exepath "[pwd]/utrace_syscall_args"
-set stppath "$srcdir/$subdir/utrace_syscall_args.stp"
+set srcpath [file join [pwd] "$srcdir/$subdir/utrace_syscall_args.c"]
+set exepath "${tmpdir}/utrace_syscall_args"
+set stppath [file join [pwd] "$srcdir/$subdir/utrace_syscall_args.stp"]
+
+# Save the current directory and switch to our temporary
+# directory. Why do we want to run in the temporary directory? If the
+# current directory is from an NFS filesystem, we'll get odd results
+# back when calling fstat() on a newly created file.
+set curdir [pwd]
+cd ${tmpdir}
 
 set output_string "mmap\\(\[0-9\]+\\)\\(0x\[0-9a-f]+, 0x\[0-9a-f]+, 0x\[0-9a-f]+, 0x\[0-9a-f]+, 0x\[0-9a-f]+, 0x\[0-9a-f]+\\) = 0x\[0-9a-f]+\r\nmunmap\\(\[0-9\]+\\)\\(0x\[0-9a-f]+, 0x\[0-9a-f]+\\) = 0x\[0-9a-f]+\r\nclose\\(\[0-9\]+\\)\\(0x\[0-9a-f]+\\) = 0x\[0-9a-f]+\r\ndup\\(\[0-9\]+\\)\\(0x\[0-9a-f]+, 0x\[0-9a-f]+, 0x\[0-9a-f]+, 0x\[0-9a-f]+, 0x\[0-9a-f]+, 0x\[0-9a-f]+\\) = 0x\[0-9a-f]+\r\nbad_syscall\\(-?\[0-9\]+\\)\\(0x\[0-9a-f]+, 0x\[0-9a-f]+, 0x\[0-9a-f]+, 0x\[0-9a-f]+, 0x\[0-9a-f]+, 0x\[0-9a-f]+\\) = 0x\[0-9a-f]+\r\nsystemtap test success\r\n"
 
@@ -34,3 +47,9 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
 
     catch {exec rm -f $exepath foobar}
 }
+
+# Restore current directory
+cd ${curdir}
+
+# Cleanup
+catch {exec rm -f ${tmpdir}}
