@@ -247,6 +247,12 @@ This options allows the specification of the maximum size of an uncompressed
 client request. The arguement \fIsize\fR is specified in bytes. The
 default is the 50000 bytes.
 
+.TP
+\fB\-\-max\-compressed\-request\fR \fIsize\fR
+This options allows the specification of the maximum size of a compressed
+client request. The arguement \fIsize\fR is specified in bytes. The
+default is the 5000 bytes.
+
 .SH CONFIGURATION
 
 Configuration files allow us to:
@@ -384,6 +390,11 @@ and corresponds to the \fB\-\-max\-threads\fR option (see \fIOPTIONS\fR).
 .B MAXREQSIZE
 Specifies the maximum size of an uncompressed client request, to be used by
 this and correspnds to the  \fB\-\-max\-request\-size\fR option (see \fIOPTIONS\fR).
+
+.TP
+.B MAXCOMPRESSEDREQ
+Specifies the maximum size of an compressed client request, to be used by
+this and correspnds to the  \fB\-\-max\-compressed\-request\fR option (see \fIOPTIONS\fR).
 
 .PP
 Here is an example of a server configuration file:
