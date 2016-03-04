@@ -244,7 +244,6 @@ systemtap_session::systemtap_session ():
   if (s_kr != NULL) {
     setup_kernel_release(s_kr);
   }
-  create_tmp_dir();
 }
 
 systemtap_session::systemtap_session (const systemtap_session& other,
@@ -2377,6 +2376,9 @@ void
 systemtap_session::create_tmp_dir()
 {
   if (!tmpdir.empty())
+    return;
+
+  if (tmpdir_opt_set)
     return;
 
   // Create the temp directory
