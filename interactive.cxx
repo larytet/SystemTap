@@ -1521,12 +1521,14 @@ forked_parse_pass (systemtap_session &s, vector<string> &script)
   unsigned saved_perpass_verbose[5];
   for (unsigned i=0; i<5; i++)
     saved_perpass_verbose[i] = s.perpass_verbose[i];
+  bool saved_monitor = s.monitor;
     
   // Set up session to only run pass 1.
   s.last_pass = 1;
   s.verbose = 0;
   for (unsigned i=0; i<5; i++)
     s.perpass_verbose[i] = 0;
+  s.monitor = false;
 
   // Add the script
   s.cmdline_script = join(script, "\n");
@@ -1552,6 +1554,7 @@ forked_parse_pass (systemtap_session &s, vector<string> &script)
   s.verbose = saved_verbose;
   for (unsigned i=0; i<5; i++)
     s.perpass_verbose[i] = saved_perpass_verbose[i];
+  s.monitor = saved_monitor;
 
   return rc;
 }
@@ -1567,12 +1570,14 @@ forked_semantic_pass (systemtap_session &s, vector<string> &script)
   unsigned saved_perpass_verbose[5];
   for (unsigned i=0; i<5; i++)
     saved_perpass_verbose[i] = s.perpass_verbose[i];
+  bool saved_monitor = s.monitor;
     
   // Set up session to only run through pass 2.
   s.last_pass = 2;
   s.verbose = 0;
   for (unsigned i=0; i<5; i++)
     s.perpass_verbose[i] = 0;
+  s.monitor = false;
 
   // Add the script
   s.cmdline_script = join(script, "\n");
@@ -1586,6 +1591,7 @@ forked_semantic_pass (systemtap_session &s, vector<string> &script)
   s.verbose = saved_verbose;
   for (unsigned i=0; i<5; i++)
     s.perpass_verbose[i] = saved_perpass_verbose[i];
+  s.monitor = saved_monitor;
 
   return rc;
 }
@@ -1647,6 +1653,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   for (unsigned i=0; i<5; i++)
       saved_perpass_verbose[i] = s.perpass_verbose[i];
   int saved_last_pass = s.last_pass;
+  bool saved_monitor = s.monitor;
 
 #if HAVE_NSS
   // If requested, query server status. This is independent
@@ -1666,6 +1673,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
       s.perpass_verbose[i] = 0;
   s.dump_mode = systemtap_session::dump_probe_types;
   s.last_pass = 2;
+  s.monitor = false;
 
   // We want to capture the probe output, which normally goes to
   // 'cout'. So, redirect where 'cout' goes, run the command, then
@@ -1708,6 +1716,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   for (unsigned i=0; i<5; i++)
       s.perpass_verbose[i] = saved_perpass_verbose[i];
   s.last_pass = saved_last_pass;
+  s.monitor = saved_monitor;
   s.clear_script_data();
 
 #ifdef DEBUG
