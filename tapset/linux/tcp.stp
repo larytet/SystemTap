@@ -112,48 +112,48 @@ function __get_skb_tcphdr:long(skb:long)
 /* returns TCP URG flag for a given sk_buff structure */
 function __tcp_skb_urg:long (tcphdr:long)
 {
-	return @cast(tcphdr, "tcphdr")->urg
+	return @cast(tcphdr, "tcphdr", "kernel<linux/tcp.h>")->urg
 }
 
 /* returns TCP ACK flag for a given sk_buff structure */
 function __tcp_skb_ack:long (tcphdr:long)
 {
-	return @cast(tcphdr, "tcphdr")->ack
+	return @cast(tcphdr, "tcphdr", "kernel<linux/tcp.h>")->ack
 }
 
 /* returns TCP PSH flag for a given sk_buff structure */
 function __tcp_skb_psh:long (tcphdr:long)
 {
-	return @cast(tcphdr, "tcphdr")->psh
+	return @cast(tcphdr, "tcphdr", "kernel<linux/tcp.h>")->psh
 }
 
 /* returns TCP RST flag for a given sk_buff structure */
 function __tcp_skb_rst:long (tcphdr:long)
 {
-	return @cast(tcphdr, "tcphdr")->rst
+	return @cast(tcphdr, "tcphdr", "kernel<linux/tcp.h>")->rst
 }
 
 /* returns TCP SYN flag for a given sk_buff structure */
 function __tcp_skb_syn:long (tcphdr:long)
 {
-	return @cast(tcphdr, "tcphdr")->syn
+	return @cast(tcphdr, "tcphdr", "kernel<linux/tcp.h>")->syn
 }
 
 /* returns TCP FIN flag for a given sk_buff structure */
 function __tcp_skb_fin:long (tcphdr:long)
 {
-	return @cast(tcphdr, "tcphdr")->fin
+	return @cast(tcphdr, "tcphdr", "kernel<linux/tcp.h>")->fin
 }
 
 /* returns TCP source port for a given sk_buff structure */
 function __tcp_skb_sport:long (tcphdr:long)
 {
-	return ntohs(@cast(tcphdr, "tcphdr")->source)
+	return ntohs(@cast(tcphdr, "tcphdr", "kernel<linux/tcp.h>")->source)
 }
 
 /* returns TCP destination port for a given sk_buff structure */
 function __tcp_skb_dport:long (tcphdr:long){
-	return ntohs(@cast(tcphdr, "tcphdr")->dest)
+	return ntohs(@cast(tcphdr, "tcphdr", "kernel<linux/tcp.h>")->dest)
 }
 
 /* return the TCP source port for a given sock */
@@ -688,9 +688,9 @@ probe tcp.ipv6.receive = kernel.function("tcp_v6_rcv")!,
 	iphdr = __get_skb_iphdr(@choose_defined($skb, kernel_pointer($pskb)))
 	# If we're here, by definition we're doing AF_INET6, not AF_INET.
 	family = %{ /* pure */ AF_INET6 %}
-	saddr = format_ipaddr(&@cast(iphdr, "ipv6hdr")->saddr,
+	saddr = format_ipaddr(&@cast(iphdr, "ipv6hdr", "kernel<linux/ipv6.h>")->saddr,
 			      %{ /* pure */ AF_INET6 %})
-	daddr = format_ipaddr(&@cast(iphdr, "ipv6hdr")->daddr,
+	daddr = format_ipaddr(&@cast(iphdr, "ipv6hdr", "kernel<linux/ipv6.h>")->daddr,
 			      %{ /* pure */ AF_INET6 %})
 	# If we're here, by definition we're doing IPPROTO_TCP.  There
 	# isn't a protocol field in 'struct ipv6hdr'.  There is one in
