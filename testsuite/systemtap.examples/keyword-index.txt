@@ -1749,6 +1749,19 @@ keywords: network statistics
   # stap tcpipstat.stp timeout=1
 
 
+network/who_sent_it.stp - Trace threads sending network traffic to given host and/or port
+keywords: network trace traffic simple
+
+  This script traces outgoing network packets using the netfilter
+  probes (not requiring debuginfo), printing the source thread name/id
+  and destination host:port.  It may be filtered with the_dport and
+  the_daddr globals, e.g., to watch only for DNS traffic (port 53),
+  and/or only to the localhost (127.0.0.1).
+
+  # stap who_sent_it.stp -G the_dport=53 -c "ping -c 1 sourceware.org || \
+  true"
+
+
 = NFS =
 
 network/autofs4.stp - Watch autofs4 Operations
@@ -2639,6 +2652,19 @@ keywords: io guru simple
   # stap -g eatmydata.stp -c 'strace ls || true'
 
 
+network/who_sent_it.stp - Trace threads sending network traffic to given host and/or port
+keywords: network trace traffic simple
+
+  This script traces outgoing network packets using the netfilter
+  probes (not requiring debuginfo), printing the source thread name/id
+  and destination host:port.  It may be filtered with the_dport and
+  the_daddr globals, e.g., to watch only for DNS traffic (port 53),
+  and/or only to the localhost (127.0.0.1).
+
+  # stap who_sent_it.stp -G the_dport=53 -c "ping -c 1 sourceware.org || \
+  true"
+
+
 = SLAB =
 
 memory/vm.tracepoints.stp - Collect Slab Allocation Statistics
@@ -3192,6 +3218,19 @@ keywords: network trace
   # stap tcp_trace.stp 127.0.0.1:*-127.0.0.1:* timeout=1
 
 
+network/who_sent_it.stp - Trace threads sending network traffic to given host and/or port
+keywords: network trace traffic simple
+
+  This script traces outgoing network packets using the netfilter
+  probes (not requiring debuginfo), printing the source thread name/id
+  and destination host:port.  It may be filtered with the_dport and
+  the_daddr globals, e.g., to watch only for DNS traffic (port 53),
+  and/or only to the localhost (127.0.0.1).
+
+  # stap who_sent_it.stp -G the_dport=53 -c "ping -c 1 sourceware.org || \
+  true"
+
+
 = TRACEPOINT =
 
 network/dropwatch.stp - Watch Where Socket Buffers Are Freed in the Kernel
@@ -3306,6 +3345,19 @@ keywords: network traffic
   the source and destination ports, and flags.
 
   # stap tcpdumplike.stp -c "sleep 1"
+
+
+network/who_sent_it.stp - Trace threads sending network traffic to given host and/or port
+keywords: network trace traffic simple
+
+  This script traces outgoing network packets using the netfilter
+  probes (not requiring debuginfo), printing the source thread name/id
+  and destination host:port.  It may be filtered with the_dport and
+  the_daddr globals, e.g., to watch only for DNS traffic (port 53),
+  and/or only to the localhost (127.0.0.1).
+
+  # stap who_sent_it.stp -G the_dport=53 -c "ping -c 1 sourceware.org || \
+  true"
 
 
 = TTY =

@@ -60,7 +60,7 @@
 <li><a href="#virtualization/kvm_service_time.stp">virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons</a></li>
 </ul>
 
-<h2>All 153 Examples</h2>
+<h2>All 154 Examples</h2>
 <ul>
 <li><a name="general/alias_suffixes.stp"></a><a href="#general/alias_suffixes.stp">&para;</a> <a href="general/alias_suffixes.stp">general/alias_suffixes.stp</a> - Count I/O Syscalls using Alias Suffixes<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
@@ -327,6 +327,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li><li><a name="network/tcpipstat.stp"></a><a href="#network/tcpipstat.stp">&para;</a> <a href="network/tcpipstat.stp">network/tcpipstat.stp</a> - Display Network Statistics for Individual TCP Sockets<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
 <p>The tcpipstat script collects and displays network statistics related to individual TCP sockets or groups of sockets.  The statistics that are collected are simular to that of the command netstat -s, only sorted and grouped by individual sockets.</p><p><i><a href="network/tcpipstat.txt">sample usage in network/tcpipstat.txt</i></font></p>
+</li><li><a name="network/who_sent_it.stp"></a><a href="#network/who_sent_it.stp">&para;</a> <a href="network/who_sent_it.stp">network/who_sent_it.stp</a> - Trace threads sending network traffic to given host and/or port<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>This script traces outgoing network packets using the netfilter probes (not requiring debuginfo), printing the source thread name/id and destination host:port.  It may be filtered with the_dport and the_daddr globals, e.g., to watch only for DNS traffic (port 53), and/or only to the localhost (127.0.0.1).</p><p><i><a href="network/who_sent_it.txt">sample usage in network/who_sent_it.txt</i></font></p>
 </li><li><a name="process/auditbt.stp"></a><a href="#process/auditbt.stp">&para;</a> <a href="process/auditbt.stp">process/auditbt.stp</a> - Generate backtraces for kernel audit events<br>
 keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#AUDIT">AUDIT</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
 <p>Attaches to the kernel audit-log paths (also used by libaudit), and log every record being sent, along with a user-space backtrace of the process that caused it.</p><p><font size="-2"><pre># stap auditbt.stp -d /usr/bin/sudo --ldd -c &quot;sudo true&quot;</pre></font></p>

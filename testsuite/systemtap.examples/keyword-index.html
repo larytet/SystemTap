@@ -39,7 +39,7 @@
          	</ul>
 
 <p><em>For systemtap version 3.0.</em></p><h2>Examples by Keyword</h2>
-<p><tt><a href="#_BEST">_BEST(18)</a> <a href="#AUDIT">AUDIT(1)</a> <a href="#AUTOFS">AUTOFS(1)</a> <a href="#BACKTRACE">BACKTRACE(8)</a> <a href="#CALLGRAPH">CALLGRAPH(3)</a> <a href="#CPU">CPU(1)</a> <a href="#DEVICE">DEVICE(1)</a> <a href="#DIAGRAM">DIAGRAM(1)</a> <a href="#DISK">DISK(6)</a> <a href="#FILE">FILE(2)</a> <a href="#FILESYSTEM">FILESYSTEM(4)</a> <a href="#FORMAT">FORMAT(2)</a> <a href="#FUNCTION">FUNCTION(4)</a> <a href="#FUTEX">FUTEX(2)</a> <a href="#GURU">GURU(15)</a> <a href="#INTERRUPT">INTERRUPT(3)</a> <a href="#IO">IO(29)</a> <a href="#JSON">JSON(2)</a> <a href="#KVM">KVM(3)</a> <a href="#LIMITS">LIMITS(2)</a> <a href="#LOCKING">LOCKING(6)</a> <a href="#MEMORY">MEMORY(14)</a> <a href="#MONITORING">MONITORING(6)</a> <a href="#NANOSLEEP">NANOSLEEP(1)</a> <a href="#NET">NET(1)</a> <a href="#NETWORK">NETWORK(18)</a> <a href="#NFS">NFS(4)</a> <a href="#NUMA">NUMA(1)</a> <a href="#PACKETS">PACKETS(1)</a> <a href="#PROCESS">PROCESS(23)</a> <a href="#PROFILING">PROFILING(20)</a> <a href="#QEMU">QEMU(2)</a> <a href="#REGEX">REGEX(1)</a> <a href="#SCHEDULER">SCHEDULER(8)</a> <a href="#SCSI">SCSI(1)</a> <a href="#SECURITY">SECURITY(10)</a> <a href="#SIGNALS">SIGNALS(5)</a> <a href="#SIMPLE">SIMPLE(5)</a> <a href="#SLAB">SLAB(1)</a> <a href="#SOCKET">SOCKET(7)</a> <a href="#SPECULATION">SPECULATION(1)</a> <a href="#STAPGAMES">STAPGAMES(5)</a> <a href="#STATISTICS">STATISTICS(9)</a> <a href="#SYSCALL">SYSCALL(12)</a> <a href="#TCP">TCP(3)</a> <a href="#THREAD">THREAD(2)</a> <a href="#TIME">TIME(3)</a> <a href="#TRACE">TRACE(5)</a> <a href="#TRACEPOINT">TRACEPOINT(4)</a> <a href="#TRAFFIC">TRAFFIC(6)</a> <a href="#TTY">TTY(1)</a> <a href="#UTILIZATION">UTILIZATION(1)</a> <a href="#VIRTUALIZATION">VIRTUALIZATION(3)</a> <a href="#WATCHDOG">WATCHDOG(1)</a> <a href="#WATCHPOINT">WATCHPOINT(2)</a> </tt></p>
+<p><tt><a href="#_BEST">_BEST(18)</a> <a href="#AUDIT">AUDIT(1)</a> <a href="#AUTOFS">AUTOFS(1)</a> <a href="#BACKTRACE">BACKTRACE(8)</a> <a href="#CALLGRAPH">CALLGRAPH(3)</a> <a href="#CPU">CPU(1)</a> <a href="#DEVICE">DEVICE(1)</a> <a href="#DIAGRAM">DIAGRAM(1)</a> <a href="#DISK">DISK(6)</a> <a href="#FILE">FILE(2)</a> <a href="#FILESYSTEM">FILESYSTEM(4)</a> <a href="#FORMAT">FORMAT(2)</a> <a href="#FUNCTION">FUNCTION(4)</a> <a href="#FUTEX">FUTEX(2)</a> <a href="#GURU">GURU(15)</a> <a href="#INTERRUPT">INTERRUPT(3)</a> <a href="#IO">IO(29)</a> <a href="#JSON">JSON(2)</a> <a href="#KVM">KVM(3)</a> <a href="#LIMITS">LIMITS(2)</a> <a href="#LOCKING">LOCKING(6)</a> <a href="#MEMORY">MEMORY(14)</a> <a href="#MONITORING">MONITORING(6)</a> <a href="#NANOSLEEP">NANOSLEEP(1)</a> <a href="#NET">NET(1)</a> <a href="#NETWORK">NETWORK(19)</a> <a href="#NFS">NFS(4)</a> <a href="#NUMA">NUMA(1)</a> <a href="#PACKETS">PACKETS(1)</a> <a href="#PROCESS">PROCESS(23)</a> <a href="#PROFILING">PROFILING(20)</a> <a href="#QEMU">QEMU(2)</a> <a href="#REGEX">REGEX(1)</a> <a href="#SCHEDULER">SCHEDULER(8)</a> <a href="#SCSI">SCSI(1)</a> <a href="#SECURITY">SECURITY(10)</a> <a href="#SIGNALS">SIGNALS(5)</a> <a href="#SIMPLE">SIMPLE(6)</a> <a href="#SLAB">SLAB(1)</a> <a href="#SOCKET">SOCKET(7)</a> <a href="#SPECULATION">SPECULATION(1)</a> <a href="#STAPGAMES">STAPGAMES(5)</a> <a href="#STATISTICS">STATISTICS(9)</a> <a href="#SYSCALL">SYSCALL(12)</a> <a href="#TCP">TCP(3)</a> <a href="#THREAD">THREAD(2)</a> <a href="#TIME">TIME(3)</a> <a href="#TRACE">TRACE(6)</a> <a href="#TRACEPOINT">TRACEPOINT(4)</a> <a href="#TRAFFIC">TRAFFIC(7)</a> <a href="#TTY">TTY(1)</a> <a href="#UTILIZATION">UTILIZATION(1)</a> <a href="#VIRTUALIZATION">VIRTUALIZATION(3)</a> <a href="#WATCHDOG">WATCHDOG(1)</a> <a href="#WATCHPOINT">WATCHPOINT(2)</a> </tt></p>
 <h3><a name="_BEST"><a href="#_BEST">&para;</a> _BEST</a></h3>
 <ul>
 <li><a href="general/eventcount.stp">general/eventcount.stp</a> - Count Specified Events<br>
@@ -582,6 +582,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li><li><a href="network/tcpipstat.stp">network/tcpipstat.stp</a> - Display Network Statistics for Individual TCP Sockets<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
 <p>The tcpipstat script collects and displays network statistics related to individual TCP sockets or groups of sockets.  The statistics that are collected are simular to that of the command netstat -s, only sorted and grouped by individual sockets.</p><p><i><a href="network/tcpipstat.txt">sample usage in network/tcpipstat.txt</i></font></p>
+</li><li><a href="network/who_sent_it.stp">network/who_sent_it.stp</a> - Trace threads sending network traffic to given host and/or port<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>This script traces outgoing network packets using the netfilter probes (not requiring debuginfo), printing the source thread name/id and destination host:port.  It may be filtered with the_dport and the_daddr globals, e.g., to watch only for DNS traffic (port 53), and/or only to the localhost (127.0.0.1).</p><p><i><a href="network/who_sent_it.txt">sample usage in network/who_sent_it.txt</i></font></p>
 </li></ul>
 <h3><a name="NFS"><a href="#NFS">&para;</a> NFS</a></h3>
 <ul>
@@ -863,6 +866,9 @@ pyexample.py 35&#39; py3example.stp</pre></font></p>
 </li><li><a href="io/eatmydata.stp">io/eatmydata.stp</a> - disable fsync<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#GURU">GURU</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p>Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on some dummy or other file descriptor</p><p><i><a href="io/eatmydata.txt">sample usage in io/eatmydata.txt</i></font></p>
+</li><li><a href="network/who_sent_it.stp">network/who_sent_it.stp</a> - Trace threads sending network traffic to given host and/or port<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>This script traces outgoing network packets using the netfilter probes (not requiring debuginfo), printing the source thread name/id and destination host:port.  It may be filtered with the_dport and the_daddr globals, e.g., to watch only for DNS traffic (port 53), and/or only to the localhost (127.0.0.1).</p><p><i><a href="network/who_sent_it.txt">sample usage in network/who_sent_it.txt</i></font></p>
 </li></ul>
 <h3><a name="SLAB"><a href="#SLAB">&para;</a> SLAB</a></h3>
 <ul>
@@ -1038,6 +1044,9 @@ keywords: <a href="keyword-index.html#SPECULATION">SPECULATION</a> <a href="keyw
 </li><li><a href="network/tcp_trace.stp">network/tcp_trace.stp</a> - TCP Connection Tracing Utility<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACE">TRACE</a> <br>
 <p>This scripts traces a given TCP connection based on the filter parameters given by the user. The indexing is done by the 4 tuples local address, remote address, local port, remote port.</p><p><i><a href="network/tcp_trace.txt">sample usage in network/tcp_trace.txt</i></font></p>
+</li><li><a href="network/who_sent_it.stp">network/who_sent_it.stp</a> - Trace threads sending network traffic to given host and/or port<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>This script traces outgoing network packets using the netfilter probes (not requiring debuginfo), printing the source thread name/id and destination host:port.  It may be filtered with the_dport and the_daddr globals, e.g., to watch only for DNS traffic (port 53), and/or only to the localhost (127.0.0.1).</p><p><i><a href="network/who_sent_it.txt">sample usage in network/who_sent_it.txt</i></font></p>
 </li></ul>
 <h3><a name="TRACEPOINT"><a href="#TRACEPOINT">&para;</a> TRACEPOINT</a></h3>
 <ul>
@@ -1074,6 +1083,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li><li><a href="network/tcpdumplike.stp">network/tcpdumplike.stp</a> - Dump of Received UDP/TCP Packets<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
 <p>The tcpdumplike.stp prints out a line for each TCP &amp; UDP packet received. Each line includes the source and destination IP addresses, the source and destination ports, and flags.</p><p><font size="-2"><pre># stap tcpdumplike.stp -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a href="network/who_sent_it.stp">network/who_sent_it.stp</a> - Trace threads sending network traffic to given host and/or port<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>This script traces outgoing network packets using the netfilter probes (not requiring debuginfo), printing the source thread name/id and destination host:port.  It may be filtered with the_dport and the_daddr globals, e.g., to watch only for DNS traffic (port 53), and/or only to the localhost (127.0.0.1).</p><p><i><a href="network/who_sent_it.txt">sample usage in network/who_sent_it.txt</i></font></p>
 </li></ul>
 <h3><a name="TTY"><a href="#TTY">&para;</a> TTY</a></h3>
 <ul>

@@ -973,6 +973,19 @@ keywords: network statistics
   # stap tcpipstat.stp timeout=1
 
 
+network/who_sent_it.stp - Trace threads sending network traffic to given host and/or port
+keywords: network trace traffic simple
+
+  This script traces outgoing network packets using the netfilter
+  probes (not requiring debuginfo), printing the source thread name/id
+  and destination host:port.  It may be filtered with the_dport and
+  the_daddr globals, e.g., to watch only for DNS traffic (port 53),
+  and/or only to the localhost (127.0.0.1).
+
+  # stap who_sent_it.stp -G the_dport=53 -c "ping -c 1 sourceware.org || \
+  true"
+
+
 process/auditbt.stp - Generate backtraces for kernel audit events
 keywords: monitoring security audit backtrace
 
