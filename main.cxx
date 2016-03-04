@@ -1165,6 +1165,9 @@ main (int argc, char * const argv [])
     if (rc != 0)
       return rc;
 
+    // Create the temp dir.
+    s.create_tmp_dir();
+
     if (words.we_wordc > 0 && s.verbose > 1)
       clog << _F("Extra options in %s: %d\n", rc_file.c_str(), (int)words.we_wordc);
 
