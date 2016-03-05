@@ -39,7 +39,7 @@
          	</ul>
 
 <p><em>For systemtap version 3.0.</em></p><h2>Examples by Keyword</h2>
-<p><tt><a href="#_BEST">_BEST(18)</a> <a href="#AUDIT">AUDIT(1)</a> <a href="#AUTOFS">AUTOFS(1)</a> <a href="#BACKTRACE">BACKTRACE(8)</a> <a href="#CALLGRAPH">CALLGRAPH(3)</a> <a href="#CPU">CPU(1)</a> <a href="#DEVICE">DEVICE(1)</a> <a href="#DIAGRAM">DIAGRAM(1)</a> <a href="#DISK">DISK(6)</a> <a href="#FILE">FILE(2)</a> <a href="#FILESYSTEM">FILESYSTEM(4)</a> <a href="#FORMAT">FORMAT(2)</a> <a href="#FUNCTION">FUNCTION(4)</a> <a href="#FUTEX">FUTEX(2)</a> <a href="#GURU">GURU(15)</a> <a href="#INTERRUPT">INTERRUPT(3)</a> <a href="#IO">IO(29)</a> <a href="#JSON">JSON(2)</a> <a href="#KVM">KVM(3)</a> <a href="#LIMITS">LIMITS(2)</a> <a href="#LOCKING">LOCKING(6)</a> <a href="#MEMORY">MEMORY(14)</a> <a href="#MONITORING">MONITORING(6)</a> <a href="#NANOSLEEP">NANOSLEEP(1)</a> <a href="#NET">NET(1)</a> <a href="#NETWORK">NETWORK(19)</a> <a href="#NFS">NFS(4)</a> <a href="#NUMA">NUMA(1)</a> <a href="#PACKETS">PACKETS(1)</a> <a href="#PROCESS">PROCESS(23)</a> <a href="#PROFILING">PROFILING(20)</a> <a href="#QEMU">QEMU(2)</a> <a href="#REGEX">REGEX(1)</a> <a href="#SCHEDULER">SCHEDULER(8)</a> <a href="#SCSI">SCSI(1)</a> <a href="#SECURITY">SECURITY(10)</a> <a href="#SIGNALS">SIGNALS(5)</a> <a href="#SIMPLE">SIMPLE(6)</a> <a href="#SLAB">SLAB(1)</a> <a href="#SOCKET">SOCKET(7)</a> <a href="#SPECULATION">SPECULATION(1)</a> <a href="#STAPGAMES">STAPGAMES(5)</a> <a href="#STATISTICS">STATISTICS(9)</a> <a href="#SYSCALL">SYSCALL(12)</a> <a href="#TCP">TCP(3)</a> <a href="#THREAD">THREAD(2)</a> <a href="#TIME">TIME(3)</a> <a href="#TRACE">TRACE(6)</a> <a href="#TRACEPOINT">TRACEPOINT(4)</a> <a href="#TRAFFIC">TRAFFIC(7)</a> <a href="#TTY">TTY(1)</a> <a href="#UTILIZATION">UTILIZATION(1)</a> <a href="#VIRTUALIZATION">VIRTUALIZATION(3)</a> <a href="#WATCHDOG">WATCHDOG(1)</a> <a href="#WATCHPOINT">WATCHPOINT(2)</a> </tt></p>
+<p><tt><a href="#_BEST">_BEST(18)</a> <a href="#BACKTRACE">BACKTRACE(8)</a> <a href="#CALLGRAPH">CALLGRAPH(3)</a> <a href="#DIAGRAM">DIAGRAM(1)</a> <a href="#DISK">DISK(5)</a> <a href="#FILE">FILE(2)</a> <a href="#FILESYSTEM">FILESYSTEM(4)</a> <a href="#FORMAT">FORMAT(2)</a> <a href="#FUNCTION">FUNCTION(4)</a> <a href="#FUTEX">FUTEX(2)</a> <a href="#GURU">GURU(16)</a> <a href="#INTERRUPT">INTERRUPT(3)</a> <a href="#IO">IO(29)</a> <a href="#JSON">JSON(2)</a> <a href="#KVM">KVM(3)</a> <a href="#LIMITS">LIMITS(2)</a> <a href="#LOCKING">LOCKING(6)</a> <a href="#MEMORY">MEMORY(14)</a> <a href="#MONITORING">MONITORING(7)</a> <a href="#NANOSLEEP">NANOSLEEP(1)</a> <a href="#NETWORK">NETWORK(20)</a> <a href="#NFS">NFS(4)</a> <a href="#NUMA">NUMA(1)</a> <a href="#PACKETS">PACKETS(1)</a> <a href="#PROCESS">PROCESS(23)</a> <a href="#PROFILING">PROFILING(20)</a> <a href="#QEMU">QEMU(2)</a> <a href="#REGEX">REGEX(1)</a> <a href="#SCHEDULER">SCHEDULER(8)</a> <a href="#SCSI">SCSI(1)</a> <a href="#SECURITY">SECURITY(10)</a> <a href="#SIGNALS">SIGNALS(5)</a> <a href="#SIMPLE">SIMPLE(10)</a> <a href="#SOCKET">SOCKET(7)</a> <a href="#SPECULATION">SPECULATION(1)</a> <a href="#STAPGAMES">STAPGAMES(5)</a> <a href="#STATISTICS">STATISTICS(9)</a> <a href="#SYSCALL">SYSCALL(12)</a> <a href="#TCP">TCP(3)</a> <a href="#THREAD">THREAD(2)</a> <a href="#TIME">TIME(3)</a> <a href="#TRACE">TRACE(6)</a> <a href="#TRACEPOINT">TRACEPOINT(4)</a> <a href="#TRAFFIC">TRAFFIC(7)</a> <a href="#TTY">TTY(1)</a> <a href="#VIRTUALIZATION">VIRTUALIZATION(3)</a> <a href="#WATCHDOG">WATCHDOG(1)</a> <a href="#WATCHPOINT">WATCHPOINT(2)</a> </tt></p>
 <h3><a name="_BEST"><a href="#_BEST">&para;</a> _BEST</a></h3>
 <ul>
 <li><a href="general/eventcount.stp">general/eventcount.stp</a> - Count Specified Events<br>
@@ -97,18 +97,6 @@ keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.ht
 keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#VIRTUALIZATION">VIRTUALIZATION</a> <a href="keyword-index.html#KVM">KVM</a> <br>
 <p>The kvm_service_time.stp script tracks the statistics about the amount of time that the processor left the guest virtual machine for each exit reason (for example fixing up a page table or handling an IO operation).  When the script exits it prints out the number of times each exit reason was encountered, the total duration of time it left the guest VM, the minimum time, the average time, and the maximum time in microseconds for that exit reason. On Linux 2.6.38 and newer kernel the script can automatically determine whether it is running on Intel or AMD processors. For older kernels with a kernel.trace(&quot;kvm_exit&quot;) tracepoint that does not have the $isa parameter you can explicitly state the kvm type with a &quot;-G kvm=intel&quot; or &quot;-G kvm=amd&quot; on the command line.</p><p><i><a href="virtualization/kvm_service_time.txt">sample usage in virtualization/kvm_service_time.txt</i></font></p>
 </li></ul>
-<h3><a name="AUDIT"><a href="#AUDIT">&para;</a> AUDIT</a></h3>
-<ul>
-<li><a href="process/auditbt.stp">process/auditbt.stp</a> - Generate backtraces for kernel audit events<br>
-keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#AUDIT">AUDIT</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
-<p>Attaches to the kernel audit-log paths (also used by libaudit), and log every record being sent, along with a user-space backtrace of the process that caused it.</p><p><font size="-2"><pre># stap auditbt.stp -d /usr/bin/sudo --ldd -c &quot;sudo true&quot;</pre></font></p>
-</li></ul>
-<h3><a name="AUTOFS"><a href="#AUTOFS">&para;</a> AUTOFS</a></h3>
-<ul>
-<li><a href="network/autofs4.stp">network/autofs4.stp</a> - Watch autofs4 Operations<br>
-keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#AUTOFS">AUTOFS</a> <a href="keyword-index.html#NFS">NFS</a> <br>
-<p>Trace key autofs4 operations such as mounting or unmounting remote filesystems.</p><p><font size="-2"><pre># stap autofs4.stp -c &quot;sleep 1&quot;</pre></font></p>
-</li></ul>
 <h3><a name="BACKTRACE"><a href="#BACKTRACE">&para;</a> BACKTRACE</a></h3>
 <ul>
 <li><a href="general/watchdog.stp">general/watchdog.stp</a> - Watchdog Timer for Arbitrary Events<br>
@@ -125,7 +113,7 @@ keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#BAC
 keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
 <p>This script reports on the last few free(3) libc calls done by processes (possibly restricted by stap -x/-c), along with a userspace backtrace at those moments.</p><p><i><a href="memory/last_100_frees.txt">sample usage in memory/last_100_frees.txt</i></font></p>
 </li><li><a href="process/auditbt.stp">process/auditbt.stp</a> - Generate backtraces for kernel audit events<br>
-keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#AUDIT">AUDIT</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
+keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
 <p>Attaches to the kernel audit-log paths (also used by libaudit), and log every record being sent, along with a user-space backtrace of the process that caused it.</p><p><font size="-2"><pre># stap auditbt.stp -d /usr/bin/sudo --ldd -c &quot;sudo true&quot;</pre></font></p>
 </li><li><a href="process/pstrace_exec.stp">process/pstrace_exec.stp</a> - Print trace of process ancestors for matching exec commands<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
@@ -150,18 +138,6 @@ keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.ht
 keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
 <p>Print a timed per-thread microsecond-timed callgraph, complete with function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.</p><p><i><a href="general/para-callgraph.txt">sample usage in general/para-callgraph.txt</i></font></p>
 </li></ul>
-<h3><a name="CPU"><a href="#CPU">&para;</a> CPU</a></h3>
-<ul>
-<li><a href="general/graphs.stp">general/graphs.stp</a> - Graphing Disk and CPU Utilization<br>
-keywords: <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html#CPU">CPU</a> <a href="keyword-index.html#UTILIZATION">UTILIZATION</a> <br>
-<p>The script tracks the disk and CPU utilization. The resulting output of the script can be piped into gnuplot to generate a graph of disk and CPU USE.</p><p><font size="-2"><pre># stap graphs.stp -c &quot;sleep 1&quot;</pre></font></p>
-</li></ul>
-<h3><a name="DEVICE"><a href="#DEVICE">&para;</a> DEVICE</a></h3>
-<ul>
-<li><a href="network/netdev.stp">network/netdev.stp</a> - Trace Activity on Network Devices<br>
-keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#DEVICE">DEVICE</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
-<p>The netdev.stp script traces configuration and transmit/receive activity on network devices.</p><p><font size="-2"><pre># stap netdev.stp -c &quot;sleep 1&quot;</pre></font></p>
-</li></ul>
 <h3><a name="DIAGRAM"><a href="#DIAGRAM">&para;</a> DIAGRAM</a></h3>
 <ul>
 <li><a href="process/pstree.stp">process/pstree.stp</a> - Generates a process diagram in DOT form.<br>
@@ -170,10 +146,7 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 </li></ul>
 <h3><a name="DISK"><a href="#DISK">&para;</a> DISK</a></h3>
 <ul>
-<li><a href="general/graphs.stp">general/graphs.stp</a> - Graphing Disk and CPU Utilization<br>
-keywords: <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html#CPU">CPU</a> <a href="keyword-index.html#UTILIZATION">UTILIZATION</a> <br>
-<p>The script tracks the disk and CPU utilization. The resulting output of the script can be piped into gnuplot to generate a graph of disk and CPU USE.</p><p><font size="-2"><pre># stap graphs.stp -c &quot;sleep 1&quot;</pre></font></p>
-</li><li><a href="io/deviceseeks.stp">io/deviceseeks.stp</a> - Histograms of Seek Behavior for Each Device<br>
+<li><a href="io/deviceseeks.stp">io/deviceseeks.stp</a> - Histograms of Seek Behavior for Each Device<br>
 keywords: <a href="keyword-index.html#DISK">DISK</a> <br>
 <p>The deviceseeks.stp script generates a histogram showing the frequency of different sized seeks (in sectors) on each device.</p><p><font size="-2"><pre># stap deviceseeks.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="io/disktop.stp">io/disktop.stp</a> - Summarize Disk Read/Write Traffic<br>
@@ -183,7 +156,7 @@ keywords: <a href="keyword-index.html#DISK">DISK</a> <br>
 keywords: <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html#FILESYSTEM">FILESYSTEM</a> <br>
 <p>This script monitors a filesystem implementations for early internal indications of ENOSPC, and reports these to the system logger and the systemtap console.</p><p><font size="-2"><pre># stap enospc.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="io/mbrwatch.stp">io/mbrwatch.stp</a> - Monitor Read/Write of the Boot Sector Area of Block Devices<br>
-keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#DISK">DISK</a> <br>
+keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p> The mbrwatch.stp script reports any attempted reads/writes of the first few sectors of a raw block device.</p><p><i><a href="io/mbrwatch.txt">sample usage in io/mbrwatch.txt</i></font></p>
 </li><li><a href="network/nfsd_unlink.stp">network/nfsd_unlink.stp</a> - Find Which Client Is Removing NFS Files on Server<br>
 keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#DISK">DISK</a> <br>
@@ -251,6 +224,9 @@ keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-inde
 <li><a href="general/badname.stp">general/badname.stp</a> - Bad Filename Filter<br>
 keywords: <a href="keyword-index.html#FILESYSTEM">FILESYSTEM</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>The badname.stp script shows how one could prevent the creation of files with undesirable names using guru mode.</p><p><i><a href="general/badname.txt">sample usage in general/badname.txt</i></font></p>
+</li><li><a href="general/keyhack.stp">general/keyhack.stp</a> - Hack the keyboard<br>
+keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>This script makes it appear that one&#39;s keyboard is broken, by changing keycodes at the kernel device driver level.  Annoy your friends!</p><p><font size="-2"><pre># stap keyhack.stp -c &#39;sleep 5&#39;</pre></font></p>
 </li><li><a href="io/eatmydata.stp">io/eatmydata.stp</a> - disable fsync<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#GURU">GURU</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p>Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on some dummy or other file descriptor</p><p><i><a href="io/eatmydata.txt">sample usage in io/eatmydata.txt</i></font></p>
@@ -342,13 +318,13 @@ keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <a href="keyword-
 keywords: <a href="keyword-index.html#IO">IO</a> <br>
 <p>Every five seconds print out the top ten executables generating I/O traffic during that interval sorted in descending order.</p><p><font size="-2"><pre># stap iotop.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="io/mbrwatch.stp">io/mbrwatch.stp</a> - Monitor Read/Write of the Boot Sector Area of Block Devices<br>
-keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#DISK">DISK</a> <br>
+keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p> The mbrwatch.stp script reports any attempted reads/writes of the first few sectors of a raw block device.</p><p><i><a href="io/mbrwatch.txt">sample usage in io/mbrwatch.txt</i></font></p>
 </li><li><a href="io/nfs_func_users.stp">io/nfs_func_users.stp</a> - Tally the Number of NFS Functions Used by Each Process<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 <p>The nfs_func_users.stp script counts the uses of NFS functions in the kernel on a per process bases.  The output is sorted from the process with the greatest number of NFS functions called to the least. The output contains the executable name, the process number, and the total number of NFS functions called by the process.</p><p><font size="-2"><pre># stap nfs_func_users.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="io/slowvfs.stp">io/slowvfs.stp</a> - Trace slow vfs opens.<br>
-keywords: <a href="keyword-index.html#IO">IO</a> <br>
+keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p>This script prints a line for every kernel vfs_open operation that takes longer than a configurable number of microseconds.  Highly contended or remote filesystems are likelier to hit this.</p><p><font size="-2"><pre># stap slowvfs.stp -G sloth=10 -c &#39;find /proc &gt;/dev/null&#39;</pre></font></p>
 </li><li><a href="io/switchfile.stp">io/switchfile.stp</a> - Switch log files<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <br>
@@ -490,25 +466,28 @@ keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.
 keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <br>
 <p>The pfaults.stp script generates a simple log for each major and minor page fault that occurs on the system. Each line contains a timestamp (in microseconds) when the page fault servicing was completed, the pid of the process, the address of the page fault, the type of access (read or write), the type of fault (major or minor), and the elapsed time for page fault. This log can be examined to determine where the page faults are occurring.</p><p><i><a href="memory/pfaults.txt">sample usage in memory/pfaults.txt</i></font></p>
 </li><li><a href="memory/vm.tracepoints.stp">memory/vm.tracepoints.stp</a> - Collect Slab Allocation Statistics<br>
-keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#SLAB">SLAB</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
+keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
 <p>The script will probe all memory slab/slub allocations and collects information about the size of the object (bytes requested) and user-space process in execution. When run over a period of time, it helps to correlate kernel-space memory consumption owing to user-space processes.</p><p><i><a href="memory/vm.tracepoints.txt">sample usage in memory/vm.tracepoints.txt</i></font></p>
 </li></ul>
 <h3><a name="MONITORING"><a href="#MONITORING">&para;</a> MONITORING</a></h3>
 <ul>
-<li><a href="general/varwatch.stp">general/varwatch.stp</a> - Watch a Variable Changing Value in a Thread<br>
+<li><a href="general/graphs.stp">general/graphs.stp</a> - Graphing Disk and CPU Utilization with gnuplot<br>
+keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <br>
+<p>The script tracks the disk and CPU utilization.  It prints a stream of data which, when piped directly into gnuplot, draws historical curves for each.</p><p><font size="-2"><pre># stap graphs.stp -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a href="general/varwatch.stp">general/varwatch.stp</a> - Watch a Variable Changing Value in a Thread<br>
 keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <br>
 <p>This script places a set of probes (specified by $1), each of which monitors the state of some context $variable expression (specified by $2).  Whenever the value changes, with respect to the active thread, the event is traced.</p><p><i><a href="general/varwatch.txt">sample usage in general/varwatch.txt</i></font></p>
 </li><li><a href="general/whythefail.stp">general/whythefail.stp</a> - Why did the function fail?<br>
 keywords: <a href="keyword-index.html#SPECULATION">SPECULATION</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#FUNCTION">FUNCTION</a> <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#_BEST">_BEST</a> <br>
 <p>The whythefail.stp script prints a statement-execution trace for a given function, but only for those runs of the function that ended up with a (configurable) post-return condition.</p><p><i><a href="general/whythefail.txt">sample usage in general/whythefail.txt</i></font></p>
 </li><li><a href="io/mbrwatch.stp">io/mbrwatch.stp</a> - Monitor Read/Write of the Boot Sector Area of Block Devices<br>
-keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#DISK">DISK</a> <br>
+keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p> The mbrwatch.stp script reports any attempted reads/writes of the first few sectors of a raw block device.</p><p><i><a href="io/mbrwatch.txt">sample usage in io/mbrwatch.txt</i></font></p>
 </li><li><a href="io/ttyspy.stp">io/ttyspy.stp</a> - Monitor TTY Typing<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#TTY">TTY</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>The ttyspy.stp script uses tty_audit hooks to monitor recent typing activity on the system, printing a scrolling record of recent keystrokes, on a per-tty basis.</p><p><i><a href="io/ttyspy.txt">sample usage in io/ttyspy.txt</i></font></p>
 </li><li><a href="process/auditbt.stp">process/auditbt.stp</a> - Generate backtraces for kernel audit events<br>
-keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#AUDIT">AUDIT</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
+keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
 <p>Attaches to the kernel audit-log paths (also used by libaudit), and log every record being sent, along with a user-space backtrace of the process that caused it.</p><p><font size="-2"><pre># stap auditbt.stp -d /usr/bin/sudo --ldd -c &quot;sudo true&quot;</pre></font></p>
 </li><li><a href="process/procmod_watcher.stp">process/procmod_watcher.stp</a> - Monitor process creation/termination and module [un]loading<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <br>
@@ -520,16 +499,13 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-index.html#NANOSLEEP">NANOSLEEP</a> <br>
 <p>The script watches each nanosleep syscall on the system. At the end of each nanosleep syscall the script prints out a line with a timestamp in microseconds, the pid, the executable name in parentheses, the &quot;nanosleep:&quot; key, and the duration of the sleep in microseconds.</p><p><font size="-2"><pre># stap sleeptime.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li></ul>
-<h3><a name="NET"><a href="#NET">&para;</a> NET</a></h3>
-<ul>
-<li><a href="lwtools/accept2close-nd.stp">lwtools/accept2close-nd.stp</a> - Show socket lifespan, from accept() to close() (non-debuginfo)<br>
-keywords: <a href="keyword-index.html#NET">NET</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
-<p>This traces socket duration from the accept() syscall to close(), and provides details on the lifespan of these passive connections, showing the distribution as a histogram.</p><p><i><a href="lwtools/accept2close-nd.txt">sample usage in lwtools/accept2close-nd.txt</i></font></p>
-</li></ul>
 <h3><a name="NETWORK"><a href="#NETWORK">&para;</a> NETWORK</a></h3>
 <ul>
-<li><a href="network/autofs4.stp">network/autofs4.stp</a> - Watch autofs4 Operations<br>
-keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#AUTOFS">AUTOFS</a> <a href="keyword-index.html#NFS">NFS</a> <br>
+<li><a href="lwtools/accept2close-nd.stp">lwtools/accept2close-nd.stp</a> - Show socket lifespan, from accept() to close() (non-debuginfo)<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
+<p>This traces socket duration from the accept() syscall to close(), and provides details on the lifespan of these passive connections, showing the distribution as a histogram.</p><p><i><a href="lwtools/accept2close-nd.txt">sample usage in lwtools/accept2close-nd.txt</i></font></p>
+</li><li><a href="network/autofs4.stp">network/autofs4.stp</a> - Watch autofs4 Operations<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#NFS">NFS</a> <br>
 <p>Trace key autofs4 operations such as mounting or unmounting remote filesystems.</p><p><font size="-2"><pre># stap autofs4.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="network/connect_stat.stp">network/connect_stat.stp</a> - Show Process Ancestry for IP Connections<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
@@ -541,7 +517,7 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#JSON">JSON</a> <br>
 <p>This script tracks time between packet queue and transmit. The information is provided to userspace via procfs in JSON format.</p><p><font size="-2"><pre># stap net_xmit_json.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="network/netdev.stp">network/netdev.stp</a> - Trace Activity on Network Devices<br>
-keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#DEVICE">DEVICE</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
 <p>The netdev.stp script traces configuration and transmit/receive activity on network devices.</p><p><font size="-2"><pre># stap netdev.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="network/netfilter_drop.stp">network/netfilter_drop.stp</a> - System-Wide Network Packet Dropping Tool<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#PACKETS">PACKETS</a> <a href="keyword-index.html#GURU">GURU</a> <br>
@@ -589,7 +565,7 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 <h3><a name="NFS"><a href="#NFS">&para;</a> NFS</a></h3>
 <ul>
 <li><a href="network/autofs4.stp">network/autofs4.stp</a> - Watch autofs4 Operations<br>
-keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#AUTOFS">AUTOFS</a> <a href="keyword-index.html#NFS">NFS</a> <br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#NFS">NFS</a> <br>
 <p>Trace key autofs4 operations such as mounting or unmounting remote filesystems.</p><p><font size="-2"><pre># stap autofs4.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="network/nfsd-recent.stp">network/nfsd-recent.stp</a> - Keep track of NFS server statistics<br>
 keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
@@ -800,7 +776,7 @@ keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#PRO
 <h3><a name="SECURITY"><a href="#SECURITY">&para;</a> SECURITY</a></h3>
 <ul>
 <li><a href="process/auditbt.stp">process/auditbt.stp</a> - Generate backtraces for kernel audit events<br>
-keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#AUDIT">AUDIT</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
+keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
 <p>Attaches to the kernel audit-log paths (also used by libaudit), and log every record being sent, along with a user-space backtrace of the process that caused it.</p><p><font size="-2"><pre># stap auditbt.stp -d /usr/bin/sudo --ldd -c &quot;sudo true&quot;</pre></font></p>
 </li><li><a href="process/noptrace.stp">process/noptrace.stp</a> - Disable ptrace from Hierarchies of Processes<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
@@ -856,6 +832,12 @@ keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <a href="keyword-index.
 </li><li><a href="general/helloworld.stp">general/helloworld.stp</a> - SystemTap "Hello World" Program<br>
 keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p>A basic &quot;Hello World&quot; program implemented in SystemTap script. It prints out &quot;hello world&quot; message and then immediately exits.</p><p><font size="-2"><pre># stap helloworld.stp</pre></font></p>
+</li><li><a href="general/key.stp">general/key.stp</a> - make keyboard noises<br>
+keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>For fans of Leroy Anderson and Typewriters only, this script arranges to play a click or a zing for various keystrokes.</p><p><font size="-2"><pre># stap key.stp -c &#39;sleep 5&#39;</pre></font></p>
+</li><li><a href="general/keyhack.stp">general/keyhack.stp</a> - Hack the keyboard<br>
+keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>This script makes it appear that one&#39;s keyboard is broken, by changing keycodes at the kernel device driver level.  Annoy your friends!</p><p><font size="-2"><pre># stap keyhack.stp -c &#39;sleep 5&#39;</pre></font></p>
 </li><li><a href="general/py2example.stp">general/py2example.stp</a> - SystemTap python 2 support tapset<br>
 keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p>A python support tapset that displays backtraces and variable values </p><p><font size="-2"><pre># stap -I tapset -c &#39;/usr/bin/python2 pyexample.py 35&#39; py2example.stp</pre></font></p>
@@ -866,20 +848,20 @@ pyexample.py 35&#39; py3example.stp</pre></font></p>
 </li><li><a href="io/eatmydata.stp">io/eatmydata.stp</a> - disable fsync<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#GURU">GURU</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p>Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on some dummy or other file descriptor</p><p><i><a href="io/eatmydata.txt">sample usage in io/eatmydata.txt</i></font></p>
+</li><li><a href="io/mbrwatch.stp">io/mbrwatch.stp</a> - Monitor Read/Write of the Boot Sector Area of Block Devices<br>
+keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p> The mbrwatch.stp script reports any attempted reads/writes of the first few sectors of a raw block device.</p><p><i><a href="io/mbrwatch.txt">sample usage in io/mbrwatch.txt</i></font></p>
+</li><li><a href="io/slowvfs.stp">io/slowvfs.stp</a> - Trace slow vfs opens.<br>
+keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>This script prints a line for every kernel vfs_open operation that takes longer than a configurable number of microseconds.  Highly contended or remote filesystems are likelier to hit this.</p><p><font size="-2"><pre># stap slowvfs.stp -G sloth=10 -c &#39;find /proc &gt;/dev/null&#39;</pre></font></p>
 </li><li><a href="network/who_sent_it.stp">network/who_sent_it.stp</a> - Trace threads sending network traffic to given host and/or port<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p>This script traces outgoing network packets using the netfilter probes (not requiring debuginfo), printing the source thread name/id and destination host:port.  It may be filtered with the_dport and the_daddr globals, e.g., to watch only for DNS traffic (port 53), and/or only to the localhost (127.0.0.1).</p><p><i><a href="network/who_sent_it.txt">sample usage in network/who_sent_it.txt</i></font></p>
 </li></ul>
-<h3><a name="SLAB"><a href="#SLAB">&para;</a> SLAB</a></h3>
-<ul>
-<li><a href="memory/vm.tracepoints.stp">memory/vm.tracepoints.stp</a> - Collect Slab Allocation Statistics<br>
-keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#SLAB">SLAB</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
-<p>The script will probe all memory slab/slub allocations and collects information about the size of the object (bytes requested) and user-space process in execution. When run over a period of time, it helps to correlate kernel-space memory consumption owing to user-space processes.</p><p><i><a href="memory/vm.tracepoints.txt">sample usage in memory/vm.tracepoints.txt</i></font></p>
-</li></ul>
 <h3><a name="SOCKET"><a href="#SOCKET">&para;</a> SOCKET</a></h3>
 <ul>
 <li><a href="lwtools/accept2close-nd.stp">lwtools/accept2close-nd.stp</a> - Show socket lifespan, from accept() to close() (non-debuginfo)<br>
-keywords: <a href="keyword-index.html#NET">NET</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
 <p>This traces socket duration from the accept() syscall to close(), and provides details on the lifespan of these passive connections, showing the distribution as a histogram.</p><p><i><a href="lwtools/accept2close-nd.txt">sample usage in lwtools/accept2close-nd.txt</i></font></p>
 </li><li><a href="network/connect_stat.stp">network/connect_stat.stp</a> - Show Process Ancestry for IP Connections<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
@@ -939,7 +921,7 @@ keywords: <a href="keyword-index.html#FUNCTION">FUNCTION</a> <a href="keyword-in
 keywords: <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#MEMORY">MEMORY</a> <br>
 <p>This script prints the size of a type, based on dwarf debuginfo for any kernel or userspace module, or trial-compilation of a given header file name.</p><p><i><a href="general/sizeof.txt">sample usage in general/sizeof.txt</i></font></p>
 </li><li><a href="memory/vm.tracepoints.stp">memory/vm.tracepoints.stp</a> - Collect Slab Allocation Statistics<br>
-keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#SLAB">SLAB</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
+keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
 <p>The script will probe all memory slab/slub allocations and collects information about the size of the object (bytes requested) and user-space process in execution. When run over a period of time, it helps to correlate kernel-space memory consumption owing to user-space processes.</p><p><i><a href="memory/vm.tracepoints.txt">sample usage in memory/vm.tracepoints.txt</i></font></p>
 </li><li><a href="network/net_xmit_json.stp">network/net_xmit_json.stp</a> - Tracks time between packet queue and transmit.<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#JSON">JSON</a> <br>
@@ -1066,7 +1048,7 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 <h3><a name="TRAFFIC"><a href="#TRAFFIC">&para;</a> TRAFFIC</a></h3>
 <ul>
 <li><a href="network/netdev.stp">network/netdev.stp</a> - Trace Activity on Network Devices<br>
-keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#DEVICE">DEVICE</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
 <p>The netdev.stp script traces configuration and transmit/receive activity on network devices.</p><p><font size="-2"><pre># stap netdev.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="network/netfilter_summary.stp">network/netfilter_summary.stp</a> - System-Wide Count of Network Packets by IPs<br>
 keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
@@ -1092,12 +1074,6 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 <li><a href="io/ttyspy.stp">io/ttyspy.stp</a> - Monitor TTY Typing<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#TTY">TTY</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>The ttyspy.stp script uses tty_audit hooks to monitor recent typing activity on the system, printing a scrolling record of recent keystrokes, on a per-tty basis.</p><p><i><a href="io/ttyspy.txt">sample usage in io/ttyspy.txt</i></font></p>
-</li></ul>
-<h3><a name="UTILIZATION"><a href="#UTILIZATION">&para;</a> UTILIZATION</a></h3>
-<ul>
-<li><a href="general/graphs.stp">general/graphs.stp</a> - Graphing Disk and CPU Utilization<br>
-keywords: <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html#CPU">CPU</a> <a href="keyword-index.html#UTILIZATION">UTILIZATION</a> <br>
-<p>The script tracks the disk and CPU utilization. The resulting output of the script can be piped into gnuplot to generate a graph of disk and CPU USE.</p><p><font size="-2"><pre># stap graphs.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li></ul>
 <h3><a name="VIRTUALIZATION"><a href="#VIRTUALIZATION">&para;</a> VIRTUALIZATION</a></h3>
 <ul>

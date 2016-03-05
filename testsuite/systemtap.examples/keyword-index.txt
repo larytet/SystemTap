@@ -222,29 +222,6 @@ keywords: _best virtualization kvm
   # stap kvm_service_time.stp -c "sleep 1"
 
 
-= AUDIT =
-
-process/auditbt.stp - Generate backtraces for kernel audit events
-keywords: monitoring security audit backtrace
-
-  Attaches to the kernel audit-log paths (also used by libaudit), and
-  log every record being sent, along with a user-space backtrace of the
-  process that caused it.
-
-  # stap auditbt.stp -d /usr/bin/sudo --ldd -c "sudo true"
-
-
-= AUTOFS =
-
-network/autofs4.stp - Watch autofs4 Operations
-keywords: network autofs nfs
-
-  Trace key autofs4 operations such as mounting or unmounting remote
-  filesystems.
-
-  # stap autofs4.stp -c "sleep 1"
-
-
 = BACKTRACE =
 
 general/watchdog.stp - Watchdog Timer for Arbitrary Events
@@ -296,7 +273,7 @@ keywords: memory process backtrace
 
 
 process/auditbt.stp - Generate backtraces for kernel audit events
-keywords: monitoring security audit backtrace
+keywords: monitoring security backtrace
 
   Attaches to the kernel audit-log paths (also used by libaudit), and
   log every record being sent, along with a user-space backtrace of the
@@ -377,29 +354,6 @@ keywords: _best trace callgraph
   'kernel.function("vfs_read")' -c "cat /proc/sys/vm/* || true"
 
 
-= CPU =
-
-general/graphs.stp - Graphing Disk and CPU Utilization
-keywords: disk cpu utilization
-
-  The script tracks the disk and CPU utilization. The resulting output
-  of the script can be piped into gnuplot to generate a graph of disk
-  and CPU USE.
-
-  # stap graphs.stp -c "sleep 1"
-
-
-= DEVICE =
-
-network/netdev.stp - Trace Activity on Network Devices
-keywords: network device traffic
-
-  The netdev.stp script traces configuration and transmit/receive
-  activity on network devices.
-
-  # stap netdev.stp -c "sleep 1"
-
-
 = DIAGRAM =
 
 process/pstree.stp - Generates a process diagram in DOT form.
@@ -413,16 +367,6 @@ keywords: process diagram
 
 
 = DISK =
-
-general/graphs.stp - Graphing Disk and CPU Utilization
-keywords: disk cpu utilization
-
-  The script tracks the disk and CPU utilization. The resulting output
-  of the script can be piped into gnuplot to generate a graph of disk
-  and CPU USE.
-
-  # stap graphs.stp -c "sleep 1"
-
 
 io/deviceseeks.stp - Histograms of Seek Behavior for Each Device
 keywords: disk
@@ -453,7 +397,7 @@ keywords: disk filesystem
 
 
 io/mbrwatch.stp - Monitor Read/Write of the Boot Sector Area of Block Devices
-keywords: io monitoring disk
+keywords: io monitoring disk simple
 
    The mbrwatch.stp script reports any attempted reads/writes of the
   first few sectors of a raw block device.
@@ -657,6 +601,16 @@ keywords: filesystem guru
 
   # stap -g badname.stp -c "touch /tmp/myXXXbadnameXXXfile.$$ 2>&1 | grep \
   denied"
+
+
+general/keyhack.stp - Hack the keyboard
+keywords: simple guru
+
+  This script makes it appear that one's keyboard is broken, by
+  changing keycodes at the kernel device driver level.	Annoy your
+  friends!
+
+  # stap keyhack.stp -c 'sleep 5'
 
 
 io/eatmydata.stp - disable fsync
@@ -945,7 +899,7 @@ keywords: io
 
 
 io/mbrwatch.stp - Monitor Read/Write of the Boot Sector Area of Block Devices
-keywords: io monitoring disk
+keywords: io monitoring disk simple
 
    The mbrwatch.stp script reports any attempted reads/writes of the
   first few sectors of a raw block device.
@@ -968,7 +922,7 @@ keywords: io profiling
 
 
 io/slowvfs.stp - Trace slow vfs opens.
-keywords: io
+keywords: io simple
 
   This script prints a line for every kernel vfs_open operation that
   takes longer than a configurable number of microseconds.  Highly
@@ -1451,7 +1405,7 @@ keywords: memory
 
 
 memory/vm.tracepoints.stp - Collect Slab Allocation Statistics
-keywords: memory slab statistics
+keywords: memory statistics
 
   The script will probe all memory slab/slub allocations and collects
   information about the size of the object (bytes requested) and
@@ -1463,6 +1417,16 @@ keywords: memory slab statistics
 
 
 = MONITORING =
+
+general/graphs.stp - Graphing Disk and CPU Utilization with gnuplot
+keywords: monitoring
+
+  The script tracks the disk and CPU utilization.  It prints a stream
+  of data which, when piped directly into gnuplot, draws historical
+  curves for each.
+
+  # stap graphs.stp -c "sleep 1"
+
 
 general/varwatch.stp - Watch a Variable Changing Value in a Thread
 keywords: _best monitoring
@@ -1488,7 +1452,7 @@ keywords: speculation monitoring function trace _best
 
 
 io/mbrwatch.stp - Monitor Read/Write of the Boot Sector Area of Block Devices
-keywords: io monitoring disk
+keywords: io monitoring disk simple
 
    The mbrwatch.stp script reports any attempted reads/writes of the
   first few sectors of a raw block device.
@@ -1509,7 +1473,7 @@ keywords: io tty monitoring guru
 
 
 process/auditbt.stp - Generate backtraces for kernel audit events
-keywords: monitoring security audit backtrace
+keywords: monitoring security backtrace
 
   Attaches to the kernel audit-log paths (also used by libaudit), and
   log every record being sent, along with a user-space backtrace of the
@@ -1543,10 +1507,10 @@ keywords: syscall nanosleep
   # stap sleeptime.stp -c "sleep 1"
 
 
-= NET =
+= NETWORK =
 
 lwtools/accept2close-nd.stp - Show socket lifespan, from accept() to close() (non-debuginfo)
-keywords: net socket
+keywords: network socket
 
   This traces socket duration from the accept() syscall to close(), and
   provides details on the lifespan of these passive connections,
@@ -1555,10 +1519,8 @@ keywords: net socket
   # stap accept2close-nd.stp -c "sleep 1"
 
 
-= NETWORK =
-
 network/autofs4.stp - Watch autofs4 Operations
-keywords: network autofs nfs
+keywords: network nfs
 
   Trace key autofs4 operations such as mounting or unmounting remote
   filesystems.
@@ -1595,7 +1557,7 @@ keywords: network statistics json
 
 
 network/netdev.stp - Trace Activity on Network Devices
-keywords: network device traffic
+keywords: network traffic
 
   The netdev.stp script traces configuration and transmit/receive
   activity on network devices.
@@ -1765,7 +1727,7 @@ keywords: network trace traffic simple
 = NFS =
 
 network/autofs4.stp - Watch autofs4 Operations
-keywords: network autofs nfs
+keywords: network nfs
 
   Trace key autofs4 operations such as mounting or unmounting remote
   filesystems.
@@ -2486,7 +2448,7 @@ keywords: io profiling scsi
 = SECURITY =
 
 process/auditbt.stp - Generate backtraces for kernel audit events
-keywords: monitoring security audit backtrace
+keywords: monitoring security backtrace
 
   Attaches to the kernel audit-log paths (also used by libaudit), and
   log every record being sent, along with a user-space backtrace of the
@@ -2625,6 +2587,25 @@ keywords: _best simple
   # stap helloworld.stp
 
 
+general/key.stp - make keyboard noises
+keywords: simple
+
+  For fans of Leroy Anderson and Typewriters only, this script arranges
+  to play a click or a zing for various keystrokes.
+
+  # stap key.stp -c 'sleep 5'
+
+
+general/keyhack.stp - Hack the keyboard
+keywords: simple guru
+
+  This script makes it appear that one's keyboard is broken, by
+  changing keycodes at the kernel device driver level.	Annoy your
+  friends!
+
+  # stap keyhack.stp -c 'sleep 5'
+
+
 general/py2example.stp - SystemTap python 2 support tapset
 keywords: simple
 
@@ -2652,6 +2633,27 @@ keywords: io guru simple
   # stap -g eatmydata.stp -c 'strace ls || true'
 
 
+io/mbrwatch.stp - Monitor Read/Write of the Boot Sector Area of Block Devices
+keywords: io monitoring disk simple
+
+   The mbrwatch.stp script reports any attempted reads/writes of the
+  first few sectors of a raw block device.
+
+  # stap mbrwatch.stp -c "dd of=/dev/null count=1 if=/dev/`grep -v major \
+  /proc/partitions | grep . | grep -v 'sr[0-9]' | awk '{print $4}' | \
+  head -1`"
+
+
+io/slowvfs.stp - Trace slow vfs opens.
+keywords: io simple
+
+  This script prints a line for every kernel vfs_open operation that
+  takes longer than a configurable number of microseconds.  Highly
+  contended or remote filesystems are likelier to hit this.
+
+  # stap slowvfs.stp -G sloth=10 -c 'find /proc >/dev/null'
+
+
 network/who_sent_it.stp - Trace threads sending network traffic to given host and/or port
 keywords: network trace traffic simple
 
@@ -2665,24 +2667,10 @@ keywords: network trace traffic simple
   true"
 
 
-= SLAB =
-
-memory/vm.tracepoints.stp - Collect Slab Allocation Statistics
-keywords: memory slab statistics
-
-  The script will probe all memory slab/slub allocations and collects
-  information about the size of the object (bytes requested) and
-  user-space process in execution. When run over a period of time, it
-  helps to correlate kernel-space memory consumption owing to
-  user-space processes.
-
-  # stap vm.tracepoints.stp -c "sleep 10"
-
-
 = SOCKET =
 
 lwtools/accept2close-nd.stp - Show socket lifespan, from accept() to close() (non-debuginfo)
-keywords: net socket
+keywords: network socket
 
   This traces socket duration from the accept() syscall to close(), and
   provides details on the lifespan of these passive connections,
@@ -2865,7 +2853,7 @@ keywords: statistics memory
 
 
 memory/vm.tracepoints.stp - Collect Slab Allocation Statistics
-keywords: memory slab statistics
+keywords: memory statistics
 
   The script will probe all memory slab/slub allocations and collects
   information about the size of the object (bytes requested) and
@@ -3284,7 +3272,7 @@ keywords: process scheduler time tracepoint
 = TRAFFIC =
 
 network/netdev.stp - Trace Activity on Network Devices
-keywords: network device traffic
+keywords: network traffic
 
   The netdev.stp script traces configuration and transmit/receive
   activity on network devices.
@@ -3370,18 +3358,6 @@ keywords: io tty monitoring guru
   keystrokes, on a per-tty basis.
 
   # stap --skip-badvars -g ttyspy.stp -c "sleep 1"
-
-
-= UTILIZATION =
-
-general/graphs.stp - Graphing Disk and CPU Utilization
-keywords: disk cpu utilization
-
-  The script tracks the disk and CPU utilization. The resulting output
-  of the script can be piped into gnuplot to generate a graph of disk
-  and CPU USE.
-
-  # stap graphs.stp -c "sleep 1"
 
 
 = VIRTUALIZATION =

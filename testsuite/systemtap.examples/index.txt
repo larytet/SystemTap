@@ -82,12 +82,12 @@ keywords: function statistics
   # stap func_time_stats.stp 'syscall.nanosleep' -c "sleep 1"
 
 
-general/graphs.stp - Graphing Disk and CPU Utilization
-keywords: disk cpu utilization
+general/graphs.stp - Graphing Disk and CPU Utilization with gnuplot
+keywords: monitoring
 
-  The script tracks the disk and CPU utilization. The resulting output
-  of the script can be piped into gnuplot to generate a graph of disk
-  and CPU USE.
+  The script tracks the disk and CPU utilization.  It prints a stream
+  of data which, when piped directly into gnuplot, draws historical
+  curves for each.
 
   # stap graphs.stp -c "sleep 1"
 
@@ -99,6 +99,25 @@ keywords: _best simple
   prints out "hello world" message and then immediately exits.
 
   # stap helloworld.stp
+
+
+general/key.stp - make keyboard noises
+keywords: simple
+
+  For fans of Leroy Anderson and Typewriters only, this script arranges
+  to play a click or a zing for various keystrokes.
+
+  # stap key.stp -c 'sleep 5'
+
+
+general/keyhack.stp - Hack the keyboard
+keywords: simple guru
+
+  This script makes it appear that one's keyboard is broken, by
+  changing keycodes at the kernel device driver level.	Annoy your
+  friends!
+
+  # stap keyhack.stp -c 'sleep 5'
 
 
 general/para-callgraph-verbose.stp - Callgraph Tracing with Verbose Arguments
@@ -389,7 +408,7 @@ keywords: io
 
 
 io/mbrwatch.stp - Monitor Read/Write of the Boot Sector Area of Block Devices
-keywords: io monitoring disk
+keywords: io monitoring disk simple
 
    The mbrwatch.stp script reports any attempted reads/writes of the
   first few sectors of a raw block device.
@@ -412,7 +431,7 @@ keywords: io profiling
 
 
 io/slowvfs.stp - Trace slow vfs opens.
-keywords: io
+keywords: io simple
 
   This script prints a line for every kernel vfs_open operation that
   takes longer than a configurable number of microseconds.  Highly
@@ -494,7 +513,7 @@ keywords: locking
 
 
 lwtools/accept2close-nd.stp - Show socket lifespan, from accept() to close() (non-debuginfo)
-keywords: net socket
+keywords: network socket
 
   This traces socket duration from the accept() syscall to close(), and
   provides details on the lifespan of these passive connections,
@@ -741,7 +760,7 @@ keywords: memory
 
 
 memory/vm.tracepoints.stp - Collect Slab Allocation Statistics
-keywords: memory slab statistics
+keywords: memory statistics
 
   The script will probe all memory slab/slub allocations and collects
   information about the size of the object (bytes requested) and
@@ -753,7 +772,7 @@ keywords: memory slab statistics
 
 
 network/autofs4.stp - Watch autofs4 Operations
-keywords: network autofs nfs
+keywords: network nfs
 
   Trace key autofs4 operations such as mounting or unmounting remote
   filesystems.
@@ -790,7 +809,7 @@ keywords: network statistics json
 
 
 network/netdev.stp - Trace Activity on Network Devices
-keywords: network device traffic
+keywords: network traffic
 
   The netdev.stp script traces configuration and transmit/receive
   activity on network devices.
@@ -987,7 +1006,7 @@ keywords: network trace traffic simple
 
 
 process/auditbt.stp - Generate backtraces for kernel audit events
-keywords: monitoring security audit backtrace
+keywords: monitoring security backtrace
 
   Attaches to the kernel audit-log paths (also used by libaudit), and
   log every record being sent, along with a user-space backtrace of the

@@ -1,7 +1,7 @@
 title: Show socket lifespan, from accept() to close() (non-debuginfo)
 name: accept2close-nd.stp
 author: Brendan Gregg
-keywords: net socket
+keywords: network socket
 description: This traces socket duration from the accept() syscall to close(), and provides details on the lifespan of these passive connections, showing the distribution as a histogram.
 scope: system-wide
 usage: ./accept2close-nd.stp [min_ms]

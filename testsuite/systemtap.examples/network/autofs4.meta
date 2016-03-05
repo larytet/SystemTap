@@ -2,7 +2,7 @@ title: Watch autofs4 Operations
 name: autofs4.stp
 version: 1.0
 author: Jeff Moyer
-keywords: network autofs nfs
+keywords: network nfs
 subsystem: network
 status: proposed
 exit: user-controlled

@@ -2,7 +2,7 @@ title: Monitor Read/Write of the Boot Sector Area of Block Devices
 name: mbrwatch.stp
 version: 1.0
 author: anonymous
-keywords: io monitoring disk
+keywords: io monitoring disk simple
 subsystem: io
 status: proposed
 exit: user-controlled
