@@ -1,0 +1,33 @@
+set test "server request size"
+set server_log $logfile
+
+# We want to check that we're not failing tests becuase the compiler server
+# can't be started. if the basic stap server doesn't start up, label this as untested
+if {! [setup_server]} then {
+    untested "$test"
+    return
+}
+# Now that we know that the basic compile can be started. let's shut it down
+shutdown_server
+
+# We'll test 2 server options. we're not checking the stap command's return.
+# instead we will check the that correct error message is in the server log.
+# 1. --max-compressed-request 
+# 2. --max-request-size size
+set testcases  {"--max-compressed-request" "--max-request-size"}
+set outputs { " request file is too large" "Uncompressed request size of"}
+
+foreach output $outputs testcase $testcases {
+  if {! [setup_server $testcase 10]} then {
+    fail "$test $testcase (server setup)"
+  } else {
+    stap_run_batch $srcdir/systemtap.server/hello.stp --use-server=$server_spec
+    set rc [catch {exec grep $output $server_log} result]
+    if {$rc != 0} then {
+      fail "$test $testcase"
+    } else {
+      pass "$test $testcase"
+    }
+  }
+  shutdown_server
+}
