@@ -292,7 +292,7 @@ parse_options (int argc, char **argv)
 	  if (*num_endptr != '\0')
 	    fatal (_F("%s: cannot parse number '--max-request-size=%s'", argv[0], optarg));
           else if (maxsize_tmp < 1)
-	    fatal (_F("%s: invalid entry: max (uncompressed) request size must not be greater than 0 '--max-request-size=%s'",
+	    fatal (_F("%s: invalid entry: max (uncompressed) request size must be greater than 0 '--max-request-size=%s'",
 		      argv[0], optarg));
           max_uncompressed_req_size = (size_t) maxsize_tmp; // convert the long to an unsigned
           break;
@@ -301,7 +301,7 @@ parse_options (int argc, char **argv)
 	  if (*num_endptr != '\0')
 	    fatal (_F("%s: cannot parse number '--max-compressed-request=%s'", argv[0], optarg));
           else if (maxsize_tmp < 1)
-	    fatal (_F("%s: invalid entry: max compressed request size must not be greater than 0 '--max-compressed-request=%s'",
+	    fatal (_F("%s: invalid entry: max compressed request size must be greater than 0 '--max-compressed-request=%s'",
 		      argv[0], optarg));
           max_compressed_req_size = (size_t) maxsize_tmp; // convert the long to an unsigned
           break;
@@ -986,8 +986,8 @@ initialize (int argc, char **argv) {
   use_db_password = false;
   port = 0;
   max_threads = sysconf( _SC_NPROCESSORS_ONLN ); // Default to number of processors
-  max_uncompressed_req_size = 50000; // 50 KB <- default max uncompressed request size
-  max_compressed_req_size = 5000; // 5 KB <- default max compressed request size
+  max_uncompressed_req_size = 50000; // 50 KB: default max uncompressed request size
+  max_compressed_req_size = 5000; // 5 KB: default max compressed request size
   keep_temp = false;
   struct utsname utsname;
   uname (& utsname);
@@ -2094,14 +2094,14 @@ spawn_and_wait (const vector<string> &argv, int *spawnrc,
 }
 
 /* Given the path to the compressed request file, return 0 if the size of the
- * uncompressed request is within the determined limits. */
+ * uncompressed request is within the determined limit. */
 int
 check_uncompressed_request_size (const char * zip_file)
 {
   vector<string> args;
   ostringstream result;
 
-  // Check the uncompressed file size.
+  // Generate the command to heck the uncompressed size
   args.push_back("unzip");
   args.push_back("-Zt");
   args.push_back(zip_file);
