@@ -74,13 +74,30 @@ function error (msg:string) %{ /* unprivileged */ /* unmodified-fnargs */
  * sfunction assert - evaluate assertion
  *
  * @expression: The expression to evaluate
+ *
+ * Description: This function checks the expression and aborts the
+ * current running probe if expression evaluates to zero. Uses error()
+ * and may be caught by try{} catch{}. A default message will be
+ * displayed.
+ */
+function assert(expression:long) {
+    if (!expression) {
+        error("Assertion failed")
+    }
+}
+
+/**
+ * sfunction assert - evaluate assertion
+ *
+ * @expression: The expression to evaluate
  * @msg: The formatted message string
  *
  * Description: This function checks the expression and aborts the
  * current running probe if expression evaluates to zero. Uses error()
- * and may be caught by try{} catch{}.
+ * and may be caught by try{} catch{}. The specified message will be
+ * displayed.
  */
-function assert(expression, msg) {
+function assert(expression:long, msg:string) {
     if (!expression) {
         error(msg)
     }

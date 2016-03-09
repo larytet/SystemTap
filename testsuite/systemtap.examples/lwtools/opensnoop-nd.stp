@@ -27,5 +27,5 @@ probe nd_syscall.open.return
 {
 	/* trace on return to ensure the pathname has faulted in */
 	printf("%6d %6d %16s %4d %s\n", uid(), pid(), execname(),
-	    returnval(), user_string2(@entry(pointer_arg(1)), "-"));
+	    returnval(), user_string(@entry(pointer_arg(1)), "-"));
 }

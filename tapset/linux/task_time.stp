@@ -42,7 +42,7 @@
 %}
 
 /**
- * sfunction task_utime - User time of the current task
+ * sfunction task_utime - User time of the task
  *
  * Description: Returns the user time of the current task in cputime.
  * Does not include any time used by other tasks in this process, nor
@@ -54,7 +54,7 @@ function task_utime:long ()
 %}
 
 /**
- * sfunction task_utime_tid - User time of the given task
+ * sfunction task_utime - User time of the task
  *
  * @tid: Thread id of the given task
  *
@@ -63,7 +63,7 @@ function task_utime:long ()
  * Does not include any time used by other tasks in this process, nor
  * does it include any time of the children of this task.
  */
-function task_utime_tid:long(tid:long)
+function task_utime:long(tid:long)
 {
   task = pid2task(tid);
   if (task != 0)
@@ -73,7 +73,7 @@ function task_utime_tid:long(tid:long)
 }
 
 /**
- * sfunction task_stime - System time of the current task
+ * sfunction task_stime - System time of the task
  *
  * Description: Returns the system time of the current task in cputime.
  * Does not include any time used by other tasks in this process, nor
@@ -85,7 +85,7 @@ function task_stime:long ()
 %}
 
 /**
- * sfunction task_stime_tid - System time of the given task
+ * sfunction task_stime - System time of the task
  *
  * @tid: Thread id of the given task
  *
@@ -94,7 +94,7 @@ function task_stime:long ()
  * Does not include any time used by other tasks in this process, nor
  * does it include any time of the children of this task.
  */
-function task_stime_tid:long(tid:long)
+function task_stime:long(tid:long)
 {
   task = pid2task(tid);
   if (task != 0)
@@ -239,6 +239,6 @@ function task_time_string:string ()
 function task_time_string_tid:string (tid:long)
 {
   return sprintf ("usr: %s, sys: %s",
-                  cputime_to_string (task_utime_tid(tid)),
-                  cputime_to_string (task_stime_tid(tid)));
+                  cputime_to_string (task_utime(tid)),
+                  cputime_to_string (task_stime(tid)));
 }

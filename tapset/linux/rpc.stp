@@ -489,7 +489,7 @@ probe sunrpc.clnt.call_sync = kernel.function("rpc_call_sync") !,
 					    &$clnt->cl_count)) == 0)
 
 	proc = proc_from_msg($msg)
-	procname = kernel_string2(@choose_defined($msg->rpc_proc->p_name, 0), "NULL")
+	procname = kernel_string(@choose_defined($msg->rpc_proc->p_name, 0), "NULL")
 	flags = $flags
 	
 	name = "sunrpc.clnt.call_sync"
@@ -542,7 +542,7 @@ probe sunrpc.clnt.call_async = kernel.function("rpc_call_async") !,
 					    &$clnt->cl_count)) == 0)
 
 	proc = proc_from_msg($msg)
-	procname = kernel_string2(@choose_defined($msg->rpc_proc->p_name, 0), "NULL")
+	procname = kernel_string(@choose_defined($msg->rpc_proc->p_name, 0), "NULL")
 	flags = $flags
 	
 	name = "sunrpc.clnt.call_async"

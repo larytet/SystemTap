@@ -238,6 +238,7 @@ PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 POSUB = @POSUB@
 RANLIB = @RANLIB@
+READLINE_LIBS = @READLINE_LIBS@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -585,8 +586,9 @@ uninstall-am:
 @BUILD_REFDOCS_TRUE@tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	sed -e '/^!Syscalls/{r $(abs_srcdir)/syscalls.xmlpart' -e 'd}' $(abs_srcdir)/tapsets.tmpl > tapsets.tmpl.new
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(DOCPROC) doc tapsets.tmpl.new > tapsets.xml.new
-@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	xsltproc $(srcdir)/sort-tapsets.xslt tapsets.xml.new > tapsets.xml.new2
-@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	rm tapsets.xml.new tapsets.tmpl.new
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	python $(srcdir)/overload.py tapsets.xml.new > tapsets.xml.new1
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	xsltproc $(srcdir)/sort-tapsets.xslt tapsets.xml.new1 > tapsets.xml.new2
+@BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	rm tapsets.xml.new tapsets.xml.new1 tapsets.tmpl.new
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then \
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@		echo tapsets.xml unchanged; \
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@		rm tapsets.xml.new2; \

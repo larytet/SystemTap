@@ -20,7 +20,7 @@ probe begin {
 		for (t = 0; t < 2; t++) {
 			printf("   %2d,%1d   |", r, t);
 			for (c = 40; c < 48; c++) {
-				ansi_set_color3(r, c, t)
+				ansi_set_color(r, c, t)
 				printf(" %s ", !t ? "Normal" : "Bold  ")
 				ansi_reset_color()
 			}

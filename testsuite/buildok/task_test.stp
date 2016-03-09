@@ -29,8 +29,8 @@ probe begin {
   log(sprint(task_start_time(0)))
 
   log(task_time_string_tid(0))
-  log(sprint(task_stime_tid(0)))
-  log(sprint(task_utime_tid(0)))
+  log(sprint(task_stime(0)))
+  log(sprint(task_utime(0)))
 
   exit()
 }

@@ -18,22 +18,21 @@ keywords: io statistics
   # stap alias_suffixes.stp -c "sleep 1"
 
 
-general/ansi_colors.stp - Color Table for ansi_set_color2() and ansi_set_color3()
+general/ansi_colors.stp - Color Table for ansi_set_color()
 keywords: format
 
   The script prints a table showing the available color combinations
-  for the ansi_set_color2() and ans_set_color3() functions in the
-  ansi.stp tapset.
+  for the ansi_set_color() function in the ansi.stp tapset.
 
   # stap ansi_colors.stp
 
 
-general/ansi_colors2.stp - Show Attribues in Table for ansi_set_color3()
+general/ansi_colors2.stp - Show Attribues in Table for ansi_set_color()
 keywords: format
 
   The script prints a table showing the available attributes (bold,
   underline, and inverse) with color combinations for the
-  ans_set_color3() function in the ansi.stp tapset.
+  ans_set_color() function in the ansi.stp tapset.
 
   # stap ansi_colors2.stp
 

@@ -13,6 +13,20 @@
 /**
  * sfunction tokenize - Return the next non-empty token in a string
  *
+ * @delim: set of characters that delimit the tokens
+ *
+ * Description: This function returns the next token in the string
+ * passed in the previous call to tokenize. If no delimiter is found,
+ * the entire remaining input string is * returned. It returns empty
+ * when no more tokens are available.
+ */
+function tokenize:string(delim:string) {
+  return tokenize("", delim)
+}
+
+/**
+ * sfunction tokenize - Return the next non-empty token in a string
+ *
  * @input: string to tokenize. If empty, returns the next non-empty token
  * in the string passed in the previous call to tokenize().
  * @delim: set of characters that delimit the tokens

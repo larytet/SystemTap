@@ -122,8 +122,8 @@
 
         indev = & @cast($in, "struct net_device", "kernel<linux/netdevice.h>")
         outdev = & @cast($out, "struct net_device", "kernel<linux/netdevice.h>")
-        indev_name = kernel_string2(indev->name, "")
-        outdev_name = kernel_string2(outdev->name, "")
+        indev_name = kernel_string(indev->name, "")
+        outdev_name = kernel_string(outdev->name, "")
 
         if (indev) {
            indev_mac_len = indev->addr_len

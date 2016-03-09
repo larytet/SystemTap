@@ -28,8 +28,9 @@ echo "Generating tapsets.xml"
 gcc -o docproc $DOCS/$STR/docproc.c
 sed -e '/^!Syscalls/{r $DOCS/$STR/syscalls.xmlpart' -e 'd}' $DOCS/$STR/tapsets.tmpl > tapsets.tmpl.new
 SRCTREE=$BASE/ ./docproc doc tapsets.tmpl.new > tapsets.xml.new
-xsltproc $DOCS/$STR/sort-tapsets.xslt tapsets.xml.new > tapsets.xml.new2
-rm tapsets.xml.new tapsets.tmpl.new
+python $DOCS/$STR/overload.py tapsets.xml.new > tapsets.xml.new1
+xsltproc $DOCS/$STR/sort-tapsets.xslt tapsets.xml.new1 > tapsets.xml.new2
+rm tapsets.xml.new tapsets.xml.new1 tapsets.tmpl.new
 if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then
     echo tapsets.xml unchanged;
     rm tapsets.xml.new2;

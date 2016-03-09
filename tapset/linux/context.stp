@@ -569,7 +569,7 @@ function cmdline_args:string(n:long, m:long, delim:string)
          (m<0 || __nr<=m); // caller still interested?
        __nr++) { 
 
-    __arg = user_string2(__arg_start, ""); // argv[__nr], unquoted
+    __arg = user_string(__arg_start, ""); // argv[__nr], unquoted
     __arg_start += strlen(__arg) + 1; // skip over for next iteration
 
     if (__nr == n)     // caller starting to get interested?

@@ -45,7 +45,7 @@ function user_string:string (addr:long) {
 }
 
 /**
- * sfunction user_string2 - Retrieves string from user space with alternative error string
+ * sfunction user_string - Retrieves string from user space with alternative error string
  *
  * @addr: the user space address to retrieve the string from
  * @err_msg: the error message to return when data isn't available
@@ -54,8 +54,8 @@ function user_string:string (addr:long) {
  * memory address. Reports the given error message on the rare cases when
  * userspace data is not accessible.
  */
-function user_string2:string (addr:long, err_msg:string) {
-	return user_string_n2(addr, @MAXSTRINGLEN, err_msg)
+function user_string:string (addr:long, err_msg:string) {
+	return user_string_n(addr, @MAXSTRINGLEN, err_msg)
 }
 
 /**
@@ -69,15 +69,15 @@ function user_string2:string (addr:long, err_msg:string) {
  */
 function user_string_warn:string (addr:long) {
 %(systemtap_v < "2.3" %? // PR15044
-	return user_string2_warn(addr, "<unknown>")
+	return user_string_warn(addr, "<unknown>")
 %:
-	return user_string2_warn(addr, "")
+	return user_string_warn(addr, "")
 %)
 }
 
 
 /**
- * sfunction user_string2_warn - Retrieves string from user space with alternative warning string
+ * sfunction user_string_warn - Retrieves string from user space with alternative warning string
  *
  * @addr: the user space address to retrieve the string from
  * @warn_msg: the warning message to return when data isn't available
@@ -87,8 +87,8 @@ function user_string_warn:string (addr:long) {
  * when userspace data is not accessible and warns (but does not abort)
  * about the failure.
  */
-function user_string2_warn:string (addr:long, warn_msg:string) {
-	return user_string2_n_warn(addr, @MAXSTRINGLEN, warn_msg)
+function user_string_warn:string (addr:long, warn_msg:string) {
+	return user_string_n_warn(addr, @MAXSTRINGLEN, warn_msg)
 }
 
 /**
@@ -122,7 +122,7 @@ function user_string_quoted:string (addr:long) {
  */
 function user_string_n:string (addr:long, n:long)
 %( systemtap_v < "2.3" %? // PR15044
-	{ return user_string_n2(addr, n, "<unknown>") }
+	{ return user_string_n(addr, n, "<unknown>") }
 %:
 	%{ /* pure */ /* myproc-unprivileged */
 		long rc;
@@ -141,7 +141,7 @@ function user_string_n:string (addr:long, n:long)
 %)
 
 /**
- * sfunction user_string_n2 - Retrieves string of given length from user space
+ * sfunction user_string_n - Retrieves string of given length from user space
  *
  * @addr: the user space address to retrieve the string from
  * @n: the maximum length of the string (if not null terminated)
@@ -152,7 +152,7 @@ function user_string_n:string (addr:long, n:long)
  * the rare cases when userspace data is not accessible at the given
  * address.
  */
-function user_string_n2:string (addr:long, n:long, err_msg:string)
+function user_string_n:string (addr:long, n:long, err_msg:string)
 %{ /* pure */ /* myproc-unprivileged */ /* unmodified-fnargs */
   int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
   if (_stp_strncpy_from_user(STAP_RETVALUE, 
@@ -175,14 +175,14 @@ function user_string_n2:string (addr:long, n:long, err_msg:string)
  */
 function user_string_n_warn:string (addr:long, n:long) {
 %(systemtap_v < "2.3" %? // PR15044
-	return user_string2_n_warn(addr, n, "<unknown>")
+	return user_string_n_warn(addr, n, "<unknown>")
 %:
-	return user_string2_n_warn(addr, n, "")
+	return user_string_n_warn(addr, n, "")
 %)
 }
 
 /**
- * sfunction user_string2_n_warn - Retrieves string from user space with alternative warning string
+ * sfunction user_string_n_warn - Retrieves string from user space with alternative warning string
  *
  * @addr: the user space address to retrieve the string from
  * @n: the maximum length of the string (if not null terminated)
@@ -193,7 +193,7 @@ function user_string_n_warn:string (addr:long, n:long) {
  * rare cases when userspace data is not accessible and warns (but does
  * not abort) about the failure.
  */
-function user_string2_n_warn:string (addr:long, n:long, warn_msg:string)
+function user_string_n_warn:string (addr:long, n:long, warn_msg:string)
 %{ /* pure */ /* myproc-unprivileged */ /* unmodified-fnargs */
 	int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
 	long rc;
@@ -227,14 +227,14 @@ function user_string2_n_warn:string (addr:long, n:long, warn_msg:string)
 function user_string_n_quoted:string (addr:long, n:long) {
 %(systemtap_v < "2.4" %?
 	// We used to count n by output characters
-	return user_string_n2_quoted(addr, @MAXSTRINGLEN, n)
+	return user_string_n_quoted(addr, @MAXSTRINGLEN, n)
 %:
-	return user_string_n2_quoted(addr, n, @MAXSTRINGLEN)
+	return user_string_n_quoted(addr, n, @MAXSTRINGLEN)
 %)
 }
 
 /**
- * sfunction user_string_n2_quoted - Retrieves and quotes string from user space
+ * sfunction user_string_n_quoted - Retrieves and quotes string from user space
  *
  * @addr: the user space address to retrieve the string from
  * @inlen: the maximum length of the string to read (if not null terminated)
@@ -248,7 +248,7 @@ function user_string_n_quoted:string (addr:long, n:long) {
  * the given address, the address itself is returned as a string, without
  * double quotes.
  */
-function user_string_n2_quoted:string (addr:long, inlen:long, outlen:long)
+function user_string_n_quoted:string (addr:long, inlen:long, outlen:long)
 %( systemtap_v >= "3.0" %?
    {
      try
@@ -334,7 +334,7 @@ deref_fault: /* branched to from deref_string() */
 %}
 
 /**
- * sfunction user_string2_utf32 - Retrieves UTF-32 string from user memory with alternative error string
+ * sfunction user_string_utf32 - Retrieves UTF-32 string from user memory with alternative error string
  * @addr: The user address to retrieve the string from
  * @err_msg: The error message to return when data isn't available
  *
@@ -342,7 +342,7 @@ deref_fault: /* branched to from deref_string() */
  * from the UTF-32 string at a given user memory address. Reports the given
  * error message on string copy fault or conversion error.
  */
-function user_string2_utf32:string (addr:long, err_msg:string) {
+function user_string_utf32:string (addr:long, err_msg:string) {
   try { return user_string_utf32(addr) } catch { return err_msg }
 }
 
@@ -411,7 +411,7 @@ deref_fault: /* branched to from deref_string() */
 %}
 
 /**
- * sfunction user_string2_utf16 - Retrieves UTF-16 string from user memory with alternative error string
+ * sfunction user_string_utf16 - Retrieves UTF-16 string from user memory with alternative error string
  * @addr: The user address to retrieve the string from
  * @err_msg: The error message to return when data isn't available
  *
@@ -419,7 +419,7 @@ deref_fault: /* branched to from deref_string() */
  * from the UTF-16 string at a given user memory address. Reports the given
  * error message on string copy fault or conversion error.
  */
-function user_string2_utf16:string (addr:long, err_msg:string) {
+function user_string_utf16:string (addr:long, err_msg:string) {
   try { return user_string_utf16(addr) } catch { return err_msg }
 }
 

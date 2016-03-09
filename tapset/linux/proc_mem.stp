@@ -130,7 +130,7 @@ function proc_mem_size:long ()
 }
 
 /**
- * sfunction proc_mem_size_pid - Total program virtual memory size in pages
+ * sfunction proc_mem_size - Total program virtual memory size in pages
  *
  * @pid: The pid of process to examine
  *
@@ -138,7 +138,7 @@ function proc_mem_size:long ()
  * given process, or zero when that process doesn't exist or the
  * number of pages couldn't be retrieved.
  */
-function proc_mem_size_pid:long (pid:long)
+function proc_mem_size:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
@@ -169,7 +169,7 @@ function proc_mem_rss:long ()
 }
 
 /**
- * sfunction proc_mem_rss_pid - Program resident set size in pages
+ * sfunction proc_mem_rss - Program resident set size in pages
  *
  * @pid: The pid of process to examine
  *
@@ -177,7 +177,7 @@ function proc_mem_rss:long ()
  * process, or zero when the process doesn't exist or the number of
  * pages couldn't be retrieved.
  */
-function proc_mem_rss_pid:long (pid:long)
+function proc_mem_rss:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
@@ -208,7 +208,7 @@ function proc_mem_shr:long ()
 }
 
 /**
- * sfunction proc_mem_shr_pid - Program shared pages (from shared mappings)
+ * sfunction proc_mem_shr - Program shared pages (from shared mappings)
  *
  * @pid: The pid of process to examine
  *
@@ -216,7 +216,7 @@ function proc_mem_shr:long ()
  * given process, or zero when the process doesn't exist or the
  * number of pages couldn't be retrieved.
  */
-function proc_mem_shr_pid:long (pid:long)
+function proc_mem_shr:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
@@ -257,7 +257,7 @@ function proc_mem_txt:long ()
 }
 
 /**
- * sfunction proc_mem_txt_pid - Program text (code) size in pages
+ * sfunction proc_mem_txt - Program text (code) size in pages
  *
  * @pid: The pid of process to examine
  *
@@ -265,7 +265,7 @@ function proc_mem_txt:long ()
  * or zero when the process doesn't exist or the number of pages
  * couldn't be retrieved.
  */
-function proc_mem_txt_pid:long (pid:long)
+function proc_mem_txt:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
@@ -300,7 +300,7 @@ function proc_mem_data:long ()
 }
 
 /**
- * sfunction proc_mem_data_pid - Program data size (data + stack) in pages
+ * sfunction proc_mem_data - Program data size (data + stack) in pages
  *
  * @pid: The pid of process to examine
  *
@@ -308,7 +308,7 @@ function proc_mem_data:long ()
  * in pages, or zero when the process doesn't exist or the number of
  * pages couldn't be retrieved.
  */
-function proc_mem_data_pid:long (pid:long)
+function proc_mem_data:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
@@ -388,7 +388,7 @@ function pages_to_string:string (pages:long)
 }
 
 /**
- * sfunction proc_mem_string - Human readable string of current proc memory usage
+ * sfunction proc_mem_string - Human readable string of process memory usage
  *
  * Description: Returns a human readable string showing the size, rss,
  * shr, txt and data of the memory used by the current process.
@@ -405,7 +405,7 @@ function proc_mem_string:string ()
 }
 
 /**
- * sfunction proc_mem_string_pid - Human readable string of process memory usage
+ * sfunction proc_mem_string - Human readable string of process memory usage
  *
  * @pid: The pid of process to examine
  *
@@ -413,12 +413,12 @@ function proc_mem_string:string ()
  * shr, txt and data of the memory used by the given process.
  * For example "size: 301m, rss: 11m, shr: 8m, txt: 52k, data: 2248k".
  */
-function proc_mem_string_pid:string (pid:long)
+function proc_mem_string:string (pid:long)
 {
   return sprintf ("size: %s, rss: %s, shr: %s, txt: %s, data: %s",
-                  pages_to_string(proc_mem_size_pid(pid)),
-                  pages_to_string(proc_mem_rss_pid(pid)),
-                  pages_to_string(proc_mem_shr_pid(pid)),
-                  pages_to_string(proc_mem_txt_pid(pid)),
-                  pages_to_string(proc_mem_data_pid(pid)));
+                  pages_to_string(proc_mem_size(pid)),
+                  pages_to_string(proc_mem_rss(pid)),
+                  pages_to_string(proc_mem_shr(pid)),
+                  pages_to_string(proc_mem_txt(pid)),
+                  pages_to_string(proc_mem_data(pid)));
 }

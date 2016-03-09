@@ -23,8 +23,9 @@ tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
 if BUILD_HTMLDOCS
 	sed -e '/^!Syscalls/{r $(abs_srcdir)/syscalls.xmlpart' -e 'd}' $(abs_srcdir)/tapsets.tmpl > tapsets.tmpl.new
 	SRCTREE=$(SRCTREE) $(DOCPROC) doc tapsets.tmpl.new > tapsets.xml.new
-	xsltproc $(srcdir)/sort-tapsets.xslt tapsets.xml.new > tapsets.xml.new2
-	rm tapsets.xml.new tapsets.tmpl.new
+	python $(srcdir)/overload.py tapsets.xml.new > tapsets.xml.new1
+	xsltproc $(srcdir)/sort-tapsets.xslt tapsets.xml.new1 > tapsets.xml.new2
+	rm tapsets.xml.new tapsets.xml.new1 tapsets.tmpl.new
 	if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then \
 		echo tapsets.xml unchanged; \
 		rm tapsets.xml.new2; \

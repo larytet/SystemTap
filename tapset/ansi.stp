@@ -32,7 +32,7 @@ function ansi_set_color(fg:long) {
 }
 
 /**
- * sfunction ansi_set_color2 - Set the ansi Select Graphic Rendition mode.
+ * sfunction ansi_set_color - Set the ansi Select Graphic Rendition mode.
  * @fg: Foreground color to set.
  * @bg: Background color to set.
  *
@@ -42,12 +42,12 @@ function ansi_set_color(fg:long) {
  * background color, Black (40), Red (41), Green (42), Yellow (43),
  * Blue (44), Magenta (45), Cyan (46), White (47).
  */
-function ansi_set_color2(fg:long, bg:long) {
+function ansi_set_color(fg:long, bg:long) {
 	printf("\033[%d;%dm", bg, fg)
 }
 
 /**
- * sfunction ansi_set_color3 - Set the ansi Select Graphic Rendition mode.
+ * sfunction ansi_set_color - Set the ansi Select Graphic Rendition mode.
  * @fg: Foreground color to set.
  * @bg: Background color to set.
  * @attr: Color attribute to set.
@@ -60,7 +60,7 @@ function ansi_set_color2(fg:long, bg:long) {
  * All attributes off (0), Intensity Bold (1), Underline Single (4),
  * Blink Slow (5), Blink Rapid (6), Image Negative (7).
  */
-function ansi_set_color3(fg:long, bg:long, attr:long) {
+function ansi_set_color(fg:long, bg:long, attr:long) {
 	attr_str = attr ? sprintf(";%dm", attr) : "m"
 	printf("\033[%d;%d%s", bg, fg, attr_str)
 }
@@ -72,7 +72,7 @@ function ansi_set_color3(fg:long, bg:long, attr:long) {
  * attribute to default values.
  */
 function ansi_reset_color() {
-	ansi_set_color3(0, 0, 0)
+	ansi_set_color(0, 0, 0)
 }
 
 /**

@@ -19,9 +19,9 @@ probe scheduler.ctxswitch {
   if (task_stime() > stime[prev_pid]){
     stime[prev_pid] = task_stime()
     utime[prev_pid] = task_utime()
-    virtmem[prev_pid] = proc_mem_size_pid(prev_pid)
-    rssmem[prev_pid] = proc_mem_rss_pid(prev_pid)
-    shrmem[prev_pid] = proc_mem_shr_pid(prev_pid)
+    virtmem[prev_pid] = proc_mem_size(prev_pid)
+    rssmem[prev_pid] = proc_mem_rss(prev_pid)
+    shrmem[prev_pid] = proc_mem_shr(prev_pid)
   }
 
   // update the state if we've encountered the process before

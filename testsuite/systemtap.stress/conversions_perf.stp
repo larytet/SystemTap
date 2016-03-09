@@ -75,7 +75,7 @@ probe perf.sw.cpu_clock {
 probe perf.sw.cpu_clock {
 	if (hits[11] == 0) {
 		hits[11] = 1
-		print (user_string2 ($1,"<only suspected, not known>"))
+		print (user_string ($1,"<only suspected, not known>"))
 	}
 }
 probe perf.sw.cpu_clock {
@@ -87,7 +87,7 @@ probe perf.sw.cpu_clock {
 probe perf.sw.cpu_clock {
 	if (hits[13] == 0) {
 		hits[13] = 1
-		print (user_string2_warn ($1, "<only suspected, not known>"))
+		print (user_string_warn ($1, "<only suspected, not known>"))
 	}
 }
 probe perf.sw.cpu_clock {
@@ -105,7 +105,7 @@ probe perf.sw.cpu_clock {
 probe perf.sw.cpu_clock {
 	if (hits[16] == 0) {
 		hits[16] = 1
-		print (user_string_n2 ($1, 5, "<only suspected, not known>"))
+		print (user_string_n ($1, 5, "<only suspected, not known>"))
 	}
 }
 probe perf.sw.cpu_clock {
@@ -117,7 +117,7 @@ probe perf.sw.cpu_clock {
 probe perf.sw.cpu_clock {
 	if (hits[18] == 0) {
 		hits[18] = 1
-		print (user_string2_n_warn ($1, 5, "<only suspected, not known>"))
+		print (user_string_n_warn ($1, 5, "<only suspected, not known>"))
 	}
 }
 probe perf.sw.cpu_clock {
