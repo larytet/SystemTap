@@ -71,6 +71,16 @@ function task_utime:long(tid:long)
   else
     return 0;
 }
+%(systemtap_v <= "3.0" %?
+function task_utime_tid:long(tid:long)
+{
+  task = pid2task(tid);
+  if (task != 0)
+    return task->utime;
+  else
+    return 0;
+}
+%)
 
 /**
  * sfunction task_stime - System time of the task
@@ -102,6 +112,16 @@ function task_stime:long(tid:long)
   else
     return 0;
 }
+%(systemtap_v <= "3.0" %?
+function task_stime_tid:long(tid:long)
+{
+  task = pid2task(tid);
+  if (task != 0)
+    return task->stime;
+  else
+    return 0;
+}
+%)
 
 /**
  * sfunction task_start_time - Start time of the given task

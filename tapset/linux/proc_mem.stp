@@ -148,6 +148,18 @@ function proc_mem_size:long (pid:long)
   }
   return 0
 }
+%(systemtap_v <= "3.0" %?
+function proc_mem_size_pid:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0)
+      return mm->total_vm
+  }
+  return 0
+}
+%)
 
 /**
  * sfunction proc_mem_rss - Program resident set size in pages
@@ -188,6 +200,19 @@ function proc_mem_rss:long (pid:long)
   }
   return 0
 }
+%(systemtap_v <= "3.0" %?
+function proc_mem_rss_pid:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0)
+        return (_stp_get_mm_counter(mm, _MM_FILEPAGES())
+                + _stp_get_mm_counter(mm, _MM_ANONPAGES()))
+  }
+  return 0
+}
+%)
 
 /**
  * sfunction proc_mem_shr - Program shared pages (from shared mappings)
@@ -226,6 +251,18 @@ function proc_mem_shr:long (pid:long)
   }
   return 0
 }
+%(systemtap_v <= "3.0" %?
+function proc_mem_shr_pid:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0)
+      return _stp_get_mm_counter(mm, _MM_FILEPAGES())
+  }
+  return 0
+}
+%)
 
 @__private30 function _stp_mem_txt_adjust:long (start_code:long, end_code:long)
 %{ /* pure */
@@ -278,6 +315,21 @@ function proc_mem_txt:long (pid:long)
   }
   return 0
 }
+%(systemtap_v <= "3.0" %?
+function proc_mem_txt_pid:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0) {
+      s = mm->start_code
+      e = mm->end_code
+      return _stp_mem_txt_adjust (s, e)
+    }
+  }
+  return 0
+}
+%)
 
 /**
  * sfunction proc_mem_data - Program data size (data + stack) in pages
@@ -320,6 +372,20 @@ function proc_mem_data:long (pid:long)
   }
   return 0
 }
+%(systemtap_v <= "3.0" %?
+function proc_mem_data_pid:long (pid:long)
+{
+  task = pid2task(pid)
+  if (_stp_valid_task(task)) {
+    mm = task->mm
+    if (mm != 0) {
+      return (@defined(&@mm(0)->data_vm) ? (mm->data_vm + mm->stack_vm)
+	      : (mm->total_vm - mm->shared_vm))
+    }
+  }
+  return 0
+}
+%)
 
 /**
  * sfunction mem_page_size - Number of bytes in a page for this architecture
@@ -422,3 +488,14 @@ function proc_mem_string:string (pid:long)
                   pages_to_string(proc_mem_txt(pid)),
                   pages_to_string(proc_mem_data(pid)));
 }
+%(systemtap_v <= "3.0" %?
+function proc_mem_string_pid:string (pid:long)
+{
+  return sprintf ("size: %s, rss: %s, shr: %s, txt: %s, data: %s",
+                  pages_to_string(proc_mem_size(pid)),
+                  pages_to_string(proc_mem_rss(pid)),
+                  pages_to_string(proc_mem_shr(pid)),
+                  pages_to_string(proc_mem_txt(pid)),
+                  pages_to_string(proc_mem_data(pid)));
+}
+%)
