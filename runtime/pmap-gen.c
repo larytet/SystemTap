@@ -322,17 +322,31 @@ static MAP KEYSYM(_stp_pmap_agg) (PMAP pmap)
 
 static int KEYSYM(_stp_pmap_del) (PMAP pmap, ALLKEYSD(key))
 {
-	int res;
-	MAP m = _stp_pmap_get_map (pmap, MAP_GET_CPU());
-#ifdef NEED_MAP_LOCKS
-	if (!MAP_TRYLOCK(m)) {
-		MAP_PUT_CPU();
+	unsigned int hv;
+	int cpu;
+	MAP m;
+
+	if (pmap == NULL)
 		return -1;
-	}
+
+	/* Get the key's hash */
+	if (KEYSYM(keycheck) (ALLKEYS(key)) == 0)
+		return -1;
+	hv = KEYSYM(hash) (ALLKEYS(key));
+
+	/* Delete in each cpu's map */
+	for_each_possible_cpu(cpu) {
+		m = _stp_pmap_get_map (pmap, cpu);
+#ifdef NEED_MAP_LOCKS
+		if (!MAP_TRYLOCK(m))
+			return -1;
 #endif
-	res = KEYSYM(_stp_map_del) (m, ALLKEYS(key));
-	MAP_UNLOCK(m);
-	MAP_PUT_CPU();
-	return res;
+		(void)KEYSYM(_stp_map_del_hash) (m, hv, ALLKEYS(key));
+		MAP_UNLOCK(m);
+	}
+
+	/* Note that we don't need to delete the aggregate's value,
+	 * since it isn't "live" between statements. */
+	return 1;
 }
 

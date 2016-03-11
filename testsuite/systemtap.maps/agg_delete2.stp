@@ -1,0 +1,28 @@
+global index = 0
+global stats
+global timer_index
+
+probe timer.profile {
+    stats[0, 0] <<< index++
+    stats[0, 1] <<< 1
+}
+
+probe timer.s(5) {
+    if (++timer_index > 3) exit()
+
+    for (b = 0; b < 2; b++) {
+	printf("[%d, %d]: %d\n", 0, b,
+	       (b == 0 ? @max(stats[0, b]) : @count(stats[0, b])))
+    }
+    delete stats
+    for (b = 0; b < 2; b++) {
+	if ([0, b] in stats) {
+	    printf("eek! [%d, %d] in stats after deletion??\n",
+		   0, b);
+	}
+	if (@count(stats[0, b]) != 0) {
+	    printf("eek! [%d, %d] @count() != 0 after deletion??\n",
+		   0, b);
+	}
+    }
+}

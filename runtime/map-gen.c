@@ -760,6 +760,26 @@ static int KEYSYM(_stp_map_del) (MAP map, ALLKEYSD(key))
 	return 0;
 }
 
+static int KEYSYM(_stp_map_del_hash) (MAP map, unsigned int hv, ALLKEYSD(key))
+{
+	struct mhlist_head *head;
+	struct mhlist_node *e;
+	struct KEYSYM(map_node) *n;
+
+	if (map == NULL)
+		return -1;
+
+	head = &map->hashes[hv];
+	mhlist_for_each_entry(n, e, head, node.hnode) {
+		if (KEY_EQ_P(n)) {
+			_new_map_del_node(map, &n->node);
+			return 0;
+		}
+	}
+	/* key not found */
+	return 0;
+}
+
 static int KEYSYM(_stp_map_exists) (MAP map, ALLKEYSD(key))
 {
 	unsigned int hv;

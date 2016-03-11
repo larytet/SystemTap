@@ -1,0 +1,31 @@
+# PR19799 - deleting from array of aggregate unreliable
+
+set test "agg_delete"
+lappend scripts "${srcdir}/${subdir}/${test}1.stp"
+lappend desc " - individual delete"
+lappend scripts "${srcdir}/${subdir}/${test}2.stp"
+lappend desc " - clear array"
+
+if {![installtest_p]} { untested $test; return }
+
+for {set idx 0} {$idx < [llength $scripts]} {incr idx} {
+    set ok 0
+    set ko 0
+
+    set testname $test
+    append testname [lindex $desc $idx]
+    spawn stap [lindex $scripts $idx]
+    expect {
+	-timeout 150
+	-re {^ERROR:.+\r\n} { incr ko ; exp_continue }
+	-re {^eek.+\r\n} { incr ko; exp_continue }
+	-re {^\[0, [01]\]: \d+\r\n} { incr ok; exp_continue }
+	timeout { fail "$testname timed out" }
+    }
+    catch { close }; catch { wait }
+    if {$ok >= 6 && $ko == 0} {
+	pass $testname
+    } else {
+	fail "$testname ($ok $ko)"
+    }
+}
