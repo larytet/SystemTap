@@ -1,4 +1,6 @@
 #!/usr/bin/bash
+# This script regenerates the prebuilt documentation
+# checked into the source tree.
 
 echo "Generating documentation"
 SCRIPT=$(readlink -f $0)
@@ -29,6 +31,7 @@ gcc -o docproc $DOCS/$STR/docproc.c
 sed -e '/^!Syscalls/{r $DOCS/$STR/syscalls.xmlpart' -e 'd}' $DOCS/$STR/tapsets.tmpl > tapsets.tmpl.new
 SRCTREE=$BASE/ ./docproc doc tapsets.tmpl.new > tapsets.xml.new
 python $DOCS/$STR/overload.py tapsets.xml.new > tapsets.xml.new1
+if [ $? -ne 0 ]; then echo "FAILED: python lxml library required"; exit 1; fi
 xsltproc $DOCS/$STR/sort-tapsets.xslt tapsets.xml.new1 > tapsets.xml.new2
 rm tapsets.xml.new tapsets.xml.new1 tapsets.tmpl.new
 if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then
