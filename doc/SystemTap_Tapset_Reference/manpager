@@ -92,7 +92,7 @@ done
 for i in `cat ../manpageus` ; do
   echo "" >> $i.footer
   echo ".SH SEE ALSO" >> $i.footer
-  for j in `cat $i.funcnames` ; do
+  for j in `cat $i.funcnames | uniq` ; do
     echo ".BR" >> $i.footer
     echo ".IR \\%function::"$j" (3stap)," >> $i.footer
   done
@@ -111,7 +111,7 @@ done
 
 # add cross reference to enclosed functions and probes
 for i in `cat ../manpageus` ; do
-  for j in `cat $i.funcnames` ; do
+  for j in `cat $i.funcnames | uniq` ; do
     echo ".SH SEE ALSO\n " >> ../man3/function::$j.3stap
     echo ".IR tapset::$i (3stap)" >> ../man3/function::$j.3stap
   done
