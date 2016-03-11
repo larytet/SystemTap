@@ -2,12 +2,12 @@
 .\"     Title: probe::scheduler.cpu_off
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Scheduler Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::SCHEDULER\&.C" "3stap" "January 2016" "SystemTap Tapset Reference" "Scheduler Tapset"
+.TH "PROBE::SCHEDULER\&.C" "3stap" "March 2016" "SystemTap Tapset Reference" "Scheduler Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,9 +36,9 @@ scheduler\&.cpu_off
 .fi
 .SH "VALUES"
 .PP
-\fItask_prev\fR
+\fIidle\fR
 .RS 4
-the process leaving the cpu (same as current)
+boolean indicating whether current is the idle process
 .RE
 .PP
 \fIname\fR
@@ -51,9 +51,9 @@ name of the probe point
 the process replacing current
 .RE
 .PP
-\fIidle\fR
+\fItask_prev\fR
 .RS 4
-boolean indicating whether current is the idle process
+the process leaving the cpu (same as current)
 .RE
 .SH "CONTEXT"
 .PP

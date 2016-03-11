@@ -2,12 +2,12 @@
 .\"     Title: probe::netfilter.bridge.forward
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Networking Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NETFILTER\&.B" "3stap" "January 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.TH "PROBE::NETFILTER\&.B" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,24 +36,14 @@ netfilter\&.bridge\&.forward
 .fi
 .SH "VALUES"
 .PP
-\fIbr_mac\fR
+\fIbrhdr\fR
 .RS 4
-Bridge MAC address
+Address of bridge header
 .RE
 .PP
-\fIbr_cost\fR
+\fInf_stop\fR
 .RS 4
-Total cost from transmitting bridge to root
-.RE
-.PP
-\fInf_drop\fR
-.RS 4
-Constant used to signify a \*(Aqdrop\*(Aq verdict
-.RE
-.PP
-\fIbr_htime\fR
-.RS 4
-Hello time in 1/256 secs
+Constant used to signify a \*(Aqstop\*(Aq verdict
 .RE
 .PP
 \fIoutdev_name\fR
@@ -61,19 +51,9 @@ Hello time in 1/256 secs
 Name of network device packet will be routed to (if known)
 .RE
 .PP
-\fIbr_poid\fR
+\fIbr_bid\fR
 .RS 4
-Port identifier
-.RE
-.PP
-\fIoutdev\fR
-.RS 4
-Address of net_device representing output device, 0 if unknown
-.RE
-.PP
-\fIbr_max\fR
-.RS 4
-Max age in 1/256 secs
+Identity of bridge
 .RE
 .PP
 \fIbr_prid\fR
@@ -81,19 +61,14 @@ Max age in 1/256 secs
 Protocol identifier
 .RE
 .PP
-\fInf_queue\fR
+\fIprotocol\fR
 .RS 4
-Constant used to signify a \*(Aqqueue\*(Aq verdict
+Packet protocol
 .RE
 .PP
-\fIbr_rmac\fR
+\fIoutdev\fR
 .RS 4
-Root bridge MAC address
-.RE
-.PP
-\fIindev\fR
-.RS 4
-Address of net_device representing input device, 0 if unknown
+Address of net_device representing output device, 0 if unknown
 .RE
 .PP
 \fIpf\fR
@@ -102,24 +77,34 @@ Protocol family \-\- always
 \(lqbridge\(rq
 .RE
 .PP
-\fIbrhdr\fR
+\fIbr_htime\fR
 .RS 4
-Address of bridge header
+Hello time in 1/256 secs
 .RE
 .PP
-\fIbr_fd\fR
+\fIbr_vid\fR
 .RS 4
-Forward delay in 1/256 secs
+Protocol version identifier
 .RE
 .PP
-\fIprotocol\fR
+\fIindev\fR
 .RS 4
-Packet protocol
+Address of net_device representing input device, 0 if unknown
 .RE
 .PP
-\fIbr_bid\fR
+\fInf_drop\fR
 .RS 4
-Identity of bridge
+Constant used to signify a \*(Aqdrop\*(Aq verdict
+.RE
+.PP
+\fIbr_rid\fR
+.RS 4
+Identity of root bridge
+.RE
+.PP
+\fIbr_poid\fR
+.RS 4
+Port identifier
 .RE
 .PP
 \fIllcproto_stp\fR
@@ -127,9 +112,49 @@ Identity of bridge
 Constant used to signify Bridge Spanning Tree Protocol packet
 .RE
 .PP
+\fIbr_fd\fR
+.RS 4
+Forward delay in 1/256 secs
+.RE
+.PP
+\fInf_queue\fR
+.RS 4
+Constant used to signify a \*(Aqqueue\*(Aq verdict
+.RE
+.PP
+\fIlength\fR
+.RS 4
+The length of the packet buffer contents, in bytes
+.RE
+.PP
+\fIbr_flags\fR
+.RS 4
+BPDU flags
+.RE
+.PP
+\fIbr_mac\fR
+.RS 4
+Bridge MAC address
+.RE
+.PP
+\fIllcpdu\fR
+.RS 4
+Address of LLC Protocol Data Unit
+.RE
+.PP
+\fIindev_name\fR
+.RS 4
+Name of network device packet was received on (if known)
+.RE
+.PP
 \fInf_accept\fR
 .RS 4
 Constant used to signify an \*(Aqaccept\*(Aq verdict
+.RE
+.PP
+\fIbr_cost\fR
+.RS 4
+Total cost from transmitting bridge to root
 .RE
 .PP
 \fIbr_msg\fR
@@ -142,49 +167,24 @@ Message age in 1/256 secs
 Constant used to signify a \*(Aqrepeat\*(Aq verdict
 .RE
 .PP
-\fInf_stop\fR
-.RS 4
-Constant used to signify a \*(Aqstop\*(Aq verdict
-.RE
-.PP
-\fIindev_name\fR
-.RS 4
-Name of network device packet was received on (if known)
-.RE
-.PP
-\fIbr_rid\fR
-.RS 4
-Identity of root bridge
-.RE
-.PP
-\fIbr_flags\fR
-.RS 4
-BPDU flags
-.RE
-.PP
-\fIllcpdu\fR
-.RS 4
-Address of LLC Protocol Data Unit
-.RE
-.PP
 \fIbr_type\fR
 .RS 4
 BPDU type
 .RE
 .PP
-\fIbr_vid\fR
+\fIbr_rmac\fR
 .RS 4
-Protocol version identifier
+Root bridge MAC address
+.RE
+.PP
+\fIbr_max\fR
+.RS 4
+Max age in 1/256 secs
 .RE
 .PP
 \fInf_stolen\fR
 .RS 4
 Constant used to signify a \*(Aqstolen\*(Aq verdict
-.RE
-.PP
-\fIlength\fR
-.RS 4
-The length of the packet buffer contents, in bytes
 .RE
 .SH SEE ALSO\n 
 .IR tapset::netfilter (3stap)

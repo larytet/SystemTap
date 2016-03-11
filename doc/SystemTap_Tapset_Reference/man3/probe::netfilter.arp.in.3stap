@@ -2,12 +2,12 @@
 .\"     Title: probe::netfilter.arp.in
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Networking Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NETFILTER\&.A" "3stap" "January 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.TH "PROBE::NETFILTER\&.A" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,14 +36,9 @@ netfilter\&.arp\&.in
 .fi
 .SH "VALUES"
 .PP
-\fIindev\fR
+\fIarphdr\fR
 .RS 4
-Address of net_device representing input device, 0 if unknown
-.RE
-.PP
-\fInf_queue\fR
-.RS 4
-Constant used to signify a \*(Aqqueue\*(Aq verdict
+Address of ARP header
 .RE
 .PP
 \fIpf\fR
@@ -52,24 +47,9 @@ Protocol family \-\- always
 \(lqarp\(rq
 .RE
 .PP
-\fIoutdev_name\fR
-.RS 4
-Name of network device packet will be routed to (if known)
-.RE
-.PP
 \fIar_pro\fR
 .RS 4
 Format of protocol address
-.RE
-.PP
-\fIar_op\fR
-.RS 4
-ARP opcode (command)
-.RE
-.PP
-\fIar_tha\fR
-.RS 4
-Ethernet+IP only (ar_pro==0x800): target hardware (MAC) address
 .RE
 .PP
 \fIoutdev\fR
@@ -77,49 +57,14 @@ Ethernet+IP only (ar_pro==0x800): target hardware (MAC) address
 Address of net_device representing output device, 0 if unknown
 .RE
 .PP
-\fIar_pln\fR
-.RS 4
-Length of protocol address
-.RE
-.PP
-\fInf_drop\fR
-.RS 4
-Constant used to signify a \*(Aqdrop\*(Aq verdict
-.RE
-.PP
-\fIlength\fR
-.RS 4
-The length of the packet buffer contents, in bytes
-.RE
-.PP
-\fInf_stolen\fR
-.RS 4
-Constant used to signify a \*(Aqstolen\*(Aq verdict
-.RE
-.PP
-\fIarphdr\fR
-.RS 4
-Address of ARP header
-.RE
-.PP
-\fIar_tip\fR
-.RS 4
-Ethernet+IP only (ar_pro==0x800): target IP address
-.RE
-.PP
 \fIar_hrd\fR
 .RS 4
 Format of hardware address
 .RE
 .PP
-\fInf_repeat\fR
+\fIoutdev_name\fR
 .RS 4
-Constant used to signify a \*(Aqrepeat\*(Aq verdict
-.RE
-.PP
-\fIar_sip\fR
-.RS 4
-Ethernet+IP only (ar_pro==0x800): source IP address
+Name of network device packet will be routed to (if known)
 .RE
 .PP
 \fInf_stop\fR
@@ -127,9 +72,14 @@ Ethernet+IP only (ar_pro==0x800): source IP address
 Constant used to signify a \*(Aqstop\*(Aq verdict
 .RE
 .PP
-\fIindev_name\fR
+\fIar_sip\fR
 .RS 4
-Name of network device packet was received on (if known)
+Ethernet+IP only (ar_pro==0x800): source IP address
+.RE
+.PP
+\fInf_stolen\fR
+.RS 4
+Constant used to signify a \*(Aqstolen\*(Aq verdict
 .RE
 .PP
 \fIar_sha\fR
@@ -142,14 +92,64 @@ Ethernet+IP only (ar_pro==0x800): source hardware (MAC) address
 Address of ARP packet data region (after the header)
 .RE
 .PP
-\fIar_hln\fR
+\fIar_tip\fR
 .RS 4
-Length of hardware address
+Ethernet+IP only (ar_pro==0x800): target IP address
+.RE
+.PP
+\fInf_repeat\fR
+.RS 4
+Constant used to signify a \*(Aqrepeat\*(Aq verdict
+.RE
+.PP
+\fIindev_name\fR
+.RS 4
+Name of network device packet was received on (if known)
 .RE
 .PP
 \fInf_accept\fR
 .RS 4
 Constant used to signify an \*(Aqaccept\*(Aq verdict
+.RE
+.PP
+\fIar_pln\fR
+.RS 4
+Length of protocol address
+.RE
+.PP
+\fInf_queue\fR
+.RS 4
+Constant used to signify a \*(Aqqueue\*(Aq verdict
+.RE
+.PP
+\fIlength\fR
+.RS 4
+The length of the packet buffer contents, in bytes
+.RE
+.PP
+\fIar_tha\fR
+.RS 4
+Ethernet+IP only (ar_pro==0x800): target hardware (MAC) address
+.RE
+.PP
+\fIar_hln\fR
+.RS 4
+Length of hardware address
+.RE
+.PP
+\fIindev\fR
+.RS 4
+Address of net_device representing input device, 0 if unknown
+.RE
+.PP
+\fInf_drop\fR
+.RS 4
+Constant used to signify a \*(Aqdrop\*(Aq verdict
+.RE
+.PP
+\fIar_op\fR
+.RS 4
+ARP opcode (command)
 .RE
 .SH SEE ALSO\n 
 .IR tapset::netfilter (3stap)

@@ -2,12 +2,12 @@
 .\"     Title: probe::netfilter.arp.forward
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Networking Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NETFILTER\&.A" "3stap" "January 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.TH "PROBE::NETFILTER\&.A" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,29 +36,14 @@ netfilter\&.arp\&.forward
 .fi
 .SH "VALUES"
 .PP
-\fIoutdev\fR
+\fInf_stop\fR
 .RS 4
-Address of net_device representing output device, 0 if unknown
+Constant used to signify a \*(Aqstop\*(Aq verdict
 .RE
 .PP
-\fIar_tha\fR
+\fIar_hrd\fR
 .RS 4
-Ethernet+IP only (ar_pro==0x800): target hardware (MAC) address
-.RE
-.PP
-\fIar_pln\fR
-.RS 4
-Length of protocol address
-.RE
-.PP
-\fIar_op\fR
-.RS 4
-ARP opcode (command)
-.RE
-.PP
-\fIar_pro\fR
-.RS 4
-Format of protocol address
+Format of hardware address
 .RE
 .PP
 \fIoutdev_name\fR
@@ -66,9 +51,14 @@ Format of protocol address
 Name of network device packet will be routed to (if known)
 .RE
 .PP
-\fInf_drop\fR
+\fIar_pro\fR
 .RS 4
-Constant used to signify a \*(Aqdrop\*(Aq verdict
+Format of protocol address
+.RE
+.PP
+\fIoutdev\fR
+.RS 4
+Address of net_device representing output device, 0 if unknown
 .RE
 .PP
 \fIpf\fR
@@ -77,44 +67,14 @@ Protocol family \-\- always
 \(lqarp\(rq
 .RE
 .PP
-\fInf_queue\fR
+\fIarphdr\fR
 .RS 4
-Constant used to signify a \*(Aqqueue\*(Aq verdict
+Address of ARP header
 .RE
 .PP
-\fIindev\fR
+\fIar_tha\fR
 .RS 4
-Address of net_device representing input device, 0 if unknown
-.RE
-.PP
-\fIindev_name\fR
-.RS 4
-Name of network device packet was received on (if known)
-.RE
-.PP
-\fInf_stop\fR
-.RS 4
-Constant used to signify a \*(Aqstop\*(Aq verdict
-.RE
-.PP
-\fIar_sha\fR
-.RS 4
-Ethernet+IP only (ar_pro==0x800): source hardware (MAC) address
-.RE
-.PP
-\fIar_sip\fR
-.RS 4
-Ethernet+IP only (ar_pro==0x800): source IP address
-.RE
-.PP
-\fInf_repeat\fR
-.RS 4
-Constant used to signify a \*(Aqrepeat\*(Aq verdict
-.RE
-.PP
-\fInf_accept\fR
-.RS 4
-Constant used to signify an \*(Aqaccept\*(Aq verdict
+Ethernet+IP only (ar_pro==0x800): target hardware (MAC) address
 .RE
 .PP
 \fIar_hln\fR
@@ -122,14 +82,39 @@ Constant used to signify an \*(Aqaccept\*(Aq verdict
 Length of hardware address
 .RE
 .PP
-\fIar_data\fR
+\fIindev\fR
 .RS 4
-Address of ARP packet data region (after the header)
+Address of net_device representing input device, 0 if unknown
 .RE
 .PP
-\fInf_stolen\fR
+\fInf_drop\fR
 .RS 4
-Constant used to signify a \*(Aqstolen\*(Aq verdict
+Constant used to signify a \*(Aqdrop\*(Aq verdict
+.RE
+.PP
+\fIar_op\fR
+.RS 4
+ARP opcode (command)
+.RE
+.PP
+\fIindev_name\fR
+.RS 4
+Name of network device packet was received on (if known)
+.RE
+.PP
+\fInf_accept\fR
+.RS 4
+Constant used to signify an \*(Aqaccept\*(Aq verdict
+.RE
+.PP
+\fIar_pln\fR
+.RS 4
+Length of protocol address
+.RE
+.PP
+\fInf_queue\fR
+.RS 4
+Constant used to signify a \*(Aqqueue\*(Aq verdict
 .RE
 .PP
 \fIlength\fR
@@ -137,9 +122,9 @@ Constant used to signify a \*(Aqstolen\*(Aq verdict
 The length of the packet buffer contents, in bytes
 .RE
 .PP
-\fIar_hrd\fR
+\fIar_data\fR
 .RS 4
-Format of hardware address
+Address of ARP packet data region (after the header)
 .RE
 .PP
 \fIar_tip\fR
@@ -147,9 +132,24 @@ Format of hardware address
 Ethernet+IP only (ar_pro==0x800): target IP address
 .RE
 .PP
-\fIarphdr\fR
+\fInf_repeat\fR
 .RS 4
-Address of ARP header
+Constant used to signify a \*(Aqrepeat\*(Aq verdict
+.RE
+.PP
+\fIar_sip\fR
+.RS 4
+Ethernet+IP only (ar_pro==0x800): source IP address
+.RE
+.PP
+\fInf_stolen\fR
+.RS 4
+Constant used to signify a \*(Aqstolen\*(Aq verdict
+.RE
+.PP
+\fIar_sha\fR
+.RS 4
+Ethernet+IP only (ar_pro==0x800): source hardware (MAC) address
 .RE
 .SH SEE ALSO\n 
 .IR tapset::netfilter (3stap)

@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH tapset::conversions 3stap --- IBM
+.TH TAPSET::CONVERSIONS 3stap "March 2016" "SystemTap Tapset Reference"
 .SH NAME
 tapset::conversions \- systemtap conversions tapset
  
@@ -15,11 +15,11 @@ See
  for details.
 .P
 .TP
-.B kernel_string2 
+.B kernel_string 
 Retrieves string from kernel memory with alternative error string
 .IP
 See 
-.IR function::kernel_string2 (3stap)
+.IR function::kernel_string (3stap)
  for details.
 .P
 .TP
@@ -47,11 +47,11 @@ See
  for details.
 .P
 .TP
-.B kernel_string2_utf32 
+.B kernel_string_utf32 
 Retrieves UTF-32 string from kernel memory with alternative error string
 .IP
 See 
-.IR function::kernel_string2_utf32 (3stap)
+.IR function::kernel_string_utf32 (3stap)
  for details.
 .P
 .TP
@@ -71,11 +71,11 @@ See
  for details.
 .P
 .TP
-.B kernel_string2_utf16 
+.B kernel_string_utf16 
 Retrieves UTF-16 string from kernel memory with alternative error string
 .IP
 See 
-.IR function::kernel_string2_utf16 (3stap)
+.IR function::kernel_string_utf16 (3stap)
  for details.
 .P
 .TP
@@ -130,21 +130,15 @@ See
 .BR
 .IR \%function::kernel_string (3stap),
 .BR
-.IR \%function::kernel_string2 (3stap),
-.BR
 .IR \%function::kernel_string_quoted (3stap),
 .BR
 .IR \%function::kernel_string_n (3stap),
 .BR
 .IR \%function::kernel_string_utf32 (3stap),
 .BR
-.IR \%function::kernel_string2_utf32 (3stap),
-.BR
 .IR \%function::kernel_string_quoted_utf32 (3stap),
 .BR
 .IR \%function::kernel_string_utf16 (3stap),
-.BR
-.IR \%function::kernel_string2_utf16 (3stap),
 .BR
 .IR \%function::kernel_string_quoted_utf16 (3stap),
 .BR

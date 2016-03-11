@@ -2,12 +2,12 @@
 .\"     Title: probe::signal.procmask
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Signal Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::SIGNAL\&.PROC" "3stap" "January 2016" "SystemTap Tapset Reference" "Signal Tapset"
+.TH "PROBE::SIGNAL\&.PROC" "3stap" "March 2016" "SystemTap Tapset Reference" "Signal Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -41,9 +41,9 @@ signal\&.procmask
 Name of the probe point
 .RE
 .PP
-\fIsigset\fR
+\fIoldsigset_addr\fR
 .RS 4
-The actual value to be set for sigset_t (correct?)
+The old address of the signal set (sigset_t)
 .RE
 .PP
 \fIsigset_addr\fR
@@ -51,9 +51,9 @@ The actual value to be set for sigset_t (correct?)
 The address of the signal set (sigset_t) to be implemented
 .RE
 .PP
-\fIoldsigset_addr\fR
+\fIsigset\fR
 .RS 4
-The old address of the signal set (sigset_t)
+The actual value to be set for sigset_t (correct?)
 .RE
 .PP
 \fIhow\fR

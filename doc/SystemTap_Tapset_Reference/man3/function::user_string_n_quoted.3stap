@@ -2,12 +2,12 @@
 .\"     Title: function::user_string_n_quoted
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: String and data retrieving functions Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::USER_STRIN" "3stap" "January 2016" "SystemTap Tapset Reference" "String and data retrieving fun"
+.TH "FUNCTION::USER_STRIN" "3stap" "March 2016" "SystemTap Tapset Reference" "String and data retrieving fun"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -32,7 +32,11 @@ function::user_string_n_quoted \- Retrieves and quotes string from user space
 .SH "SYNOPSIS"
 .sp
 .nf
-    user_string_n_quoted:string(addr:long,n:long)
+1) user_string_n_quoted:string(addr:long,n:long)
+.fi
+.sp
+.nf
+2) user_string_n_quoted:string(addr:long,inlen:long,outlen:long)
 .fi
 .SH "ARGUMENTS"
 .PP
@@ -45,8 +49,20 @@ the user space address to retrieve the string from
 .RS 4
 the maximum length of the string (if not null terminated)
 .RE
+.PP
+\fIinlen\fR
+.RS 4
+the maximum length of the string to read (if not null terminated)
+.RE
+.PP
+\fIoutlen\fR
+.RS 4
+the maximum length of the output string
+.RE
 .SH "DESCRIPTION"
 .PP
-Returns up to n characters of a C string from the given user space memory address where any ASCII characters that are not printable are replaced by the corresponding escape sequence in the returned string\&. Note that the string will be surrounded by double quotes\&. On the rare cases when userspace data is not accessible at the given address, the address itself is returned as a string, without double quotes\&.
+1) Returns up to n characters of a C string from the given user space memory address where any ASCII characters that are not printable are replaced by the corresponding escape sequence in the returned string\&. Note that the string will be surrounded by double quotes\&. On the rare cases when userspace data is not accessible at the given address, the address itself is returned as a string, without double quotes\&.
+.PP
+2) Reads up to inlen characters of a C string from the given user space memory address, and returns up to outlen characters, where any ASCII characters that are not printable are replaced by the corresponding escape sequence in the returned string\&. Note that the string will be surrounded by double quotes\&. On the rare cases when userspace data is not accessible at the given address, the address itself is returned as a string, without double quotes\&.
 .SH SEE ALSO\n 
 .IR tapset::uconversions (3stap)

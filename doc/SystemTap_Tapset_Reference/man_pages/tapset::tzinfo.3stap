@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH tapset::tzinfo 3stap --- IBM
+.TH TAPSET::TZINFO 3stap "March 2016" "SystemTap Tapset Reference"
 .SH NAME
 tapset::tzinfo \- systemtap tzinfo tapset
  

@@ -2,12 +2,12 @@
 .\"     Title: function::assert
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Logging Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::ASSERT" "3stap" "January 2016" "SystemTap Tapset Reference" "Logging Tapset"
+.TH "FUNCTION::ASSERT" "3stap" "March 2016" "SystemTap Tapset Reference" "Logging Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -32,7 +32,11 @@ function::assert \- evaluate assertion
 .SH "SYNOPSIS"
 .sp
 .nf
-    assert(expression:,msg:)
+1) assert(expression:long)
+.fi
+.sp
+.nf
+2) assert(expression:long,msg:string)
 .fi
 .SH "ARGUMENTS"
 .PP
@@ -47,8 +51,10 @@ The formatted message string
 .RE
 .SH "DESCRIPTION"
 .PP
-This function checks the expression and aborts the current running probe if expression evaluates to zero\&. Uses
-\fBerror\fR
-and may be caught by try{} catch{}\&.
+1) This function checks the expression and aborts the current running probe if expression evaluates to zero\&. Uses\fBerror\fR
+and may be caught by try{} catch{}\&. A default message will be displayed\&.
+.PP
+2) This function checks the expression and aborts the current running probe if expression evaluates to zero\&. Uses\fBerror\fR
+and may be caught by try{} catch{}\&. The specified message will be displayed\&.
 .SH SEE ALSO\n 
 .IR tapset::logging (3stap)

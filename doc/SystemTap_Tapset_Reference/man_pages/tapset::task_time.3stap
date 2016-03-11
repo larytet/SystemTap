@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH tapset::task_time 3stap --- IBM
+.TH TAPSET::TASK_TIME 3stap "March 2016" "SystemTap Tapset Reference"
 .SH NAME
 tapset::task_time \- systemtap task_time tapset
  
@@ -19,34 +19,34 @@ tapset::task_time \- systemtap task_time tapset
 .P
 .TP
 .B task_utime 
-User time of the current task
+User time of the task
 .IP
 See 
 .IR function::task_utime (3stap)
  for details.
 .P
 .TP
-.B task_utime_tid 
-User time of the given task
+.B task_utime 
+User time of the task
 .IP
 See 
-.IR function::task_utime_tid (3stap)
+.IR function::task_utime (3stap)
  for details.
 .P
 .TP
 .B task_stime 
-System time of the current task
+System time of the task
 .IP
 See 
 .IR function::task_stime (3stap)
  for details.
 .P
 .TP
-.B task_stime_tid 
-System time of the given task
+.B task_stime 
+System time of the task
 .IP
 See 
-.IR function::task_stime_tid (3stap)
+.IR function::task_stime (3stap)
  for details.
 .P
 .TP
@@ -125,11 +125,7 @@ See
 .BR
 .IR \%function::task_utime (3stap),
 .BR
-.IR \%function::task_utime_tid (3stap),
-.BR
 .IR \%function::task_stime (3stap),
-.BR
-.IR \%function::task_stime_tid (3stap),
 .BR
 .IR \%function::task_start_time (3stap),
 .BR

@@ -2,12 +2,12 @@
 .\"     Title: probe::ioblock_trace.end
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: IO Scheduler and block IO Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::IOBLOCK_TRACE" "3stap" "January 2016" "SystemTap Tapset Reference" "IO Scheduler and block IO Taps"
+.TH "PROBE::IOBLOCK_TRACE" "3stap" "March 2016" "SystemTap Tapset Reference" "IO Scheduler and block IO Taps"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,24 +36,24 @@ ioblock_trace\&.end
 .fi
 .SH "VALUES"
 .PP
-\fIp_start_sect\fR
+\fIsector\fR
 .RS 4
-points to the start sector of the partition structure of the device
+beginning sector for the entire bio
 .RE
 .PP
-\fIname\fR
+\fIvcnt\fR
 .RS 4
-name of the probe point
+bio vector count which represents number of array element (page, offset, length) which makes up this I/O request
 .RE
 .PP
-\fIbdev\fR
+\fIrw\fR
 .RS 4
-target block device
+binary trace for read/write request
 .RE
 .PP
-\fIdevname\fR
+\fIbytes_done\fR
 .RS 4
-block device name
+number of bytes transferred
 .RE
 .PP
 \fIsize\fR
@@ -61,11 +61,21 @@ block device name
 total size in bytes
 .RE
 .PP
+\fIq\fR
+.RS 4
+request queue on which this bio was queued\&.
+.RE
+.PP
 \fIidx\fR
 .RS 4
 offset into the bio vector array
 \fIphys_segments\fR
 \- number of segments in this bio after physical address coalescing is performed\&.
+.RE
+.PP
+\fIname\fR
+.RS 4
+name of the probe point
 .RE
 .PP
 \fIflags\fR
@@ -78,34 +88,24 @@ see below BIO_UPTODATE 0 ok after I/O completion BIO_RW_BLOCK 1 RW_AHEAD set, an
 points to the device object which contains the partition (when bio structure represents a partition)
 .RE
 .PP
+\fIdevname\fR
+.RS 4
+block device name
+.RE
+.PP
+\fIbdev\fR
+.RS 4
+target block device
+.RE
+.PP
 \fIino\fR
 .RS 4
 i\-node number of the mapped file
 .RE
 .PP
-\fIvcnt\fR
+\fIp_start_sect\fR
 .RS 4
-bio vector count which represents number of array element (page, offset, length) which makes up this I/O request
-.RE
-.PP
-\fIsector\fR
-.RS 4
-beginning sector for the entire bio
-.RE
-.PP
-\fIq\fR
-.RS 4
-request queue on which this bio was queued\&.
-.RE
-.PP
-\fIrw\fR
-.RS 4
-binary trace for read/write request
-.RE
-.PP
-\fIbytes_done\fR
-.RS 4
-number of bytes transferred
+points to the start sector of the partition structure of the device
 .RE
 .SH "CONTEXT"
 .PP

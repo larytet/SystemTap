@@ -2,12 +2,12 @@
 .\"     Title: probe::nfs.proc.remove
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Network File Storage Tapsets
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NFS\&.PROC\&." "3stap" "January 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.TH "PROBE::NFS\&.PROC\&." "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,24 +36,14 @@ nfs\&.proc\&.remove
 .fi
 .SH "VALUES"
 .PP
-\fIprot\fR
-.RS 4
-transfer protocol
-.RE
-.PP
-\fIfilename\fR
-.RS 4
-file name
-.RE
-.PP
 \fIserver_ip\fR
 .RS 4
 IP address of server
 .RE
 .PP
-\fIfilelen\fR
+\fIfh\fR
 .RS 4
-length of file name
+file handle of parent dir
 .RE
 .PP
 \fIversion\fR
@@ -61,9 +51,19 @@ length of file name
 NFS version (the function is used for all NFS version)
 .RE
 .PP
-\fIfh\fR
+\fIfilename\fR
 .RS 4
-file handle of parent dir
+file name
+.RE
+.PP
+\fIfilelen\fR
+.RS 4
+length of file name
+.RE
+.PP
+\fIprot\fR
+.RS 4
+transfer protocol
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfs_proc (3stap)

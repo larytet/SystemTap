@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH tapset::ip 3stap --- IBM
+.TH TAPSET::IP 3stap "March 2016" "SystemTap Tapset Reference"
 .SH NAME
 tapset::ip \- systemtap ip tapset
  

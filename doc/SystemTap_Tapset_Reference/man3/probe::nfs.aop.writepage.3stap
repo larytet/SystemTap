@@ -2,12 +2,12 @@
 .\"     Title: probe::nfs.aop.writepage
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Network File Storage Tapsets
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NFS\&.AOP\&.W" "3stap" "January 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.TH "PROBE::NFS\&.AOP\&.W" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,49 +36,14 @@ nfs\&.aop\&.writepage
 .fi
 .SH "VALUES"
 .PP
-\fIpage_index\fR
-.RS 4
-offset within mapping, can used a page identifier and position identifier in the page frame
-.RE
-.PP
-\fIino\fR
-.RS 4
-inode number
-.RE
-.PP
-\fIi_state\fR
-.RS 4
-inode state flags
-.RE
-.PP
-\fI__page\fR
-.RS 4
-the address of page
-.RE
-.PP
-\fIdev\fR
-.RS 4
-device identifier
-.RE
-.PP
 \fIsb_flag\fR
 .RS 4
 super block flags
 .RE
 .PP
-\fIwsize\fR
+\fIdev\fR
 .RS 4
-write size
-.RE
-.PP
-\fIi_size\fR
-.RS 4
-file length in bytes
-.RE
-.PP
-\fIsize\fR
-.RS 4
-number of pages to be written in this execution
+device identifier
 .RE
 .PP
 \fIi_flag\fR
@@ -91,9 +56,44 @@ file flags
 a flag of writeback_control, indicates if it\*(Aqs invoked from the page allocator
 .RE
 .PP
+\fIpage_index\fR
+.RS 4
+offset within mapping, can used a page identifier and position identifier in the page frame
+.RE
+.PP
+\fIi_state\fR
+.RS 4
+inode state flags
+.RE
+.PP
 \fIfor_kupdate\fR
 .RS 4
 a flag of writeback_control, indicates if it\*(Aqs a kupdate writeback
+.RE
+.PP
+\fIino\fR
+.RS 4
+inode number
+.RE
+.PP
+\fIwsize\fR
+.RS 4
+write size
+.RE
+.PP
+\fIsize\fR
+.RS 4
+number of pages to be written in this execution
+.RE
+.PP
+\fI__page\fR
+.RS 4
+the address of page
+.RE
+.PP
+\fIi_size\fR
+.RS 4
+file length in bytes
 .RE
 .SH "DESCRIPTION"
 .PP

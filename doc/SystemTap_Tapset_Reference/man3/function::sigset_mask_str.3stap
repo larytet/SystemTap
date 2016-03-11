@@ -2,12 +2,12 @@
 .\"     Title: function::sigset_mask_str
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Signal Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::SIGSET_MAS" "3stap" "January 2016" "SystemTap Tapset Reference" "Signal Tapset"
+.TH "FUNCTION::SIGSET_MAS" "3stap" "March 2016" "SystemTap Tapset Reference" "Signal Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -40,3 +40,5 @@ function::sigset_mask_str \- Returns the string representation of a sigset
 .RS 4
 the sigset to convert to string\&.
 .RE
+.SH SEE ALSO\n 
+.IR tapset::signal (3stap)

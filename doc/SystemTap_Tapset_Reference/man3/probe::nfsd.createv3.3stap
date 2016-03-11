@@ -2,12 +2,12 @@
 .\"     Title: probe::nfsd.createv3
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Network File Storage Tapsets
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NFSD\&.CREATE" "3stap" "January 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.TH "PROBE::NFSD\&.CREATE" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,6 +36,31 @@ nfsd\&.createv3
 .fi
 .SH "VALUES"
 .PP
+\fIiap_valid\fR
+.RS 4
+Attribute flags
+.RE
+.PP
+\fIcreatemode\fR
+.RS 4
+create mode \&.The possible values could be: NFS3_CREATE_EXCLUSIVE, NFS3_CREATE_UNCHECKED, or NFS3_CREATE_GUARDED
+.RE
+.PP
+\fIfilename\fR
+.RS 4
+file name
+.RE
+.PP
+\fIclient_ip\fR
+.RS 4
+the ip address of client
+.RE
+.PP
+\fIverifier\fR
+.RS 4
+file attributes (atime,mtime,mode)\&. It\*(Aqs used to reset file attributes for CREATE_EXCLUSIVE
+.RE
+.PP
 \fIiap_mode\fR
 .RS 4
 file access mode
@@ -46,39 +71,14 @@ file access mode
 the length of file name
 .RE
 .PP
-\fItruncp\fR
-.RS 4
-trunp arguments, indicates if the file shouldbe truncate
-.RE
-.PP
-\fIverifier\fR
-.RS 4
-file attributes (atime,mtime,mode)\&. It\*(Aqs used to reset file attributes for CREATE_EXCLUSIVE
-.RE
-.PP
-\fIclient_ip\fR
-.RS 4
-the ip address of client
-.RE
-.PP
-\fIfilename\fR
-.RS 4
-file name
-.RE
-.PP
-\fIcreatemode\fR
-.RS 4
-create mode \&.The possible values could be: NFS3_CREATE_EXCLUSIVE, NFS3_CREATE_UNCHECKED, or NFS3_CREATE_GUARDED
-.RE
-.PP
 \fIfh\fR
 .RS 4
 file handle (the first part is the length of the file handle)
 .RE
 .PP
-\fIiap_valid\fR
+\fItruncp\fR
 .RS 4
-Attribute flags
+trunp arguments, indicates if the file shouldbe truncate
 .RE
 .SH "DESCRIPTION"
 .PP

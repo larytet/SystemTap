@@ -2,12 +2,12 @@
 .\"     Title: probe::staprun.send_control_message
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: SystemTap Translator Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::STAPRUN\&.SEN" "3stap" "January 2016" "SystemTap Tapset Reference" "SystemTap Translator Tapset"
+.TH "PROBE::STAPRUN\&.SEN" "3stap" "March 2016" "SystemTap Tapset Reference" "SystemTap Translator Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,14 +36,14 @@ staprun\&.send_control_message
 .fi
 .SH "VALUES"
 .PP
-\fItype\fR
-.RS 4
-type of message being send; defined in runtime/transport/transport_msgs\&.h
-.RE
-.PP
 \fIlen\fR
 .RS 4
 the length (in bytes) of the data blob
+.RE
+.PP
+\fItype\fR
+.RS 4
+type of message being send; defined in runtime/transport/transport_msgs\&.h
 .RE
 .PP
 \fIdata\fR

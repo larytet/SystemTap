@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH tapset::conversions-guru 3stap --- IBM
+.TH TAPSET::CONVERSIONS-GURU 3stap "March 2016" "SystemTap Tapset Reference"
 .SH NAME
 tapset::conversions-guru \- systemtap conversions-guru tapset
  

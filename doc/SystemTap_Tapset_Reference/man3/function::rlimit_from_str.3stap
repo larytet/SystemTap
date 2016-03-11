@@ -2,12 +2,12 @@
 .\"     Title: function::rlimit_from_str
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: RLIMIT Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::RLIMIT_FRO" "3stap" "January 2016" "SystemTap Tapset Reference" "RLIMIT Tapset"
+.TH "FUNCTION::RLIMIT_FRO" "3stap" "March 2016" "SystemTap Tapset Reference" "RLIMIT Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------

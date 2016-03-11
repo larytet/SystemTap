@@ -2,12 +2,12 @@
 .\"     Title: probe::nfs.aop.write_begin
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Network File Storage Tapsets
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NFS\&.AOP\&.W" "3stap" "January 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.TH "PROBE::NFS\&.AOP\&.W" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,9 +36,9 @@ nfs\&.aop\&.write_begin
 .fi
 .SH "VALUES"
 .PP
-\fIsize\fR
+\fIto\fR
 .RS 4
-write bytes
+end address of this write operation
 .RE
 .PP
 \fIoffset\fR
@@ -46,14 +46,14 @@ write bytes
 start address of this write operation
 .RE
 .PP
-\fIdev\fR
+\fIino\fR
 .RS 4
-device identifier
+inode number
 .RE
 .PP
-\fIto\fR
+\fIsize\fR
 .RS 4
-end address of this write operation
+write bytes
 .RE
 .PP
 \fI__page\fR
@@ -61,14 +61,14 @@ end address of this write operation
 the address of page
 .RE
 .PP
-\fIino\fR
-.RS 4
-inode number
-.RE
-.PP
 \fIpage_index\fR
 .RS 4
 offset within mapping, can used a page identifier and position identifier in the page frame
+.RE
+.PP
+\fIdev\fR
+.RS 4
+device identifier
 .RE
 .SH "DESCRIPTION"
 .PP

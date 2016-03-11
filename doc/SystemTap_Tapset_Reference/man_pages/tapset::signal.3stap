@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH tapset::signal 3stap --- IBM
+.TH TAPSET::SIGNAL 3stap "March 2016" "SystemTap Tapset Reference"
 .SH NAME
 tapset::signal \- systemtap signal tapset
  
@@ -230,19 +230,19 @@ See
  for details.
 .P
 .TP
-.B get_sa_flags 
+.B get_sa_handler 
 Returns the numeric value of sa_handler
 .IP
 See 
-.IR function::get_sa_flags (3stap)
+.IR function::get_sa_handler (3stap)
  for details.
 .P
 .TP
-.B get_sa_flags 
+.B sigset_mask_str 
 Returns the string representation of a sigset
 .IP
 See 
-.IR function::get_sa_flags (3stap)
+.IR function::sigset_mask_str (3stap)
  for details.
 .P
 .TP
@@ -281,9 +281,9 @@ See
 .BR
 .IR \%function::get_sa_flags (3stap),
 .BR
-.IR \%function::get_sa_flags (3stap),
+.IR \%function::get_sa_handler (3stap),
 .BR
-.IR \%function::get_sa_flags (3stap),
+.IR \%function::sigset_mask_str (3stap),
 .BR
 .IR \%function::is_sig_blocked (3stap),
 .BR

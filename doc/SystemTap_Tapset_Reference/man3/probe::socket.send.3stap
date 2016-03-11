@@ -2,12 +2,12 @@
 .\"     Title: probe::socket.send
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Socket Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::SOCKET\&.SEND" "3stap" "January 2016" "SystemTap Tapset Reference" "Socket Tapset"
+.TH "PROBE::SOCKET\&.SEND" "3stap" "March 2016" "SystemTap Tapset Reference" "Socket Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,9 +36,9 @@ socket\&.send
 .fi
 .SH "VALUES"
 .PP
-\fIsuccess\fR
+\fIsize\fR
 .RS 4
-Was send successful? (1 = yes, 0 = no)
+Size of message sent (in bytes) or error code if success = 0
 .RE
 .PP
 \fIfamily\fR
@@ -46,9 +46,9 @@ Was send successful? (1 = yes, 0 = no)
 Protocol family value
 .RE
 .PP
-\fIstate\fR
+\fIflags\fR
 .RS 4
-Socket state value
+Socket flags value
 .RE
 .PP
 \fItype\fR
@@ -56,14 +56,14 @@ Socket state value
 Socket type value
 .RE
 .PP
-\fIflags\fR
+\fIname\fR
 .RS 4
-Socket flags value
+Name of this probe
 .RE
 .PP
-\fIsize\fR
+\fIsuccess\fR
 .RS 4
-Size of message sent (in bytes) or error code if success = 0
+Was send successful? (1 = yes, 0 = no)
 .RE
 .PP
 \fIprotocol\fR
@@ -71,9 +71,9 @@ Size of message sent (in bytes) or error code if success = 0
 Protocol value
 .RE
 .PP
-\fIname\fR
+\fIstate\fR
 .RS 4
-Name of this probe
+Socket state value
 .RE
 .SH "CONTEXT"
 .PP

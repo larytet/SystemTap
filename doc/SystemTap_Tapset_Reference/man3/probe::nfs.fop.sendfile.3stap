@@ -2,12 +2,12 @@
 .\"     Title: probe::nfs.fop.sendfile
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Network File Storage Tapsets
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NFS\&.FOP\&.S" "3stap" "January 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.TH "PROBE::NFS\&.FOP\&.S" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,19 +36,9 @@ nfs\&.fop\&.sendfile
 .fi
 .SH "VALUES"
 .PP
-\fIcount\fR
+\fIcache_valid\fR
 .RS 4
-read bytes
-.RE
-.PP
-\fIppos\fR
-.RS 4
-current position of file
-.RE
-.PP
-\fIcache_time\fR
-.RS 4
-when we started read\-caching this inode
+cache related bit mask flag
 .RE
 .PP
 \fIattrtimeo\fR
@@ -61,14 +51,24 @@ how long the cached information is assumed to be valid\&. We need to revalidate 
 device identifier
 .RE
 .PP
+\fIcache_time\fR
+.RS 4
+when we started read\-caching this inode
+.RE
+.PP
+\fIppos\fR
+.RS 4
+current position of file
+.RE
+.PP
 \fIino\fR
 .RS 4
 inode number
 .RE
 .PP
-\fIcache_valid\fR
+\fIcount\fR
 .RS 4
-cache related bit mask flag
+read bytes
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfs (3stap)

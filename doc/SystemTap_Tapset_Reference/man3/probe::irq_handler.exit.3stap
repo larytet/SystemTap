@@ -2,12 +2,12 @@
 .\"     Title: probe::irq_handler.exit
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Interrupt Request (IRQ) Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::IRQ_HANDLER\&" "3stap" "January 2016" "SystemTap Tapset Reference" "Interrupt Request (IRQ) Tapset"
+.TH "PROBE::IRQ_HANDLER\&" "3stap" "March 2016" "SystemTap Tapset Reference" "Interrupt Request (IRQ) Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,44 +36,9 @@ irq_handler\&.exit
 .fi
 .SH "VALUES"
 .PP
-\fIaction\fR
-.RS 4
-struct irqaction*
-.RE
-.PP
-\fIthread\fR
-.RS 4
-thread pointer for threaded interrupts
-.RE
-.PP
-\fIdev_id\fR
-.RS 4
-Cookie to identify device
-.RE
-.PP
 \fIhandler\fR
 .RS 4
 interrupt handler function that was executed
-.RE
-.PP
-\fIthread_fn\fR
-.RS 4
-interrupt handler function for threaded interrupts
-.RE
-.PP
-\fIflags\fR
-.RS 4
-flags for IRQ handler
-.RE
-.PP
-\fInext_irqaction\fR
-.RS 4
-pointer to next irqaction for shared interrupts
-.RE
-.PP
-\fIflags_str\fR
-.RS 4
-symbolic string representation of IRQ flags
 .RE
 .PP
 \fIdev_name\fR
@@ -81,14 +46,14 @@ symbolic string representation of IRQ flags
 name of device
 .RE
 .PP
-\fIirq\fR
+\fIthread_fn\fR
 .RS 4
-interrupt number
+interrupt handler function for threaded interrupts
 .RE
 .PP
-\fIthread_flags\fR
+\fIthread\fR
 .RS 4
-Flags related to thread
+thread pointer for threaded interrupts
 .RE
 .PP
 \fIdir\fR
@@ -96,9 +61,44 @@ Flags related to thread
 pointer to the proc/irq/NN/name entry
 .RE
 .PP
+\fInext_irqaction\fR
+.RS 4
+pointer to next irqaction for shared interrupts
+.RE
+.PP
+\fIirq\fR
+.RS 4
+interrupt number
+.RE
+.PP
+\fIdev_id\fR
+.RS 4
+Cookie to identify device
+.RE
+.PP
+\fIaction\fR
+.RS 4
+struct irqaction*
+.RE
+.PP
+\fIflags\fR
+.RS 4
+flags for IRQ handler
+.RE
+.PP
+\fIflags_str\fR
+.RS 4
+symbolic string representation of IRQ flags
+.RE
+.PP
 \fIret\fR
 .RS 4
 return value of the handler
+.RE
+.PP
+\fIthread_flags\fR
+.RS 4
+Flags related to thread
 .RE
 .SH SEE ALSO\n 
 .IR tapset::irq (3stap)

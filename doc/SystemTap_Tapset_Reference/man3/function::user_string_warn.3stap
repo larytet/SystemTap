@@ -2,12 +2,12 @@
 .\"     Title: function::user_string_warn
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: String and data retrieving functions Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::USER_STRIN" "3stap" "January 2016" "SystemTap Tapset Reference" "String and data retrieving fun"
+.TH "FUNCTION::USER_STRIN" "3stap" "March 2016" "SystemTap Tapset Reference" "String and data retrieving fun"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -32,7 +32,11 @@ function::user_string_warn \- Retrieves string from user space
 .SH "SYNOPSIS"
 .sp
 .nf
-    user_string_warn:string(addr:long)
+1) user_string_warn:string(addr:long)
+.fi
+.sp
+.nf
+2) user_string_warn:string(addr:long,warn_msg:string)
 .fi
 .SH "ARGUMENTS"
 .PP
@@ -40,8 +44,15 @@ function::user_string_warn \- Retrieves string from user space
 .RS 4
 the user space address to retrieve the string from
 .RE
+.PP
+\fIwarn_msg\fR
+.RS 4
+the warning message to return when data isn\*(Aqt available
+.RE
 .SH "DESCRIPTION"
 .PP
-Returns the null terminated C string from a given user space memory address\&. Reports "" on the rare cases when userspace data is not accessible and warns (but does not abort) about the failure\&.
+1) Returns the null terminated C string from a given user space memory address\&. Reports "" on the rare cases when userspace data is not accessible and warns (but does not abort) about the failure\&.
+.PP
+2) Returns the null terminated C string from a given user space memory address\&. Reports the given warning message on the rare cases when userspace data is not accessible and warns (but does not abort) about the failure\&.
 .SH SEE ALSO\n 
 .IR tapset::uconversions (3stap)

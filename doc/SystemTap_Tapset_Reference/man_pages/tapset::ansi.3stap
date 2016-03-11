@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH tapset::ansi 3stap --- IBM
+.TH TAPSET::ANSI 3stap "March 2016" "SystemTap Tapset Reference"
 .SH NAME
 tapset::ansi \- systemtap ansi tapset
  
@@ -23,19 +23,19 @@ See
  for details.
 .P
 .TP
-.B ansi_set_color2 
+.B ansi_set_color 
 Set the ansi Select Graphic Rendition mode.
 .IP
 See 
-.IR function::ansi_set_color2 (3stap)
+.IR function::ansi_set_color (3stap)
  for details.
 .P
 .TP
-.B ansi_set_color3 
+.B ansi_set_color 
 Set the ansi Select Graphic Rendition mode.
 .IP
 See 
-.IR function::ansi_set_color3 (3stap)
+.IR function::ansi_set_color (3stap)
  for details.
 .P
 .TP
@@ -99,10 +99,6 @@ See
 .IR \%function::ansi_clear_screen (3stap),
 .BR
 .IR \%function::ansi_set_color (3stap),
-.BR
-.IR \%function::ansi_set_color2 (3stap),
-.BR
-.IR \%function::ansi_set_color3 (3stap),
 .BR
 .IR \%function::ansi_reset_color (3stap),
 .BR

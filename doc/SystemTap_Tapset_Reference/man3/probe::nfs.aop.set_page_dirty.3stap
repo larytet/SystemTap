@@ -2,12 +2,12 @@
 .\"     Title: probe::nfs.aop.set_page_dirty
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Network File Storage Tapsets
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NFS\&.AOP\&.S" "3stap" "January 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.TH "PROBE::NFS\&.AOP\&.S" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,14 +36,14 @@ nfs\&.aop\&.set_page_dirty
 .fi
 .SH "VALUES"
 .PP
-\fI__page\fR
-.RS 4
-the address of page
-.RE
-.PP
 \fIpage_flag\fR
 .RS 4
 page flags
+.RE
+.PP
+\fI__page\fR
+.RS 4
+the address of page
 .RE
 .SH "DESCRIPTION"
 .PP

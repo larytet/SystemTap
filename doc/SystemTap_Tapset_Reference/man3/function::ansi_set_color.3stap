@@ -2,12 +2,12 @@
 .\"     Title: function::ansi_set_color
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Utility functions for using ansi control chars in logs
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::ANSI_SET_C" "3stap" "January 2016" "SystemTap Tapset Reference" "Utility functions for using an"
+.TH "FUNCTION::ANSI_SET_C" "3stap" "March 2016" "SystemTap Tapset Reference" "Utility functions for using an"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -32,7 +32,15 @@ function::ansi_set_color \- Set the ansi Select Graphic Rendition mode\&.
 .SH "SYNOPSIS"
 .sp
 .nf
-    ansi_set_color(fg:long)
+1) ansi_set_color(fg:long)
+.fi
+.sp
+.nf
+2) ansi_set_color(fg:long,bg:long)
+.fi
+.sp
+.nf
+3) ansi_set_color(fg:long,bg:long,attr:long)
 .fi
 .SH "ARGUMENTS"
 .PP
@@ -40,8 +48,22 @@ function::ansi_set_color \- Set the ansi Select Graphic Rendition mode\&.
 .RS 4
 Foreground color to set\&.
 .RE
+.PP
+\fIbg\fR
+.RS 4
+Background color to set\&.
+.RE
+.PP
+\fIattr\fR
+.RS 4
+Color attribute to set\&.
+.RE
 .SH "DESCRIPTION"
 .PP
-Sends ansi code for Select Graphic Rendition mode for the given forground color\&. Black (30), Blue (34), Green (32), Cyan (36), Red (31), Purple (35), Brown (33), Light Gray (37)\&.
+1) Sends ansi code for Select Graphic Rendition mode for the given forground color\&. Black (30), Blue (34), Green (32), Cyan (36), Red (31), Purple (35), Brown (33), Light Gray (37)\&.
+.PP
+2) Sends ansi code for Select Graphic Rendition mode for the given forground color, Black (30), Blue (34), Green (32), Cyan (36), Red (31), Purple (35), Brown (33), Light Gray (37) and the given background color, Black (40), Red (41), Green (42), Yellow (43), Blue (44), Magenta (45), Cyan (46), White (47)\&.
+.PP
+3) Sends ansi code for Select Graphic Rendition mode for the given forground color, Black (30), Blue (34), Green (32), Cyan (36), Red (31), Purple (35), Brown (33), Light Gray (37), the given background color, Black (40), Red (41), Green (42), Yellow (43), Blue (44), Magenta (45), Cyan (46), White (47) and the color attribute All attributes off (0), Intensity Bold (1), Underline Single (4), Blink Slow (5), Blink Rapid (6), Image Negative (7)\&.
 .SH SEE ALSO\n 
 .IR tapset::ansi (3stap)

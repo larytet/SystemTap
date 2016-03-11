@@ -2,12 +2,12 @@
 .\"     Title: probe::tty.poll
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: TTY Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::TTY\&.POLL" "3stap" "January 2016" "SystemTap Tapset Reference" "TTY Tapset"
+.TH "PROBE::TTY\&.POLL" "3stap" "March 2016" "SystemTap Tapset Reference" "TTY Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,14 +36,14 @@ tty\&.poll
 .fi
 .SH "VALUES"
 .PP
-\fIwait_key\fR
-.RS 4
-the wait queue key
-.RE
-.PP
 \fIfile_name\fR
 .RS 4
 the tty file name
+.RE
+.PP
+\fIwait_key\fR
+.RS 4
+the wait queue key
 .RE
 .SH SEE ALSO\n 
 .IR tapset::tty (3stap)

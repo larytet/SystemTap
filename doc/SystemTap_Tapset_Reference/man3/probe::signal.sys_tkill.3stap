@@ -2,12 +2,12 @@
 .\"     Title: probe::signal.sys_tkill
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: January 2016
+.\"      Date: March 2016
 .\"    Manual: Signal Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::SIGNAL\&.SYS_" "3stap" "January 2016" "SystemTap Tapset Reference" "Signal Tapset"
+.TH "PROBE::SIGNAL\&.SYS_" "3stap" "March 2016" "SystemTap Tapset Reference" "Signal Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,16 +36,6 @@ signal\&.sys_tkill
 .fi
 .SH "VALUES"
 .PP
-\fIpid_name\fR
-.RS 4
-The name of the signal recipient
-.RE
-.PP
-\fItask\fR
-.RS 4
-A task handle to the signal recipient
-.RE
-.PP
 \fIname\fR
 .RS 4
 Name of the probe point
@@ -56,6 +46,11 @@ Name of the probe point
 The PID of the process receiving the kill signal
 .RE
 .PP
+\fIpid_name\fR
+.RS 4
+The name of the signal recipient
+.RE
+.PP
 \fIsig_name\fR
 .RS 4
 A string representation of the signal
@@ -64,6 +59,11 @@ A string representation of the signal
 \fIsig\fR
 .RS 4
 The specific signal sent to the process
+.RE
+.PP
+\fItask\fR
+.RS 4
+A task handle to the signal recipient
 .RE
 .SH "DESCRIPTION"
 .PP
