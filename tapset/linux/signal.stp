@@ -838,7 +838,7 @@ function get_sa_flags:long (act:long)
 }
 
 /**
- * sfunction get_sa_flags - Returns the numeric value of sa_handler
+ * sfunction get_sa_handler - Returns the numeric value of sa_handler
  *
  * @act: address of the sigaction to query.
  */
@@ -869,7 +869,7 @@ function get_sa_handler:long (act:long)
 // };
 
 /**
- * sfunction get_sa_flags - Returns the string representation of a sigset
+ * sfunction sigset_mask_str - Returns the string representation of a sigset
  *
  * @mask: the sigset to convert to string.
  */

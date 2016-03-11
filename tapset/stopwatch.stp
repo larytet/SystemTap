@@ -114,7 +114,7 @@ function read_stopwatch_ms:long (name:string)
 
 
 /**
- * sfunction read_stopwatch_ms - Reads the time in seconds for a stopwatch
+ * sfunction read_stopwatch_s - Reads the time in seconds for a stopwatch
  * @name: stopwatch name
  *
  * Returns time in seconds for stopwatch @name.
