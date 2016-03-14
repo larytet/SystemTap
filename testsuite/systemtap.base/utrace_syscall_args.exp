@@ -39,6 +39,7 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
 	verbose "target_compile for $exepath failed: $res" 2
 	send_log "$testname: unable to compile $srcpath\n"
 	untested $testname       
+        cd $curdir
 	return
     }
 
