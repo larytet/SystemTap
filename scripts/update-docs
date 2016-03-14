@@ -1,122 +1,55 @@
 #!/usr/bin/bash
+# This script regenerates the prebuilt documentation
+# checked into the source tree.
 
-#check for man2html
-#TODO perhaps wget, untar, and automatically use, then remove if we want?
-# http://dcssrv1.oit.uci.edu/indiv/ehood/tar/man2html3.0.1.tar.gz
+echo "Generating documentation"
+SCRIPT=$(readlink -f $0)
+BASE=$(dirname $SCRIPT)/..
+TEMP=$(mktemp -d -p /tmp) && pushd $TEMP
 
-echo This script regenerates the 'sourceware.org/systemtap/{tapset,man,...}' docs
-echo from a NEW checkout of git master systemtap and a partial build.
-echo
-echo Consider running this script under ssh-agent, with an ssh-add-ed identity,
-echo in order to prevent interactive blockage at the many ssh/cvs operations.
-echo
-echo Count to ten ... slowly ...
-sleep 10
+SBG=SystemTap_Beginners_Guide
+STR=SystemTap_Tapset_Reference
+DOCS=$BASE/doc
 
+# Beginners Guide documentation
 
-if which man2html &>/dev/null; then
- :
+echo "Generating beginner pdf"
+xmlto --with-fop --skip-validation -o $DOCS/$SBG/en-US/ -x $DOCS/$SBG/en-US/xsl/pdf.xsl pdf $DOCS/$SBG/en-US/$SBG.xml
+
+# Tapset Reference documentation
+
+###
+# The build process is as follows (targets):
+#              (xmldocs) [by docproc]
+# file.tmpl --> file.xml +--> file.ps   (psdocs)   [by xmlto]
+#                        +--> file.pdf  (pdfdocs)  [by xmlto]
+#                        +--> DIR=file  (htmldocs) [by xmlto]
+#                        +--> man/      (mandocs)  [by xmlto]
+
+echo "Generating tapsets.xml"
+gcc -o docproc $DOCS/$STR/docproc.c
+sed -e '/^!Syscalls/{r $DOCS/$STR/syscalls.xmlpart' -e 'd}' $DOCS/$STR/tapsets.tmpl > tapsets.tmpl.new
+SRCTREE=$BASE/ ./docproc doc tapsets.tmpl.new > tapsets.xml.new
+python $DOCS/$STR/overload.py tapsets.xml.new > tapsets.xml.new1
+if [ $? -ne 0 ]; then echo "FAILED: python lxml library required"; exit 1; fi
+xsltproc $DOCS/$STR/sort-tapsets.xslt tapsets.xml.new1 > tapsets.xml.new2
+rm tapsets.xml.new tapsets.xml.new1 tapsets.tmpl.new
+if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then
+    echo tapsets.xml unchanged;
+    rm tapsets.xml.new2;
 else
-echo "Please install man2html package"
-exit
+    mv tapsets.xml.new2 tapsets.xml;
 fi
 
-# Create the directory we'll be working in
+echo "Generating tapsets pdf"
+env pool_size=6000000 hash_extra=6000000 xmlto --with-fop --stringparam refentry.generate.name=0 --stringparam refentry.generate.title=1 pdf -o $DOCS/$STR/ tapsets.xml
 
-DIR=`mktemp -d stapdocsXXX -p /tmp/`; cd $DIR
+echo "Generating tapsets man pages"
+xmlto --stringparam man.authors.section.enabled=0 --stringparam man.copyright.section.enabled=0 man -o man3 tapsets.xml
+SRCTREE=$BASE $DOCS/$STR/manpager # generate tapset::* pages
+cp $DOCS/$STR/syscalls.3stap man_pages/tapset\:\:syscalls.3stap # use cached syscall page
+cp -R man3 $DOCS/$STR/
+cp -R man_pages $DOCS/$STR/
 
-# We'll need to build the latest stap with docs, ensure a check that everything built properly or bail
-
-git clone --depth 1 git://sourceware.org/git/systemtap.git
-
-# Checkout the htdocs CVS
-
-cvs -d :ext:sourceware.org:/cvs/systemtap checkout htdocs
-
-BASEDIR=`pwd`
-cd systemtap
-
-mkdir build && mkdir local && cd build
-
-../configure --enable-docs --enable-htmldocs --prefix=$BASEDIR/systemtap/local
-
-make -C doc
-make install-data
-if [ $? -eq 0 ]; then
- : 
-else
-echo "Make failed, please address build errors"
-exit
-fi
-
-### LANGREF
-cp doc/langref.pdf $BASEDIR/htdocs/
-
-#Something about publicanizing the langref?
-
-rm $BASEDIR/htdocs/langref/*.html
-cd $BASEDIR/htdocs
-cvs rm && cvs commit -m 'removed langref/*.html'
-
-cd $BASEDIR/systemtap/doc
-latex2html -noaddress -show_section_numbers -custom_titles -local_icons -split 4 langref.tex -dir $BASEDIR/htdocs/langref/
-cd $BASEDIR/htdocs
-cvs add langref/*.html && cvs commit -m 'add new langref/*.html'
-cd -
-### TUTORIAL
-cp $BASEDIR/systemtap/build/doc/tutorial.pdf $BASEDIR/htdocs/
-rm $BASEDIR/htdocs/tutorial/*.html
-
-cd $BASEDIR/htdocs
-#cvs rm && cvs commit -m 'removed tutorial/*.html'
-
-cd $BASEDIR/systemtap/doc
-latex2html -noaddress -show_section_numbers -custom_titles -local_icons -split 4 tutorial.tex -dir $BASEDIR/htdocs/tutorial/
-
-cd $BASEDIR/htdocs
-cvs add tutorial/*.html && cvs commit -m 'add new tutorial/*.html'
-
-# beginners guide
-# we require xmlto version newer than 0.0.23-3
-# TODO add a version check
-
-cd $BASEDIR/systemtap/build/doc/beginners
-
-cp SystemTap_Beginners_Guide.pdf $BASEDIR/htdocs/
-
-#echo 'systemtap_beginners_guide.pdf cp'
-
-rm $BASEDIR/htdocs/SystemTap_Beginners_Guide/*.html
-cp -R SystemTap_Beginners_Guide $BASEDIR/htdocs/
-#echo 'systemtap_beginners_guide recursive cp'
-# tapsets 
-cd ../..
-
-cp $BASEDIR/systemtap/build/doc/SystemTap_Tapset_Reference/tapsets.pdf $BASEDIR/htdocs/
-
-#echo 'tapsets.pdf cp'
-
-rm $BASEDIR/htdocs/tapsets/*.html
-
-cp -R $BASEDIR/systemtap/build/doc/SystemTap_Tapset_Reference/tapsets/*.html $BASEDIR/htdocs/tapsets/
-
-cd $BASEDIR/htdocs
-cvs add tapsets/*.html && cvs commit -m 'add new tapsets/*.html'
-
-#echo 'tapsets html cp'
-
-# systemtap examples
-# run gitweb.php script?
-# run examples-index-gen.pl script if needed?
-
-rm man/*.html && cvs rm * && cvs commit -m 'removed man pages'
-
-cd $BASEDIR/htdocs/man
-
-./REGEN.sh $BASEDIR/systemtap/local
-
-cd $BASEDIR/htdocs
-cvs add man/*.html && cvs commit -m 'added new man pages'
-echo -- $BASEDIR
-
-
+popd && rm -rf $TEMP
+echo "Finished generating documentation"
