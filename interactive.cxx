@@ -601,7 +601,8 @@ public:
 
 	if (line_end > script_vec.size())
 	  {
-	    cout << _F("No line %ld present in script.", line_end) << endl;
+	    cout << _F("No line %lu present in script.",
+		       (unsigned long)line_end) << endl;
 	    return false;
 	  }
 	else if (line_end < line_start)
