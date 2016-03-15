@@ -336,12 +336,18 @@ proc setup_server { args } {
     }
 
     # Make sure that stap can find the server.
-    exec sleep 1
+    set waited 0
     set use_server --use-server
-    set res [catch { exec stap --list-servers=online,trusted,compatible >& stap-list-servers.out } looksee]
+    set res 0
+    set listRes 1
+    while { $listRes != 0 && $waited < 15 } {
+      exec sleep 1
+      incr $waited
+      set res [catch { exec stap --list-servers=online,trusted,compatible >& stap-list-servers.out } seen_servers]
+      set listRes [catch { exec grep "^ host" stap-list-servers.out } looksee]
+    }
     verbose -log "stap --list-servers returned: res==$res"
-    verbose -log $looksee[exec cat stap-list-servers.out]
-    set listRes [catch { exec grep "^ host" stap-list-servers.out } looksee]
+    verbose -log $seen_servers[exec cat stap-list-servers.out]
     verbose -log "grep for servers returned: res==$res\n$looksee"
 
     # Try to discover the port the server is listening on from the server log.
