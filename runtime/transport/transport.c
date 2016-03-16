@@ -123,6 +123,10 @@ static struct timer_list _stp_ctl_work_timer;
 static void _stp_handle_start(struct _stp_msg_start *st)
 {
 	int handle_startup;
+#if defined(CONFIG_USER_NS)
+	struct pid *_upid = NULL;
+	struct task_struct *_utask = NULL;
+#endif
 
         // protect against excessive or premature startup
 	handle_startup = (! _stp_start_called && ! _stp_exit_called);
@@ -149,6 +153,30 @@ static void _stp_handle_start(struct _stp_msg_start *st)
 #endif
 
 		_stp_target = st->target;
+
+#if defined(CONFIG_USER_NS)
+                rcu_read_lock();
+                _upid = find_vpid(_stp_target);
+                if (_upid)
+                {
+                    _utask = pid_task(_upid, PIDTYPE_PID);
+                    if (_utask)
+                    {
+                        #ifdef DEBUG_UPROBES
+                        _stp_dbug(__FUNCTION__,__LINE__, "translating vpid %d to pid %d\n", _stp_target, _utask->pid);
+                        #endif
+                        _stp_target = _utask->pid;
+                    }
+                }
+
+                #ifdef DEBUG_UPROBES
+                if (!_upid || !_utask)
+                    _stp_dbug(__FUNCTION__,__LINE__, "cannot map pid %d to host namespace pid\n", _stp_target);
+                #endif
+
+                rcu_read_unlock();
+#endif
+
 		st->res = systemtap_module_init();
 		if (st->res == 0) {
 			_stp_probes_started = 1;
