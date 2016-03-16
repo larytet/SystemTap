@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * Map Runtime Functions
- * Copyright (C) 2012 Red Hat Inc.
+ * Copyright (C) 2012-2016 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -121,13 +121,16 @@ _stp_map_vzalloc(size_t size, int cpu)
 
 
 static int
-_stp_map_init(MAP m, unsigned max_entries, int wrap, int node_size, int cpu)
+_stp_map_init(MAP m, unsigned max_entries, unsigned hash_table_mask,
+              int wrap, int node_size, int cpu)
 {
 	unsigned i;
 
 	INIT_MLIST_HEAD(&m->pool);
 	INIT_MLIST_HEAD(&m->head);
-	for (i = 0; i < HASH_TABLE_SIZE; i++)
+
+        m->hash_table_mask = hash_table_mask;
+	for (i = 0; i <= hash_table_mask; i++)
 		INIT_MHLIST_HEAD(&m->hashes[i]);
 
 	m->maxnum = max_entries;
@@ -165,12 +168,14 @@ static MAP
 _stp_map_new(unsigned max_entries, int wrap, int node_size, int cpu)
 {
 	MAP m;
-
-	m = _stp_map_vzalloc(sizeof(struct map_root), cpu);
+        unsigned hash_table_mask = HASHTABLESIZE(max_entries)-1; /* usable as bitmask */
+	m = _stp_map_vzalloc(sizeof(struct map_root) +
+                             sizeof(struct mhlist_head) * (hash_table_mask+1),
+                             cpu);
 	if (m == NULL)
 		return NULL;
 
-	if (_stp_map_init(m, max_entries, wrap, node_size, cpu)) {
+	if (_stp_map_init(m, max_entries, hash_table_mask, wrap, node_size, cpu)) {
 		_stp_map_del(m);
 		return NULL;
 	}

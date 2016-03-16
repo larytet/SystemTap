@@ -1,5 +1,11 @@
 * What's new in version 3.0
 
+- The performance of associative arrays have been dramatically
+  improved, especially for densely filled usage and for multiple
+  indexes.  The hash tables behind these arrays is now sized as a
+  function of the array maximum size with an optional MAPHASHBIAS
+  space/time tradeoff knob.
+
 - The new "interactive" mode, specified by "stap -i" drops you into a
   command-line prompt where you can build up a script, run it, edit
   it, run it again, etc. Type "help" for a list of commands.

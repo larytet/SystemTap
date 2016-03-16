@@ -617,7 +617,7 @@ static unsigned int KEYSYM(keycheck) (ALLKEYSD(key))
 	return 1;
 }
 
-static uint32_t KEYSYM(hash) (ALLKEYSD(key))
+static uint32_t KEYSYM(hash) (ALLKEYSD(key)) /* NB: unscaled! */
 {
         uint32_t hash = stap_hash_seed;
         hash = MurmurHash3_x86_32 (KEY1_HASHVAL, KEY1_HASHLEN, hash);
@@ -645,7 +645,7 @@ static uint32_t KEYSYM(hash) (ALLKEYSD(key))
 #endif
 #endif
 #endif
-	return (unsigned int) (fmix32(hash) % HASH_TABLE_SIZE);
+	return fmix32(hash);
 }
 
 
@@ -713,7 +713,7 @@ static int KEYSYM(__stp_map_set) (MAP map, ALLKEYSD(key), VSTYPE val, int add)
 	if (KEYSYM(keycheck) (ALLKEYS(key)) == 0)
 		return -2;
 
-	hv = KEYSYM(hash) (ALLKEYS(key));
+	hv = KEYSYM(hash) (ALLKEYS(key)) & map->hash_table_mask;
 	head = &map->hashes[hv];
 
 	mhlist_for_each_entry(n, e, head, node.hnode) {
@@ -750,7 +750,7 @@ static VALTYPE KEYSYM(_stp_map_get) (MAP map, ALLKEYSD(key))
 	if (map == NULL)
 		return NULLRET;
 
-	hv = KEYSYM(hash) (ALLKEYS(key));
+	hv = KEYSYM(hash) (ALLKEYS(key)) & map->hash_table_mask;
 	head = &map->hashes[hv];
 
 	mhlist_for_each_entry(n, e, head, node.hnode) {
@@ -775,7 +775,7 @@ static int KEYSYM(_stp_map_del) (MAP map, ALLKEYSD(key))
 	if (KEYSYM(keycheck) (ALLKEYS(key)) == 0)
 		return -1;
 
-	hv = KEYSYM(hash) (ALLKEYS(key));
+	hv = KEYSYM(hash) (ALLKEYS(key)) & map->hash_table_mask;
 	head = &map->hashes[hv];
 
 	mhlist_for_each_entry(n, e, head, node.hnode) {
@@ -788,7 +788,8 @@ static int KEYSYM(_stp_map_del) (MAP map, ALLKEYSD(key))
 	return 0;
 }
 
-static int KEYSYM(_stp_map_del_hash) (MAP map, unsigned int hv, ALLKEYSD(key))
+static int KEYSYM(_stp_map_del_hash) (MAP map, unsigned int hv /* scaled */,
+                                      ALLKEYSD(key))
 {
 	struct mhlist_head *head;
 	struct mhlist_node *e;
@@ -818,7 +819,7 @@ static int KEYSYM(_stp_map_exists) (MAP map, ALLKEYSD(key))
 	if (map == NULL)
 		return 0;
 
-	hv = KEYSYM(hash) (ALLKEYS(key));
+	hv = KEYSYM(hash) (ALLKEYS(key)) & map->hash_table_mask;
 	head = &map->hashes[hv];
 
 	mhlist_for_each_entry(n, e, head, node.hnode) {

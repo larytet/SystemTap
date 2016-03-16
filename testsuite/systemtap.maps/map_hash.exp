@@ -2053,9 +2053,9 @@ array[1]=0x1}
 
 foreach runtime [get_runtime_list] {
     if {$runtime != ""} {
-	stap_run2 $srcdir/$subdir/$test --runtime=$runtime
+	stap_run2 $srcdir/$subdir/$test -DMAPHASHBIAS=-9999 --runtime=$runtime
     } else {
-	stap_run2 $srcdir/$subdir/$test
+	stap_run2 $srcdir/$subdir/$test -DMAPHASHBIAS=-9999
     }
 }
 
@@ -12348,8 +12348,8 @@ array["stdbuf", "stdbuf"]: count:1  sum:1  avg:1  min:1  max:1}
 
 foreach runtime [get_runtime_list] {
     if {$runtime != ""} {
-	stap_run2 $srcdir/$subdir/$test --runtime=$runtime
+	stap_run2 $srcdir/$subdir/$test -DMAPHASHBIAS=2 --runtime=$runtime
     } else {
-	stap_run2 $srcdir/$subdir/$test
+	stap_run2 $srcdir/$subdir/$test -DMAPHASHBIAS=2
     }
 }

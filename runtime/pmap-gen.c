@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * pmap API generator
- * Copyright (C) 2005-2008, 2012 Red Hat Inc.
+ * Copyright (C) 2005-2016 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -240,7 +240,7 @@ static VALTYPE KEYSYM(_stp_pmap_get_cpu) (PMAP pmap, ALLKEYSD(key))
 	}
 #endif
 
-	hv = KEYSYM(hash) (ALLKEYS(key));
+	hv = KEYSYM(hash) (ALLKEYS(key)) & map->hash_table_mask;
 	head = &map->hashes[hv];
 	mhlist_for_each_entry(n, e, head, node.hnode) {
 		if (KEY_EQ_P(n)) {
@@ -273,7 +273,7 @@ static VALTYPE KEYSYM(_stp_pmap_get) (PMAP pmap, ALLKEYSD(key))
 
 	/* first look it up in the aggregation map */
 	agg = _stp_pmap_get_agg(pmap);
-	ahead = &agg->hashes[hv];
+	ahead = &agg->hashes[hv & agg->hash_table_mask];
 	mhlist_for_each_entry(n, e, ahead, node.hnode) {
 		if (KEY_EQ_P(n)) {
 			anode = &n->node;
@@ -290,7 +290,7 @@ static VALTYPE KEYSYM(_stp_pmap_get) (PMAP pmap, ALLKEYSD(key))
 			return NULLRET;
 #endif
 
-		head = &map->hashes[hv];
+		head = &map->hashes[hv & map->hash_table_mask];
 		mhlist_for_each_entry(n, e, head, node.hnode) {
 			if (KEY_EQ_P(n)) {
 				if (anode == NULL) {
@@ -341,7 +341,8 @@ static int KEYSYM(_stp_pmap_del) (PMAP pmap, ALLKEYSD(key))
 		if (!MAP_TRYLOCK(m))
 			return -1;
 #endif
-		(void)KEYSYM(_stp_map_del_hash) (m, hv, ALLKEYS(key));
+		(void)KEYSYM(_stp_map_del_hash) (m, hv & m->hash_table_mask,
+                                                 ALLKEYS(key));
 		MAP_UNLOCK(m);
 	}
 

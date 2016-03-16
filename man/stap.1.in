@@ -2153,6 +2153,13 @@ or denoted with
 .IR %
 to make them wrap-around automatically.
 .TP
+MAPHASHBIAS
+The number of powers-of-two to add or subtract from the natural size of the
+hash table backing each global associative array.  Default is 0.  Try small
+positive numbers to get extra performance at the cost of more memory
+consumption, because that should reduce hash table collisions.
+Try small negative numbers for the opposite tradeoff.
+.TP
 MAXERRORS
 Maximum number of soft errors before an exit is triggered, default 0, which
 means that the first error will exit the script.  Note that with the

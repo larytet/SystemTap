@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * Map Header File
- * Copyright (C) 2005, 2012 Red Hat Inc.
+ * Copyright (C) 2005-2016 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -19,6 +19,21 @@
 #include "dyninst/map_list.h"
 #endif
 
+/* Number of bits to add-to or subtract-from "natural" hash table size.
+   0  = natural hash table size = ilog2(max-table-elements)
+   +1 = double of natural hash table size: saves time, spends space
+   -1 = half of natural hash table size: saves space, spends time
+   -many = minimum hash table size (1 entry)
+   +many = build failure
+*/
+#ifndef MAPHASHBIAS
+#define MAPHASHBIAS 0
+#endif
+
+#define HASHTABLESIZE(entries) (1 << max_t(int, ilog2(entries)+MAPHASHBIAS, 1))
+/* NB: a power of two, since we truncate hv with & rather than % */
+
+
 /** @file map.h
  * @brief Header file for maps and lists 
  */
@@ -26,14 +41,6 @@
  * @todo Needs a spinlock variable to help when locks are required on the map.
  * @{
  */
-
-/* This sets the size of the hash table. */
-#ifndef HASH_TABLE_BITS
-#define HASH_TABLE_BITS (ilog2(MAXMAPENTRIES)+1)
-
-/* This sets the size of the hash table. */
-#define HASH_TABLE_SIZE (1<<HASH_TABLE_BITS)
-#endif
 
 /** Maximum length of strings in maps. This sets the amount of space
     reserved for each string.  This should match MAXSTRINGLEN.  If
@@ -76,10 +83,10 @@ struct map_node {
  */
 struct map_root {
         /* maximum number of elements allowed in the array. */
-	int maxnum;
+	unsigned maxnum;
 
 	/* current number of used elements */
-	int num;
+	unsigned num;
 
 	/* when more than maxnum elements, wrap or discard? */
 	int wrap;
@@ -102,11 +109,12 @@ struct map_root {
 #endif
 #endif
 
-	/* the hash table for this array */
-	struct mhlist_head hashes[HASH_TABLE_SIZE];
-
 	/* used if this map's nodes contain stats */
 	struct _Hist hist;
+
+	/* the hash table for this array */
+        unsigned hash_table_mask;
+	struct mhlist_head hashes[0]; /* dynamically allocated at tail */
 };
 
 /** All maps are of this type. */

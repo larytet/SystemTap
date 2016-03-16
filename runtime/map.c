@@ -371,7 +371,7 @@ static MAP _stp_pmap_agg (PMAP pmap, map_update_fn update, map_cmp_fn cmp)
 		m = _stp_pmap_get_map (pmap, i);
 		MAP_LOCK(m);
 		/* walk the hash chains. */
-		for (hash = 0; hash < HASH_TABLE_SIZE; hash++) {
+		for (hash = 0; hash <= m->hash_table_mask; hash++) {
 			head = &m->hashes[hash];
 			ahead = &agg->hashes[hash];
 			mhlist_for_each_entry(ptr, e, head, hnode) {

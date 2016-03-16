@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * Map Runtime Functions
- * Copyright (C) 2012 Red Hat Inc.
+ * Copyright (C) 2012-2016 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -121,16 +121,17 @@ static void _stp_pmap_del(PMAP pmap)
 
 
 static int
-_stp_map_init(MAP m, unsigned max_entries, int wrap, int node_size)
+_stp_map_init(MAP m, unsigned max_entries, unsigned hash_table_mask, int wrap, int node_size)
 {
 	unsigned i;
 
-	/* The node memory is allocated right after the map itself.  */
-	void *node_mem = m + 1;
+	/* The node memory is allocated right after the map (incl. the hash table).  */
+	void *node_mem = (void*)(m + 1) + sizeof(struct mhlist_head)*(hash_table_mask+1);
 
 	INIT_MLIST_HEAD(&m->pool);
 	INIT_MLIST_HEAD(&m->head);
-	for (i = 0; i < HASH_TABLE_SIZE; i++)
+        m->hash_table_mask = hash_table_mask;
+	for (i = 0; i <= m->hash_table_mask; i++)
 		INIT_MHLIST_HEAD(&m->hashes[i]);
 
 	m->maxnum = max_entries;
@@ -166,12 +167,15 @@ _stp_map_new(unsigned max_entries, int wrap, int node_size,
 
 	/* NB: Allocate the map in one big chuck.
 	 * (See _stp_pmap_new for more explanation) */
-	size_t map_size = sizeof(struct map_root) + node_size * max_entries;
+        unsigned hash_table_mask = HASHTABLESIZE(max_entries)-1; /* usable as bitmask */
+	size_t map_size = sizeof(struct map_root)
+                + sizeof(struct mhlist_head) * (hash_table_mask+1)
+                + node_size * max_entries;
 	m = _stp_shm_zalloc(map_size);
 	if (m == NULL)
 		return NULL;
 
-	if (_stp_map_init(m, max_entries, wrap, node_size)) {
+	if (_stp_map_init(m, max_entries, hash_table_mask, wrap, node_size)) {
 		_stp_map_del(m);
 		return NULL;
 	}
@@ -185,6 +189,7 @@ _stp_pmap_new(unsigned max_entries, int wrap, int node_size)
 	MAP m;
 	PMAP pmap;
 	void *map_mem;
+        unsigned hash_table_mask = HASHTABLESIZE(max_entries)-1; /* usable as bitmask */
 
 	/* Allocate the pmap in one big chuck.
 	 *
@@ -198,11 +203,11 @@ _stp_pmap_new(unsigned max_entries, int wrap, int node_size)
 	 * cause it to move later, that's ok.
 	 */
 
-	size_t map_size = sizeof(struct map_root) + node_size * max_entries;
-
+	size_t map_size = sizeof(struct map_root)
+                + sizeof(struct mhlist_head) * (hash_table_mask+1)
+                + node_size * max_entries;
 	size_t pmap_size = sizeof(struct pmap) +
 		sizeof(offptr_t) * _stp_runtime_num_contexts;
-
 	size_t total_size = pmap_size +
 		map_size * (_stp_runtime_num_contexts + 1);
 
@@ -218,7 +223,7 @@ _stp_pmap_new(unsigned max_entries, int wrap, int node_size)
 	/* Initialize the per-cpu maps.  */
 	for_each_possible_cpu(i) {
 		m = map_mem;
-		if (_stp_map_init(m, max_entries, wrap, node_size) != 0)
+		if (_stp_map_init(m, max_entries, hash_table_mask, wrap, node_size) != 0)
 			goto err;
                 _stp_pmap_set_map(pmap, m, i);
 		map_mem += map_size;
@@ -226,7 +231,7 @@ _stp_pmap_new(unsigned max_entries, int wrap, int node_size)
 
 	/* Initialize the aggregate map.  */
 	m = map_mem;
-	if (_stp_map_init(m, max_entries, wrap, node_size) != 0)
+	if (_stp_map_init(m, max_entries, hash_table_mask, wrap, node_size) != 0)
 		goto err;
         _stp_pmap_set_agg(pmap, m);
 
