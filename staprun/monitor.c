@@ -277,7 +277,7 @@ void monitor_render(void)
 
           bytes = fread(json, sizeof(char), MAX_DATA, monitor_fp);
           if (!bytes)
-            cleanup_and_exit (0, 1);
+            cleanup_and_exit (0, 0);
           fclose(monitor_fp);
 
           jso = json_tokener_parse(json);
