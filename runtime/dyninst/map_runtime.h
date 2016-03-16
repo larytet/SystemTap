@@ -13,41 +13,8 @@
 
 #include <pthread.h>
 
-#ifdef NEED_MAP_LOCKS
-#define MAP_LOCK(m)	pthread_mutex_lock(&(m)->lock)
-#define MAP_UNLOCK(m)	pthread_mutex_unlock(&(m)->lock)
-#else
-#define MAP_LOCK(sd)	do {} while (0)
-#define MAP_UNLOCK(sd)	do {} while (0)
-#endif
-
-/* Note that pthread_mutex_trylock()'s return value is opposite of the
- * kernel's spin_trylock(), so we invert the return value of
- * pthread_mutex_trylock(). */
-#define MAP_TRYLOCK(m)	(!pthread_mutex_trylock(&(m)->lock))
-
 #define MAP_GET_CPU()	STAT_GET_CPU()
 #define MAP_PUT_CPU()	STAT_PUT_CPU()
-
-static int _stp_map_initialize_lock(MAP m)
-{
-#ifdef NEED_MAP_LOCKS
-	int rc;
-
-	if ((rc = stp_pthread_mutex_init_shared(&m->lock)) != 0) {
-		_stp_error("Couldn't initialize map mutex: %d\n", rc);
-		return rc;
-	}
-#endif
-	return 0;
-}
-
-static void _stp_map_destroy_lock(MAP m)
-{
-#ifdef NEED_MAP_LOCKS
-	(void)pthread_mutex_destroy(&m->lock);
-#endif
-}
 
 struct pmap {
 	offptr_t oagg;    /* aggregation map */
@@ -81,11 +48,6 @@ static inline void _stp_pmap_set_map(PMAP p, MAP m, unsigned cpu)
 
 static void __stp_map_del(MAP map)
 {
-	if (map == NULL)
-		return;
-
-	/* The lock is the only thing to clean up.  */
-	_stp_map_destroy_lock(map);
 }
 
 
@@ -97,9 +59,6 @@ static void __stp_map_del(MAP map)
 
 static void _stp_map_del(MAP map)
 {
-	if (map == NULL)
-		return;
-
 	__stp_map_del(map);
 	_stp_shm_free(map);
 }
@@ -107,9 +66,6 @@ static void _stp_map_del(MAP map)
 static void _stp_pmap_del(PMAP pmap)
 {
 	int i;
-
-	if (pmap == NULL)
-		return;
 
 	/* The pmap is one giant allocation, so do only
 	 * the basic cleanup for each map.  */
@@ -142,9 +98,6 @@ _stp_map_init(MAP m, unsigned max_entries, unsigned hash_table_mask, int wrap, i
 		mlist_add(&node->lnode, &m->pool);
 		INIT_MHLIST_NODE(&node->hnode);
 	}
-
-	if (_stp_map_initialize_lock(m) != 0)
-		return -1;
 
 	return 0;
 }

@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * map functions to handle statistics
- * Copyright (C) 2005, 2012 Red Hat Inc.
+ * Copyright (C) 2005-2016 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -85,23 +85,19 @@ _stp_pmap_new_hstat_linear (unsigned max_entries, int wrap, int node_size,
 
 		for_each_possible_cpu(i) {
 			m = _stp_pmap_get_map (pmap, i);
-			MAP_LOCK(m);
 			m->hist.type = HIST_LINEAR;
 			m->hist.start = start;
 			m->hist.stop = stop;
 			m->hist.interval = interval;
 			m->hist.buckets = buckets;
-			MAP_UNLOCK(m);
 		}
 		/* now set agg map params */
 		m = _stp_pmap_get_agg(pmap);
-		MAP_LOCK(m);
 		m->hist.type = HIST_LINEAR;
 		m->hist.start = start;
 		m->hist.stop = stop;
 		m->hist.interval = interval;
 		m->hist.buckets = buckets;
-		MAP_UNLOCK(m);
 	}
 	return pmap;
 }
@@ -119,17 +115,13 @@ _stp_pmap_new_hstat_log (unsigned max_entries, int wrap, int node_size)
 		MAP m;
 		for_each_possible_cpu(i) {
 			m = _stp_pmap_get_map (pmap, i);
-			MAP_LOCK(m);
 			m->hist.type = HIST_LOG;
 			m->hist.buckets = HIST_LOG_BUCKETS;
-			MAP_UNLOCK(m);
 		}
 		/* now set agg map params */
 		m = _stp_pmap_get_agg(pmap);
-		MAP_LOCK(m);
 		m->hist.type = HIST_LOG;
 		m->hist.buckets = HIST_LOG_BUCKETS;
-		MAP_UNLOCK(m);
 	}
 	return pmap;
 }
@@ -143,15 +135,11 @@ _stp_pmap_new_hstat (unsigned max_entries, int wrap, int node_size)
 		MAP m;
 		for_each_possible_cpu(i) {
 			m = _stp_pmap_get_map (pmap, i);
-			MAP_LOCK(m);
 			m->hist.type = HIST_NONE;
-			MAP_UNLOCK(m);
 		}
 		/* now set agg map params */
 		m = _stp_pmap_get_agg(pmap);
-		MAP_LOCK(m);
 		m->hist.type = HIST_NONE;
-		MAP_UNLOCK(m);
 	}
 	return pmap;
 }

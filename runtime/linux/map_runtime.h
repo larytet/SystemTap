@@ -11,38 +11,10 @@
 #ifndef _LINUX_MAP_RUNTIME_H_
 #define _LINUX_MAP_RUNTIME_H_
 
-/* Include map spinlocks only on demand.  Otherwise, assume that
-   caller does the right thing. */
-#ifdef NEED_MAP_LOCKS
-
-#define MAP_LOCK(m)	spin_lock(&(m)->lock)
-#define MAP_UNLOCK(m)	spin_unlock(&(m)->lock)
-#define MAP_TRYLOCK(m)	spin_trylock(&(m)->lock)
-
-#define MAP_GET_CPU()	get_cpu()
-#define MAP_PUT_CPU()	put_cpu()
-#else  /* !NEED_MAP_LOCKS */
-
-#define MAP_LOCK(m)	do {} while (0)
-#define MAP_UNLOCK(m)	do {} while (0)
-#define MAP_TRYLOCK(m)	1
-
 /* get/put_cpu wrappers.  Unnecessary if caller is already atomic. */
 #define MAP_GET_CPU()	smp_processor_id()
 #define MAP_PUT_CPU()	do {} while (0)
 
-#endif
-
-
-static int _stp_map_initialize_lock(MAP m)
-{
-#ifdef NEED_MAP_LOCKS
-	spin_lock_init(&m->lock);
-#endif
-	return 0;
-}
-
-#define _stp_map_destroy_lock(m)	do {} while (0)
 
 struct pmap {
 	MAP agg;	/* aggregation map */
@@ -88,7 +60,6 @@ static void _stp_map_del(MAP map)
 	if (map->node_mem)
 		_stp_vfree(map->node_mem);
 
-	_stp_map_destroy_lock(map);
 	_stp_vfree(map);
 }
 
@@ -147,9 +118,6 @@ _stp_map_init(MAP m, unsigned max_entries, unsigned hash_table_mask,
 		mlist_add(&node->lnode, &m->pool);
 		INIT_MHLIST_NODE(&node->hnode);
 	}
-
-	if (_stp_map_initialize_lock(m) != 0)
-		return -1;
 
 	return 0;
 }

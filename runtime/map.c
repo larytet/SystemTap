@@ -59,9 +59,6 @@ static int str_eq_p (char *key1, char *key2)
 
 static struct map_node *_stp_map_start(MAP map)
 {
-	if (map == NULL)
-		return NULL;
-
 	//dbug ("%lx\n", (long)mlist_next(&map->head));
 
 	if (mlist_empty(&map->head))
@@ -82,9 +79,6 @@ static struct map_node *_stp_map_start(MAP map)
 
 static struct map_node *_stp_map_iter(MAP map, struct map_node *m)
 {
-	if (map == NULL)
-		return NULL;
-
 	if (mlist_next(&m->lnode) == &map->head)
 		return NULL;
 
@@ -94,9 +88,6 @@ static struct map_node *_stp_map_iter(MAP map, struct map_node *m)
 static struct map_node *_stp_map_iterdel(MAP map, struct map_node *m)
 {
   struct map_node *r_map;
-
-  if (map == NULL)
-    return NULL;
 
   r_map = _stp_map_iter(map, m);
   _new_map_del_node(map, m);
@@ -111,9 +102,6 @@ static struct map_node *_stp_map_iterdel(MAP map, struct map_node *m)
 static void _stp_map_clear(MAP map)
 {
 	struct map_node *m;
-
-	if (map == NULL)
-		return;
 
 	map->num = 0;
 
@@ -135,15 +123,9 @@ static void _stp_pmap_clear(PMAP pmap)
 {
 	int i;
 
-	if (pmap == NULL)
-		return;
-
 	for_each_possible_cpu(i) {
 		MAP m = _stp_pmap_get_map (pmap, i);
-
-		MAP_LOCK(m);
 		_stp_map_clear(m);
-		MAP_UNLOCK(m);
 	}
 	_stp_map_clear(_stp_pmap_get_agg(pmap));
 }
@@ -369,7 +351,6 @@ static MAP _stp_pmap_agg (PMAP pmap, map_update_fn update, map_cmp_fn cmp)
 
 	for_each_possible_cpu(i) {
 		m = _stp_pmap_get_map (pmap, i);
-		MAP_LOCK(m);
 		/* walk the hash chains. */
 		for (hash = 0; hash <= m->hash_table_mask; hash++) {
 			head = &m->hashes[hash];
@@ -386,7 +367,6 @@ static MAP _stp_pmap_agg (PMAP pmap, map_update_fn update, map_cmp_fn cmp)
 					(*update)(agg, aptr, ptr, 1);
 				else {
 					if (!_stp_new_agg(agg, ahead, ptr, update)) {
-                                                MAP_UNLOCK(m);
                                                 agg = NULL;
 						goto out;
                                                 // NB: break would head out to the for (hash...) 
@@ -395,7 +375,6 @@ static MAP _stp_pmap_agg (PMAP pmap, map_update_fn update, map_cmp_fn cmp)
 				}
 			}
 		}
-		MAP_UNLOCK(m);
 	}
 
 out:
@@ -439,9 +418,6 @@ static void _new_map_del_node (MAP map, struct map_node *n)
 
 static int _new_map_set_int64 (MAP map, int64_t *dst, int64_t val, int add)
 {
-	if (map == NULL || dst == NULL)
-		return -2;
-
 	if (add)
 		*dst += val;
 	else
@@ -452,9 +428,6 @@ static int _new_map_set_int64 (MAP map, int64_t *dst, int64_t val, int add)
 
 static int _new_map_set_str (MAP map, char *dst, char *val, int add)
 {
-	if (map == NULL || dst == NULL)
-		return -2;
-
 	if (add)
 		str_add(dst, val);
 	else
@@ -465,9 +438,6 @@ static int _new_map_set_str (MAP map, char *dst, char *val, int add)
 
 static int _new_map_set_stat (MAP map, struct stat_data *sd, int64_t val, int add)
 {
-	if (map == NULL || sd == NULL)
-		return -2;
-
 	if (!add) {
 		Hist st = &map->hist;
 		sd->count = 0;
@@ -485,17 +455,14 @@ static int _new_map_copy_stat (MAP map, struct stat_data *sd1, struct stat_data 
 {
 	Hist st = &map->hist;
 
-	if (map == NULL || sd1 == NULL)
-		return -2;
-
-	if (sd2 == NULL) {
-		sd1->count = 0;
-		if (st->type != HIST_NONE) {
-			int j;
-			for (j = 0; j < st->buckets; j++)
-				sd1->histogram[j] = 0;
-		}
-	} else if (add && sd1->count > 0 && sd2->count > 0) {
+        if (sd2 == NULL) {
+                sd1->count = 0;
+                if (st->type != HIST_NONE) {
+                        int j;
+                        for (j = 0; j < st->buckets; j++)
+                                sd1->histogram[j] = 0;
+                }
+        } else if (add && sd1->count > 0 && sd2->count > 0) {
 		sd1->count += sd2->count;
 		sd1->sum += sd2->sum;
 		if (sd2->min < sd1->min)
@@ -543,9 +510,7 @@ static int _stp_pmap_size (PMAP pmap)
 
 	for_each_possible_cpu(i) {
 		MAP m = _stp_pmap_get_map (pmap, i);
-		MAP_LOCK(m);
 		num += m->num;
-		MAP_UNLOCK(m);
 	}
 	return num;
 }

@@ -101,14 +101,6 @@ struct map_root {
 	/* pool of unused entries. */
 	struct mlist_head pool;
 
-#ifdef NEED_MAP_LOCKS
-#ifdef __KERNEL__
-	spinlock_t lock;
-#else  /* !__KERNEL__ */
-	pthread_mutex_t lock;
-#endif
-#endif
-
 	/* used if this map's nodes contain stats */
 	struct _Hist hist;
 
