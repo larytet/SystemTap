@@ -16,12 +16,6 @@
 #ifndef _STAPDYN_LOG2_H
 #define _STAPDYN_LOG2_H
 
-/*
- * deal with unrepresentable constant logarithms
- */
-extern __attribute__((const, noreturn))
-int ____ilog2_NaN(void);
-
 /**
  * ilog2 - log of base 2 of 32-bit or a 64-bit unsigned value
  * @n - parameter
@@ -34,8 +28,7 @@ int ____ilog2_NaN(void);
  */
 #define ilog2(n)				\
 (						\
-	__builtin_constant_p(n) ? (		\
-		(n) < 1 ? ____ilog2_NaN() :	\
+		(n) < 1 ? (abort(),-1) :	\
 		(n) & (1ULL << 63) ? 63 :	\
 		(n) & (1ULL << 62) ? 62 :	\
 		(n) & (1ULL << 61) ? 61 :	\
@@ -100,9 +93,7 @@ int ____ilog2_NaN(void);
 		(n) & (1ULL <<  2) ?  2 :	\
 		(n) & (1ULL <<  1) ?  1 :	\
 		(n) & (1ULL <<  0) ?  0 :	\
-		____ilog2_NaN()			\
-				   ) :		\
-	____ilog2_NaN()				\
+		(abort(), -1)        		\
  )
 
 
