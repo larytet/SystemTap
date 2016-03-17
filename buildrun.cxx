@@ -1,5 +1,5 @@
 // build/run probes
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2016 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -244,6 +244,9 @@ compile_dyninst (systemtap_session& s)
       cmd.push_back("-ftime-report");
       cmd.push_back("-Q");
     }
+
+  // Add any custom kbuild flags
+  cmd.insert(cmd.end(), s.kbuildflags.begin(), s.kbuildflags.end());
 
   int rc = stap_system (s.verbose, cmd);
   if (rc)

@@ -243,14 +243,31 @@ Add the given C preprocessor directive to the module Makefile.  These can
 be used to override limit parameters described below.
 .TP
 .BI \-B " NAME=VALUE"
-Add the given make directive to the kernel module build's make invocation.
-These can be used to add or override kconfig options.
+In kernel-runtime mode, add the given make directive to the kernel module
+build's make invocation.  These can be used to add or override kconfig options.
+For example, use
+.SAMPLE
+.B \-B CONFIG_DEBUG_INFO=y
+.ESAMPLE
+to add debugging information.
+.TP
+.BI \-B " FLAG"
+In dyninst-runtime mode, add the given parameter to the compiler CFLAGS used
+for building the dyninst shared library.  For example, use
+.SAMPLE
+.B \-B \-g
+.ESAMPLE
+to add debugging information.
 .TP
 .BI \-a " ARCH"
 Use a cross-compilation mode for the given target architecture.  This requires
 access to the cross-compiler and the kernel build tree, and goes along
 with the
-.BR "\-B CROSS_COMPILE=arch\-tool\-prefix\-" " and " "\-r /build/tree"
+.SAMPLE
+.BR "\-B CROSS_COMPILE=arch\-tool\-prefix\-"
+and
+.BR "\-r /build/tree"
+.ESAMPLE
 options.
 .TP
 .BI \-\-modinfo " NAME=VALUE"
