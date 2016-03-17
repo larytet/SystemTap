@@ -3033,7 +3033,6 @@ c_unparser::emit_map_type_instantiations ()
       /* For statistics, flag map-gen to pull in nested pmap-gen too.  */
       if (i->second == pe_stats)
 	o->newline() << "#define MAP_DO_PMAP 1";
-      o->newline() << "#include \"murmurhash3.c\"";
       o->newline() << "#include \"map-gen.c\"";
       o->newline() << "#undef MAP_DO_PMAP";
       o->newline() << "#undef VALUE_TYPE";

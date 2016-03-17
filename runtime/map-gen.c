@@ -76,6 +76,50 @@
 #endif /* VALUE_TYPE */
 
 
+/* murmurhash3 body, for use in KEYSYM(hash)
+   Extracted from
+   https://github.com/aappleby/smhasher/tree/master/src
+   -----------------------------------------------------------------------------
+   MurmurHash3 was written by Austin Appleby, and is placed in the public
+   domain. The author hereby disclaims copyright to this source code.
+   -----------------------------------------------------------------------------
+*/
+#define ROTL32(x,r) (((uint32_t)x << r) | ((uint32_t)x >> (32 - r)))
+
+#define MURMUR_INT64(v) do {                   \
+                uint32_t k1;                    \
+                k1 = (v & 0xFFFFFFFF);                  \
+                k1 *= c1; k1 = ROTL32(k1,15); k1 *= c2;             \
+                h1 ^= k1; h1 = ROTL32(h1,13); h1 = h1*5+0xe6546b64; \
+                k1 = ((v >> 32) & 0xFFFFFFFF);                      \
+                k1 *= c1; k1 = ROTL32(k1,15); k1 *= c2;                 \
+                h1 ^= k1; h1 = ROTL32(h1,13); h1 = h1*5+0xe6546b64;     \
+                len += 8;                                               \
+        } while(0)
+#define MURMUR_STRING(v) do { \
+                uint32_t mylen = strlen(v); \
+                int nblocks = mylen / 4; \
+                const uint32_t * blocks = (const uint32_t *)(v + nblocks*4); \
+                const uint8_t * tail; \
+                uint32_t k1; \
+                int i; \
+                for(i = -nblocks; i; i++)  { \
+                        uint32_t k1 = blocks[i]; \
+                        k1 *= c1; k1 = ROTL32(k1,15); k1 *= c2; \
+                        h1 ^= k1; h1 = ROTL32(h1,13); h1 = h1*5+0xe6546b64; \
+                } \
+                tail = (const uint8_t*)(v + nblocks*4); \
+                k1 = 0; \
+                switch(mylen & 3) {                \
+                case 3: k1 ^= tail[2] << 16; \
+                case 2: k1 ^= tail[1] << 8; \
+                case 1: k1 ^= tail[0]; \
+                        k1 *= c1; k1 = ROTL32(k1,15); k1 *= c2; h1 ^= k1; \
+                } \
+                len += mylen; \
+        } while (0)
+
+        
 #if defined (KEY1_TYPE)
 #define KEY_ARITY 1
 #if KEY1_TYPE == STRING
@@ -84,16 +128,25 @@
 #define KEY1N s
 #define KEY1STOR char key1[MAP_STRING_LENGTH]
 #define KEY1CPY(m) str_copy(m->key1, key1)
-#define KEY1_HASHVAL key1
-#define KEY1_HASHLEN strlen(key1)
+#define KEY1_HASH MURMUR_STRING(key1)
 #else
 #define KEY1TYPE int64_t
 #define KEY1NAME int64
 #define KEY1N i
 #define KEY1STOR int64_t key1
 #define KEY1CPY(m) m->key1=key1
-#define KEY1_HASHVAL &key1
-#define KEY1_HASHLEN sizeof(key1)
+
+/* Instead of ...
+   #define KEY1_HASH MURMUR_INT64(key1)
+
+   We could do the quick & dirty kernel hash_64 for the first integer index.
+   This would be faster, and may give reasonable dispersion with the
+   retained final 32-bit mix.
+   #define KEY1_HASH h1 ^= hash_64(key1,32)
+
+   ... but hashing throughput is only slightly faster
+*/
+#define KEY1_HASH MURMUR_INT64(key1)
 #endif
 #define KEY1_EQ_P JOIN(KEY1NAME,eq_p)
 #endif /* defined(KEY1_TYPE) */
@@ -107,16 +160,14 @@
 #define KEY2N s
 #define KEY2STOR char key2[MAP_STRING_LENGTH]
 #define KEY2CPY(m) str_copy(m->key2, key2)
-#define KEY2_HASHVAL key2
-#define KEY2_HASHLEN strlen(key2)
+#define KEY2_HASH MURMUR_STRING(key2)
 #else
 #define KEY2TYPE int64_t
 #define KEY2NAME int64
 #define KEY2N i
 #define KEY2STOR int64_t key2
 #define KEY2CPY(m) m->key2=key2
-#define KEY2_HASHVAL &key2
-#define KEY2_HASHLEN sizeof(key2)
+#define KEY2_HASH MURMUR_INT64(key2)
 #endif
 #define KEY2_EQ_P JOIN(KEY2NAME,eq_p)
 #endif /* defined(KEY2_TYPE) */
@@ -130,16 +181,14 @@
 #define KEY3N s
 #define KEY3STOR char key3[MAP_STRING_LENGTH]
 #define KEY3CPY(m) str_copy(m->key3, key3)
-#define KEY3_HASHVAL key3
-#define KEY3_HASHLEN strlen(key3)
+#define KEY3_HASH MURMUR_STRING(key3)
 #else
 #define KEY3TYPE int64_t
 #define KEY3NAME int64
 #define KEY3N i
 #define KEY3STOR int64_t key3
 #define KEY3CPY(m) m->key3=key3
-#define KEY3_HASHVAL &key3
-#define KEY3_HASHLEN sizeof(key3)
+#define KEY3_HASH MURMUR_INT64(key3)
 #endif
 #define KEY3_EQ_P JOIN(KEY3NAME,eq_p)
 #endif /* defined(KEY3_TYPE) */
@@ -153,16 +202,14 @@
 #define KEY4N s
 #define KEY4STOR char key4[MAP_STRING_LENGTH]
 #define KEY4CPY(m) str_copy(m->key4, key4)
-#define KEY4_HASHVAL key4
-#define KEY4_HASHLEN strlen(key4)
+#define KEY4_HASH MURMUR_STRING(key4)
 #else
 #define KEY4TYPE int64_t
 #define KEY4NAME int64
 #define KEY4N i
 #define KEY4STOR int64_t key4
 #define KEY4CPY(m) m->key4=key4
-#define KEY4_HASHVAL &key4
-#define KEY4_HASHLEN sizeof(key4)
+#define KEY4_HASH MURMUR_INT64(key4)
 #endif
 #define KEY4_EQ_P JOIN(KEY4NAME,eq_p)
 #endif /* defined(KEY4_TYPE) */
@@ -176,16 +223,14 @@
 #define KEY5N s
 #define KEY5STOR char key5[MAP_STRING_LENGTH]
 #define KEY5CPY(m) str_copy(m->key5, key5)
-#define KEY5_HASHVAL key5
-#define KEY5_HASHLEN strlen(key5)
+#define KEY5_HASH MURMUR_STRING(key5)
 #else
 #define KEY5TYPE int64_t
 #define KEY5NAME int64
 #define KEY5N i
 #define KEY5STOR int64_t key5
 #define KEY5CPY(m) m->key5=key5
-#define KEY5_HASHVAL &key5
-#define KEY5_HASHLEN sizeof(key5)
+#define KEY5_HASH MURMUR_INT64(key5)
 #endif
 #define KEY5_EQ_P JOIN(KEY5NAME,eq_p)
 #endif /* defined(KEY5_TYPE) */
@@ -199,16 +244,14 @@
 #define KEY6N s
 #define KEY6STOR char key6[MAP_STRING_LENGTH]
 #define KEY6CPY(m) str_copy(m->key6, key6)
-#define KEY6_HASHVAL key6
-#define KEY6_HASHLEN strlen(key6)
+#define KEY6_HASH MURMUR_STRING(key6)
 #else
 #define KEY6TYPE int64_t
 #define KEY6NAME int64
 #define KEY6N i
 #define KEY6STOR int64_t key6
 #define KEY6CPY(m) m->key6=key6
-#define KEY6_HASHVAL &key6
-#define KEY6_HASHLEN sizeof(key6)
+#define KEY6_HASH MURMUR_INT64(key6)
 #endif
 #define KEY6_EQ_P JOIN(KEY6NAME,eq_p)
 #endif /* defined(KEY6_TYPE) */
@@ -222,16 +265,14 @@
 #define KEY7N s
 #define KEY7STOR char key7[MAP_STRING_LENGTH]
 #define KEY7CPY(m) str_copy(m->key7, key7)
-#define KEY7_HASHVAL key7
-#define KEY7_HASHLEN strlen(key7)
+#define KEY7_HASH MURMUR_STRING(key7)
 #else
 #define KEY7TYPE int64_t
 #define KEY7NAME int64
 #define KEY7N i
 #define KEY7STOR int64_t key7
 #define KEY7CPY(m) m->key7=key7
-#define KEY7_HASHVAL &key7
-#define KEY7_HASHLEN sizeof(key7)
+#define KEY7_HASH MURMUR_INT64(key7)
 #endif
 #define KEY7_EQ_P JOIN(KEY7NAME,eq_p)
 #endif /* defined(KEY7_TYPE) */
@@ -245,16 +286,14 @@
 #define KEY8N s
 #define KEY8STOR char key8[MAP_STRING_LENGTH]
 #define KEY8CPY(m) str_copy(m->key8, key8)
-#define KEY8_HASHVAL key8
-#define KEY8_HASHLEN strlen(key8)
+#define KEY8_HASH MURMUR_STRING(key8)
 #else
 #define KEY8TYPE int64_t
 #define KEY8NAME int64
 #define KEY8N i
 #define KEY8STOR int64_t key8
 #define KEY8CPY(m) m->key8=key8
-#define KEY8_HASHVAL &key8
-#define KEY8_HASHLEN sizeof(key8)
+#define KEY8_HASH MURMUR_INT64(key8)
 #endif
 #define KEY8_EQ_P JOIN(KEY8NAME,eq_p)
 #endif /* defined(KEY8_TYPE) */
@@ -268,16 +307,14 @@
 #define KEY9N s
 #define KEY9STOR char key9[MAP_STRING_LENGTH]
 #define KEY9CPY(m) str_copy(m->key9, key9)
-#define KEY9_HASHVAL key9
-#define KEY9_HASHLEN strlen(key9)
+#define KEY9_HASH MURMUR_STRING(key9)
 #else
 #define KEY9TYPE int64_t
 #define KEY9NAME int64
 #define KEY9N i
 #define KEY9STOR int64_t key9
 #define KEY9CPY(m) m->key9=key9
-#define KEY9_HASHVAL &key9
-#define KEY9_HASHLEN sizeof(key9)
+#define KEY9_HASH MURMUR_INT64(key9)
 #endif
 #define KEY9_EQ_P JOIN(KEY9NAME,eq_p)
 #endif /* defined(KEY9_TYPE) */
@@ -619,24 +656,28 @@ static unsigned int KEYSYM(keycheck) (ALLKEYSD(key))
 
 static uint32_t KEYSYM(hash) (ALLKEYSD(key)) /* NB: unscaled! */
 {
-        uint32_t hash = stap_hash_seed;
-        hash = MurmurHash3_x86_32 (KEY1_HASHVAL, KEY1_HASHLEN, hash);
+        /* Open-code 32-bit murmurhash3 */
+        uint32_t len = 0;
+        uint32_t h1 = stap_hash_seed;
+        const uint32_t c1 = 0xcc9e2d51;
+        const uint32_t c2 = 0x1b873593;
+        KEY1_HASH;
 #if KEY_ARITY > 1
-        hash = MurmurHash3_x86_32 (KEY2_HASHVAL, KEY2_HASHLEN, hash);
+        KEY2_HASH;
 #if KEY_ARITY > 2
-        hash = MurmurHash3_x86_32 (KEY3_HASHVAL, KEY3_HASHLEN, hash);
+        KEY3_HASH;
 #if KEY_ARITY > 3
-        hash = MurmurHash3_x86_32 (KEY4_HASHVAL, KEY4_HASHLEN, hash);
+        KEY4_HASH;
 #if KEY_ARITY > 4
-        hash = MurmurHash3_x86_32 (KEY5_HASHVAL, KEY5_HASHLEN, hash);
+        KEY5_HASH;
 #if KEY_ARITY > 5
-        hash = MurmurHash3_x86_32 (KEY6_HASHVAL, KEY6_HASHLEN, hash);
+        KEY6_HASH;
 #if KEY_ARITY > 6
-        hash = MurmurHash3_x86_32 (KEY7_HASHVAL, KEY7_HASHLEN, hash);
+        KEY7_HASH;
 #if KEY_ARITY > 7
-        hash = MurmurHash3_x86_32 (KEY8_HASHVAL, KEY8_HASHLEN, hash);
+        KEY8_HASH;
 #if KEY_ARITY > 8
-        hash = MurmurHash3_x86_32 (KEY9_HASHVAL, KEY9_HASHLEN, hash);
+        KEY9_HASH;
 #endif
 #endif
 #endif
@@ -645,7 +686,17 @@ static uint32_t KEYSYM(hash) (ALLKEYSD(key)) /* NB: unscaled! */
 #endif
 #endif
 #endif
-	return fmix32(hash);
+
+        // finalization
+        h1 ^= len;
+        // fmix32
+        h1 ^= h1 >> 16;
+        h1 *= 0x85ebca6b;
+        h1 ^= h1 >> 13;
+        h1 *= 0xc2b2ae35;
+        h1 ^= h1 >> 16;
+
+        return h1;
 }
 
 
@@ -844,8 +895,7 @@ static int KEYSYM(_stp_map_exists) (MAP map, ALLKEYSD(key))
 #undef KEY1_TYPE
 #undef KEY1STOR
 #undef KEY1CPY
-#undef KEY1_HASHVAL
-#undef KEY1_HASHLEN
+#undef KEY1_HASH
 
 #undef KEY2NAME
 #undef KEY2N
@@ -853,8 +903,7 @@ static int KEYSYM(_stp_map_exists) (MAP map, ALLKEYSD(key))
 #undef KEY2_TYPE
 #undef KEY2STOR
 #undef KEY2CPY
-#undef KEY2_HASHVAL
-#undef KEY2_HASHLEN
+#undef KEY2_HASH
 
 #undef KEY3NAME
 #undef KEY3N
@@ -862,8 +911,7 @@ static int KEYSYM(_stp_map_exists) (MAP map, ALLKEYSD(key))
 #undef KEY3_TYPE
 #undef KEY3STOR
 #undef KEY3CPY
-#undef KEY3_HASHVAL
-#undef KEY3_HASHLEN
+#undef KEY3_HASH
 
 #undef KEY4NAME
 #undef KEY4N
@@ -871,8 +919,7 @@ static int KEYSYM(_stp_map_exists) (MAP map, ALLKEYSD(key))
 #undef KEY4_TYPE
 #undef KEY4STOR
 #undef KEY4CPY
-#undef KEY4_HASHVAL
-#undef KEY4_HASHLEN
+#undef KEY4_HASH
 
 #undef KEY5NAME
 #undef KEY5N
@@ -880,8 +927,7 @@ static int KEYSYM(_stp_map_exists) (MAP map, ALLKEYSD(key))
 #undef KEY5_TYPE
 #undef KEY5STOR
 #undef KEY5CPY
-#undef KEY5_HASHVAL
-#undef KEY5_HASHLEN
+#undef KEY5_HASH
 
 #undef KEY6NAME
 #undef KEY6N
@@ -889,8 +935,7 @@ static int KEYSYM(_stp_map_exists) (MAP map, ALLKEYSD(key))
 #undef KEY6_TYPE
 #undef KEY6STOR
 #undef KEY6CPY
-#undef KEY6_HASHVAL
-#undef KEY6_HASHLEN
+#undef KEY6_HASH
 
 #undef KEY7NAME
 #undef KEY7N
@@ -898,8 +943,7 @@ static int KEYSYM(_stp_map_exists) (MAP map, ALLKEYSD(key))
 #undef KEY7_TYPE
 #undef KEY7STOR
 #undef KEY7CPY
-#undef KEY7_HASHVAL
-#undef KEY7_HASHLEN
+#undef KEY7_HASH
 
 #undef KEY8NAME
 #undef KEY8N
@@ -907,8 +951,7 @@ static int KEYSYM(_stp_map_exists) (MAP map, ALLKEYSD(key))
 #undef KEY8_TYPE
 #undef KEY8STOR
 #undef KEY8CPY
-#undef KEY8_HASHVAL
-#undef KEY8_HASHLEN
+#undef KEY8_HASH
 
 #undef KEY9NAME
 #undef KEY9N
@@ -916,8 +959,7 @@ static int KEYSYM(_stp_map_exists) (MAP map, ALLKEYSD(key))
 #undef KEY9_TYPE
 #undef KEY9STOR
 #undef KEY9CPY
-#undef KEY9_HASHVAL
-#undef KEY9_HASHLEN
+#undef KEY9_HASH
 
 #undef KEY_ARITY
 #undef ALLKEYS

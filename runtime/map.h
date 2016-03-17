@@ -145,11 +145,9 @@ typedef int (*map_cmp_fn)(struct map_node *dst, struct map_node *src);
 /************* prototypes for map.c ****************/
 
 static int int64_eq_p(int64_t key1, int64_t key2);
-static unsigned int int64_hash(const int64_t v);
 static void str_copy(char *dest, char *src);
 static void str_add(void *dest, char *val);
 static int str_eq_p(char *key1, char *key2);
-static unsigned int str_hash(const char *key1);
 static MAP _stp_map_new(unsigned max_entries, int wrap, int node_size, int cpu);
 static PMAP _stp_pmap_new(unsigned max_entries, int wrap, int node_size);
 static MAP _stp_map_new_hstat(unsigned max_entries, int wrap, int node_size);
