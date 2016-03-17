@@ -151,11 +151,10 @@ static void write_command(const char *msg, const unsigned len)
   FILE* fp;
 
   if (sprintf_chk(path, "/proc/systemtap/%s/monitor_control", modname))
-    cleanup_and_exit (0, 1);
+    return;
   if (!(fp = fopen(path, "w")))
-    cleanup_and_exit (0, 1);
-  if (fwrite(msg, 1, len, fp) != len)
-    cleanup_and_exit (0, 1);
+    return;
+  (void) fwrite(msg, 1, len, fp);
   fclose(fp);
 }
 
@@ -255,7 +254,7 @@ void monitor_render(void)
   if (monitor_state != help)
     {
       if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
-        cleanup_and_exit (0, 1);
+        return;
       monitor_fp = fopen(path, "r");
 
       /* Render monitor mode statistics */
@@ -276,13 +275,13 @@ void monitor_render(void)
           rendered = 1;
 
           bytes = fread(json, sizeof(char), MAX_DATA, monitor_fp);
-          if (!bytes)
-            cleanup_and_exit (0, 0);
           fclose(monitor_fp);
+          if (!bytes)
+            return;
 
           jso = json_tokener_parse(json);
           if (!jso)
-            cleanup_and_exit(0, 1);
+            return;
           json_object_object_get_ex(jso, "uptime", &jso_uptime);
           json_object_object_get_ex(jso, "uid", &jso_uid);
           json_object_object_get_ex(jso, "memory", &jso_mem);
@@ -296,7 +295,7 @@ void monitor_render(void)
             mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
           else
             mvwprintw(monitor_status, max_rows-1, 0,
-                      "press h for help, q to quit\n");
+                      "press h for help\n");
           wmove(monitor_status, 0, 0);
 
           wprintw(monitor_status, "uptime: %s uid: %s memory: %s\n",
@@ -407,7 +406,6 @@ void monitor_render(void)
       wprintw(monitor_status, "r - Reset global variables to initial state, zeroes if unset.\n");
       wprintw(monitor_status, "s - Rotate sort columns for probes.\n");
       wprintw(monitor_status, "t - Open prompt to enter a probe index to toggle.\n");
-      wprintw(monitor_status, "q - Quit monitor mode/go back to status from help page.\n");
       wprintw(monitor_status, "j/DownArrow - Scroll down the probe list.\n");
       wprintw(monitor_status, "k/UpArrow - Scroll up the probe list.\n");
       wprintw(monitor_status, "d/PageDown - Scroll down the output by one page.\n");
@@ -451,9 +449,6 @@ void monitor_input(void)
               (void) max_cols; /* Unused */
               output_scroll += max_rows-1;
               output_scroll = MIN(MAX(0, h_queue.count-max_rows+1), output_scroll);
-              break;
-            case 'q':
-              cleanup_and_exit (0, 0);
               break;
             case 's':
               comp_fn_index++;
