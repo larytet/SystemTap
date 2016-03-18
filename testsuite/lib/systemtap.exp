@@ -342,7 +342,7 @@ proc setup_server { args } {
     set listRes 1
     while { $listRes != 0 && $waited < 15 } {
       exec sleep 1
-      incr $waited
+      incr waited
       set res [catch { exec stap --list-servers=online,trusted,compatible >& stap-list-servers.out } seen_servers]
       set listRes [catch { exec grep "^ host" stap-list-servers.out } looksee]
     }
