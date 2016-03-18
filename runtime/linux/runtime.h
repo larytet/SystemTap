@@ -62,6 +62,10 @@
 #define STP_TRANSPORT_VERSION 1
 #endif
 
+#ifdef STAPCONF_UDELAY_SIMPLE
+#define udelay(x) udelay_simple(x)
+#endif
+
 #ifndef clamp
 #define clamp(val, low, high)     min(max(low, val), high)
 #endif

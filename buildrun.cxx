@@ -439,6 +439,9 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "vzalloc_node", "STAPCONF_VZALLOC_NODE");
   output_exportconf(s, o, "vmalloc_node", "STAPCONF_VMALLOC_NODE");
 
+  // RHBZ1233912 - s390 temporary workaround for non-atomic udelay()
+  output_exportconf(s, o, "udelay_simple", "STAPCONF_UDELAY_SIMPLE");
+
   output_autoconf(s, o, "autoconf-tracepoint-strings.c", "STAPCONF_TRACEPOINT_STRINGS", NULL);
   output_autoconf(s, o, "autoconf-timerfd.c", "STAPCONF_TIMERFD_H", NULL);
 
