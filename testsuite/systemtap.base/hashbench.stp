@@ -1,0 +1,69 @@
+global iLimit = 2000;
+global jLimit = 70;
+global buckets[140000]; /* iLimit * jLimit */
+global bucketCounts;
+global stats[500000];
+
+function gimmeHash:long(a:long, b:long) %{
+    STAP_RETVALUE = hash_iix(STAP_ARG_a, STAP_ARG_b);
+%}
+function gimmeHash64:long(a:long) %{
+    STAP_RETVALUE = hash_64(STAP_ARG_a, 32);
+%}
+
+probe begin
+{
+    stats[0,1] <<< 42; /* force the _iix routines to be available */
+    printf("max map entries: %d\n", %{ MAXMAPENTRIES %});
+    printf("hash table bits: %d size: %d\n",
+           %{ HASH_TABLE_BITS %}, %{ HASH_TABLE_SIZE %});
+    printf("seed: %x", %{ stap_hash_seed %});
+    printf(" ignore these: %d %d\n", @count(stats[0,1]), @count(stats[1,0]));
+    if (%{MAXMAPENTRIES%} < iLimit*jLimit) {
+        printf("MAXMAPENTRIES too small, should be at least %d\n",
+               iLimit * jLimit);
+        exit();
+        next;
+    }
+    for (i = 0; i < iLimit; i++) {
+        if (i < 4) { printf("hash(%d,*):", i); }
+        for (j = 0; j < jLimit; j++) {
+            hash = gimmeHash(i, j);
+            if (i < 4) {
+                if ((j % 16) == 0) { printf("\n  %2d:", j); }
+                printf(" %06x", hash);
+            }
+            buckets[hash]++;
+        }
+        if (i < 4) { printf("\n"); }
+    }
+    printf("etc...\n");
+    /* Now buckets[] maps hash value to number of times it came up. */
+    bucketsUsed = 0;
+    foreach (idx in buckets) {
+        bucketsUsed++;
+        bucketCounts <<< buckets[idx];
+    }
+    /* For a random distribution of entries to buckets, the expected
+       fraction of buckets left empty is exp(- #buckets / #entries).
+       For example, if the number of entries put into buckets is the
+       same as the number of buckets, exp(-1)=~0.37 so about 63% of
+       the buckets will be non-empty, many having one entry and some
+       having more.
+
+       Since the hash function input could be highly structured and
+       repetitive, we shouldn't base evenness of distribution of hash
+       values on evenness of distribution of input bit patterns.  */
+    printf("%d buckets in use\nBucket-population distribution (i.e., #buckets with 1 entry, with 2 entries, etc):\n",
+           bucketsUsed);
+    print(@hist_linear(bucketCounts, 1, 125, 1));
+    print("hash_64 results (32 bits requested):");
+    for (i = 0; i < 300; i++) {
+        if ((i % 8) == 0) {
+            printf("\n %03x: ", i);
+        }
+        printf(" %08x", gimmeHash64(i));
+    }
+    printf("\n");
+    exit();
+}
