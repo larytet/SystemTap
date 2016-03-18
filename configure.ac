@@ -671,6 +671,12 @@ AS_IF([test "x$with_selinux" != "xno"], [
 
 AM_CONDITIONAL([HAVE_SELINUX], [test "${have_selinux}" = "yes"])
 
+dnl Used in monitor mode. Only available on kernel versions >= 2.6.35
+AC_CHECK_DECL([F_SETPIPE_SZ],
+              [AC_DEFINE(HAVE_F_SETPIPE_SZ,[1], Define to 1 if F_SETPIPE_SZ is available.)],
+              [],
+              [#include <fcntl.h>])
+
 dnl Handle java+byteman support
 AC_CHECK_PROG(have_javac, javac, yes, no)
 AC_CHECK_PROG(have_jar, jar, yes, no)

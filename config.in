@@ -43,6 +43,9 @@
 /* Define to 1 if Dyninst is enabled */
 #undef HAVE_DYNINST
 
+/* Define to 1 if F_SETPIPE_SZ is available. */
+#undef HAVE_F_SETPIPE_SZ
+
 /* Define if the GNU gettext() function is already present or preinstalled. */
 #undef HAVE_GETTEXT
 
