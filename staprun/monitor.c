@@ -255,13 +255,32 @@ void monitor_render(void)
   max_rows = monitor_y;
   max_cols = MIN(MAX_COLS, monitor_x);
 
-  if (monitor_state != help)
+  if (monitor_state == help)
     {
+      /* Render help page */
+      rendered = 0;
+      wclear(monitor_status);
+      wprintw(monitor_status, "MONITOR MODE COMMANDS\n");
+      wprintw(monitor_status, "h - Display help page.\n");
+      wprintw(monitor_status, "c - Reset all global variables to initial state, zeroes if unset.\n");
+      wprintw(monitor_status, "s - Rotate sort columns for probes.\n");
+      wprintw(monitor_status, "t - Open a prompt to enter the index of a probe to toggle.\n");
+      wprintw(monitor_status, "r - Resume script by toggling on all probes.\n");
+      wprintw(monitor_status, "p - Pause script by toggling off all probes.\n");
+      wprintw(monitor_status, "j/DownArrow - Scroll down the probe list.\n");
+      wprintw(monitor_status, "k/UpArrow - Scroll up the probe list.\n");
+      wprintw(monitor_status, "d/PageDown - Scroll down the output by one page.\n");
+      wprintw(monitor_status, "u/PageUp - Scroll up the probe list by one page.\n");
+      mvwprintw(monitor_status, max_rows-1, 0, "press q to go back\n");
+      wrefresh(monitor_status);
+    }
+  else
+    {
+      /* Render monitor mode statistics */
       if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
         return;
       monitor_fp = fopen(path, "r");
 
-      /* Render monitor mode statistics */
       if (monitor_fp)
         {
           char json[MAX_DATA];
@@ -401,21 +420,6 @@ void monitor_render(void)
           /* Free allocated memory */
           json_object_put(jso);
         }
-    } else {
-      /* Render help page */
-      rendered = 0;
-      wclear(monitor_status);
-      wprintw(monitor_status, "MONITOR MODE COMMANDS\n");
-      wprintw(monitor_status, "h - Display help page.\n");
-      wprintw(monitor_status, "r - Reset global variables to initial state, zeroes if unset.\n");
-      wprintw(monitor_status, "s - Rotate sort columns for probes.\n");
-      wprintw(monitor_status, "t - Open prompt to enter a probe index to toggle.\n");
-      wprintw(monitor_status, "j/DownArrow - Scroll down the probe list.\n");
-      wprintw(monitor_status, "k/UpArrow - Scroll up the probe list.\n");
-      wprintw(monitor_status, "d/PageDown - Scroll down the output by one page.\n");
-      wprintw(monitor_status, "u/PageUp - Scroll up the probe list by one page.\n");
-      mvwprintw(monitor_status, max_rows-1, 0, "press q to go back\n");
-      wrefresh(monitor_status);
     }
 }
 
@@ -459,8 +463,14 @@ void monitor_input(void)
               if (comp_fn_index == COMP_FNS)
                 comp_fn_index = 0;
               break;
+            case 'c':
+              write_command("clear", 5);
+              break;
             case 'r':
-              write_command("reset", 5);
+              write_command("resume", 6);
+              break;
+            case 'p':
+              write_command("pause", 5);
               break;
             case 't':
               monitor_state = insert;

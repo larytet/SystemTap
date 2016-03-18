@@ -791,7 +791,7 @@ refresh rate in seconds of the status window. The module can also be controlled 
 of commands using the following keys:
 .RS
 .TP
-.BI r
+.BI c
 resets all global variables to their initial values or zeroes them if they
 did not have an initial value.
 .TP
@@ -799,7 +799,14 @@ did not have an initial value.
 rotates the attribute used to sort the list of probes.
 .TP
 .BI t
-brings up a prompt to allow toggling(on/off) of probes by index.
+brings up a prompt to allow toggling(on/off) of probes by index. Probe points
+are still affected by their conditions.
+.TP
+.BI r
+resumes the script by toggling on all probes.
+.TP
+.BI p
+pauses the script by toggling off all probes.
 .TP
 .BI navigation-keys
 the j/k/ArrowDown/ArrowUp keys can be used to scroll through the probe
