@@ -1737,6 +1737,9 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
 
   while (1)
     {
+      // PR19847: clear any pending interrupts from previous commands
+      pending_interrupts = 0;
+
       char *line_tmp = readline("stap> ");
       if (line_tmp == NULL)		// C-d
         {
