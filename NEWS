@@ -1,14 +1,23 @@
 * What's new in version 3.0
 
+- The new experimental "interactive" mode, specified by "stap -i",
+  drops you into a command-line prompt where you can build up a script,
+  run it, edit it, run it again, etc. Type "help" for a list of commands.
+
+- New experimental --monitor[=INTERVAL] option similar to unix "top". This
+  allows users to see statistics about the running module(uptime, module name,
+  invoker uid, memory sizes, global variables, and the current probe list
+  along with their statistics).
+
+  An interface is also provided to allow control over the running
+  module(resetting global variables, sorting the list of probes, deactivating
+  and reactivating probes).
+
 - The performance of associative arrays have been dramatically
-  improved, especially for densely filled usage and for multiple
+  improved, especially for densely filled tables and for multiple
   indexes.  The hash tables behind these arrays is now sized as a
   function of the array maximum size with an optional MAPHASHBIAS
   space/time tradeoff knob.
-
-- The new "interactive" mode, specified by "stap -i" drops you into a
-  command-line prompt where you can build up a script, run it, edit
-  it, run it again, etc. Type "help" for a list of commands.
 
 - Add macros @prints to print a scalar aggregate variable, @prints[1-9]
   to print an array aggregate (of given index-arity), formatted similarly
@@ -85,15 +94,6 @@
 
   The specified frequency is only accurate up to around 100hz. You may
   need to provide a higher value to achieve the desired rate.
-
-- New --monitor[=INTERVAL] option similar to unix "top". This allows users to
-  see statistics about the running module(uptime, module name, invoker uid,
-  memory sizes, global variables, and the current probe list along with
-  their statistics).
-
-  An interface is also provided to allow control over the running
-  module(resetting global variables, sorting the list of probes, deactivating
-  and reactivating probes).
 
 - Added support for private global variables and private functions. The scope
   of these is limited to the tapset file they are defined in (PR19136).
