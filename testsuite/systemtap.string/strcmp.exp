@@ -32,5 +32,7 @@ foo() != "bar" ? yes
 "foo" != "bar" ? yes
 }
 
-stap_run2 $srcdir/$subdir/$test.stp
+stap_run2 $srcdir/$subdir/strcmp.stp
 
+set test "strcmp -u"
+stap_run2 $srcdir/$subdir/strcmp.stp [list -u]
