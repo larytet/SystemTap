@@ -265,13 +265,13 @@ void monitor_render(void)
       wprintw(monitor_status, "c - Reset all global variables to initial state, zeroes if unset.\n");
       wprintw(monitor_status, "s - Rotate sort columns for probes.\n");
       wprintw(monitor_status, "t - Open a prompt to enter the index of a probe to toggle.\n");
-      wprintw(monitor_status, "r - Resume script by toggling on all probes.\n");
-      wprintw(monitor_status, "p - Pause script by toggling off all probes.\n");
+      wprintw(monitor_status, "p/r Pause/Resume script by toggling off/on all probes.\n");
+      wprintw(monitor_status, "q - Quit script.\n");
       wprintw(monitor_status, "j/DownArrow - Scroll down the probe list.\n");
       wprintw(monitor_status, "k/UpArrow - Scroll up the probe list.\n");
       wprintw(monitor_status, "d/PageDown - Scroll down the output by one page.\n");
       wprintw(monitor_status, "u/PageUp - Scroll up the probe list by one page.\n");
-      mvwprintw(monitor_status, max_rows-1, 0, "press q to go back\n");
+      mvwprintw(monitor_status, max_rows-1, 0, "press h to go back\n");
       wrefresh(monitor_status);
     }
   else
@@ -472,6 +472,9 @@ void monitor_input(void)
             case 'p':
               write_command("pause", 5);
               break;
+            case 'q':
+              write_command("quit", 4);
+              break;
             case 't':
               monitor_state = insert;
               break;
@@ -506,7 +509,7 @@ void monitor_input(void)
         break;
       case help:
         ch = getch();
-        if(ch == 'q')
+        if(ch == 'h')
           monitor_state = normal;
         break;
     }

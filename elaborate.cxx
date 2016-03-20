@@ -2176,6 +2176,8 @@ static void monitor_mode_write(systemtap_session& s)
     {
       code << "  __monitor_" << it-s.probes.begin() << "_enabled" << " = 0" << endl;
     }
+  code << "} else if ($value == \"quit\") {" << endl;
+  code << "  exit()" << endl;
   code << "}";
 
   for (vector<derived_probe*>::const_iterator it = s.probes.begin();
