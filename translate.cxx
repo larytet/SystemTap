@@ -4875,16 +4875,17 @@ c_unparser::visit_comparison (comparison* e)
       if (e->right->type != pe_string)
         throw SEMANTIC_ERROR (_("expected string types"), e->tok);
 
-      o->line() << "({";
-      o->indent(1);
+      // PR13283 indicated that we may need a temporary variable to
+      // store the operand strings, if e.g. they are both references
+      // into function call __retvalue's, which overlap in memory.
+      // ... but we now handle that inside the function call machinery,
+      // which always returns an allocated temporary variable.
 
-      tmpvar left = gensym (pe_string);
-      c_assign (left, e->left, "assignment");
-
-      o->newline() << "strncmp (" << left << ", ";
+      o->line() << "(strncmp ((";
+      e->left->visit (this);
+      o->line() << "), (";
       e->right->visit (this);
-      o->line() << ", MAXSTRINGLEN) " << e->op << " 0;";
-      o->newline(-1) << "})";
+      o->line() << "), MAXSTRINGLEN) " << e->op << " 0)";
     }
   else if (e->left->type == pe_long)
     {
@@ -5472,6 +5473,11 @@ c_unparser::visit_functioncall (functioncall* e)
   // store the return value after the function arguments have been worked out
   // to avoid problems that may occure with nesting.
   tmpvar tmp_ret = gensym (e->type);
+
+  // NB: as per PR13283, it's important we always allocate a distinct
+  // temporary value to receive the return value.  (We can pass its
+  // address by reference to the function if we like.)
+  
   bool yield = false; // set if statement expression is non void
 
   for (unsigned fd = 0; fd < e->referents.size(); fd++)
@@ -5548,6 +5554,7 @@ c_unparser::visit_functioncall (functioncall* e)
       o->newline() << "fc_end_" << fc_counter++ << ":";
     }
 
+  // check for aborted return from function; this could happen from non-overloaded ones too
   o->newline() << "if (unlikely(c->next)) { c->last_error = \"all functions exhausted\"; goto out; }";
 
   // return result from retvalue slot NB: this must be last, for the
