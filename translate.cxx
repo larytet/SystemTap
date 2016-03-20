@@ -1486,6 +1486,9 @@ c_unparser::emit_global_param (vardecl *v)
   // Only true globals can be params, not private variables.
   if (!v->name.starts_with("__global_")) return;
 
+  // Only non-synthetic globals can be params.
+  if (v->synthetic) return;
+
   string global = c_globalname (v->name);
   interned_string param = v->name.substr(sizeof("__global_") - 1);
 
