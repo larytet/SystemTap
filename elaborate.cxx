@@ -2199,7 +2199,7 @@ static void monitor_mode_write(systemtap_session& s)
   dp->join_group (s);
 
   // Repopulate symbol info
-  symresolution_info sym (s);
+  symresolution_info sym (s, /* omniscient-unmangled */ true);
   sym.current_function = 0;
   sym.current_probe = dp;
   dp->body->visit (&sym);
@@ -2349,8 +2349,8 @@ semantic_pass (systemtap_session& s)
 // semantic processing: symbol resolution
 
 
-symresolution_info::symresolution_info (systemtap_session& s):
-  session (s), current_function (0), current_probe (0)
+symresolution_info::symresolution_info (systemtap_session& s, bool omniscient_unmangled):
+  session (s), unmangled_p(omniscient_unmangled), current_function (0), current_probe (0)
 {
 }
 
@@ -2631,8 +2631,16 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
 	}
 
   // search processed globals
-  string gname = "__global_" + string(name);
-  string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
+  string gname, pname;
+  if (unmangled_p)
+    {
+      gname = pname = string(name);
+    }
+  else
+    {
+      gname = "__global_" + string(name);
+      pname = "__private_" + detox_path(tok->location.file->name) + string(name);
+    }
   for (unsigned i=0; i<session.globals.size(); i++)
   {
     if ((session.globals[i]->name == name && startswith(name, "__global_")) ||
