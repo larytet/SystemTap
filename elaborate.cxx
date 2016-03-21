@@ -2031,7 +2031,6 @@ static void monitor_mode_read(systemtap_session& s)
   code << "$value .= sprintf(\"\\\"uid\\\": \\\"%d\\\",\\n\", uid())" << endl;
   code << "$value .= sprintf(\"\\\"memory\\\": \\\"%s\\\",\\n\", module_size())" << endl;
   code << "$value .= sprintf(\"\\\"module_name\\\": \\\"%s\\\",\\n\", module_name())" << endl;
-  code << "$value .= sprintf(\"\\\"probes\\\": \\\"%d\\\",\\n\"," << s.probes.size() << ")" << endl;
 
   code << "$value .= sprintf(\"\\\"globals\\\": {\\n\")" << endl;
   for (vector<vardecl*>::const_iterator it = s.globals.begin();
