@@ -2031,6 +2031,7 @@ static void monitor_mode_read(systemtap_session& s)
   code << "$value .= sprintf(\"\\\"uid\\\": \\\"%d\\\",\\n\", uid())" << endl;
   code << "$value .= sprintf(\"\\\"memory\\\": \\\"%s\\\",\\n\", module_size())" << endl;
   code << "$value .= sprintf(\"\\\"module_name\\\": \\\"%s\\\",\\n\", module_name())" << endl;
+  code << "$value .= sprintf(\"\\\"probes\\\": \\\"%d\\\",\\n\"," << s.probes.size() << ")" << endl;
 
   code << "$value .= sprintf(\"\\\"globals\\\": {\\n\")" << endl;
   for (vector<vardecl*>::const_iterator it = s.globals.begin();
@@ -2049,7 +2050,7 @@ static void monitor_mode_read(systemtap_session& s)
     }
   code << "$value .= sprintf(\"\\n},\\n\")" << endl;
 
-  code << "$value .= sprintf(\"\\\"probes\\\": [\\n\")" << endl;
+  code << "$value .= sprintf(\"\\\"probe_list\\\": [\\n\")" << endl;
   for (vector<derived_probe*>::const_iterator it = s.probes.begin();
       it != s.probes.end(); ++it)
     {
@@ -2066,7 +2067,7 @@ static void monitor_mode_read(systemtap_session& s)
            << it-s.probes.begin() << "))" << endl;
       code << "$value .= sprintf(\"\\\"name\\\": %s}\", " << name << ")" << endl;
     }
-  code << "$value .= sprintf(\"\\n]\\n\")" << endl;
+  code << "$value .= sprintf(\"\\n],\\n\")" << endl;
 
   code << "$value .= sprintf(\"}\\n\")" << endl;
 

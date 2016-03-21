@@ -292,7 +292,7 @@ void monitor_render(void)
           size_t bytes;
           size_t width[num_attributes] = {0};
           json_object *jso, *jso_uptime, *jso_uid, *jso_mem,
-                      *jso_name, *jso_globals, *jso_probes;
+                      *jso_name, *jso_globals, *jso_probes, *jso_probe_list;
           struct json_object_iterator it, it_end;
 
           rendered = 1;
@@ -311,6 +311,7 @@ void monitor_render(void)
           json_object_object_get_ex(jso, "module_name", &jso_name);
           json_object_object_get_ex(jso, "globals", &jso_globals);
           json_object_object_get_ex(jso, "probes", &jso_probes);
+          json_object_object_get_ex(jso, "probe_list", &jso_probe_list);
 
           wclear(monitor_status);
 
@@ -326,8 +327,9 @@ void monitor_render(void)
                   json_object_get_string(jso_uid),
                   json_object_get_string(jso_mem));
 
-          wprintw(monitor_status, "module_name: %s\n",
-                  json_object_get_string(jso_name));
+          wprintw(monitor_status, "module_name: %s probes: %s \n",
+                  json_object_get_string(jso_name),
+                  json_object_get_string(jso_probes));
 
           col = 0;
           col += snprintf(monitor_out, max_cols, "globals: ");
@@ -360,10 +362,10 @@ void monitor_render(void)
             wprintw(monitor_status, "%s\n", monitor_out);
 
           /* Find max width of each field for alignment uses */
-          for (i = 0; i < json_object_array_length(jso_probes); i++)
+          for (i = 0; i < json_object_array_length(jso_probe_list); i++)
             {
               json_object *probe, *field;
-              probe = json_object_array_get_idx(jso_probes, i);
+              probe = json_object_array_get_idx(jso_probe_list, i);
 
               json_object_object_get_ex(probe, "index", &field);
               width[p_index] = MAX(width[p_index], strlen(json_object_get_string(field)));
@@ -381,7 +383,7 @@ void monitor_render(void)
               width[p_name] = MAX(width[p_name], strlen(json_object_get_string(field)));
             }
 
-          json_object_array_sort(jso_probes, comp_fn[comp_fn_index]);
+          json_object_array_sort(jso_probe_list, comp_fn[comp_fn_index]);
 
           wprintw(monitor_status, "\n%*s\t%*s\t%*s\t%*s\t%*s\t%*s\t%s\n",
                   width[p_index], HIGHLIGHT("index", p_index, comp_fn_index),
@@ -392,11 +394,11 @@ void monitor_render(void)
                   width[p_max], HIGHLIGHT("max", p_max, comp_fn_index),
                   HIGHLIGHT("name", p_name, comp_fn_index));
           getyx(monitor_status, cur_y, cur_x);
-          for (i = probe_scroll; i < MIN(json_object_array_length(jso_probes),
+          for (i = probe_scroll; i < MIN(json_object_array_length(jso_probe_list),
                 probe_scroll+max_rows-cur_y-2); i++)
             {
               json_object *probe, *field;
-              probe = json_object_array_get_idx(jso_probes, i);
+              probe = json_object_array_get_idx(jso_probe_list, i);
               json_object_object_get_ex(probe, "index", &field);
               wprintw(monitor_status, "%*s\t", width[p_index], json_object_get_string(field));
               json_object_object_get_ex(probe, "state", &field);
