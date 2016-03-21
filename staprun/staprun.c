@@ -49,10 +49,6 @@ static int stap_module_inserted = -1;
 static void term_signal_handler(int signum __attribute ((unused)))
 {
 	if (stap_module_inserted == 0) {
-		// We have to close the control channel so that
-		// remove_module() can open it back up (which it does
-		// to make sure the module is a systemtap module).
-		close_ctl_channel();
 		remove_module(modname, 1);
 		free(modname);
 	}

@@ -220,6 +220,11 @@ void usage(char *prog, int rc);
 void parse_modpath(const char *);
 void setup_signals(void);
 int set_clexec(int fd);
+int open_cloexec(const char *pathname, int flags, mode_t mode);
+#ifdef HAVE_OPENAT
+int openat_cloexec(int dirfd, const char *pathname, int flags, mode_t mode);
+#endif
+void closefrom(int lowfd);
 
 /* monitor.c function */
 void monitor_winch(int signum);

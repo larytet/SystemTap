@@ -221,6 +221,11 @@ void start_cmd(void)
     a.sa_handler = SIG_DFL;
     sigaction(SIGINT, &a, NULL);
 
+    /* We could call closefrom() here, to make sure we don't leak any
+     * fds to the target, but it really isn't needed here since
+     * close-on-exec should catch everything. We don't have the
+     * synchronizations issues here we have with system_cmd(). */
+
     /* Formerly, we just execl'd(sh,-c,$target_cmd).  But this does't
        work well if target_cmd is a shell builtin.  We really want to
        probe a new child process, not a mishmash of shell-interpreted
@@ -322,16 +327,49 @@ void start_cmd(void)
  */
 void system_cmd(char *cmd)
 {
-  pid_t pid;
+  pid_t child_pid;
+
+  /*
+   * This needs some explanation. This function is going to fork,
+   * creating a child process. That child will close fds, then fork
+   * again to create a grandchild process, which execs the user's
+   * command. The original child immediately exits after the 2nd fork
+   * succeeds. The original parent will wait on the child to close the
+   * fds and spawn the actual command.
+   *
+   * We're not waiting on the command to finish, we're waiting for the
+   * child to close all fds (and then fork). This avoids a race if we
+   * immediately get an exit after the system_cmd() and they fight
+   * over who has the control channel and/or relay fds open.
+   */
 
   dbug(2, "system %s\n", cmd);
-  if ((pid = fork()) < 0) {
+  if ((child_pid = fork()) < 0) {	/* fork failed */
     _perr("fork");
-  } else if (pid == 0) {
-    if (execlp("sh", "sh", "-c", cmd, NULL) < 0)
-      perr("%s", cmd);
-    _exit(1);
+    return;
+  } else if (child_pid > 0) {		/* parent (stapio) */
+     dbug(2, "waiting on %lu\n", (unsigned long)child_pid);
+     (void)waitpid(child_pid, NULL, 0);
+     return;
   }
+
+  /* The child will close all fds (like the control channel and relay
+   * fds), then fork/exec cmd, creating a grandchild. */
+  pid_t grandchild_pid;
+  closefrom(3);
+
+  if ((grandchild_pid = fork()) < 0) {	/* fork failed */
+    _perr("fork");
+    _exit(1);
+  } else if (grandchild_pid > 0) {	/* child  */
+    dbug(2, "created %lu\n", (unsigned long)grandchild_pid);
+    _exit(0);
+  }
+
+  /* The grandchild will now actually run the command. */
+  if (execlp("sh", "sh", "-c", cmd, NULL) < 0)
+    perr("%s", cmd);
+  _exit(1);
 }
 
 /* This is only used in the old relayfs code */

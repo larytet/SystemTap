@@ -133,8 +133,8 @@ static int open_relayfs_files(int cpu, const char *relay_filebase, const char *p
 	if (sprintf_chk(tmp, "%s%d", relay_filebase, cpu))
 		return -1;
 	dbug(2, "Opening %s.\n", tmp); 
-	relay_fd[cpu] = open(tmp, O_RDONLY | O_NONBLOCK);
-	if (relay_fd[cpu] < 0 || set_clexec(relay_fd[cpu]) < 0) {
+	relay_fd[cpu] = open_cloexec(tmp, O_RDONLY | O_NONBLOCK, 0);
+	if (relay_fd[cpu] < 0) {
 		relay_fd[cpu] = -1;
 		return 0;
 	}
@@ -142,14 +142,10 @@ static int open_relayfs_files(int cpu, const char *relay_filebase, const char *p
 	if (sprintf_chk(tmp, "%s%d", proc_filebase, cpu))
 		goto err1;
 	dbug(2, "Opening %s.\n", tmp); 
-	proc_fd[cpu] = open(tmp, O_RDWR | O_NONBLOCK);
+	proc_fd[cpu] = open_cloexec(tmp, O_RDWR | O_NONBLOCK, 0);
 	if (proc_fd[cpu] < 0) {
 		perr("Couldn't open proc file %s", tmp);
 		goto err1;
-	}
-	if (set_clexec(relay_fd[cpu]) < 0) {
-		relay_fd[cpu] = -1;
-		return -1;
 	}
 
 	if (fsize_max) {
@@ -430,8 +426,8 @@ int init_oldrelayfs(void)
 				err("Invalid FILE name format\n");
 				return -1;
 			}
-			out_fd[0] = open (tmp, O_CREAT|O_TRUNC|O_WRONLY, 0666);
-			if (out_fd[0] < 0 || set_clexec(out_fd[0]) < 0) {
+			out_fd[0] = open_cloexec (tmp, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+			if (out_fd[0] < 0) {
 				perr("Couldn't open output file '%s'", tmp);
 				return -1;
 			}

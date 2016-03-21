@@ -16,8 +16,16 @@
 #include <sys/utsname.h>
 #include <assert.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <limits.h>
 #include "../git_version.h"
 #include "../version.h"
+
+#ifndef OPEN_MAX
+#define OPEN_MAX 256
+#endif
 
 /* variables needed by parse_args() */
 int verbose;
@@ -561,6 +569,51 @@ err:
 	return -1;
 }
 
+/*
+ * In multithreaded programs, using fcntl() to set F_CLOEXEC
+ * (close-on-exec) on a file descriptor is subject to a race condition
+ * that another thread may call fork() and exec() between the time the
+ * file is opened and fcntl() is called.
+ *
+ * So, when possible (since Linux 2.6.23), we use the O_CLOEXEC flag
+ * when calling open() and openat() to avoid this race condition. When
+ * O_CLOEXEC isn't available, the best we can do is call fcntl()
+ * immediately after open() is called.
+ */
+
+int open_cloexec(const char *pathname, int flags, mode_t mode)
+{
+#ifdef O_CLOEXEC
+	return open(pathname, flags | O_CLOEXEC, mode);
+#else
+	int fd = open(pathname, flags, mode);
+	if (fd >= 0) {
+		if (set_clexec(fd) < 0) {
+			close(fd);
+			fd = -1;
+		}
+	}
+	return fd;
+#endif
+}
+
+#ifdef HAVE_OPENAT
+int openat_cloexec(int dirfd, const char *pathname, int flags, mode_t mode)
+{
+#ifdef O_CLOEXEC
+	return openat(dirfd, pathname, flags | O_CLOEXEC, mode);
+#else
+	int fd = openat(dirfd, pathname, flags, mode);
+	if (fd >= 0) {
+		if (set_clexec(fd) < 0) {
+			close(fd);
+			fd = -1;
+		}
+	}
+	return fd;
+#endif
+}
+#endif
 
 /**
  *      send_request - send request to kernel over control channel
@@ -669,4 +722,42 @@ char *parse_stap_color(const char *type)
 	}
 
 	return NULL; /* key not found */
+}
+
+void
+closefrom(int lowfd)
+{
+	long fd, maxfd;
+	char *endp;
+	struct dirent *dent;
+	DIR *dirp;
+
+	/* Check for a /proc/self/fd directory. */
+	if ((dirp = opendir("/proc/self/fd"))) {
+		int dir_fd = dirfd(dirp);
+		while ((dent = readdir(dirp)) != NULL) {
+			fd = strtol(dent->d_name, &endp, 10);
+			if (dent->d_name != endp && *endp == '\0'
+			    && fd >= 0 && fd < INT_MAX && fd >= lowfd
+			    && fd != dir_fd)
+				(void) close((int)fd);
+		}
+		(void) closedir(dirp);
+	}
+	else {
+		/*
+		 * Here we fall back on sysconf(). Why? It is possible
+		 * /proc isn't mounted, we're out of file descriptors,
+		 * etc., which could cause the opendir() to fail. Also
+		 * note thet it is possible to open a file descriptor
+		 * and then drop the rlimit such that it is below the
+		 * open fd.
+		 */
+		maxfd = sysconf(_SC_OPEN_MAX);
+		if (maxfd < 0)
+			maxfd = OPEN_MAX;
+
+		for (fd = lowfd; fd < maxfd; fd++)
+			(void) close((int) fd);
+	}
 }

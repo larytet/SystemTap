@@ -23,10 +23,15 @@ int init_ctl_channel(const char *name, int verb)
         (void) verb;
         if (0) goto out; /* just to defeat gcc warnings */
 
+	/* Before trying to open the control channel, make sure it
+	 * isn't already open. */
+	close_ctl_channel();
+
 #ifdef HAVE_OPENAT
         if (relay_basedir_fd >= 0) {
                 strncpy(buf, CTL_CHANNEL_NAME, PATH_MAX);
-                control_channel = openat(relay_basedir_fd, CTL_CHANNEL_NAME, O_RDWR);
+                control_channel = openat_cloexec(relay_basedir_fd,
+						 CTL_CHANNEL_NAME, O_RDWR, 0);
                 dbug(2, "Opened %s (%d)\n", CTL_CHANNEL_NAME, control_channel);
 
                 /* NB: Extra real-id access check as below */
@@ -68,7 +73,7 @@ int init_ctl_channel(const char *name, int verb)
 			return -2;
 	}
 
-	control_channel = open(buf, O_RDWR);
+	control_channel = open_cloexec(buf, O_RDWR, 0);
 	dbug(2, "Opened %s (%d)\n", buf, control_channel);
 
 	/* NB: Even if open() succeeded with effective-UID permissions, we
@@ -100,15 +105,12 @@ out:
                     name);
 		return -3;
 	}
-	if (set_clexec(control_channel) < 0)
-		return -4;
-
 	return old_transport;
 }
 
 void close_ctl_channel(void)
 {
-  if (control_channel >= 0) {
+	if (control_channel >= 0) {
           	dbug(2, "Closed ctl fd %d\n", control_channel);
 		close(control_channel);
 		control_channel = -1;

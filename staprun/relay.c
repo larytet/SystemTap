@@ -96,13 +96,11 @@ static int open_outfile(int fnum, int cpu, int remove_file)
 
 	if (make_outfile_name(buf, PATH_MAX, fnum, cpu, t, bulkmode) < 0)
 		return -1;
-	out_fd[cpu] = open (buf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+	out_fd[cpu] = open_cloexec (buf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
 	if (out_fd[cpu] < 0) {
 		perr("Couldn't open output file %s", buf);
 		return -1;
 	}
-	if (set_clexec(out_fd[cpu]) < 0)
-		return -1;
 	return 0;
 }
 
@@ -300,7 +298,7 @@ int init_relayfs(void)
                         if (sprintf_chk(buf, "trace%d", i))
                                 return -1;
                         dbug(2, "attempting to openat %s\n", buf);
-                        relay_fd[i] = openat(relay_basedir_fd, buf, O_RDONLY | O_NONBLOCK);
+                        relay_fd[i] = openat_cloexec(relay_basedir_fd, buf, O_RDONLY | O_NONBLOCK, 0);
                 }
 #endif
                 if (relay_fd[i] < 0) {
@@ -308,14 +306,10 @@ int init_relayfs(void)
                                         modname, i))
                                 return -1;
                         dbug(2, "attempting to open %s\n", buf);
-                        relay_fd[i] = open(buf, O_RDONLY | O_NONBLOCK);
+                        relay_fd[i] = open_cloexec(buf, O_RDONLY | O_NONBLOCK, 0);
                 }
 		if (relay_fd[i] >= 0) {
 			avail_cpus[cpui++] = i;
-			if (set_clexec(relay_fd[i]) < 0) {
-				_err("failed to set FD_CLOEXEC on fd %d\n", i);
-				return -1;
-			}
 		}
 	}
 	ncpus = cpui;
@@ -370,13 +364,11 @@ int init_relayfs(void)
 					return -1;
 			}
 			
-			out_fd[avail_cpus[i]] = open (buf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+			out_fd[avail_cpus[i]] = open_cloexec (buf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
 			if (out_fd[avail_cpus[i]] < 0) {
 				perr("Couldn't open output file %s", buf);
 				return -1;
 			}
-			if (set_clexec(out_fd[avail_cpus[i]]) < 0)
-				return -1;
 		}
 	} else {
 		/* stream mode */
@@ -387,13 +379,11 @@ int init_relayfs(void)
 				err("Invalid FILE name format\n");
 				return -1;
 			}
-			out_fd[avail_cpus[0]] = open (buf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+			out_fd[avail_cpus[0]] = open_cloexec (buf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
 			if (out_fd[avail_cpus[0]] < 0) {
 				perr("Couldn't open output file %s", buf);
 				return -1;
 			}
-			if (set_clexec(out_fd[avail_cpus[0]]) < 0)
-				return -1;
 		} else
 			if (monitor) {
 				if (pipe(monitor_pfd)) {
