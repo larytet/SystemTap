@@ -2098,7 +2098,7 @@ static void monitor_mode_write(systemtap_session& s)
       it != s.probes.end()-1; ++it) // Skip monitor read probe
     {
       vardecl* v = new vardecl;
-      v->unmangled_name = v->name = "__global___monitor_" + lex_cast(it-s.probes.begin()) + "_enabled";
+      v->unmangled_name = v->name = "__monitor_" + lex_cast(it-s.probes.begin()) + "_enabled";
       v->tok = (*it)->tok;
       v->set_arity(0, (*it)->tok);
       v->type = pe_long;
@@ -2132,9 +2132,7 @@ static void monitor_mode_write(systemtap_session& s)
 
   code << "probe procfs(\"monitor_control\").write {" << endl;
 
-  code << "  if ($value == \"exit\") { exit()";
-
-  code << "  } else if ($value == \"clear\") {";
+  code << "if ($value == \"clear\") {";
   for (vector<vardecl*>::const_iterator it = s.globals.begin();
       it != s.globals.end(); ++it)
     {
