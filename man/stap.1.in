@@ -1193,7 +1193,8 @@ function will have a special "unknown" type with no return value.
 .TP
 .BR next
 Return now from enclosing probe handler.  This is especially useful in
-probe aliases that apply event filtering predicates.
+probe aliases that apply event filtering predicates. When used in functions,
+the execution will be immediately transferred to the next overloaded function.
 .TP
 .BR try " { STMT1 } " catch " { STMT2 }"
 Run the statements in the first block.  Upon any run-time errors, abort
