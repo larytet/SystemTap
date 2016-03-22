@@ -13,8 +13,10 @@ foreach runtime [get_runtime_list] {
     # check %S and %T
     set format %%%S_%T
     if {$runtime != ""} {
+	verbose -log {stap --runtime=$runtime -o $format -we {probe begin {println("hello");exit()}}}
 	catch { exec stap --runtime=$runtime -o $format -we {probe begin {println("hello");exit()}} } res
     } else {
+	verbose -log {stap -o $format -we {probe begin {println("hello");exit()}}}
 	catch { exec stap -o $format -we {probe begin {println("hello");exit()}} } res
     }
     verbose -log $res
@@ -34,8 +36,10 @@ foreach runtime [get_runtime_list] {
 
     # run stapio with strftime
     if {$runtime != ""} {
+	verbose -log {stap --runtime=$runtime -o $format -we {probe begin {println("hello");exit()}}}
 	catch { exec stap --runtime=$runtime -o $format -we {probe begin {println("hello");exit()}} } res
     } else {
+	verbose -log {stap -o $format -we {probe begin {println("hello");exit()}}}
 	catch { exec stap -o $format -we {probe begin {println("hello");exit()}} } res
     }
     verbose -log $res
