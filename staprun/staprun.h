@@ -236,7 +236,7 @@ void monitor_input(void);
 void monitor_exited(void);
 void monitor_remember_output_line(const char* buf, const size_t bytes);
 #else
-inline void monitor_winch(int signum) {(void) signum;}
+void monitor_winch(int signum);
 inline void monitor_setup(void) {}
 inline void monitor_cleanup(void) {}
 inline void monitor_render(void) {}

@@ -761,3 +761,11 @@ closefrom(int lowfd)
 			(void) close((int) fd);
 	}
 }
+
+#ifndef HAVE_MONITOR_LIBS
+void monitor_winch(int signum)
+{
+	(void) signum;
+	return;
+}
+#endif
