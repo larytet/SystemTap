@@ -649,15 +649,15 @@ int stp_main_loop(void)
     pthread_sigmask(SIG_BLOCK, &blockset, &mainset);
   }
 
-  /* In monitor mode, we must timeout pselect to poll the monitor
-   * interface. */
   if (monitor)
-    {
       monitor_setup();
-      ts.tv_sec = 0;
-      ts.tv_nsec = 500*1000*1000;
-      timeout = &ts;
-    }
+  
+  /* In monitor mode, we must timeout pselect to poll the monitor
+     interface. In non-monitor mode, we must timeout pselect so that
+     we can handle pending_interrupts. */
+  ts.tv_sec = 0;
+  ts.tv_nsec = 500*1000*1000;
+  timeout = &ts;
 
   /* handle messages from control channel */
   while (1) {
@@ -671,7 +671,10 @@ int stp_main_loop(void)
          int btype = STP_EXIT;
          int rc = write(control_channel, &btype, sizeof(btype));
          dbug(2, "signal-triggered %d exit rc %d\n", pending_interrupts, rc);
-         cleanup_and_exit (load_only /* = detach */, 0);
+         if (monitor || (pending_interrupts > 2)) /* user mashing on ^C multiple times */
+                 cleanup_and_exit (load_only /* = detach */, 0);
+         else
+                 {} /* await STP_EXIT reply message to kill staprun */
     }
 
     /* If the runtime does not implement select() on the command
