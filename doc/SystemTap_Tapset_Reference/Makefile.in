@@ -611,7 +611,7 @@ uninstall-am:
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	$(MKDIR_P)  $(HTML_INSTALL_DIR)
 @BUILD_HTMLDOCS_TRUE@@BUILD_REFDOCS_TRUE@	$(INSTALL_DATA) tapsets/* $(HTML_INSTALL_DIR)
 clean-local:
-	rm -rf man3 man_pages tapsets
+	rm -rf tapsets
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

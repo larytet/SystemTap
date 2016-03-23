@@ -56,4 +56,4 @@ endif
 
 CLEANFILES=stamp-* tapsets.pdf tapsets.xml
 clean-local:
-	rm -rf man3 man_pages tapsets
+	rm -rf tapsets
