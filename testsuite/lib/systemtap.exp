@@ -135,7 +135,7 @@ proc java_p {} {
 proc bootprobing_p {} {
     global Dracut_Version
     return [expr [strverscmp $Dracut_Version 025] >= 0 && \
-                 [file exists "/usr/sbin/new-kernel-pkg"]]
+                 [file exists "/sbin/new-kernel-pkg"]]
 }
 
 proc module_refresh_p {} {

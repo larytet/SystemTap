@@ -44,7 +44,7 @@ STAPRUN=@bindir@/staprun
 UNAME=/bin/uname
 LSMOD=/sbin/lsmod
 DRACUT=/sbin/dracut
-NEWKERNELPKG=/usr/sbin/new-kernel-pkg
+NEWKERNELPKG=/sbin/new-kernel-pkg
 
 # Not actually used directly, but needed by
 # stap dracut module for inclusion in initramfs
