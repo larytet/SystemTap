@@ -226,7 +226,7 @@ void monitor_render(void)
   /* Render previously recorded output */
   wclear(monitor_output);
   getmaxyx(monitor_output, monitor_y, monitor_x);
-  for (int i = 0; i < MIN(monitor_y, h_queue.count-output_scroll); i++)
+  for (int i = 0; i < h_queue.count-output_scroll; i++)
     wprintw(monitor_output, "%s", h_queue.lines[(h_queue.oldest+i) % MAX_HISTORY]);
   wrefresh(monitor_output);
 
