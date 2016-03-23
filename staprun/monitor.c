@@ -8,6 +8,7 @@
 #define MAX_COLS 256
 #define MAX_DATA 8192
 #define MAX_HISTORY 8192
+#define MAX_LINELENGTH 4096
 
 #define MIN(X,Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X,Y) (((X) > (Y)) ? (X) : (Y))
@@ -16,10 +17,11 @@
 
 typedef struct History_Queue
 {
-  char *buf[MAX_HISTORY];
-  size_t allocated[MAX_HISTORY];
-  int front;
-  int back;
+  char *lines[MAX_HISTORY]; /* each malloc/strdup'd(). */
+  char linebuf[MAX_LINELENGTH]; /* beyond this length, we cut up lines */
+  int linebuf_ptr; /* index into linebuf[] where next line piece should be read */
+  int oldest;
+  int newest;
   int count;
 } History_Queue;
 
@@ -38,8 +40,10 @@ enum probe_attributes
 static enum state
 {
   normal,
+  exited,
   insert,
-  help
+  help,
+  exited_help,
 } monitor_state; 
 
 static History_Queue h_queue;
@@ -52,7 +56,7 @@ static int output_scroll = 0;
 static time_t elapsed_time = 0;
 static time_t start_time = 0;
 static int resized = 0;
-static int input = 0;
+static int input = 0; /* fresh input received in monitor_input() */
 static int rendered = 0;
 
 /* Forward declarations */
@@ -212,38 +216,19 @@ void monitor_cleanup(void)
 void monitor_render(void)
 {
   FILE *monitor_fp;
-  FILE *output_fp;
   char path[PATH_MAX];
   time_t current_time = time(NULL);
   int monitor_x, monitor_y, max_cols, max_rows, cur_y, cur_x;
-
+  
   if (resized)
     handle_resize();
 
-  output_fp = fdopen(monitor_pfd[0], "r");
-
-  /* Render normal systemtap output */
-  if (output_fp && monitor_set)
-    {
-      int i;
-      int bytes;
-
-      while ((bytes = getline(&h_queue.buf[h_queue.back],
-              &h_queue.allocated[h_queue.back], output_fp)) != -1)
-        {
-          h_queue.back = (h_queue.back+1) % MAX_HISTORY;
-          if (h_queue.count < MAX_HISTORY)
-            h_queue.count++;
-          else
-            h_queue.front = (h_queue.front+1) % MAX_HISTORY;
-        }
-
-      wclear(monitor_output);
-      for (i = 0; i < h_queue.count-output_scroll; i++)
-        wprintw(monitor_output, "%s", h_queue.buf[(h_queue.front+i) % MAX_HISTORY]);
-
-      wrefresh(monitor_output);
-    }
+  /* Render previously recorded output */
+  wclear(monitor_output);
+  getmaxyx(monitor_output, monitor_y, monitor_x);
+  for (int i = 0; i < MIN(monitor_y, h_queue.count-output_scroll); i++)
+    wprintw(monitor_output, "%s", h_queue.lines[(h_queue.oldest+i) % MAX_HISTORY]);
+  wrefresh(monitor_output);
 
   if (!input && rendered && (elapsed_time = current_time - start_time) < monitor_interval)
     return;
@@ -274,7 +259,23 @@ void monitor_render(void)
       mvwprintw(monitor_status, max_rows-1, 0, "press h to go back\n");
       wrefresh(monitor_status);
     }
-  else
+  if (monitor_state == exited_help)
+    {
+      /* Render help page */
+      rendered = 0;
+      wclear(monitor_status);
+      wprintw(monitor_status, "EXITED MONITOR MODE COMMANDS\n");
+      wprintw(monitor_status, "h - Display help page.\n");
+      wprintw(monitor_status, "s - Rotate sort columns for probes.\n");
+      wprintw(monitor_status, "q - Quit script.\n");
+      wprintw(monitor_status, "j/DownArrow - Scroll down the probe list.\n");
+      wprintw(monitor_status, "k/UpArrow - Scroll up the probe list.\n");
+      wprintw(monitor_status, "d/PageDown - Scroll down the output by one page.\n");
+      wprintw(monitor_status, "u/PageUp - Scroll up the probe list by one page.\n");
+      mvwprintw(monitor_status, max_rows-1, 0, "press h to go back\n");
+      wrefresh(monitor_status);
+    }
+  else if (monitor_state == normal)
     {
       /* Render monitor mode statistics */
       if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
@@ -318,7 +319,7 @@ void monitor_render(void)
 
           if (monitor_state == insert)
             mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
-          else
+          else if (monitor_state == normal)
             mvwprintw(monitor_status, max_rows-1, 0,
                       "press h for help\n");
           wmove(monitor_status, 0, 0);
@@ -427,7 +428,36 @@ void monitor_render(void)
           json_object_put(jso);
         }
     }
+  else /* exited? */
+    {
+      mvwprintw(monitor_status, max_rows-1, 0,
+                "EXITED: press h for help, q to quit\n");
+      wrefresh(monitor_status);
+    }
 }
+
+
+
+void monitor_remember_output_line(const char* buf, const size_t bytes)
+{
+  free (h_queue.lines[h_queue.newest]);
+  h_queue.lines[h_queue.newest] = strndup(buf, bytes);
+  h_queue.newest = (h_queue.newest+1) % MAX_HISTORY;
+
+  if (h_queue.count < MAX_HISTORY)
+    h_queue.count++; /* and h_queue.oldest stays at 0 */
+  else
+    h_queue.oldest = (h_queue.oldest+1) % MAX_HISTORY;
+}
+  
+
+
+void monitor_exited(void)
+{
+  monitor_state = exited;
+  input = 1;
+}
+
 
 void monitor_input(void)
 {
@@ -435,9 +465,53 @@ void monitor_input(void)
   int ch;
   int max_rows, max_cols;
 
+  /* NB: monitor_pfd[0] is the read side, O_NONBLOCK, of the pipe
+     that collects/serializes all the per-cpu outputs.  We can't
+     use stdio calls. */
+  
+  /* Collect normal systemtap output */
+  while (monitor_set)
+    {
+      ssize_t bytes = read(monitor_pfd[0],
+                           h_queue.linebuf + h_queue.linebuf_ptr,
+                           MAX_LINELENGTH - h_queue.linebuf_ptr);
+      if (bytes <= 0)
+        break;
+
+      /* Start scanning the linebuf[] for lines - \n.
+         Plop each one found into the h_queue.lines[] ring. */
+      char *p = h_queue.linebuf; /* scan position */
+      char *p_end = h_queue.linebuf + h_queue.linebuf_ptr + bytes; /* one past last byte */
+      char *line = p;
+      while (p <= p_end)
+        {
+          if (*p == '\n') /* got a line */
+            {
+              monitor_remember_output_line(line, (p-line)+1); /* strlen, including \n */
+              line = p+1;
+            }
+          p ++;
+        }
+
+      if (line != p)
+        {
+          /* Move trailing partial line (if any) to front of buffer. */
+          memmove (h_queue.linebuf, line, (p_end - line));
+          h_queue.linebuf_ptr = (p_end - line);
+        }
+      else
+        {
+          /* No line found in entire buffer!  Pretend it was all one line. */
+          monitor_remember_output_line(line, (p_end - line));
+          h_queue.linebuf_ptr = 0;
+        }
+    }          
+
+
   switch (monitor_state)
     {
-      case normal:
+    case normal:
+    case exited:
         ch = getch();
         switch (ch)
           {
@@ -479,13 +553,16 @@ void monitor_input(void)
               write_command("pause", 5);
               break;
             case 'q':
-              write_command("quit", 4);
+              if (monitor_state == exited)
+                cleanup_and_exit(0, 0 /* error_detected unavailable here */ );
+              else
+                write_command("quit", 4);
               break;
             case 't':
               monitor_state = insert;
               break;
             case 'h':
-              monitor_state = help;
+              monitor_state = (monitor_state == exited) ? exited_help : help;
               break;
           }
         if (ch != ERR)
@@ -514,9 +591,10 @@ void monitor_input(void)
           }
         break;
       case help:
+      case exited_help:
         ch = getch();
         if(ch == 'h')
-          monitor_state = normal;
+          monitor_state = (monitor_state == exited_help) ? exited : normal;
         break;
     }
 }

@@ -192,6 +192,9 @@ static void *reader_thread(void *data)
                 }
 
 		while ((rc = read(relay_fd[cpu], buf, sizeof(buf))) > 0) {
+                        int wbytes = rc;
+                        char *wbuf = buf;
+                        
 			/* Switching file */
 			pthread_mutex_lock(&mutex[cpu]);
 			if ((fsize_max && ((wsize + rc) > fsize_max)) ||
@@ -206,15 +209,19 @@ static void *reader_thread(void *data)
 			}
 			pthread_mutex_unlock(&mutex[cpu]);
 
-			/* Prevent pipe overflow after closing */
-			if (monitor && monitor_end)
-				return 0;
-			if (write(out_fd[cpu], buf, rc) != rc) {
-				if (errno != EPIPE)
-					perr("Couldn't write to output %d for cpu %d, exiting.", out_fd[cpu], cpu);
-				goto error_out;
-			}
-			wsize += rc;
+                        /* Copy loop.  Must repeat write(2) in case of a pipe overflow
+                           or other transient fullness. */
+                        while (wbytes > 0) {
+                                rc = write(out_fd[cpu], wbuf, wbytes);
+                                if (rc <= 0) {
+					perr("Couldn't write to output %d for cpu %d, exiting.",
+                                             out_fd[cpu], cpu);
+                                        goto error_out;
+                                }
+                                wbytes -= rc;
+                                wbuf += rc;
+                        }
+			wsize += wbytes;
 		}
         } while (!stop_threads);
 	dbug(3, "exiting thread for cpu %d\n", cpu);
@@ -390,10 +397,13 @@ int init_relayfs(void)
 					perr("Couldn't create pipe");
 					return -1;
 				}
-				fcntl(monitor_pfd[0], F_SETFL, O_NONBLOCK);
-				fcntl(monitor_pfd[1], F_SETFL, O_NONBLOCK);
+				fcntl(monitor_pfd[0], F_SETFL, O_NONBLOCK); /* read end */
+                                /* NB: leave write end of pipe normal blocking mode, since
+                                   that's the same mode as for STDOUT_FILENO. */
+				/* fcntl(monitor_pfd[1], F_SETFL, O_NONBLOCK); */ 
 #ifdef HAVE_F_SETPIPE_SZ
-				fcntl(monitor_pfd[1], F_SETPIPE_SZ, 8*65536);
+                                /* Make it less likely for the pipe to be full. */
+				/* fcntl(monitor_pfd[1], F_SETPIPE_SZ, 8*65536); */
 #endif
 				monitor_set = 1;
 				out_fd[avail_cpus[0]] = monitor_pfd[1];

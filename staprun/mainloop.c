@@ -16,10 +16,6 @@
 #include <sys/select.h>
 #include <search.h>
 #include <wordexp.h>
-#if HAVE_MONITOR_LIBS
-#include <json-c/json.h>
-#include <curses.h>
-#endif
 
 
 #define WORKAROUND_BZ467568 1  /* PR 6964; XXX: autoconf when able */
@@ -47,11 +43,10 @@ static void *signal_thread(void *arg)
     }
     dbug(2, "sigproc %d (%s)\n", signum, strsignal(signum));
     if (signum == SIGQUIT) {
-      pending_interrupts += 2;
-      break;
+      load_only = 1; /* flag for stp_main_loop */
+      pending_interrupts ++;
     } else if (signum == SIGINT || signum == SIGHUP || signum == SIGTERM) {
       pending_interrupts ++;
-      break;
     }
   }
   /* Notify main thread (interrupts select). */
@@ -140,13 +135,11 @@ static void setup_main_signals(void)
   sa.sa_handler = chld_proc;
   sigaction(SIGCHLD, &sa, NULL);
 
-#if HAVE_MONITOR_LIBS
   if (monitor)
     {
       sa.sa_handler = monitor_winch;
       sigaction(SIGWINCH, &sa, NULL);
     }
-#endif
 
   /* This signal handler is notified from the signal_thread
      whenever a interruptable event is detected. It will
@@ -498,10 +491,8 @@ void cleanup_and_exit(int detach, int rc)
   int rstatus;
   struct sigaction sa;
 
-#if HAVE_MONITOR_LIBS
   if (monitor)
     monitor_cleanup();
-#endif
 
   if (exiting)
     return;
@@ -620,9 +611,7 @@ int stp_main_loop(void)
   int rc;
   int maxfd;
   struct timeval tv;
-#if HAVE_MONITOR_LIBS
   struct timespec ts;
-#endif
   struct timespec *timeout = NULL;
   fd_set fds;
   sigset_t blockset, mainset;
@@ -635,7 +624,7 @@ int stp_main_loop(void)
   rc = send_request(STP_READY, NULL, 0);
   if (rc != 0) {
     perror ("Unable to send STP_READY");
-    cleanup_and_exit (1, rc);
+    cleanup_and_exit(0, rc);
   }
 
   flags = fcntl(control_channel, F_GETFL);
@@ -660,7 +649,6 @@ int stp_main_loop(void)
     pthread_sigmask(SIG_BLOCK, &blockset, &mainset);
   }
 
-#if HAVE_MONITOR_LIBS
   /* In monitor mode, we must timeout pselect to poll the monitor
    * interface. */
   if (monitor)
@@ -670,27 +658,21 @@ int stp_main_loop(void)
       ts.tv_nsec = 500*1000*1000;
       timeout = &ts;
     }
-#endif
 
   /* handle messages from control channel */
   while (1) {
-#if HAVE_MONITOR_LIBS
     if (monitor)
       {
         monitor_input();
         monitor_render();
       }
-#endif
 
     if (pending_interrupts) {
          int btype = STP_EXIT;
          int rc = write(control_channel, &btype, sizeof(btype));
          dbug(2, "signal-triggered %d exit rc %d\n", pending_interrupts, rc);
-         if (pending_interrupts >= 2) {
-            cleanup_and_exit (1, 0);
-         }
+         cleanup_and_exit (load_only /* = detach */, 0);
     }
-
 
     /* If the runtime does not implement select() on the command
        filehandle, we have to poll periodically.  The polling interval can
@@ -717,14 +699,12 @@ int stp_main_loop(void)
 	FD_ZERO(&fds);
 	FD_SET(control_channel, &fds);
         maxfd = control_channel;
-#if HAVE_MONITOR_LIBS
 	if (monitor) {
 	  FD_SET(STDIN_FILENO, &fds);
 	  FD_SET(monitor_pfd[0], &fds);
 	  if (monitor_pfd[0] > maxfd)
 	    maxfd = monitor_pfd[0];
 	}
-#endif
 	res = pselect(maxfd + 1, &fds, NULL, NULL, timeout, &mainset);
 	if (res < 0 && errno != EINTR)
 	  {
@@ -753,8 +733,11 @@ int stp_main_loop(void)
       if (strncmp(recvbuf.payload.data, "WARNING: ", 9) == 0) {
               if (suppress_warnings) break;
               if (verbose) { /* don't eliminate duplicates */
-                      /* trim "WARNING: " */
-                      warn("%.*s", (int) nb-9, recvbuf.payload.data+9);
+                      if (monitor)
+                              monitor_remember_output_line (recvbuf.payload.data, nb);
+                      else
+                              /* trim "WARNING: " */
+                              warn("%.*s", (int) nb-9, recvbuf.payload.data+9);
                       break;
               } else { /* eliminate duplicates */
                       static void *seen = 0;
@@ -764,15 +747,21 @@ int stp_main_loop(void)
 
                       if (! dupstr) {
                               /* OOM, should not happen. */
-                              /* trim "WARNING: " */
-                              warn("%.*s", (int) nb-9, recvbuf.payload.data+9);
+                              if (monitor)
+                                      monitor_remember_output_line (recvbuf.payload.data, nb);
+                              else
+                                      /* trim "WARNING: " */
+                                      warn("%.*s", (int) nb-9, recvbuf.payload.data+9);
                               break;
                       }
 
                       retval = tfind (dupstr, & seen, (int (*)(const void*, const void*))strcmp);
                       if (! retval) { /* new message */
-                              /* trim "WARNING: " */
-                              warn("%.*s", strlen(dupstr)-9, dupstr+9);
+                              if (monitor)
+                                      monitor_remember_output_line (recvbuf.payload.data, nb);
+                              else
+                                      /* trim "WARNING: " */
+                                      warn("%.*s", strlen(dupstr)-9, dupstr+9);
 
                               /* We set a maximum for stored warning messages,
                                  to prevent a misbehaving script/environment
@@ -807,18 +796,28 @@ int stp_main_loop(void)
       /* Note that "ERROR:" should not be translated, since it is
        * part of the module cmd protocol. */
       } else if (strncmp(recvbuf.payload.data, "ERROR: ", 7) == 0) {
-              /* trim "ERROR: " */
-              err("%.*s", (int) nb-7, recvbuf.payload.data+7);
+              if (monitor)
+                      monitor_remember_output_line (recvbuf.payload.data, nb);
+              else
+                      /* trim "ERROR: " */
+                      err("%.*s", (int) nb-7, recvbuf.payload.data+7);
               error_detected = 1;
       } else { /* neither warning nor error */
-              eprintf("%.*s", (int) nb, recvbuf.payload.data);
+              if (monitor)
+                      monitor_remember_output_line (recvbuf.payload.data, nb);
+              else
+                      eprintf("%.*s", (int) nb, recvbuf.payload.data);
       }
       break;
     case STP_EXIT:
       {
         /* module asks us to unload it and exit */
         dbug(2, "got STP_EXIT\n");
-        cleanup_and_exit(0, error_detected);
+        if (monitor)
+                monitor_exited();
+        else
+                cleanup_and_exit(0, error_detected);
+        /* monitor mode exit handled elsewhere, later. */
         break;
       }
     case STP_REQUEST_EXIT:
@@ -896,7 +895,7 @@ int stp_main_loop(void)
         rc = send_request(STP_START, &ts, sizeof(ts));
 	if (rc != 0) {
 	  perror ("Unable to send STP_START");
-	  cleanup_and_exit (1, rc);
+	  cleanup_and_exit(0, rc);
 	}
         if (load_only)
           cleanup_and_exit(1, 0);
