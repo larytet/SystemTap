@@ -1,6 +1,6 @@
 /* ctime.stp - Convert seconds to human readable date string.
  *
- * Copyright (C) 2012 Red Hat, Inc.
+ * Copyright (C) 2012-2016 Red Hat, Inc.
  */
 
 /* NB: functionally equivalent to linux/ctime.stp
@@ -33,3 +33,11 @@ function ctime:string(epochsecs:long)
 #endif
     }
 %}
+
+
+/**
+ * sfunction ctime - Convert seconds since epoch into human readable date/time string
+ *
+ *  * Description: Without an argument, does the same as ctime(gettimeofday_s()).
+ */
+function ctime:string() { return ctime(gettimeofday_s()) }

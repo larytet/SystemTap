@@ -5,7 +5,7 @@
  * tzcode maintained by Arthur David Olson.  In newlib, asctime_r.c
  * doesn't have any author/copyright information.
  *
- * Changes copyright (C) 2006, 2008 Red Hat Inc.
+ * Changes copyright (C) 2006-2016 Red Hat Inc.
  */
 
 /**
@@ -179,3 +179,11 @@ function ctime:string(epochsecs:long)
 	      tm_mday, tm_hour, tm_min,
 	      tm_sec, tm_year);
 %}
+
+
+/**
+ * sfunction ctime - Convert seconds since epoch into human readable date/time string
+ *
+ *  * Description: Without an argument, does the same as ctime(gettimeofday_s()).
+ */
+function ctime:string() { return ctime(gettimeofday_s()) }
