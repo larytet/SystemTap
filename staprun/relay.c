@@ -393,7 +393,7 @@ int init_relayfs(void)
 			}
 		} else
 			if (monitor) {
-				if (pipe(monitor_pfd)) {
+				if (pipe_cloexec(monitor_pfd)) {
 					perr("Couldn't create pipe");
 					return -1;
 				}

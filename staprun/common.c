@@ -581,6 +581,8 @@ err:
  * when calling open() and openat() to avoid this race condition. When
  * O_CLOEXEC isn't available, the best we can do is call fcntl()
  * immediately after open() is called.
+ *
+ * The same logic applies to openat() and pipe().
  */
 
 int open_cloexec(const char *pathname, int flags, mode_t mode)
@@ -616,6 +618,28 @@ int openat_cloexec(int dirfd, const char *pathname, int flags, mode_t mode)
 #endif
 }
 #endif
+
+int pipe_cloexec(int pipefd[2])
+{
+#ifdef O_CLOEXEC
+	return pipe2(pipefd, O_CLOEXEC);
+#else
+	int rc = pipe(pipefd);
+	if (rc == 0) {
+		if (set_clexec(pipefd[0]) < 0 || set_clexec(pipefd[1] < 0)) {
+			goto err;
+		}
+	}
+	return rc;
+
+err:
+	close(pipefd[0]);
+	close(pipefd[1]);
+	pipefd[0] = -1;
+	pipefd[1] = -1;
+	return -1;
+#endif
+}
 
 /**
  *      send_request - send request to kernel over control channel

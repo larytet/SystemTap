@@ -224,6 +224,7 @@ int open_cloexec(const char *pathname, int flags, mode_t mode);
 #ifdef HAVE_OPENAT
 int openat_cloexec(int dirfd, const char *pathname, int flags, mode_t mode);
 #endif
+int pipe_cloexec(int pipefd[2]);
 void closefrom(int lowfd);
 
 /* monitor.c function */
