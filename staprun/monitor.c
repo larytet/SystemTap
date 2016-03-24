@@ -233,7 +233,7 @@ void monitor_render(void)
   if (resized)
     handle_resize();
 
-  /* Adjust scrolling to window height */
+  /* Bound scrolling by window height and entry count */
   getmaxyx(monitor_output, max_rows, max_cols);
   output_scroll = MIN(MAX(0, h_queue.count-max_rows+1), output_scroll);
 
@@ -269,10 +269,9 @@ void monitor_render(void)
       wprintw(monitor_status, "p/r - Pause/Resume script by toggling off/on all probes.\n");
       wprintw(monitor_status, "x - Hide/Show the status window.\n");
       wprintw(monitor_status, "q - Quit script.\n");
-      wprintw(monitor_status, "j/DownArrow - Scroll down the probe list.\n");
-      wprintw(monitor_status, "k/UpArrow - Scroll up the probe list.\n");
-      wprintw(monitor_status, "d/PageDown - Scroll down the output by one page.\n");
-      wprintw(monitor_status, "u/PageUp - Scroll up the probe list by one page.\n");
+      wprintw(monitor_status, "j,k/DownArrow,UpArrow - Scroll down/up the probe list.\n");
+      wprintw(monitor_status, "d,D/PageDown,End - Scroll down the output by one page/end.\n");
+      wprintw(monitor_status, "u,U/PageUp,Home - Scroll up the output by one page/beginning.\n");
       mvwprintw(monitor_status, max_rows-1, 0, "press h to go back\n");
       wrefresh(monitor_status);
     }
@@ -285,10 +284,9 @@ void monitor_render(void)
       wprintw(monitor_status, "h - Display help page.\n");
       wprintw(monitor_status, "s - Rotate sort columns for probes.\n");
       wprintw(monitor_status, "q - Quit script.\n");
-      wprintw(monitor_status, "j/DownArrow - Scroll down the probe list.\n");
-      wprintw(monitor_status, "k/UpArrow - Scroll up the probe list.\n");
-      wprintw(monitor_status, "d/PageDown - Scroll down the output by one page.\n");
-      wprintw(monitor_status, "u/PageUp - Scroll up the probe list by one page.\n");
+      wprintw(monitor_status, "j,k/DownArrow,UpArrow - Scroll down/up the probe list.\n");
+      wprintw(monitor_status, "d,D/PageDown,End - Scroll down the output by one page/end.\n");
+      wprintw(monitor_status, "u,U/PageUp,Home - Scroll up the output by one page/beginning.\n");
       mvwprintw(monitor_status, max_rows-1, 0, "press h to go back\n");
       wrefresh(monitor_status);
     }
@@ -534,23 +532,31 @@ void monitor_input(void)
         ch = getch();
         switch (ch)
           {
-            case 'j': /* Fallthrough */
+            case 'j':
             case KEY_DOWN:
               probe_scroll++;
               break;
-            case 'k': /* Fallthrough */
+            case 'k':
             case KEY_UP:
               probe_scroll--;
               probe_scroll = MAX(0, probe_scroll);
               break;
-            case 'd': /* Fallthrough */
+            case 'd':
             case KEY_NPAGE:
               output_scroll -= max_rows-1;
               output_scroll = MAX(0, output_scroll);
               break;
-            case 'u': /* Fallthrough */
+            case 'u':
             case KEY_PPAGE:
               output_scroll += max_rows-1;
+              break;
+            case KEY_HOME:
+            case 'U':
+              output_scroll = h_queue.count-max_rows+1;
+              break;
+            case KEY_END:
+            case 'D':
+              output_scroll = 0;
               break;
             case 's':
               comp_fn_index++;

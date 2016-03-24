@@ -813,8 +813,8 @@ Hides/shows the status window. This allows for more output to be seen.
 .TP
 .BI navigation-keys
 The j/k/ArrowDown/ArrowUp keys can be used to scroll through the probe
-list and the d/u/PageDown/PageUp keys can be used to scroll through the
-module output.
+list and the d,D/u,U/PageDown,End/PageUp,Home keys can be used to scroll
+through the module output.
 .RE
 
 .SH ARGUMENTS
