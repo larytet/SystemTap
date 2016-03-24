@@ -63,6 +63,7 @@
 #endif
 
 #ifdef STAPCONF_UDELAY_SIMPLE
+#undef udelay
 #define udelay(x) udelay_simple(x)
 #endif
 
