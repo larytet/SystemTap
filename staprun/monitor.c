@@ -222,6 +222,7 @@ void monitor_render(void)
   char path[PATH_MAX];
   time_t current_time = time(NULL);
   int monitor_x, monitor_y, max_cols, max_rows, cur_y, cur_x;
+  int i;
   
   if (resized)
     handle_resize();
@@ -229,7 +230,7 @@ void monitor_render(void)
   /* Render previously recorded output */
   wclear(monitor_output);
   getmaxyx(monitor_output, monitor_y, monitor_x);
-  for (int i = 0; i < h_queue.count-output_scroll; i++)
+  for (i = 0; i < h_queue.count-output_scroll; i++)
     wprintw(monitor_output, "%s", h_queue.lines[(h_queue.oldest+i) % MAX_HISTORY]);
   wrefresh(monitor_output);
 
