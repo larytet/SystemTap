@@ -103,7 +103,6 @@ pkglibexec_PROGRAMS = stapio$(EXEEXT)
 @HAVE_NSS_TRUE@am__append_5 = $(nss_CFLAGS)
 @HAVE_NSS_TRUE@am__append_6 = $(nss_LIBS)
 @HAVE_MONITOR_LIBS_TRUE@am__append_7 = $(jsonc_LIBS) $(ncurses_LIBS)
-@HAVE_MONITOR_LIBS_TRUE@am__append_8 = monitor.c
 subdir = staprun
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
@@ -138,19 +137,18 @@ stap_merge_OBJECTS = $(am_stap_merge_OBJECTS)
 stap_merge_DEPENDENCIES =
 stap_merge_LINK = $(CCLD) $(stap_merge_CFLAGS) $(CFLAGS) \
 	$(stap_merge_LDFLAGS) $(LDFLAGS) -o $@
-@HAVE_MONITOR_LIBS_TRUE@am__objects_1 = monitor.$(OBJEXT)
 am_stapio_OBJECTS = stapio.$(OBJEXT) mainloop.$(OBJEXT) \
 	common.$(OBJEXT) ctl.$(OBJEXT) relay.$(OBJEXT) \
-	relay_old.$(OBJEXT) $(am__objects_1)
+	relay_old.$(OBJEXT) monitor.$(OBJEXT)
 stapio_OBJECTS = $(am_stapio_OBJECTS)
 stapio_DEPENDENCIES = libstrfloctime.a
 am__dirstamp = $(am__leading_dot)dirstamp
-@HAVE_NSS_TRUE@am__objects_2 = staprun-modverify.$(OBJEXT) \
+@HAVE_NSS_TRUE@am__objects_1 = staprun-modverify.$(OBJEXT) \
 @HAVE_NSS_TRUE@	../staprun-nsscommon.$(OBJEXT)
 am_staprun_OBJECTS = staprun-staprun.$(OBJEXT) \
 	staprun-staprun_funcs.$(OBJEXT) staprun-ctl.$(OBJEXT) \
 	staprun-common.$(OBJEXT) ../staprun-privilege.$(OBJEXT) \
-	../staprun-util.$(OBJEXT) $(am__objects_2)
+	../staprun-util.$(OBJEXT) $(am__objects_1)
 staprun_OBJECTS = $(am_staprun_OBJECTS)
 am__DEPENDENCIES_1 =
 @HAVE_NSS_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
@@ -459,8 +457,7 @@ staprun_CXXFLAGS = $(AM_CXXFLAGS) -DSINGLE_THREADED $(am__append_5)
 staprun_CPPFLAGS = $(AM_CPPFLAGS) $(am__append_1)
 staprun_LDADD = libstrfloctime.a $(staprun_LIBS) $(am__append_6)
 staprun_LDFLAGS = $(AM_LDFLAGS) $(am__append_2)
-stapio_SOURCES = stapio.c mainloop.c common.c ctl.c relay.c \
-	relay_old.c $(am__append_8)
+stapio_SOURCES = stapio.c mainloop.c common.c ctl.c relay.c relay_old.c monitor.c
 stapio_LDADD = libstrfloctime.a -lpthread
 man_MANS = staprun.8
 stap_merge_SOURCES = stap_merge.c

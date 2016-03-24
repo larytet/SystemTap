@@ -7,7 +7,7 @@
  * Public License (GPL); either version 2, or (at your option) any
  * later version.
  *
- * Copyright (C) 2005-2008 Red Hat Inc.
+ * Copyright (C) 2005-2016 Red Hat Inc.
  */
 #define _FILE_OFFSET_BITS 64
 
@@ -227,7 +227,6 @@ int openat_cloexec(int dirfd, const char *pathname, int flags, mode_t mode);
 void closefrom(int lowfd);
 
 /* monitor.c function */
-#ifdef HAVE_MONITOR_LIBS
 void monitor_winch(int signum);
 void monitor_setup(void);
 void monitor_cleanup(void);
@@ -235,15 +234,6 @@ void monitor_render(void);
 void monitor_input(void);
 void monitor_exited(void);
 void monitor_remember_output_line(const char* buf, const size_t bytes);
-#else
-void monitor_winch(int signum);
-inline void monitor_setup(void) {}
-inline void monitor_cleanup(void) {}
-inline void monitor_render(void) {}
-inline void monitor_input(void) {}
-inline void monitor_exited(void) {}
-inline void monitor_remember_output_line(const char* buf, const size_t bytes) {(void)buf; (void)bytes;}
-#endif
 
 /*
  * variables

@@ -361,8 +361,10 @@ void usage(char *prog, int rc)
 	"-A              Attach to loaded systemtap module.\n"
 	"-C WHEN         Enable colored errors. WHEN must be either 'auto',\n"
 	"                'never', or 'always'. Set to 'auto' by default.\n"
+#ifdef HAVE_MONITOR_LIBS                 
 	"-M INTERVAL     Enable monitor mode.\n"
-	"-d              Delete a module.  Only detached or unused modules\n"
+#endif
+        "-d              Delete a module.  Only detached or unused modules\n"
 	"                the user has permission to access will be deleted. Use \"*\"\n"
 	"                (quoted) to delete all unused modules.\n"
         "-R              Have staprun create a new name for the module before\n"
@@ -761,11 +763,3 @@ closefrom(int lowfd)
 			(void) close((int) fd);
 	}
 }
-
-#ifndef HAVE_MONITOR_LIBS
-void monitor_winch(int signum)
-{
-	(void) signum;
-	return;
-}
-#endif

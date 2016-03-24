@@ -1,4 +1,7 @@
 #include "staprun.h"
+
+#ifdef HAVE_MONITOR_LIBS
+
 #include <json-c/json.h>
 #include <curses.h>
 #include <time.h>
@@ -598,3 +601,17 @@ void monitor_input(void)
         break;
     }
 }
+
+
+
+#else /* ! HAVE_MONITOR_LIBS */
+
+void monitor_winch(int signum) { (void) signum; }
+void monitor_setup(void) {}
+void monitor_cleanup(void) {}
+void monitor_render(void) {}
+void monitor_input(void) {}
+void monitor_exited(void) {}
+void monitor_remember_output_line(const char* buf, const size_t bytes) { (void)buf; (void) bytes; }
+
+#endif
