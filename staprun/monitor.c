@@ -275,7 +275,7 @@ void monitor_render(void)
       mvwprintw(monitor_status, max_rows-1, 0, "press h to go back\n");
       wrefresh(monitor_status);
     }
-  if (monitor_state == exited_help)
+  else if (monitor_state == exited_help)
     {
       /* Render help page */
       rendered = 0;
