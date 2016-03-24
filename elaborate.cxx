@@ -2041,11 +2041,11 @@ static void monitor_mode_read(systemtap_session& s)
       if (it != s.globals.begin())
         code << "$value .= sprintf(\",\\n\")" << endl;
 
-      code << "$value .= sprintf(\"\\\"%s\\\"\", \"" << (*it)->unmangled_name << "\")" << endl;
+      code << "$value .= sprintf(\"\\\"%s\\\":\", \"" << (*it)->unmangled_name << "\")" << endl;
       if ((*it)->arity == 0)
-        code << "$value .= sprint(\": \", " << (*it)->name << ", \"\")" << endl;
+        code << "$value .= string_quoted(sprint(" << (*it)->name << "))" << endl;
       else if ((*it)->arity > 0)
-        code << "$value .= sprintf(\": \\\"(%d)\\\"\", " << (*it)->maxsize << ")" << endl;
+        code << "$value .= sprintf(\"\\\"[%d]\\\"\", " << (*it)->maxsize << ")" << endl;
     }
   code << "$value .= sprintf(\"\\n},\\n\")" << endl;
 
