@@ -61,6 +61,7 @@ static time_t start_time = 0;
 static int resized = 0;
 static int input = 0; /* fresh input received in monitor_input() */
 static int rendered = 0;
+static int status_hidden = 0;
 
 /* Forward declarations */
 static int comp_index(const void *p1, const void *p2);
@@ -174,17 +175,22 @@ static void handle_resize()
   usleep (500*1000); /* prevent too many allocations */
   endwin();
   refresh();
+
   if (monitor_status)
-    {
-      delwin(monitor_status);
-      monitor_status = newwin(LINES/2,COLS,0,0);
-    }
+    delwin(monitor_status);
+  /* Status window not needed when hidden */
+  if (!status_hidden)
+    monitor_status = newwin(LINES/2,COLS,0,0);
+
   if (monitor_output)
-    {
-      delwin(monitor_output);
-      monitor_output = newwin(LINES/2,COLS,LINES/2,0);
-      scrollok(monitor_output, TRUE);
-    }
+    delwin(monitor_output);
+  /* Use the entire screen if not displaying status */
+  if (status_hidden)
+    monitor_output = newwin(LINES,COLS,0,0);
+  else
+    monitor_output = newwin(LINES/2,COLS,LINES/2,0);
+
+  scrollok(monitor_output, TRUE);
   resized = 0;
 }
 
@@ -227,12 +233,18 @@ void monitor_render(void)
   if (resized)
     handle_resize();
 
+  /* Adjust scrolling to window height */
+  getmaxyx(monitor_output, max_rows, max_cols);
+  output_scroll = MIN(MAX(0, h_queue.count-max_rows+1), output_scroll);
+
   /* Render previously recorded output */
   wclear(monitor_output);
-  getmaxyx(monitor_output, monitor_y, monitor_x);
   for (i = 0; i < h_queue.count-output_scroll; i++)
     wprintw(monitor_output, "%s", h_queue.lines[(h_queue.oldest+i) % MAX_HISTORY]);
   wrefresh(monitor_output);
+
+  if (status_hidden)
+    return;
 
   if (!input && rendered && (elapsed_time = current_time - start_time) < monitor_interval)
     return;
@@ -254,7 +266,8 @@ void monitor_render(void)
       wprintw(monitor_status, "c - Reset all global variables to initial state, zeroes if unset.\n");
       wprintw(monitor_status, "s - Rotate sort columns for probes.\n");
       wprintw(monitor_status, "t - Open a prompt to enter the index of a probe to toggle.\n");
-      wprintw(monitor_status, "p/r Pause/Resume script by toggling off/on all probes.\n");
+      wprintw(monitor_status, "p/r - Pause/Resume script by toggling off/on all probes.\n");
+      wprintw(monitor_status, "x - Hide/Show the status window.\n");
       wprintw(monitor_status, "q - Quit script.\n");
       wprintw(monitor_status, "j/DownArrow - Scroll down the probe list.\n");
       wprintw(monitor_status, "k/UpArrow - Scroll up the probe list.\n");
@@ -511,11 +524,13 @@ void monitor_input(void)
         }
     }          
 
+  getmaxyx(monitor_output, max_rows, max_cols);
+  (void) max_cols; /* Unused */
 
   switch (monitor_state)
     {
-    case normal:
-    case exited:
+      case normal:
+      case exited:
         ch = getch();
         switch (ch)
           {
@@ -530,17 +545,12 @@ void monitor_input(void)
               break;
             case 'd': /* Fallthrough */
             case KEY_NPAGE:
-              getmaxyx(monitor_status, max_rows, max_cols);
-              (void) max_cols; /* Unused */
               output_scroll -= max_rows-1;
               output_scroll = MAX(0, output_scroll);
               break;
             case 'u': /* Fallthrough */
             case KEY_PPAGE:
-              getmaxyx(monitor_status, max_rows, max_cols);
-              (void) max_cols; /* Unused */
               output_scroll += max_rows-1;
-              output_scroll = MIN(MAX(0, h_queue.count-max_rows+1), output_scroll);
               break;
             case 's':
               comp_fn_index++;
@@ -557,6 +567,11 @@ void monitor_input(void)
               write_command("pause", 5);
               break;
             case 'q':
+              if (status_hidden)
+                {
+                  status_hidden = 0;
+                  handle_resize();
+                }
               if (monitor_state == exited)
                 cleanup_and_exit(0, 0 /* error_detected unavailable here */ );
               else
@@ -567,6 +582,10 @@ void monitor_input(void)
               break;
             case 'h':
               monitor_state = (monitor_state == exited) ? exited_help : help;
+              break;
+            case 'x':
+              status_hidden ^= 1;
+              handle_resize();
               break;
           }
         if (ch != ERR)
