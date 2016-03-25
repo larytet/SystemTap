@@ -1,5 +1,5 @@
 // elaboration functions
-// Copyright (C) 2005-2015 Red Hat Inc.
+// Copyright (C) 2005-2016 Red Hat Inc.
 // Copyright (C) 2008 Intel Corporation
 //
 // This file is part of systemtap, and is free software.  You can
@@ -2023,7 +2023,12 @@ static void monitor_mode_read(systemtap_session& s)
 
   stringstream code;
 
-  code << "probe procfs(\"monitor_status\").read.maxsize(8192) {" << endl;
+  unsigned long rough_max_json_size = 100 +
+    s.globals.size() * 100 +
+    s.probes.size() * 200;
+  
+  code << "probe procfs(\"monitor_status\").read.maxsize(" << rough_max_json_size << ") {" << endl;
+  code << "try {"; // absorb .= overflows!
   code << "elapsed = (jiffies()-__monitor_module_start)/HZ()" << endl;
   code << "hrs = elapsed/3600; mins = elapsed%3600/60; secs = elapsed%3600%60;" << endl;
   code << "$value .= sprintf(\"{\\n\")" << endl;
@@ -2070,8 +2075,8 @@ static void monitor_mode_read(systemtap_session& s)
 
   code << "$value .= sprintf(\"}\\n\")" << endl;
 
+  code << "} catch(ex) { warn(\"JSON construction error: \" . ex) }" << endl;
   code << "}" << endl;
-
   probe* p = parse_synthetic_probe(s, code, 0);
   if (!p)
     throw SEMANTIC_ERROR (_("can't create procfs probe"), 0);
