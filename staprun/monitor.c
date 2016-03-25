@@ -9,7 +9,7 @@
 #define COMP_FNS 7
 #define MAX_INDEX_LEN 5
 #define MAX_COLS 256
-#define MAX_DATA 8192
+#define MAX_DATA 262144 /* XXX: pass procfs.read().maxsize(NNN) from stap */
 #define MAX_HISTORY 8192
 #define MAX_LINELENGTH 4096
 
@@ -290,38 +290,55 @@ void monitor_render(void)
       mvwprintw(monitor_status, max_rows-1, 0, "press h to go back\n");
       wrefresh(monitor_status);
     }
-  else if (monitor_state == normal)
+  else /* monitor_state == normal OR exited OR insert */
     {
+      static json_object *jso = NULL; /* survives across refresh calls */
+      char json[MAX_DATA];
+      size_t bytes = 0;
+
       /* Render monitor mode statistics */
       if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
         return;
       monitor_fp = fopen(path, "r");
-
       if (monitor_fp)
         {
-          char json[MAX_DATA];
+          bytes = fread(json, sizeof(char), sizeof(json), monitor_fp);
+          fclose(monitor_fp);
+        }
+      if (bytes >= 1)
+        {
+          /* Free allocated memory */
+          if (jso)
+            json_object_put(jso);
+          jso = json_tokener_parse(json);
+        }
+
+      wclear(monitor_status);
+      
+      if (monitor_state == insert)
+        mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
+      else if (monitor_state == normal)
+        mvwprintw(monitor_status, max_rows-1, 0,
+                  "RUNNING: press h for help\n");
+      else if (monitor_state == exited)
+        mvwprintw(monitor_status, max_rows-1, 0,
+                  "EXITED: press h for help, q to quit\n");
+
+      if (jso)
+        {
           char monitor_str[MAX_COLS];
           char monitor_out[MAX_COLS];
           int printed;
           int col;
           int i;
           int num_probes;
-          size_t bytes;
           size_t width[num_attributes] = {0};
-          json_object *jso, *jso_uptime, *jso_uid, *jso_mem,
+          json_object *jso_uptime, *jso_uid, *jso_mem,
                       *jso_name, *jso_globals, *jso_probe_list;
           struct json_object_iterator it, it_end;
 
           rendered = 1;
 
-          bytes = fread(json, sizeof(char), MAX_DATA, monitor_fp);
-          fclose(monitor_fp);
-          if (!bytes)
-            return;
-
-          jso = json_tokener_parse(json);
-          if (!jso)
-            return;
           json_object_object_get_ex(jso, "uptime", &jso_uptime);
           json_object_object_get_ex(jso, "uid", &jso_uid);
           json_object_object_get_ex(jso, "memory", &jso_mem);
@@ -330,13 +347,6 @@ void monitor_render(void)
           json_object_object_get_ex(jso, "probe_list", &jso_probe_list);
           num_probes = json_object_array_length(jso_probe_list);
 
-          wclear(monitor_status);
-
-          if (monitor_state == insert)
-            mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
-          else if (monitor_state == normal)
-            mvwprintw(monitor_status, max_rows-1, 0,
-                      "press h for help\n");
           wmove(monitor_status, 0, 0);
 
           wprintw(monitor_status, "uptime: %s uid: %s memory: %s\n",
@@ -436,17 +446,12 @@ void monitor_render(void)
               wprintw(monitor_status, "%.*s", max_cols-cur_x-1, json_object_get_string(field));
               wprintw(monitor_status, "\n");
             }
-
-          wrefresh(monitor_status);
-
-          /* Free allocated memory */
-          json_object_put(jso);
         }
-    }
-  else /* exited? */
-    {
-      mvwprintw(monitor_status, max_rows-1, 0,
-                "EXITED: press h for help, q to quit\n");
+      else /* ! jso */
+        {
+          wmove(monitor_status, 0, 0);
+          wprintw(monitor_status, "(data not available)");
+        }
       wrefresh(monitor_status);
     }
 }
