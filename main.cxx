@@ -1,5 +1,5 @@
 // systemtap translator/driver
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2016 Red Hat Inc.
 // Copyright (C) 2005 IBM Corp.
 // Copyright (C) 2006 Intel Corporation.
 //
@@ -1146,6 +1146,8 @@ main (int argc, char * const argv [])
         linecount ++;
         if (rc) break;
       }
+    rcf.close();
+
     int extended_argc = words.we_wordc + argc;
     char **extended_argv = (char**) calloc (extended_argc + 1, sizeof(char*));
     if (rc || !extended_argv)
