@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: systemtap 3.0\n"
 "Report-Msgid-Bugs-To: systemtap@sourceware.org\n"
-"POT-Creation-Date: 2016-01-26 12:20+0100\n"
+"POT-Creation-Date: 2016-03-25 21:02-0400\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: Czech\n"
@@ -14,22 +14,22 @@ msgstr ""
 "X-Generator: Zanata 3.7.3\n"
 "Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2\n"
 
-#: buildrun.cxx:546
+#: buildrun.cxx:555
 #, c-format
 msgid ""
 "Checking \" %s \" failed with error: %s\n"
 "Ensure kernel development headers & makefiles are installed."
 msgstr ""
 
-#: buildrun.cxx:580
+#: buildrun.cxx:589
 msgid "Pass 4, preamble: (re)building SystemTap's version of uprobes."
 msgstr "Fáze 4, úvod: sestavuji SystemTap verzi mechanizmu 'uprobe'."
 
-#: buildrun.cxx:626
+#: buildrun.cxx:635
 msgid "uprobes rebuild exit code: "
 msgstr "návratový kód sestavení vlastního 'uprobe' mechanizmu:"
 
-#: buildrun.cxx:686
+#: buildrun.cxx:695
 msgid ""
 "user-space process-tracking facilities not available [man error::process-"
 "tracking]"
@@ -37,7 +37,7 @@ msgstr ""
 "nástroje pro sledování uživatelských procesů jsou nedostupné [man error::"
 "process-tracking]"
 
-#: buildrun.cxx:910
+#: buildrun.cxx:920
 #, c-format
 msgid "Processing tracepoint header %s with query %s"
 msgstr ""
@@ -1067,40 +1067,40 @@ msgstr " - na blacklistu"
 msgid " but not skipped (guru mode enabled)"
 msgstr " ale nepřeskočeno, neboť jsme v 'guru mode'"
 
-#: dwflpp.cxx:4373 dwflpp.cxx:4420
+#: dwflpp.cxx:4374 dwflpp.cxx:4421
 msgid "blacklist regexps:"
 msgstr "regulární výrazy pro blacklist:"
 
-#: dwflpp.cxx:4381 dwflpp.cxx:4428
+#: dwflpp.cxx:4382 dwflpp.cxx:4429
 msgid "blacklist_func regcomp failed"
 msgstr "sonda je v blacklistu pro funkce"
 
-#: dwflpp.cxx:4383 dwflpp.cxx:4430
+#: dwflpp.cxx:4384 dwflpp.cxx:4431
 msgid "blacklist_func_ret regcomp failed"
 msgstr "sonda je v blacklistu pro návrat z funkcí"
 
-#: dwflpp.cxx:4385 dwflpp.cxx:4432
+#: dwflpp.cxx:4386 dwflpp.cxx:4433
 msgid "blacklist_file regcomp failed"
 msgstr "sonda je v blacklistu pro soubory"
 
-#: dwflpp.cxx:4387 dwflpp.cxx:4434
+#: dwflpp.cxx:4388 dwflpp.cxx:4435
 msgid "blacklist_section regcomp failed"
 msgstr "sonda je v blacklistu pro sekce"
 
-#: dwflpp.cxx:4618
+#: dwflpp.cxx:4619
 msgid "not found cfa"
 msgstr "adresa 'cfa' nenalezena"
 
-#: dwflpp.cxx:4625
+#: dwflpp.cxx:4626
 #, c-format
 msgid "found cfa, info: %d [start: %#<PRIx64>, end: %#<PRIx64>, nops: %zu"
 msgstr ""
 
-#: dwflpp.cxx:4722
+#: dwflpp.cxx:4723
 msgid "retrying variable location-list lookup at address pc+5\n"
 msgstr "hledám znovu na adrese pc+5 (viz cc -mfentry)\n"
 
-#: dwflpp.cxx:4838
+#: dwflpp.cxx:4839
 #, c-format
 msgid "CU '%s' in module '%s' has valid locs"
 msgstr ""
@@ -1187,518 +1187,518 @@ msgstr "Pokus o zápis do atributu histogramu, který je určen pouze ke čtení
 msgid "variable '%s' modified during 'foreach' iteration"
 msgstr ""
 
-#: elaborate.cxx:1220
+#: elaborate.cxx:1222
 #, c-format
 msgid "function call modifies var '%s' during 'foreach' iteration"
 msgstr ""
 
-#: elaborate.cxx:1308
+#: elaborate.cxx:1311
 #, c-format
 msgid "multiple histogram types declared on '%s'"
 msgstr ""
 
-#: elaborate.cxx:1337
+#: elaborate.cxx:1340
 #, c-format
 msgid "unable to infer statistic parameters for global '%s'"
 msgstr ""
 
-#: elaborate.cxx:1452
+#: elaborate.cxx:1455
 msgid "probe condition must not modify any variables"
 msgstr "podmínka sonda nesmí změnit hodnotu žádné proměnné"
 
-#: elaborate.cxx:1456
+#: elaborate.cxx:1459
 msgid "probe condition must not include impure embedded-C"
 msgstr "podmínka sondy nesmí obsahovat vložený C-kód, který není 'pure'"
 
-#: elaborate.cxx:1520
+#: elaborate.cxx:1523
 msgid "can't create cond initializer probe"
 msgstr "chyba při vytváření syntetické inicializační sondy"
 
-#: elaborate.cxx:1571
+#: elaborate.cxx:1574
 #, c-format
 msgid "Turning on task_finder vma_tracker, pragma:vma found in %s"
 msgstr ""
 
-#: elaborate.cxx:1576
+#: elaborate.cxx:1579
 msgid "VMA-tracking is only supported by the kernel runtime (PR15052)"
 msgstr ""
 "'VMA-tracking' je podporován jen při použití '--runtime=kernel' (PR15052)"
 
-#: elaborate.cxx:1585
+#: elaborate.cxx:1588
 #, c-format
 msgid "Turning on unwind support, pragma:unwind found in %s"
 msgstr ""
 
-#: elaborate.cxx:1594
+#: elaborate.cxx:1597
 #, c-format
 msgid "Turning on symbol data collecting, pragma:symbols found in %s"
 msgstr ""
 
-#: elaborate.cxx:1603
+#: elaborate.cxx:1607
 #, c-format
 msgid "Turning on debug line data collecting, pragma:lines found in %s"
 msgstr ""
 
-#: elaborate.cxx:1752
+#: elaborate.cxx:1757
 msgid "conflicting global variables"
 msgstr "konfliktní identifikátor globální proměnné"
 
-#: elaborate.cxx:1765
+#: elaborate.cxx:1770
 msgid "conflicting functions"
 msgstr "konfliktní identifikátor funkce"
 
-#: elaborate.cxx:1843
+#: elaborate.cxx:1848
 msgid ""
 "This global uses tapset constructs that are dependent on systemtap version"
 msgstr "Globální proměnná vázaná na tapset závislý na verzi systemtapu"
 
-#: elaborate.cxx:1848
+#: elaborate.cxx:1853
 msgid ""
 "This function uses tapset constructs that are dependent on systemtap version"
 msgstr "Funkce vázaná na tapset závislý na verzi systemtapu"
 
-#: elaborate.cxx:1856
+#: elaborate.cxx:1861
 msgid ""
 "This probe uses tapset constructs that are dependent on systemtap version"
 msgstr "Sonda vázaná na tapset závislý na verzi systemtapu"
 
-#: elaborate.cxx:1858
+#: elaborate.cxx:1863
 msgid ""
 "This alias uses tapset constructs that are dependent on systemtap version"
 msgstr "Přezdívka vázaná na tapset, který je závislý na verzi systemtapu"
 
-#: elaborate.cxx:1992
+#: elaborate.cxx:1997
 msgid "can't create global var display"
 msgstr "chyba při automatickém zobrazení nečtené globální proměnné"
 
-#: elaborate.cxx:2070
-msgid "can't create begin probe"
-msgstr "nemohu vytvořit 'begin' sondu"
-
-#: elaborate.cxx:2150 elaborate.cxx:2251
+#: elaborate.cxx:2082 elaborate.cxx:2197
 msgid "can't create procfs probe"
 msgstr "nemohu vytvořit 'procfs' sondu"
 
-#: elaborate.cxx:2304
+#: elaborate.cxx:2277
+msgid "can't create begin probe"
+msgstr "nemohu vytvořit 'begin' sondu"
+
+#: elaborate.cxx:2332
 msgid "no probes found"
 msgstr "nenalezeny žádné sondy"
 
-#: elaborate.cxx:2378 elaborate.cxx:2387 elaborate.cxx:2519
+#: elaborate.cxx:2406 elaborate.cxx:2415 elaborate.cxx:2547
 #, fuzzy, c-format
 msgid "unresolved arity-%zu global array %s, missing global declaration?"
 msgstr "lokální pole není podporováno, chybí klíčové slovo 'global'?"
 
-#: elaborate.cxx:2437
+#: elaborate.cxx:2465
 msgid "unresolved array in delete statement"
 msgstr "nerozpoznané pole v příkazu 'delete'"
 
-#: elaborate.cxx:2474
+#: elaborate.cxx:2502
 msgid "probe condition must not reference undeclared global"
 msgstr "podmíněná sonda nesmí být vázána na nedeklarovanou globální proměnnou"
 
-#: elaborate.cxx:2495
+#: elaborate.cxx:2523
 msgid "wildcard not allowed in array index"
 msgstr "zástupný znak nelze použít pro specifikaci indexu pole"
 
-#: elaborate.cxx:2547
+#: elaborate.cxx:2575
 msgid "probe condition must not reference function"
 msgstr "podmínka sondy nesmí být vázána na funkci"
 
-#: elaborate.cxx:2566 elaborate.cxx:2860 elaborate.cxx:2904 elaborate.cxx:2941
+#: elaborate.cxx:2596 elaborate.cxx:2920 elaborate.cxx:2966 elaborate.cxx:3005
 msgid " (similar: "
 msgstr " (podobné: "
 
-#: elaborate.cxx:2565
+#: elaborate.cxx:2595
 #, fuzzy, c-format
 msgid "unresolved function%s"
 msgstr "nepoužitá funkce: "
 
-#: elaborate.cxx:2624
+#: elaborate.cxx:2662
 #, c-format
 msgid "cross-file global variable reference to %s from"
 msgstr ""
 
-#: elaborate.cxx:2674 elaborate.cxx:2686 elaborate.cxx:2698 elaborate.cxx:2726
-#, c-format
-msgid "arity mismatch found (function '%s' takes %zu args)"
-msgstr ""
-
-#: elaborate.cxx:2715
+#: elaborate.cxx:2765
 #, c-format
 msgid "      function %s is defined from %s"
 msgstr ""
 
-#: elaborate.cxx:2778
+#: elaborate.cxx:2786
+#, c-format
+msgid "arity mismatch found (function '%s' takes %zu args)"
+msgstr ""
+
+#: elaborate.cxx:2835
 #, fuzzy, c-format
 msgid "Eliding unused function '%s'"
 msgstr "Zahazuji unární operátor bez vedlejších účinků"
 
-#: elaborate.cxx:2834 elaborate.cxx:2876 elaborate.cxx:2918
+#: elaborate.cxx:2892 elaborate.cxx:2936 elaborate.cxx:2980
 #, fuzzy, c-format
 msgid "Eliding unused variable '%s'"
 msgstr "Zahazuji unární operátor bez vedlejších účinků"
 
-#: elaborate.cxx:2858 elaborate.cxx:2902
+#: elaborate.cxx:2917 elaborate.cxx:2963
 #, c-format
 msgid "never-assigned local variable '%s'%s"
 msgstr ""
 
-#: elaborate.cxx:2939
+#: elaborate.cxx:3002
 #, fuzzy, c-format
 msgid "never-assigned global variable '%s'%s"
 msgstr "konfliktní identifikátor globální proměnné"
 
-#: elaborate.cxx:2999
+#: elaborate.cxx:3064
 msgid "Expecting lvalue expression, try -> instead"
 msgstr "Očekávána je l-hodnota. Zkuste použít '->' namísto '.'"
 
-#: elaborate.cxx:3001
+#: elaborate.cxx:3066
 msgid "Expecting lvalue expression"
 msgstr "Očekáván je výraz reprezentující l-hodnotu"
 
-#: elaborate.cxx:3056
+#: elaborate.cxx:3121
 #, c-format
 msgid "Eliding assignment to '%s'"
 msgstr ""
 
-#: elaborate.cxx:3078
+#: elaborate.cxx:3143
 #, fuzzy, c-format
 msgid "Eliding unused error string catcher %s at %s"
 msgstr "Zahazuji přetypování bez vedlejších účinků "
 
-#: elaborate.cxx:3143
+#: elaborate.cxx:3209
 msgid "Eliding side-effect-free null statement "
 msgstr "V rámci optimalizace zahazuji prázdný příkaz "
 
-#: elaborate.cxx:3163
+#: elaborate.cxx:3229
 msgid "Flattening nested block "
 msgstr "Narovnávám vnořený blok bez vedlejších účinků "
 
-#: elaborate.cxx:3175
+#: elaborate.cxx:3241
 msgid "Eliding side-effect-free empty block "
 msgstr "Zahazuji vnořený blok bez vedlejších účinků "
 
-#: elaborate.cxx:3181
+#: elaborate.cxx:3247
 msgid "Eliding side-effect-free singleton block "
 msgstr "Zahazuji 'singleton' blok bez vedlejších účinků "
 
-#: elaborate.cxx:3199
+#: elaborate.cxx:3265
 msgid "Eliding empty try {} block "
 msgstr "Zahazuji prázdný 'try {}' blok "
 
-#: elaborate.cxx:3223
+#: elaborate.cxx:3289
 msgid "Eliding side-effect-free if statement "
 msgstr "Zahazuji 'if' příkaz bez vedlejších účinků "
 
-#: elaborate.cxx:3231
+#: elaborate.cxx:3297
 msgid "Creating simple evaluation from if statement "
 msgstr "Transformuji příkaz 'if' na jednoduché vyhodnocení "
 
-#: elaborate.cxx:3245
+#: elaborate.cxx:3311
 msgid "Inverting the condition of if statement "
 msgstr "Obracím logiku příkazu 'if'"
 
-#: elaborate.cxx:3269
+#: elaborate.cxx:3335
 msgid "Eliding side-effect-free foreach statement "
 msgstr "Zahazuji příkaz 'foreach' bez vedlejších účinků "
 
-#: elaborate.cxx:3291
+#: elaborate.cxx:3357
 msgid "Eliding side-effect-free for statement "
 msgstr "Zahazuji příkaz 'for' bez vedlejších účinků "
 
-#: elaborate.cxx:3369
+#: elaborate.cxx:3435
 #, fuzzy, c-format
 msgid "side-effect-free probe '%s'"
 msgstr "Zahazuji vnořený blok bez vedlejších účinků "
 
-#: elaborate.cxx:3393
+#: elaborate.cxx:3459
 #, fuzzy, c-format
 msgid "side-effect-free function '%s'"
 msgstr "Zahazuji volání funkce bez vedlejších účinků "
 
-#: elaborate.cxx:3520
+#: elaborate.cxx:3587
 msgid "Creating if statement from unused logical-or "
 msgstr "Transformuji '||' na 'if' "
 
-#: elaborate.cxx:3551
+#: elaborate.cxx:3618
 msgid "Creating if statement from unused logical-and "
 msgstr "Transformuji '&&' na 'if' "
 
-#: elaborate.cxx:3577
+#: elaborate.cxx:3644
 msgid "Creating if statement from unused ternary expression "
 msgstr "Transformuji ternární operátor na 'if' "
 
-#: elaborate.cxx:3607
+#: elaborate.cxx:3674
 msgid "Eliding unused binary "
 msgstr "Zahazuji binární operátor bez vedlejších účinků "
 
-#: elaborate.cxx:3635
+#: elaborate.cxx:3702
 msgid "Eliding unused unary "
 msgstr "Zahazuji unární operátor bez vedlejších účinků"
 
-#: elaborate.cxx:3657
+#: elaborate.cxx:3724
 msgid "Eliding regex query "
 msgstr "Zahazuji regulární výraz bez vedlejších účinků "
 
-#: elaborate.cxx:3698
+#: elaborate.cxx:3775
 msgid "Eliding side-effect-free function call "
 msgstr "Zahazuji volání funkce bez vedlejších účinků "
 
-#: elaborate.cxx:3730
+#: elaborate.cxx:3807
 msgid "Eliding unused print "
 msgstr "Zahazuji příkaz 'print' bez vedlejších účinků "
 
-#: elaborate.cxx:3788 elaborate.cxx:3796
+#: elaborate.cxx:3865 elaborate.cxx:3873
 msgid "Eliding unused target symbol "
 msgstr "Zahazuji 'l-hodnotu' bez vedlejších účinků "
 
-#: elaborate.cxx:3804
+#: elaborate.cxx:3881
 msgid "Eliding unused typecast "
 msgstr "Zahazuji přetypování bez vedlejších účinků "
 
-#: elaborate.cxx:3812
+#: elaborate.cxx:3889
 msgid "Eliding unused autocast "
 msgstr "Zahazuji automatické přetypování bez vedlejších účinků "
 
-#: elaborate.cxx:3825
+#: elaborate.cxx:3902
 msgid "Eliding unused check "
 msgstr "Zahazuji nepotřebné makro '@defined' bez vedlejších účinků "
 
-#: elaborate.cxx:3935
+#: elaborate.cxx:4012
 #, fuzzy, c-format
 msgid "Collapsing constant-%<PRIi64> if-statement %s"
 msgstr "Zjednodušuji zřetězení "
 
-#: elaborate.cxx:3961
+#: elaborate.cxx:4038
 msgid "Collapsing constantly-false for-loop "
 msgstr "Zahazuji 'for' cyklus, který se nikdy neprovede "
 
-#: elaborate.cxx:3987
+#: elaborate.cxx:4064
 msgid "Collapsing constantly-limited foreach-loop "
 msgstr "Zahazuji 'foreach' cyklus, který se nikdy neprovede "
 
-#: elaborate.cxx:4034
+#: elaborate.cxx:4111
 msgid "unsupported binary operator "
 msgstr "nepodporovaný binarní operátor "
 
-#: elaborate.cxx:4087
+#: elaborate.cxx:4164
 msgid "Collapsing constant-identity binary operator "
 msgstr "Zjednodušuji binární operaci "
 
-#: elaborate.cxx:4115
+#: elaborate.cxx:4192
 #, fuzzy, c-format
 msgid "Collapsing constant-%<PRIi64> binary operator %s"
 msgstr "Zjednodušuji binární operaci "
 
-#: elaborate.cxx:4133
+#: elaborate.cxx:4210
 msgid "Collapsing constant unary "
 msgstr "Zjednodušuji unární operaci "
 
-#: elaborate.cxx:4147
+#: elaborate.cxx:4224
 msgid "unsupported unary operator "
 msgstr "nepodporovaný unární operátor "
 
-#: elaborate.cxx:4191
+#: elaborate.cxx:4268
 msgid "Collapsing constant logical-OR "
 msgstr "Zjednodušuji operaci '||' s konstantní výslednou hodnotou "
 
-#: elaborate.cxx:4238
+#: elaborate.cxx:4315
 msgid "Collapsing constant logical-AND "
 msgstr "Zjednodušuji operaci '&&' s konstantní výslednou hodnotou "
 
-#: elaborate.cxx:4281
+#: elaborate.cxx:4358
 msgid "Collapsing constant-boundary comparison "
 msgstr "Zjednodušuji nerovnost s konstantní výslednou hodnotou "
 
-#: elaborate.cxx:4299
+#: elaborate.cxx:4376
 msgid "Collapsing constant comparison "
 msgstr "Zjednodušuji rovnost s konstantní výslednou hodnotou "
 
-#: elaborate.cxx:4316
+#: elaborate.cxx:4393
 msgid "unsupported comparison operator "
 msgstr "nepodporovaný operátor porovnání "
 
-#: elaborate.cxx:4332
+#: elaborate.cxx:4409
 msgid "Collapsing constant concatenation "
 msgstr "Zjednodušuji zřetězení "
 
-#: elaborate.cxx:4344
+#: elaborate.cxx:4421
 msgid "Collapsing identity concatenation "
 msgstr "Zjednodušuji zřetězení s prázdným řetězcem "
 
-#: elaborate.cxx:4365
+#: elaborate.cxx:4442
 #, fuzzy, c-format
 msgid "Collapsing constant-%<PRIi64> ternary %s"
 msgstr "Zjednodušuji unární operaci "
 
-#: elaborate.cxx:4380
+#: elaborate.cxx:4457
 msgid "Collapsing untouched @defined check "
 msgstr "Zahazuji kontrolu '@defined' bez vedlejších účinků "
 
-#: elaborate.cxx:4399
+#: elaborate.cxx:4476
 msgid "Bad $context variable being substituted with literal 0"
 msgstr "Na žádost uživatele (--skip-badvars) nahrazuji $context nulou"
 
-#: elaborate.cxx:4464
+#: elaborate.cxx:4541
 msgid "statement will never be reached"
 msgstr "nedosažitelný kód"
 
-#: elaborate.cxx:4511
+#: elaborate.cxx:4591
 #, fuzzy, c-format
 msgid "Changing %s reference to %s reference\n"
 msgstr "nelze zapisovat na adresu reference"
 
-#: elaborate.cxx:4602
+#: elaborate.cxx:4683
 msgid "stable function must also be /* pure */"
 msgstr "'stable' funkce musí též být '/* pure */'"
 
-#: elaborate.cxx:5096
+#: elaborate.cxx:5177
 #, c-format
 msgid "resolved function '%s' conflicts with an existing function"
 msgstr ""
 
-#: elaborate.cxx:5274
+#: elaborate.cxx:5355
 #, fuzzy, c-format
 msgid "while processing function %s"
 msgstr "konfliktní identifikátor funkce"
 
-#: elaborate.cxx:5310
+#: elaborate.cxx:5391
 #, fuzzy, c-format
 msgid "while processing probe %s"
 msgstr "během registrace přezdívky"
 
-#: elaborate.cxx:5321
+#: elaborate.cxx:5402
 msgid "wrapping not supported for scalars"
 msgstr "'wrapping' pro skalární proměnné není podporován"
 
-#: elaborate.cxx:5575
+#: elaborate.cxx:5656
 msgid "unsupported assignment operator "
 msgstr "nepodporovaná operace přiřazení "
 
-#: elaborate.cxx:5743
+#: elaborate.cxx:5824
 #, fuzzy, c-format
 msgid "internal error: unresolved symbol '%s'"
 msgstr "nerozpoznaný symbol: "
 
-#: elaborate.cxx:5777 elaborate.cxx:5813
+#: elaborate.cxx:5858 elaborate.cxx:5894
 msgid "Resolution problem with "
 msgstr "Chyba zpracování symbolu "
 
 #. TRANSLATORS: simply saying not an issue with a probe or function
-#: elaborate.cxx:5792 elaborate.cxx:5828
+#: elaborate.cxx:5873 elaborate.cxx:5909
 msgid "other"
 msgstr "jiný"
 
-#: elaborate.cxx:5798
+#: elaborate.cxx:5879
 msgid "unresolved target-symbol expression"
 msgstr "chyba zpracování výrazu"
 
-#: elaborate.cxx:5834
+#: elaborate.cxx:5915
 msgid "unresolved @var() expression"
 msgstr "chyba zpracování výrazu '@var()'"
 
-#: elaborate.cxx:5841
+#: elaborate.cxx:5922
 msgid "unexpected @defined"
 msgstr "neočekávaný výskyt '@defined'"
 
-#: elaborate.cxx:5848
+#: elaborate.cxx:5929
 msgid "@entry is only valid in .return probes"
 msgstr "'@entry' lze použít jen v '.return' sondách"
 
-#: elaborate.cxx:5860
+#: elaborate.cxx:5941
 #, c-format
 msgid "type definition '%s' not found in '%s'"
 msgstr ""
 
-#: elaborate.cxx:5874
+#: elaborate.cxx:5955
 msgid "unknown type in dereference"
 msgstr "dereference na neznámý typ"
 
-#: elaborate.cxx:5979
+#: elaborate.cxx:6060
 #, c-format
 msgid "internal error: unresolved function call to '%s'"
 msgstr ""
 
-#: elaborate.cxx:6062
+#: elaborate.cxx:6149
 msgid "Activating uprobes support because /* pragma:uprobes */ seen."
 msgstr "Aktivuji podporu 'uprobes' neboť je přítmna '/* pragma:uprobes */'"
 
-#: elaborate.cxx:6076
+#: elaborate.cxx:6163
 msgid "Tagged DFA support is not yet available"
 msgstr "Podpora '/* pragma:tagged_dfa */' ještě není implementována"
 
-#: elaborate.cxx:6247 translate.cxx:4300
+#: elaborate.cxx:6334 translate.cxx:4313
 msgid "invalid operand of delete expression"
 msgstr "neznámý operand příkazu 'delete'"
 
-#: elaborate.cxx:6375
+#: elaborate.cxx:6462
 msgid "Unspecified conversion in print operator format string"
 msgstr "Nespecifikovaná konverze ve formátovacím řetězci"
 
-#: elaborate.cxx:6391
+#: elaborate.cxx:6478
 msgid "Wrong number of args to formatted print operator"
 msgstr "Chybný počet argumentů ve formátovacím řetězci"
 
-#: elaborate.cxx:6524
+#: elaborate.cxx:6611
 msgid "array locals not supported, missing global declaration? "
 msgstr "proměnné typu pole musí být 'global'"
 
-#: elaborate.cxx:6534
+#: elaborate.cxx:6621
 msgid "stat locals not supported, missing global declaration? "
 msgstr "statistické proměnné musí být 'global'"
 
-#: elaborate.cxx:6549
+#: elaborate.cxx:6636
 msgid "unresolved type "
 msgstr "chyba určení datového typu "
 
-#: elaborate.cxx:6564
+#: elaborate.cxx:6651
 msgid "invalid operator"
 msgstr "neznámý operátor"
 
-#: elaborate.cxx:6566
+#: elaborate.cxx:6653
 msgid "invalid type "
 msgstr "chybný datový typ "
 
-#: elaborate.cxx:6579
+#: elaborate.cxx:6666
 #, c-format
 msgid "type mismatch: left and right sides don't agree (%s vs %s)"
 msgstr ""
 
-#: elaborate.cxx:6599
+#: elaborate.cxx:6686
 #, fuzzy, c-format
 msgid "type mismatch: expected %s"
 msgstr "chybný datový typ"
 
-#: elaborate.cxx:6601
+#: elaborate.cxx:6688
 #, fuzzy, c-format
 msgid " but found %s"
 msgstr " nalezen "
 
-#: elaborate.cxx:6650
+#: elaborate.cxx:6737
 #, c-format
 msgid "type mismatch: expected %s but found %s"
 msgstr ""
 
-#: elaborate.cxx:6662
+#: elaborate.cxx:6749
 #, c-format
 msgid "index %d "
 msgstr ""
 
-#: elaborate.cxx:6663
+#: elaborate.cxx:6750
 #, fuzzy, c-format
 msgid "type mismatch (%s)"
 msgstr "chybný datový typ"
 
-#: elaborate.cxx:6667
+#: elaborate.cxx:6754
 msgid "type"
 msgstr "typ"
 
-#: elaborate.cxx:6669
+#: elaborate.cxx:6756
 #, c-format
 msgid " of index %d"
 msgstr ""
 
-#: elaborate.cxx:6670
+#: elaborate.cxx:6757
 #, c-format
 msgid " was first inferred here (%s)"
 msgstr ""
@@ -1707,118 +1707,210 @@ msgstr ""
 msgid "result:"
 msgstr "výsledek:"
 
-#: main.cxx:177
+#: interactive.cxx:98
+#, c-format
+msgid "(%s or %s) [answered %c; input not from terminal]\n"
+msgstr ""
+
+#: interactive.cxx:107
+#, c-format
+msgid "%s(%s or %s) "
+msgstr ""
+
+#: interactive.cxx:111
+#, c-format
+msgid "EOF [assumed %c]\n"
+msgstr ""
+
+#: interactive.cxx:136
+#, c-format
+msgid "Please answer %s or %s.\n"
+msgstr ""
+
+#: interactive.cxx:577
+#, fuzzy
+msgid "Invalid starting script line range value."
+msgstr "Neplatný 'monitor' interval."
+
+#: interactive.cxx:585
+#, c-format
+msgid "No line %ld present in script."
+msgstr ""
+
+#: interactive.cxx:597
+#, fuzzy
+msgid "Invalid ending script line range value."
+msgstr "Neplatný 'monitor' interval."
+
+#: interactive.cxx:604
+#, c-format
+msgid "No line %lu present in script."
+msgstr ""
+
+#: interactive.cxx:610
+msgid ""
+"Invalid script line range value - starting line is greater than ending line."
+msgstr ""
+
+#: interactive.cxx:655
+#, c-format
+msgid "File '%s' couldn't be opened for reading."
+msgstr ""
+
+#: interactive.cxx:694
+#, c-format
+msgid "File '%s' couldn't be opened for writing."
+msgstr ""
+
+#: interactive.cxx:776
+#, c-format
+msgid "Temporary file '%s' couldn't be opened: %s"
+msgstr ""
+
+#: interactive.cxx:788
+#, c-format
+msgid "Writing to temporary file '%s' failed: %s"
+msgstr ""
+
+#: interactive.cxx:812
+#, c-format
+msgid "Rewinding the temporary file fd failed: %s"
+msgstr ""
+
+#: interactive.cxx:828
+#, c-format
+msgid "Converting the file descriptor to a stream failed: %s"
+msgstr ""
+
+#: interactive.cxx:1061 interactive.cxx:1095
+#, fuzzy
+msgid "You can't specify a target pid and a cmd together."
+msgstr "Přepínače '-A' a '-L' se vzájemně vylučují.\n"
+
+#: interactive.cxx:1069 session.cxx:927
+msgid "Invalid target process ID number."
+msgstr "Parametrem přepínače -x musí být platné ID procesu."
+
+#: interactive.cxx:1566
+msgid "Script analysis:"
+msgstr ""
+
+#: interactive.cxx:1747
+msgid "Quit? "
+msgstr ""
+
+#: main.cxx:180
 msgid "# global embedded code"
 msgstr "# globální vložený kód"
 
-#: main.cxx:187
+#: main.cxx:190
 msgid "# globals"
 msgstr "# globální proměnné"
 
-#: main.cxx:202
+#: main.cxx:205
 msgid "# functions"
 msgstr "# funkce"
 
-#: main.cxx:210 main.cxx:234
+#: main.cxx:213 main.cxx:237
 msgid "  # locals"
 msgstr "# lokální proměnné"
 
-#: main.cxx:226
+#: main.cxx:229
 msgid "# probes"
 msgstr "# sondy"
 
-#: main.cxx:322
+#: main.cxx:325
 #, c-format
 msgid "Beginning SDT benchmark with %lu loops in %lu threads."
 msgstr ""
 
-#: main.cxx:344
+#: main.cxx:347
 #, c-format
 msgid "Completed SDT benchmark in %ldusr/%ldsys/%ldreal ms."
 msgstr ""
 
-#: main.cxx:365
+#: main.cxx:368
 msgid "ERROR: kernel release isn't specified"
 msgstr "CHYBA: 'release' kernelu není specifikován"
 
-#: main.cxx:367
+#: main.cxx:370
 #, fuzzy, c-format
 msgid "ERROR: kernel release isn't found in \"%s\""
 msgstr "CHYBA: 'release' kernelu není specifikován"
 
-#: main.cxx:379
+#: main.cxx:382
 msgid ""
 "Without NSS, using a compile-server is not supported by this version of "
 "systemtap"
 msgstr "Tato verze systemtapu nepodporuje kompilační server bez NSS."
 
-#: main.cxx:385
+#: main.cxx:388
 msgid "Ignoring --use-server"
 msgstr "Ignoruji --use-server"
 
-#: main.cxx:533
+#: main.cxx:538
 #, c-format
 msgid ""
 "usage error: macro tapset file '%s' cannot be run directly as a session "
 "script."
 msgstr ""
 
-#: main.cxx:545 main.cxx:633
+#: main.cxx:551 main.cxx:642
 #, c-format
 msgid "Skipping tapset \"%s\", duplicate inode."
 msgstr ""
 
-#: main.cxx:558 main.cxx:646
+#: main.cxx:566 main.cxx:657
 #, c-format
 msgid "Skipping tapset \"%s\", duplicate name."
 msgstr ""
 
-#: main.cxx:565 main.cxx:653
+#: main.cxx:573 main.cxx:664
 #, c-format
 msgid "Processing tapset \"%s\""
 msgstr ""
 
-#: main.cxx:569
+#: main.cxx:577
 #, c-format
 msgid "macro tapset \"%s\" has errors, and will be skipped."
 msgstr ""
 
 #. TRANSLATORS: Searching through directories, 'processed' means 'examined so far'
-#: main.cxx:577
+#: main.cxx:585
 #, c-format
 msgid "Searched for library macro files: \"%s\", found: %zu, processed: %u"
 msgstr ""
 
-#: main.cxx:621
+#: main.cxx:629
 #, c-format
 msgid ""
 "usage error: tapset file '%s' cannot be run directly as a session script."
 msgstr ""
 
-#: main.cxx:662
+#: main.cxx:676
 #, c-format
 msgid "tapset \"%s\" has errors, and will be skipped"
 msgstr ""
 
 #. TRANSLATORS: Searching through directories, 'processed' means 'examined so far'
-#: main.cxx:670
+#: main.cxx:684
 #, c-format
 msgid "Searched: \"%s\", found: %zu, processed: %u"
 msgstr ""
 
-#: main.cxx:765
+#: main.cxx:786
 msgid "# parse tree dump"
 msgstr "# Výpis derivačního stromu (parse tree)"
 
-#: main.cxx:783
+#: main.cxx:804
 msgid "in "
 msgstr "v čase "
 
-#: main.cxx:796
+#: main.cxx:817
 msgid "Pass 1: parsed user script and "
 msgstr "Fáze 1: zpracován uživatelský skript a "
 
-#: main.cxx:797
+#: main.cxx:818
 #, c-format
 msgid "%d library script "
 msgid_plural "%d library scripts "
@@ -1826,15 +1918,15 @@ msgstr[0] "%d tapset skript "
 msgstr[1] "%d tapset skripty "
 msgstr[2] "%d tapset skriptů "
 
-#: main.cxx:804
+#: main.cxx:825
 msgid "Pass 1: parse failed.  [man error::pass1]"
 msgstr "Fáze 1: chyba parsování. [man error::pass1]"
 
-#: main.cxx:856
+#: main.cxx:877
 msgid "Pass 2: analyzed script: "
 msgstr "Fáze 2: skript analyzován: "
 
-#: main.cxx:857
+#: main.cxx:878
 #, c-format
 msgid "%d probe, "
 msgid_plural "%d probes, "
@@ -1842,7 +1934,7 @@ msgstr[0] "%d sonda, "
 msgstr[1] "%d sondy, "
 msgstr[2] "%d sond, "
 
-#: main.cxx:858
+#: main.cxx:879
 #, c-format
 msgid "%d function, "
 msgid_plural "%d functions, "
@@ -1850,7 +1942,7 @@ msgstr[0] "%d funkce, "
 msgstr[1] "%d funkce, "
 msgstr[2] "%d funkcí, "
 
-#: main.cxx:859
+#: main.cxx:880
 #, c-format
 msgid "%d embed, "
 msgid_plural "%d embeds, "
@@ -1858,7 +1950,7 @@ msgstr[0] "%d blok vloženého kódu, "
 msgstr[1] "%d bloky vloženého kódu, "
 msgstr[2] "%d bloků vloženého kódu, "
 
-#: main.cxx:860
+#: main.cxx:881
 #, c-format
 msgid "%d global "
 msgid_plural "%d globals "
@@ -1866,67 +1958,67 @@ msgstr[0] "%d globální proměnná, "
 msgstr[1] "%d globální proměnné, "
 msgstr[2] "%d globálních proměnných, "
 
-#: main.cxx:867
+#: main.cxx:890
 msgid "Pass 2: analysis failed.  [man error::pass2]"
 msgstr "Fáze 2: chyba analýzy. [man error::pass2]"
 
-#: main.cxx:934
+#: main.cxx:957
 msgid "Pass 3: translated to C into \""
 msgstr "Fáze 3: přeloženo do C jako \""
 
-#: main.cxx:942
+#: main.cxx:965
 msgid "Pass 3: translation failed.  [man error::pass3]"
 msgstr "Fáze 3: chyba překladu. [man error::pass3]"
 
-#: main.cxx:970
+#: main.cxx:993
 msgid "Pass 4: compiled C into \""
 msgstr "Fáze 4: C kód přeložen: \""
 
-#: main.cxx:977
+#: main.cxx:1000
 msgid "Pass 4: compilation failed.  [man error::pass4]"
 msgstr "Fáze 4: chyba kompilace. [man error::pass4]"
 
-#: main.cxx:1027
+#: main.cxx:1050
 msgid "Pass 5: starting run."
 msgstr "Fáze 5: startuji běh."
 
-#: main.cxx:1034
+#: main.cxx:1057
 msgid "Pass 5: run completed "
 msgstr "Fáze 5: běh dokončen "
 
-#: main.cxx:1039
+#: main.cxx:1062
 msgid "Pass 5: run failed.  [man error::pass5]"
 msgstr "Fáze 5: chyba při startu modulu. [man error::pass5]"
 
-#: main.cxx:1064
+#: main.cxx:1087
 msgid "Coverage database not available without libsqlite3"
 msgstr "Databáze pokrytí nedostupná bez libsqlite3"
 
-#: main.cxx:1087
+#: main.cxx:1110
 msgid "Attempting compilation using a compile server"
 msgstr "Pokus o kompilaci s využitím kompilačního serveru"
 
-#: main.cxx:1130
+#: main.cxx:1155
 #, fuzzy, c-format
 msgid "Error processing extra options in %s"
 msgstr "Chyba při zpracování klientského požadavku"
 
-#: main.cxx:1146
+#: main.cxx:1174
 #, c-format
 msgid "Extra options in %s: %d\n"
 msgstr ""
 
-#: main.cxx:1162
+#: main.cxx:1190
 #, fuzzy, c-format
 msgid "Created temporary directory \"%s\""
 msgstr "CHYBA: nemohu vytvořit dočasný adresář (\""
 
-#: main.cxx:1196
+#: main.cxx:1234
 #, c-format
 msgid "Session arch: %s release: %s"
 msgstr ""
 
-#: main.cxx:1254
+#: main.cxx:1297
 msgid "ERROR: caught unknown exception!"
 msgstr "CHYBA: zachycena neznámá výjimka!"
 
@@ -2318,65 +2410,65 @@ msgstr "vstupní soubor %s nelze otevřít\n"
 msgid "Could not hexify SHA1 fingerprint from file %s"
 msgstr "vstupní soubor %s nenalezen\n"
 
-#: parse.cxx:247 parse.cxx:264
+#: parse.cxx:248 parse.cxx:265
 #, c-format
 msgid "Input file '%s' can't be opened for reading."
 msgstr ""
 
-#: parse.cxx:248 parse.cxx:265
+#: parse.cxx:249 parse.cxx:266
 #, c-format
 msgid "Input file '%s' is missing."
 msgstr ""
 
-#: parse.cxx:370 parse.cxx:843
+#: parse.cxx:372 parse.cxx:846
 msgid "expected comparison operator"
 msgstr "očekáván operátor porovnání"
 
-#: parse.cxx:458
+#: parse.cxx:460
 msgid "'@define' forbidden inside macro body"
 msgstr "použití '@define' v těle makra je zakázáno"
 
-#: parse.cxx:465 parse.cxx:509 parse.cxx:2123 parse.cxx:2211 parse.cxx:2247
-#: parse.cxx:2335 parse.cxx:2384 parse.cxx:3020
+#: parse.cxx:467 parse.cxx:511 parse.cxx:2126 parse.cxx:2214 parse.cxx:2250
+#: parse.cxx:2338 parse.cxx:2380 parse.cxx:3032
 msgid "expected identifier"
 msgstr "očekáván identifikátor"
 
-#: parse.cxx:471
+#: parse.cxx:473
 #, fuzzy, c-format
 msgid "attempt to redefine macro '@%s' in the same file"
 msgstr "pokus o předefinování '@define'"
 
-#: parse.cxx:475 parse.cxx:752
+#: parse.cxx:477 parse.cxx:755
 #, c-format
 msgid "macro '@%s' first defined here"
 msgstr ""
 
-#: parse.cxx:490
+#: parse.cxx:492
 msgid "attempt to redefine '@define'"
 msgstr "pokus o předefinování '@define'"
 
-#: parse.cxx:492
+#: parse.cxx:494
 #, c-format
 msgid "macro redefines built-in operator '@%s'"
 msgstr ""
 
-#: parse.cxx:526 parse.cxx:2415 parse.cxx:3898
+#: parse.cxx:528 parse.cxx:2411 parse.cxx:3910
 msgid "expected ',' or ')'"
 msgstr "očekávám ',' nebo ')'"
 
-#: parse.cxx:536
+#: parse.cxx:538
 msgid "expected '%('"
 msgstr "očekávám '%('"
 
-#: parse.cxx:538
+#: parse.cxx:540
 msgid "expected '%(' or '('"
 msgstr "očekávám '%(' nebo '('"
 
-#: parse.cxx:544
+#: parse.cxx:546
 msgid "incomplete macro definition - missing '%)'"
 msgstr "nekompletní definice makra - chybí '%)'"
 
-#: parse.cxx:598
+#: parse.cxx:600
 #, fuzzy, c-format
 msgid "expected '(' in invocation of macro '@%s' taking %d parameter"
 msgid_plural "expected '(' in invocation of macro '@%s' taking %d parameters"
@@ -2384,68 +2476,68 @@ msgstr[0] "očekávám ',' nebo ')' za parametrem makra"
 msgstr[1] "očekávám ',' nebo ')' za parametrem makra"
 msgstr[2] "očekávám ',' nebo ')' za parametrem makra"
 
-#: parse.cxx:629
+#: parse.cxx:631
 msgid "could not find end of macro invocation"
 msgstr "nemohu najít konec volání makra"
 
-#: parse.cxx:636
+#: parse.cxx:638
 #, c-format
 msgid "too many parameters for macro '@%s' (expected %d)"
 msgstr ""
 
-#: parse.cxx:644
+#: parse.cxx:646
 #, c-format
 msgid "too few parameters for macro '@%s' (expected %d)"
 msgstr ""
 
-#: parse.cxx:651
+#: parse.cxx:653
 msgid "expected ',' or ')' after macro parameter"
 msgstr "očekávám ',' nebo ')' za parametrem makra"
 
-#: parse.cxx:739
+#: parse.cxx:742
 #, c-format
 msgid "unexpected token in library macro file '%s'"
 msgstr ""
 
-#: parse.cxx:751
+#: parse.cxx:754
 #, c-format
 msgid "duplicate definition of library macro '@%s'"
 msgstr ""
 
-#: parse.cxx:813 parse.cxx:874 parse.cxx:908 parse.cxx:928
+#: parse.cxx:816 parse.cxx:877 parse.cxx:911 parse.cxx:931
 msgid "expected string literal"
 msgstr "očekávám řetězcový literál"
 
-#: parse.cxx:846
+#: parse.cxx:849
 msgid "wildcard not allowed with order comparison operators"
 msgstr "použití zástupných symbolů při porovnávání není dovoleno"
 
-#: parse.cxx:885 parse.cxx:900 parse.cxx:921 parse.cxx:945 parse.cxx:964
+#: parse.cxx:888 parse.cxx:903 parse.cxx:924 parse.cxx:948 parse.cxx:967
 msgid "expected '==' or '!='"
 msgstr "očekávám '==' nebo '!='"
 
-#: parse.cxx:893 parse.cxx:1296 stapregex-parse.cxx:606
+#: parse.cxx:896 parse.cxx:1299 stapregex-parse.cxx:606
 msgid "expected number"
 msgstr "očekávám číslo"
 
-#: parse.cxx:897
+#: parse.cxx:900
 msgid "expected 0 or 1"
 msgstr "očekávám 0 nebo 1"
 
-#: parse.cxx:1006
+#: parse.cxx:1009
 msgid ""
 "expected string, number literal or other CONFIG_... as right side operand"
 msgstr "očekávám řetězec, číselný literál, nebo CONFIG_... jako pravý operand"
 
-#: parse.cxx:1024
+#: parse.cxx:1027
 msgid "expected string literal as right value"
 msgstr "očekávám řetězcový literál jako pravou hodnotu"
 
-#: parse.cxx:1027
+#: parse.cxx:1030
 msgid "expected number literal as right value"
 msgstr "očekávám číselný literál jako pravou hodnotu"
 
-#: parse.cxx:1030
+#: parse.cxx:1033
 msgid ""
 "expected 'arch', 'kernel_v', 'kernel_vr', 'systemtap_v',\n"
 "             'runtime', 'systemtap_privilege', 'CONFIG_...', or\n"
@@ -2456,93 +2548,93 @@ msgstr ""
 "             porovnání mezi řetězci či celými čísly"
 
 #. TRANSLATORS: 'conditional' meaning 'conditional preprocessing'
-#: parse.cxx:1059
+#: parse.cxx:1062
 msgid "incomplete conditional at end of file"
 msgstr "nekompletní podmínka na konci souboru"
 
-#: parse.cxx:1066 parse.cxx:1072 parse.cxx:1088
+#: parse.cxx:1069 parse.cxx:1075 parse.cxx:1091
 msgid "incomplete conditional - missing '%('"
 msgstr "nekompletní podmínka - chybí '%('"
 
-#: parse.cxx:1074
+#: parse.cxx:1077
 msgid "invalid conditional - duplicate '%:'"
 msgstr "nekompletní podmínka - nadbytečné '%:'"
 
-#: parse.cxx:1109
+#: parse.cxx:1112
 msgid "incomplete condition after '%('"
 msgstr "nekompletní podmínka po '%('"
 
-#: parse.cxx:1141
+#: parse.cxx:1144
 msgid "expected '%?' marker for conditional"
 msgstr "očekávám značku '%?'"
 
-#: parse.cxx:1191
+#: parse.cxx:1194
 msgid "unexpected end-of-file"
 msgstr "neočekávaný konec souboru"
 
-#: parse.cxx:1235 parse.cxx:1280
+#: parse.cxx:1238 parse.cxx:1283
 #, fuzzy, c-format
 msgid "expected '%s'"
 msgstr "očekávám '%('"
 
-#: parse.cxx:1245
+#: parse.cxx:1248
 msgid "expected "
 msgstr "očekávám "
 
-#: parse.cxx:1256
+#: parse.cxx:1259
 #, fuzzy, c-format
 msgid "expected %s or %s"
 msgstr "očekávám 0 nebo 1"
 
-#: parse.cxx:1312 parse.cxx:2710
+#: parse.cxx:1315 parse.cxx:2724
 msgid "number invalid or out of range"
 msgstr "chybný zápis čísla, nebo číslo mimo rozsah"
 
-#: parse.cxx:1331
+#: parse.cxx:1334
 #, fuzzy, c-format
 msgid "expected %s or statistical operation"
 msgstr "očekávám statistickou operaci"
 
-#: parse.cxx:1749
+#: parse.cxx:1752
 msgid "possible erroneous closing '}%', use '%}'?"
 msgstr "neočekávaná značka '}%', možná záměna s '%}'?"
 
-#: parse.cxx:1839
+#: parse.cxx:1842
 msgid "invalid nested substitution of command line arguments"
 msgstr "chybná vnořená substituce parametrů příkazové řádky"
 
-#: parse.cxx:1842
+#: parse.cxx:1845
 #, c-format
 msgid "command line argument out of range [1-%lu]"
 msgstr ""
 
-#: parse.cxx:1846
+#: parse.cxx:1849
 msgid "Could not find matching closing quote"
 msgstr "Nevidím uzavírací uvozovky"
 
-#: parse.cxx:1849
+#: parse.cxx:1852
 msgid "Could not find matching '%}' to close embedded function block"
 msgstr "Nevidím uzavírací '%}' pro uzavření bloku vložené funkce"
 
-#: parse.cxx:1852
+#: parse.cxx:1855
 msgid "unknown junk token"
 msgstr "neznámý symbol"
 
-#: parse.cxx:1904
+#: parse.cxx:1907
 msgid "expected 'probe', 'global', 'private', 'function', or '%{'"
 msgstr "očekávám 'probe', 'global', 'private', 'function', nebo '%{'"
 
-#: parse.cxx:1941
+#: parse.cxx:1944
 #, c-format
 msgid "Input file '%s' is empty after preprocessing."
 msgstr ""
 
-#: parse.cxx:1942
+#: parse.cxx:1945
 #, c-format
 msgid "Input file '%s' is empty."
 msgstr ""
 
-#: parse.cxx:1949
+#: parse.cxx:1952
 #, fuzzy, c-format
 msgid "%d parse error."
 msgid_plural "%d parse errors."
@@ -2550,243 +2642,235 @@ msgstr[0] "chyba při syntaktické analýze:"
 msgstr[1] "chyba při syntaktické analýze:"
 msgstr[2] "chyba při syntaktické analýze:"
 
-#: parse.cxx:1974
+#: parse.cxx:1977
 msgid "expected a single synthetic probe"
 msgstr "očekávám jedinou syntetickou sondu"
 
-#: parse.cxx:1996
+#: parse.cxx:1999
 msgid "expected 'probe'"
 msgstr "očekávám 'probe'"
 
-#: parse.cxx:2012 parse.cxx:2021
+#: parse.cxx:2015 parse.cxx:2024
 msgid "probe point alias name cannot be optional nor sufficient"
 msgstr ""
 "přezdívka (probe alias) nemůže být 'optional' ('?') ani 'sufficient' ('!')"
 
-#: parse.cxx:2033
+#: parse.cxx:2036
 msgid "expected probe point specifier"
 msgstr "očekávám specifikátor sondy"
 
-#: parse.cxx:2069
+#: parse.cxx:2072
 msgid "expected '%{'"
 msgstr "očekávám '%{'"
 
-#: parse.cxx:2072
+#: parse.cxx:2075
 msgid "embedded code in unprivileged script; need stap -g"
 msgstr "vložený kód v neprivilegovaném režimu; použijte -g"
 
-#: parse.cxx:2088
+#: parse.cxx:2091
 msgid "expected '{'"
 msgstr "očekávám '{'"
 
-#: parse.cxx:2178
+#: parse.cxx:2181
 msgid "expected statement"
 msgstr "očekávám příkaz"
 
-#: parse.cxx:2196
+#: parse.cxx:2199
 msgid "expected 'private'"
 msgstr "očekávám 'private'"
 
-#: parse.cxx:2222
+#: parse.cxx:2225
 msgid "expected 'function' or identifier"
 msgstr "očekávám 'function' nebo identifikátor"
 
-#: parse.cxx:2231
+#: parse.cxx:2234
 msgid "expected 'global' or 'private'"
 msgstr "očekávám 'global' nebo 'private'"
 
-#: parse.cxx:2256
+#: parse.cxx:2259
 msgid "duplicate global name"
 msgstr "duplicitní jméno globální proměnné"
 
-#: parse.cxx:2258
+#: parse.cxx:2261
 msgid "global versus private variable declaration conflict"
 msgstr "konflikt mezi 'global' a 'private' deklarací proměnné"
 
-#: parse.cxx:2283
+#: parse.cxx:2286
 msgid "array size out of range"
 msgstr "velikost pole mimo rozsah"
 
-#: parse.cxx:2292
+#: parse.cxx:2295
 msgid "only scalar globals can be initialized"
 msgstr "lze inicializovat jen skalární proměnné"
 
-#: parse.cxx:2322
+#: parse.cxx:2325
 msgid "expected 'function'"
 msgstr "očekávám 'function'"
 
-#: parse.cxx:2344
-msgid "duplicate function name"
-msgstr "duplicitní jméno funkce"
-
-#: parse.cxx:2346
-msgid "global versus private function declaration conflict"
-msgstr "konflikt mezi 'global' a 'private' deklarací funkce"
-
-#: parse.cxx:2363 parse.cxx:2400
+#: parse.cxx:2359 parse.cxx:2396
 msgid "expected 'string' or 'long'"
 msgstr "očekávám 'string', nebo 'long'"
 
-#: parse.cxx:2370 parse.cxx:2522 parse.cxx:2737 parse.cxx:2853 parse.cxx:2923
-#: parse.cxx:2960
+#: parse.cxx:2366 parse.cxx:2536 parse.cxx:2751 parse.cxx:2865 parse.cxx:2935
+#: parse.cxx:2972
 msgid "expected '('"
 msgstr "očekávám '('"
 
-#: parse.cxx:2448
+#: parse.cxx:2422
+msgid "specified priority must be > 0"
+msgstr ""
+
+#: parse.cxx:2462
 msgid "expected one of ', { } = +='"
 msgstr "očekávám něco jako '. , ( ? ! { = +='"
 
-#: parse.cxx:2471
+#: parse.cxx:2485
 msgid "'?', '!' or condition must only be specified in suffix"
 msgstr "'?', '!', nebo podmínku lze specifikovat jen jako příponu"
 
-#: parse.cxx:2507
+#: parse.cxx:2521
 msgid "'?' or '!' respecified"
 msgstr "Nebyl specifikován žádný server"
 
-#: parse.cxx:2529
+#: parse.cxx:2543
 msgid "condition respecified"
 msgstr "Nebyl specifikován žádný server"
 
-#: parse.cxx:2535 parse.cxx:2621 parse.cxx:2744 parse.cxx:2901 parse.cxx:2935
-#: parse.cxx:3663
+#: parse.cxx:2549 parse.cxx:2635 parse.cxx:2758 parse.cxx:2913 parse.cxx:2947
+#: parse.cxx:3675
 msgid "expected ')'"
 msgstr "očekávám ')'"
 
-#: parse.cxx:2553
+#: parse.cxx:2567
 msgid "expected identifier or '*' or '{'"
 msgstr "očekávám identifikátor nebo '*'"
 
-#: parse.cxx:2561
+#: parse.cxx:2575
 msgid "expected '}'"
 msgstr "očekávám '{'"
 
-#: parse.cxx:2668
+#: parse.cxx:2682
 msgid "expected literal string"
 msgstr "očekávám řetězcový literál"
 
-#: parse.cxx:2718
+#: parse.cxx:2732
 msgid "expected literal string or number"
 msgstr "očekávám řetězcový nebo číselný literál"
 
-#: parse.cxx:2731
+#: parse.cxx:2745
 msgid "expected 'if'"
 msgstr "očekávám 'if'"
 
-#: parse.cxx:2768
+#: parse.cxx:2782
 msgid "expression statement expected"
 msgstr "očekávám výraz"
 
-#: parse.cxx:2781
+#: parse.cxx:2795
 msgid "expected 'return'"
 msgstr "očekávám 'return'"
 
-#: parse.cxx:2783
+#: parse.cxx:2797
 msgid "found 'return' not in function context"
 msgstr "našel jsem 'return' mimo kontext funkce"
 
-#: parse.cxx:2796
+#: parse.cxx:2810
 msgid "expected 'delete'"
 msgstr "očekávám 'delete'"
 
-#: parse.cxx:2809
+#: parse.cxx:2823
 msgid "expected 'next'"
 msgstr "očekávám 'next'"
 
-#: parse.cxx:2811
-msgid "found 'next' not in probe context"
-msgstr "našel jsem 'next' mimo kontext sondy"
-
-#: parse.cxx:2823
+#: parse.cxx:2835
 msgid "expected 'break'"
 msgstr "očekávám 'break'"
 
-#: parse.cxx:2835
+#: parse.cxx:2847
 msgid "expected 'continue'"
 msgstr "očekávám 'continue'"
 
-#: parse.cxx:2847
+#: parse.cxx:2859
 msgid "expected 'for'"
 msgstr "očekávám 'for'"
 
-#: parse.cxx:2868 parse.cxx:2885
+#: parse.cxx:2880 parse.cxx:2897
 msgid "expected ';'"
 msgstr "očekávám ';'"
 
-#: parse.cxx:2917
+#: parse.cxx:2929
 msgid "expected 'while'"
 msgstr "očekávám 'while'"
 
-#: parse.cxx:2950
+#: parse.cxx:2962
 msgid "expected 'foreach'"
 msgstr "očekávám 'foreach'"
 
-#: parse.cxx:3031 parse.cxx:3119
+#: parse.cxx:3043 parse.cxx:3131
 msgid "multiple sort directives"
 msgstr "více než jedna 'sort' direktiva"
 
-#: parse.cxx:3051 parse.cxx:3092 parse.cxx:3366 parse.cxx:3949
+#: parse.cxx:3063 parse.cxx:3104 parse.cxx:3378 parse.cxx:3961
 msgid "expected ',' or ']'"
 msgstr "očekávám ',' nebo ']'"
 
-#: parse.cxx:3059
+#: parse.cxx:3071
 msgid "expected 'in'"
 msgstr "očekávám 'in'"
 
-#: parse.cxx:3106
+#: parse.cxx:3118
 msgid "expected statistical operation"
 msgstr "očekávám statistickou operaci"
 
-#: parse.cxx:3111
+#: parse.cxx:3123
 msgid "expected sort directive"
 msgstr "očekávám 'sort' direktivu"
 
-#: parse.cxx:3202
+#: parse.cxx:3214
 msgid "expected ':'"
 msgstr "očekávám ':'"
 
-#: parse.cxx:3389
+#: parse.cxx:3401
 msgid "unexpected comma-separated expression list"
 msgstr "neočekávaný seznam čárkou oddělených výrazů"
 
-#: parse.cxx:3611
+#: parse.cxx:3623
 msgid "expected @cast, @var or $var"
 msgstr "očekávám @cast, @var, nebo $var"
 
-#: parse.cxx:3643
+#: parse.cxx:3655
 msgid "expected value"
 msgstr "očekávám hodnotu"
 
-#: parse.cxx:3648
+#: parse.cxx:3660
 msgid "embedded expression code in unprivileged script; need stap -g"
 msgstr "vložený kód v neprivilegovaném režimu; použijte -g"
 
-#: parse.cxx:3764
+#: parse.cxx:3776
 #, fuzzy, c-format
 msgid "unknown operator %s"
 msgstr "neznámá chyba"
 
-#: parse.cxx:3960
+#: parse.cxx:3972
 msgid "base histogram operator where expression expected"
 msgstr "očekáván aritmetický výraz, nalezen operátor pracující s histogramem"
 
-#: parse.cxx:3978
+#: parse.cxx:3990
 msgid "expected $var"
 msgstr "očekávám $var"
 
-#: parse.cxx:3996 parse.cxx:4073
+#: parse.cxx:4008 parse.cxx:4085
 msgid "expected non-empty string"
 msgstr "očekávám neprázdný řetězec"
 
-#: parse.cxx:4006
+#: parse.cxx:4018
 msgid "expected @cast"
 msgstr "očekávám @cast"
 
-#: parse.cxx:4037
+#: parse.cxx:4049
 msgid "expected @var"
 msgstr "očekávám @var"
 
-#: parse.cxx:4159
+#: parse.cxx:4171
 msgid "-> and [ are not accepted for a pretty-printing variable"
 msgstr "'->' a '[' nelze použít pro 'pretty-printing' proměnnou"
 
@@ -3019,7 +3103,7 @@ msgstr "Chybějící debuginfo balíčky. Použijte: debuginfo-install "
 msgid "Incorrect parameter passed, please report this error."
 msgstr "Předán chybný parametr. Prosím, nahlaste tuto chybu."
 
-#: session.cxx:455
+#: session.cxx:459
 #, c-format
 msgid ""
 "Systemtap translator/driver (version %s)\n"
@@ -3031,15 +3115,15 @@ msgstr ""
 "Toto je svobodný software; Copyright je distribuován spolu se zdrojovým "
 "kódem.\n"
 
-#: session.cxx:460
+#: session.cxx:464
 msgid "enabled features:"
 msgstr "přeloženo s:"
 
-#: session.cxx:510
+#: session.cxx:517
 msgid "Try '--help' for more information."
 msgstr "Zkuste '--help' pro více informací."
 
-#: session.cxx:518
+#: session.cxx:525
 #, c-format
 msgid ""
 "Usage: stap [options] FILE                    Run script in file.\n"
@@ -3084,12 +3168,13 @@ msgstr ""
 "   -v         přidat upovídanost všem procesním fázím\n"
 "   --vp {N}+  přidat upovídanost vybraným fázím ["
 
-#: session.cxx:546 session.cxx:547 session.cxx:548 session.cxx:549
+#: session.cxx:556 session.cxx:557 session.cxx:558 session.cxx:559
+#: session.cxx:561
 msgid " [set]"
 msgstr " [zapnuto]"
 
-#: session.cxx:538
-#, c-format
+#: session.cxx:545
+#, fuzzy, c-format
 msgid ""
 "   -k         keep temporary directory\n"
 "   -u         unoptimized translation %s\n"
@@ -3098,6 +3183,7 @@ msgid ""
 "   -g         guru mode %s\n"
 "   -P         prologue-searching for function probes %s\n"
 "   -b         bulk (percpu file) mode %s\n"
+"   -i         interactive mode %s\n"
 "   -s NUM     buffer size in megabytes, instead of %d\n"
 "   -I DIR     look in DIR for additional .stp script files"
 msgstr ""
@@ -3111,11 +3197,11 @@ msgstr ""
 "   -s NUM     nastavit velikost bufferu v MB, namísto %d\n"
 "   -I DIR     prohledat DIR na dodatečné .stp soubory"
 
-#: session.cxx:553 session.cxx:584
+#: session.cxx:567 session.cxx:598
 msgid ", in addition to"
 msgstr " současně s "
 
-#: session.cxx:557
+#: session.cxx:571
 #, c-format
 msgid ""
 "   -D NM=VAL  emit macro definition into generated C code\n"
@@ -3169,7 +3255,7 @@ msgstr ""
 "   -S size[,n] nastavit maximální velikost a počet výstupních souborů.\n"
 "   -d OBJECT  přidat ladicí informace pro daný objektový soubor"
 
-#: session.cxx:591
+#: session.cxx:605
 #, c-format
 msgid ""
 "   --ldd      add unwind/symbol data for referenced user-space objects.\n"
@@ -3312,205 +3398,216 @@ msgstr ""
 "   --monitor=INTERVAL\n"
 "              zapni interaktivní rozhraní \"monitor\"\n"
 
-#: session.cxx:729
+#: session.cxx:743
 msgid "Invalid pass number (should be 1-5)."
 msgstr "Neplatné číslo fáze (očekávám 1-5)."
 
-#: session.cxx:751
+#: session.cxx:765
 msgid "Data object (-d) cannot be empty."
 msgstr "Přepínač -d musí být následován parametrem."
 
-#: session.cxx:766
+#: session.cxx:780
 msgid "Only one script can be given on the command line."
 msgstr "Na příkazové řádce lze zadat jen jediný skript (mimo -E)."
 
-#: session.cxx:792 session.cxx:852 session.cxx:929 session.cxx:973
-#: session.cxx:1326 session.cxx:1348
+#: session.cxx:806 session.cxx:866 session.cxx:878 session.cxx:950
+#: session.cxx:994 session.cxx:1347 session.cxx:1369
 #, c-format
 msgid "ERROR: %s invalid with %s"
 msgstr ""
 
-#: session.cxx:810 session.cxx:828
+#: session.cxx:824 session.cxx:842
 #, c-format
 msgid "Truncating module name to '%s'"
 msgstr ""
 
-#: session.cxx:816
+#: session.cxx:830
 msgid "Module name cannot be empty."
 msgstr "Jméno modulu musí být neprázdné."
 
-#: session.cxx:882
+#: session.cxx:903
 msgid "Invalid buffer size (should be 1-4095)."
 msgstr "Neplatná velikost bufferu (rozsah je 1-4095)."
 
-#: session.cxx:895
+#: session.cxx:916
 msgid "Empty CMD string invalid."
 msgstr "Přepínač -c vyžaduje neprázdný parametr."
 
-#: session.cxx:906
-msgid "Invalid target process ID number."
-msgstr "Parametrem přepínače -x musí být platné ID procesu."
-
-#: session.cxx:941 session.cxx:956 session.cxx:1229 session.cxx:1240
-#: session.cxx:1252
+#: session.cxx:962 session.cxx:977 session.cxx:1250 session.cxx:1261
+#: session.cxx:1273
 msgid "ERROR: only one of the -l/-L/--dump-* switches may be specified"
 msgstr "CHYBA: přepínače -l/-L/--dump-* se vzájemně vylučují"
 
-#: session.cxx:999
+#: session.cxx:1020
 msgid "Invalid --vp argument: it takes 1 to 5 digits."
 msgstr "Neplatný argument --vp. Přijatelné hodnoty jsou 1 až 5 číslic."
 
-#: session.cxx:1026
+#: session.cxx:1047
 #, fuzzy, c-format
 msgid "Invalid argument '%s' for --privilege."
 msgstr "Neplatný parametr '%s' pro -C."
 
-#: session.cxx:1031 session.cxx:1048
+#: session.cxx:1052 session.cxx:1069
 msgid "Privilege level may be set only once."
 msgstr "Přepínač --privilege lze použít jen jednou."
 
-#: session.cxx:1064 session.cxx:1096 session.cxx:1107 session.cxx:1128
-#: session.cxx:1139 session.cxx:1155 session.cxx:1163 session.cxx:1171
-#: session.cxx:1189 session.cxx:1197 session.cxx:1205 session.cxx:1214
-#: session.cxx:1271
+#: session.cxx:1085 session.cxx:1117 session.cxx:1128 session.cxx:1149
+#: session.cxx:1160 session.cxx:1176 session.cxx:1184 session.cxx:1192
+#: session.cxx:1210 session.cxx:1218 session.cxx:1226 session.cxx:1235
+#: session.cxx:1292
 #, c-format
 msgid "ERROR: %s is invalid with %s"
 msgstr ""
 
-#: session.cxx:1086
+#: session.cxx:1107
 #, c-format
 msgid ""
 "ERROR: %s is not a valid value. Use 'yes', 'no', 'ask' or a timeout value."
 msgstr ""
 
-#: session.cxx:1120
+#: session.cxx:1141
 #, c-format
 msgid "Invalid argument '%s' for --use-server-on-error."
 msgstr ""
 
-#: session.cxx:1180
+#: session.cxx:1201
 #, c-format
 msgid "ERROR: systemtap version %s cannot be compatible with future version %s"
 msgstr ""
 
-#: session.cxx:1280
+#: session.cxx:1301
 #, fuzzy, c-format
 msgid "Unable to obtain resource limits for rlimit_as : %s"
 msgstr "Chyba při získání adresy soketu"
 
-#: session.cxx:1283
+#: session.cxx:1304
 #, c-format
 msgid "Unable to set resource limits for rlimit_as : %s"
 msgstr ""
 
-#: session.cxx:1291
+#: session.cxx:1312
 #, fuzzy, c-format
 msgid "Unable to obtain resource limits for rlimit_cpu : %s"
 msgstr "Chyba při získání adresy soketu"
 
-#: session.cxx:1294
+#: session.cxx:1315
 #, c-format
 msgid "Unable to set resource limits for rlimit_cpu : %s"
 msgstr ""
 
-#: session.cxx:1299
+#: session.cxx:1320
 #, c-format
 msgid "Unable to obtain resource limits for rlimit_nproc : %s"
 msgstr ""
 
-#: session.cxx:1302
+#: session.cxx:1323
 #, c-format
 msgid "Unable to set resource limits for rlimit_nproc : %s"
 msgstr ""
 
-#: session.cxx:1307
+#: session.cxx:1328
 #, fuzzy, c-format
 msgid "Unable to obtain resource limits for rlimit_stack : %s"
 msgstr "Chyba při získání adresy soketu"
 
-#: session.cxx:1310
+#: session.cxx:1331
 #, c-format
 msgid "Unable to set resource limits for rlimit_stack : %s"
 msgstr ""
 
-#: session.cxx:1318
+#: session.cxx:1339
 #, fuzzy, c-format
 msgid "Unable to obtain resource limits for rlimit_fsize : %s"
 msgstr "Chyba při získání adresy soketu"
 
-#: session.cxx:1321
+#: session.cxx:1342
 #, c-format
 msgid "Unable to set resource limits for rlimit_fsize : %s"
 msgstr ""
 
-#: session.cxx:1334
+#: session.cxx:1355
 #, c-format
 msgid "ERROR: %s is an invalid directory for --sysroot"
 msgstr ""
 
-#: session.cxx:1361
+#: session.cxx:1382
 #, c-format
 msgid "ERROR: %s is an invalid argument for --sysenv"
 msgstr ""
 
-#: session.cxx:1374
+#: session.cxx:1395
 #, c-format
 msgid "ERROR %s requires guru mode (-g)"
 msgstr ""
 
-#: session.cxx:1421
+#: session.cxx:1442
 #, fuzzy, c-format
 msgid "Invalid argument '%s' for --color."
 msgstr "Neplatný parametr '%s' pro -C."
 
-#: session.cxx:1438
+#: session.cxx:1459
 #, c-format
 msgid "Invalid argument '%s' for --prologue-searching."
 msgstr ""
 
-#: session.cxx:1452
+#: session.cxx:1473
 msgid "Invalid process ID number for target namespaces."
 msgstr "Neplatné ID procesu pro cílový 'namespace'."
 
-#: session.cxx:1464
+#: session.cxx:1485
 msgid "Invalid monitor interval."
 msgstr "Neplatný 'monitor' interval."
 
-#: session.cxx:1479
+#: session.cxx:1500
 #, c-format
 msgid "Unhandled argument code %d"
 msgstr ""
 
-#: session.cxx:1496
+#: session.cxx:1517
 msgid "ERROR: --runtime=dyninst unavailable; this build lacks DYNINST feature"
 msgstr "CHYBA: --runtime=dyninst není k dispozici pro tento build systemtapu"
 
-#: session.cxx:1502
+#: session.cxx:1523
 msgid "ERROR: --runtime=dyninst implies unprivileged mode only"
 msgstr "CHYBA: --runtime=dyninst lze použít jen v neprivilegovaném režimu"
 
-#: session.cxx:1512
+#: session.cxx:1533
 #, c-format
 msgid "ERROR: %s is an invalid argument for --runtime"
 msgstr ""
 
-#: session.cxx:1543
+#: session.cxx:1564
 msgid "Benchmark options are only for local use."
 msgstr "'Benchmark' přepínače lze použít jen lokálně."
 
-#: session.cxx:1560
+#: session.cxx:1581
 msgid "A script must be specified."
 msgstr "Skript musí být specifikován."
 
-#: session.cxx:1565
+#: session.cxx:1586
 msgid "Cannot specify a script with -l/-L/--dump-* switches."
 msgstr "Je-li specifikován skript, nelze použít přepínače -l/-L/--dump-*."
 
-#: session.cxx:1570
+#: session.cxx:1591
 msgid "Cannot specify -p with -l/-L/--dump-* switches."
 msgstr "Přepínač -p se vylučuje s přepínači -l/-L/--dump-*."
 
-#: session.cxx:1630
+#: session.cxx:1596
+#, fuzzy
+msgid "Cannot specify -i with -l/-L/--dump-* switches."
+msgstr "Přepínač -p se vylučuje s přepínači -l/-L/--dump-*."
+
+#: session.cxx:1601
+#, fuzzy
+msgid "Cannot specify --monitor with -l/-L/--dump-* switches."
+msgstr "Přepínač -p se vylučuje s přepínači -l/-L/--dump-*."
+
+#: session.cxx:1608
+#, fuzzy
+msgid "Cannot specify a script with -i"
+msgstr "Je-li specifikován skript, nelze použít přepínače -l/-L/--dump-*."
+
+#: session.cxx:1668
 msgid ""
 "--privilege=stapsys was automatically selected because you are a member of "
 "the groups stapusr and stapsys.  [man stap]"
@@ -3518,7 +3615,7 @@ msgstr ""
 "bude automaticky použito --privilege=stapsys, protože jste členem "
 "uživatelských skupin 'stapusr' a 'stapsys'.  [man stap]"
 
-#: session.cxx:1638
+#: session.cxx:1676
 msgid ""
 "--privilege=stapusr was automatically selected because you are a member of "
 "the group stapusr.  [man stap]"
@@ -3526,7 +3623,7 @@ msgstr ""
 "bude automaticky použito --privilege=stapusr protože jste členem uživatelské "
 "skupiny 'stapusr'.  [man stap]"
 
-#: session.cxx:1644
+#: session.cxx:1682
 msgid ""
 "You are trying to run systemtap as a normal user.\n"
 "You should either be root, or be part of the group \"stapusr\" and possibly "
@@ -3536,14 +3633,14 @@ msgstr ""
 "Systemtap může úspěšně spustit pouze root, nebo člen uživatelské "
 "skupiny'stapusr' a případně jedné ze 'stapsys' nebo 'stapdev'.  [man stap]\n"
 
-#: session.cxx:1649
+#: session.cxx:1687
 msgid ""
 "Alternatively, you may specify --runtime=dyninst for userspace probing.\n"
 msgstr ""
 "Případně můžete použít --runtime=dyninst pro instrumentaci userspace "
 "programů.\n"
 
-#: session.cxx:1659
+#: session.cxx:1697
 #, fuzzy, c-format
 msgid ""
 "For users with the privilege level %s, the module created by compiling your "
@@ -3554,22 +3651,22 @@ msgstr ""
 "Modul vzniklý kompilací vašeho skriptu musí být podepsán kompilačním "
 "serverem systemtapu.  [man stap-server]"
 
-#: session.cxx:1667
+#: session.cxx:1705
 #, c-format
 msgid "You can't specify %s when --privilege=%s is specified."
 msgstr ""
 
-#: session.cxx:1675 session.cxx:1692
+#: session.cxx:1713 session.cxx:1730
 #, fuzzy, c-format
 msgid "You can't specify %s and %s together."
 msgstr "Přepínače '-A' a '-L' se vzájemně vylučují.\n"
 
-#: session.cxx:1683
+#: session.cxx:1721
 #, fuzzy, c-format
 msgid "You can't specify %s and --privilege=%s together."
 msgstr "Přepínače '-A' a '-L' se vzájemně vylučují.\n"
 
-#: session.cxx:1734
+#: session.cxx:1772
 msgid ""
 "The kernel on your system requires modules to be signed for loading.\n"
 "The module created by compiling your script must be signed by a systemtap "
@@ -3579,17 +3676,17 @@ msgstr ""
 "Modul vzniklý kompilací vašeho skriptu musí být podepsán kompilačním "
 "serverem systemtapu.  [man stap-server]"
 
-#: session.cxx:1753
+#: session.cxx:1791
 #, c-format
 msgid "Checking \"%s\" failed with error: %s"
 msgstr ""
 
-#: session.cxx:1772 session.cxx:1878
+#: session.cxx:1810 session.cxx:1916
 #, c-format
 msgid "Parsed kernel \"%s\", "
 msgstr ""
 
-#: session.cxx:1773
+#: session.cxx:1811
 #, fuzzy, c-format
 msgid "containing %zu tuple"
 msgid_plural "containing %zu tuples"
@@ -3597,14 +3694,14 @@ msgstr[0] "Získávám symboly"
 msgstr[1] "Získávám symboly"
 msgstr[2] "Získávám symboly"
 
-#: session.cxx:1790
+#: session.cxx:1828
 #, c-format
 msgid ""
 "Checking \"%s\" failed with error: %s\n"
 "Ensure kernel development headers & makefiles are installed"
 msgstr ""
 
-#: session.cxx:1811
+#: session.cxx:1849
 #, c-format
 msgid "Parsed kernel \"%s\", containing one vmlinux export"
 msgid_plural "Parsed kernel \"%s\", containing %zu vmlinux exports"
@@ -3612,12 +3709,12 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: session.cxx:1831 session.cxx:1840
+#: session.cxx:1869 session.cxx:1878
 #, c-format
 msgid "Kernel symbol table %s unavailable, (%s)"
 msgstr ""
 
-#: session.cxx:1879
+#: session.cxx:1917
 #, fuzzy, c-format
 msgid "containing %zu symbol"
 msgid_plural "containing %zu symbols"
@@ -3625,113 +3722,113 @@ msgstr[0] "Získávám symboly"
 msgstr[1] "Získávám symboly"
 msgstr[2] "Získávám symboly"
 
-#: session.cxx:1915
+#: session.cxx:1953
 msgid "command contains illegal characters"
 msgstr "příkaz obsahuje nepřípustné znaky"
 
-#: session.cxx:1917
+#: session.cxx:1955
 msgid "command contains undefined shell variables"
 msgstr "příkaz obsahuje nedefinované proměnné prostředí"
 
-#: session.cxx:1919
+#: session.cxx:1957
 msgid "command contains command substitutions"
 msgstr "příkaz obsahuje substituce"
 
-#: session.cxx:1921
+#: session.cxx:1959
 msgid "out of memory"
 msgstr "chyba alokace paměti"
 
-#: session.cxx:1923
+#: session.cxx:1961
 msgid "command contains shell syntax errors"
 msgstr "příkaz obsahuje syntaktickou chybu"
 
-#: session.cxx:1925
+#: session.cxx:1963
 msgid "unspecified wordexp failure"
 msgstr "blíže neurčená chyba příkazu"
 
-#: session.cxx:1998
+#: session.cxx:2036
 #, c-format
 msgid "Located kernel source tree (COPYING) at '%s'"
 msgstr ""
 
-#: session.cxx:2041
+#: session.cxx:2079
 #, fuzzy, c-format
 msgid "alias component %s contains illegal parameter"
 msgstr "příkaz obsahuje nepřípustné znaky"
 
-#: session.cxx:2053
+#: session.cxx:2091
 msgid "while registering probe alias"
 msgstr "během registrace přezdívky"
 
-#: session.cxx:2120
+#: session.cxx:2158
 msgid "semantic error:"
 msgstr "sémantická chyba:"
 
-#: session.cxx:2128 session.cxx:2137
+#: session.cxx:2166 session.cxx:2175
 msgid "   thrown from: "
 msgstr "   pochází z: "
 
 #. TRANSLATORS: Here we are printing the source string of the error
-#: session.cxx:2174
+#: session.cxx:2212
 msgid "source: "
 msgstr "zdroj: "
 
-#: session.cxx:2216
+#: session.cxx:2254
 msgid "\tin synthesized code from: "
 msgstr " v syntetizovaném kódu z: "
 
-#: session.cxx:2218
+#: session.cxx:2256
 msgid "\tin expansion of macro: "
 msgstr " v expanzi makra: "
 
-#: session.cxx:2245 staprun/staprun.h:94
+#: session.cxx:2283 staprun/staprun.h:94
 msgid "WARNING:"
 msgstr "VAROVÁNÍ:"
 
-#: session.cxx:2291 session.cxx:2296
+#: session.cxx:2329 session.cxx:2334
 msgid "parse error:"
 msgstr "chyba při syntaktické analýze:"
 
-#: session.cxx:2305
+#: session.cxx:2343
 msgid "    at: "
 msgstr "    na: "
 
-#: session.cxx:2310 session.cxx:2315
+#: session.cxx:2348 session.cxx:2353
 msgid "   saw: "
 msgstr "   vidím: "
 
-#: session.cxx:2326
+#: session.cxx:2364
 #, c-format
 msgid "Number of similar error messages suppressed: %d."
 msgstr ""
 
-#: session.cxx:2330
+#: session.cxx:2368
 #, c-format
 msgid "Number of similar warning messages suppressed: %d."
 msgstr ""
 
 #. TRANSLATORS: we can't make the directory due to the error
-#: session.cxx:2355
+#: session.cxx:2396
 #, fuzzy, c-format
 msgid "cannot create temporary directory (\" %s \"): %s"
 msgstr "CHYBA: nemohu vytvořit dočasný adresář (\""
 
-#: session.cxx:2369
+#: session.cxx:2410
 #, fuzzy, c-format
 msgid "Keeping temporary directory \"%s\""
 msgstr "CHYBA: nemohu vytvořit dočasný adresář (\""
 
-#: session.cxx:2383
+#: session.cxx:2424
 #, fuzzy, c-format
 msgid "Removed temporary directory \"%s\""
 msgstr "CHYBA: nemohu vytvořit dočasný adresář (\""
 
-#: session.cxx:2545
+#: session.cxx:2586
 #, c-format
 msgid "failed to get list of machine owner keys (MOK) fingerprints: rc %d"
 msgstr ""
 
-#: session.cxx:2582
+#: session.cxx:2623
 msgid ""
 "Unable to request compilation by a compile-server\n"
 ".Without NSS, --use-server is not supported by this version systemtap."
@@ -3739,7 +3836,7 @@ msgstr ""
 "Nedaří se mi použít kompilační server. Tato verze systemtapu\n"
 "nepodporuje --use-server bez NSS."
 
-#: session.cxx:2602
+#: session.cxx:2643
 msgid ""
 "--use-server was automatically selected in order to request compilation by a "
 "compile-server."
@@ -3747,12 +3844,12 @@ msgstr ""
 "Automaticky nastavuji --use-server aby byl k překladu použit kompilační "
 "server."
 
-#: session.h:458
+#: session.h:463
 #, c-format
 msgid "early exit requested, rc=%d"
 msgstr ""
 
-#: session.h:470
+#: session.h:475
 msgid "interrupt received"
 msgstr "přijato přerušení"
 
@@ -3944,36 +4041,36 @@ msgstr "neuzavřená třída znaků"
 msgid "Inverted character range %c-%c"
 msgstr ""
 
-#: staprun/common.c:79
+#: staprun/common.c:87
 msgid "Invalid FILE name format\n"
 msgstr "Chybný formát názvu souboru\n"
 
-#: staprun/common.c:153
+#: staprun/common.c:161
 #, c-format
 msgid "Invalid buffer size '%d' (should be 1-4095).\n"
 msgstr "Neplatná velikost bufferu '%d' (rozsah je 1-4095)\n"
 
-#: staprun/common.c:165
+#: staprun/common.c:173
 #, c-format
 msgid "Invalid target namespaces pid %d (should be > 0).\n"
 msgstr "Neplatný pid '%d' pro cílový jmenný prostor (měl by být > 0)\n"
 
-#: staprun/common.c:194
+#: staprun/common.c:202
 #, c-format
 msgid "Invalid file descriptor option '%s'.\n"
 msgstr "Neplatný deskriptor souboru '%s'.\n"
 
-#: staprun/common.c:205
+#: staprun/common.c:213
 #, c-format
 msgid "Invalid file size option '%s'.\n"
 msgstr "Neplatná velikost souboru '%s'.\n"
 
-#: staprun/common.c:217
+#: staprun/common.c:225
 #, c-format
 msgid "Cannot process remote id option '%s'.\n"
 msgstr "Chybný parametr přepínače '-r': '%s'.\n"
 
-#: staprun/common.c:222
+#: staprun/common.c:230
 #, c-format
 msgid ""
 "Systemtap module loader/runner (version %s, %s)\n"
@@ -3985,33 +4082,33 @@ msgstr ""
 "Toto je svobodný software; Copyright je distribuován spolu se zdrojovým "
 "kódem.\n"
 
-#: staprun/common.c:234
+#: staprun/common.c:242
 #, c-format
 msgid "Invalid reader timeout value '%d' (should be >= 1).\n"
 msgstr "Neplatný 'timeout' parametr '%d' (očekávám >= 1).\n"
 
-#: staprun/common.c:247
+#: staprun/common.c:255
 #, c-format
 msgid "Invalid option '%s' for -C."
 msgstr "Neplatný parametr '%s' pro -C."
 
-#: staprun/common.c:258
+#: staprun/common.c:266
 msgid "Invalid monitor interval\n"
 msgstr "Neplatný 'monitor' interval\n"
 
-#: staprun/common.c:270
+#: staprun/common.c:278
 msgid "File name is too long.\n"
 msgstr "Název souboru je příliš dlouhý.\n"
 
-#: staprun/common.c:276
+#: staprun/common.c:284
 msgid "Filename format is invalid or too long.\n"
 msgstr "Formát názvu souboru je neplatný, nebo příliš dlouhý.\n"
 
-#: staprun/common.c:281
+#: staprun/common.c:289
 msgid "You can't specify the '-A' and '-L' options together.\n"
 msgstr "Přepínače '-A' a '-L' se vzájemně vylučují.\n"
 
-#: staprun/common.c:286
+#: staprun/common.c:294
 msgid ""
 "You can't specify the '-A' and '-b' options together.  The '-b'\n"
 "buffer size option only has an effect when the module is inserted.\n"
@@ -4019,7 +4116,7 @@ msgstr ""
 "Přepínače '-A' a '-b' se vzájemně vylučují.  Volba '-b' pro velikost\n"
 "bufferu se projeví až po zavedení modulu.\n"
 
-#: staprun/common.c:292
+#: staprun/common.c:300
 msgid ""
 "You can't specify the '-A' and '-c' options together.  The '-c cmd'\n"
 "option used to start a command only has an effect when the module\n"
@@ -4028,7 +4125,7 @@ msgstr ""
 "Přepínače '-A' a '-c' se vzájemně vylučují.  Volba '-c CMD'\n"
 "pro spuštění příkazu bude efektivní až po zavedení modulu do jádra.\n"
 
-#: staprun/common.c:299
+#: staprun/common.c:307
 msgid ""
 "You can't specify the '-A' and '-x' options together.  The '-x pid'\n"
 "option only has an effect when the module is inserted.\n"
@@ -4036,31 +4133,31 @@ msgstr ""
 "Přepínače '-A' a '-x' se vzájemně vylučují.  Volba '-x PID' pro připojení k\n"
 "běžícímu procesu bude efektivní až po zavedení modulu do jádra.\n"
 
-#: staprun/common.c:305
+#: staprun/common.c:313
 msgid "You can't specify the '-c' and '-x' options together.\n"
 msgstr "Přepínače '-c' a '-x' se vzájemně vylučují.\n"
 
-#: staprun/common.c:310
+#: staprun/common.c:318
 msgid "You can't specify the '-D' and '-L' options together.\n"
 msgstr "Přepínače '-D' a '-L' se vzájemně vylučují.\n"
 
-#: staprun/common.c:314
+#: staprun/common.c:322
 msgid "You can't specify the '-D' and '-d' options together.\n"
 msgstr "Přepínače '-D' a '-d' se vzájemně vylučují.\n"
 
-#: staprun/common.c:318
+#: staprun/common.c:326
 msgid "You can't specify the '-D' and '-c' options together.\n"
 msgstr "Přepínače '-D' a '-c' se vzájemně vylučují.\n"
 
-#: staprun/common.c:322
+#: staprun/common.c:330
 msgid "You have to specify output FILE with '-D' option.\n"
 msgstr "Při použití volby '-D' je třeba určit výstupní soubor.\n"
 
-#: staprun/common.c:326
+#: staprun/common.c:334
 msgid "You have to specify output FILE with '-S' option.\n"
 msgstr "Je nutno specifikovat výstupní soubor použitím volby '-S'.\n"
 
-#: staprun/common.c:333
+#: staprun/common.c:341
 #, c-format
 msgid ""
 "\n"
@@ -4075,7 +4172,7 @@ msgstr ""
 "\t[-b velikost-bufferu] [-R] [-r N:URI] [-o SOUBOR [-D] [-S velikost[,N]]]\n"
 "MODUL [volby-modulu]\n"
 
-#: staprun/common.c:335
+#: staprun/common.c:343
 #, c-format
 msgid ""
 "-v              Increase verbosity.\n"
@@ -4173,69 +4270,69 @@ msgstr ""
 "MODUL může být jak jméno, tak cesta.  Pokud je uvedeno jméno,\n"
 "hledá se v následujícím umístění:\n"
 
-#: staprun/common.c:426 staprun/common.c:451 staprun/common.c:470
-#: staprun/common.c:477
+#: staprun/common.c:436 staprun/common.c:461 staprun/common.c:480
+#: staprun/common.c:487
 msgid "Memory allocation failed. Exiting.\n"
 msgstr "Chyba alokace paměťi. Končím.\n"
 
-#: staprun/common.c:442
+#: staprun/common.c:452
 msgid "Unable to determine kernel version, uname failed"
 msgstr "Chyba uname: nelze určit verzi jádra"
 
-#: staprun/common.c:490
+#: staprun/common.c:500
 #, c-format
 msgid "Module name ('%s') is too long.\n"
 msgstr "Jméno modulu ('%s') je příliš dlouhé.\n"
 
-#: staprun/common.c:581
+#: staprun/common.c:660
 msgid "exceeded maximum send_request size.\n"
 msgstr "maximální velikost send_request překročena.\n"
 
-#: staprun/ctl.c:99
+#: staprun/ctl.c:104
 #, c-format
 msgid "Cannot attach to module %s control channel; not running?\n"
 msgstr "Chyba připojení k řídícímu kanálu modulu %s; Běží?\n"
 
-#: staprun/mainloop.c:84
+#: staprun/mainloop.c:79
 #, c-format
 msgid "Child process exited with signal %d (%s)\n"
 msgstr "Dceřiný proces ukončen signálem %d (%s)\n"
 
-#: staprun/mainloop.c:89
+#: staprun/mainloop.c:84
 #, c-format
 msgid "Child process exited with status %d\n"
 msgstr "Dceřiný proces skončil s návratovou hodnotou %d\n"
 
-#: staprun/mainloop.c:165
+#: staprun/mainloop.c:158
 msgid "failed to create thread"
 msgstr "chyba při vytváření vlákna"
 
-#: staprun/mainloop.c:247
+#: staprun/mainloop.c:245
 msgid "wordexp: syntax error (unmatched quotes?) in -c COMMAND\n"
 msgstr "wordexp: syntaktická chyba (špatně spárované uvozovky?) v -c PŘÍKAZ\n"
 
-#: staprun/mainloop.c:250
+#: staprun/mainloop.c:248
 #, c-format
 msgid "wordexp: parsing error (%d)\n"
 msgstr "wordexp: chyba syntaktické analýzy (%d)\n"
 
-#: staprun/mainloop.c:360 staprun/mainloop.c:366
+#: staprun/mainloop.c:391 staprun/mainloop.c:397
 msgid "Couldn't read bufsize"
 msgstr "Nemohu přečíst velikost bufferu"
 
-#: staprun/mainloop.c:386
+#: staprun/mainloop.c:417
 msgid "Failed to initialize control channel.\n"
 msgstr "Chyba při inicializaci řídicího kanálu.\n"
 
-#: staprun/mainloop.c:424
+#: staprun/mainloop.c:455
 msgid "Failed to daemonize stapio\n"
 msgstr "Chyba při démonizaci stapio\n"
 
-#: staprun/mainloop.c:439
+#: staprun/mainloop.c:470
 msgid "Failed to open /dev/null\n"
 msgstr "Selhalo otevření /dev/null\n"
 
-#: staprun/mainloop.c:495
+#: staprun/mainloop.c:524
 #, c-format
 msgid ""
 "\n"
@@ -4246,29 +4343,29 @@ msgstr ""
 "Odpojuji se od běžícího systemtap modulu.\n"
 "Pro opětovné připojení použijte \"staprun -A %s\"\n"
 
-#: staprun/mainloop.c:671
+#: staprun/mainloop.c:694
 #, c-format
 msgid "Unexpected EOF in read (nb=%ld)"
 msgstr "Neočekávaný konec souboru při čtení (přečteno %ld b)"
 
-#: staprun/mainloop.c:693
+#: staprun/mainloop.c:714
 msgid "Unexpected error in select"
 msgstr "Nečekaná chyba při volání 'select'"
 
-#: staprun/mainloop.c:707
+#: staprun/mainloop.c:728
 #, c-format
 msgid "write error (nb=%ld)"
 msgstr "chyba zápisu (zapsáno %ld b)"
 
-#: staprun/mainloop.c:745
+#: staprun/mainloop.c:775
 msgid "WARNING deduplication table full\n"
 msgstr "VAROVÁNÍ: deduplikační tabulka je zaplněna\n"
 
-#: staprun/mainloop.c:814
+#: staprun/mainloop.c:854
 msgid "ptrace detach"
 msgstr "odpojení ptrace"
 
-#: staprun/mainloop.c:868
+#: staprun/mainloop.c:908
 #, c-format
 msgid "Ignored message of type %d\n"
 msgstr "Ignoruji zprávu typu %d\n"
@@ -4285,7 +4382,7 @@ msgstr "Potřebuji znát jméno nebo cestu k modulu, který má být zaveden.\n"
 msgid "Couldn't enter main loop. Exiting.\n"
 msgstr "Nemohu vstoupit do hlavní smyčky. Končím.\n"
 
-#: staprun/staprun.c:418
+#: staprun/staprun.c:414
 msgid "Relay basedir -F option is invalid for staprun\n"
 msgstr "Řídicí adresář (-F) je neplatný nebo nepoužitelný pro staprun\n"
 
@@ -4293,397 +4390,431 @@ msgstr "Řídicí adresář (-F) je neplatný nebo nepoužitelný pro staprun\n"
 msgid "ERROR:"
 msgstr "CHYBA:"
 
-#: stap-serverd.cxx:145
+#: stap-serverd.cxx:147
 #, fuzzy, c-format
 msgid "Could not open client stderr file %s: %s"
 msgstr "vstupní soubor %s nelze otevřít\n"
 
-#: stap-serverd.cxx:262
+#: stap-serverd.cxx:269
 #, c-format
 msgid "%s: cannot parse number '--port=%s'"
 msgstr ""
 
-#: stap-serverd.cxx:264
+#: stap-serverd.cxx:271
 #, c-format
 msgid "%s: invalid entry: port must be between 0 and 65535 '--port=%s'"
 msgstr ""
 
-#: stap-serverd.cxx:278
+#: stap-serverd.cxx:285
 #, c-format
 msgid "%s: cannot parse number '--max-threads=%s'"
 msgstr ""
 
-#: stap-serverd.cxx:280
+#: stap-serverd.cxx:287
 #, c-format
 msgid "%s: invalid entry: max threads must not be negative '--max-threads=%s'"
 msgstr ""
 
-#: stap-serverd.cxx:289
+#: stap-serverd.cxx:293
+#, c-format
+msgid "%s: cannot parse number '--max-request-size=%s'"
+msgstr ""
+
+#: stap-serverd.cxx:295
+#, c-format
+msgid ""
+"%s: invalid entry: max (uncompressed) request size must be greater than 0 '--"
+"max-request-size=%s'"
+msgstr ""
+
+#: stap-serverd.cxx:302
+#, c-format
+msgid "%s: cannot parse number '--max-compressed-request=%s'"
+msgstr ""
+
+#: stap-serverd.cxx:304
+#, c-format
+msgid ""
+"%s: invalid entry: max compressed request size must be greater than 0 '--max-"
+"compressed-request=%s'"
+msgstr ""
+
+#: stap-serverd.cxx:314
 #, c-format
 msgid "%s: unhandled option '%c %s'"
 msgstr ""
 
-#: stap-serverd.cxx:291
+#: stap-serverd.cxx:316
 #, c-format
 msgid "%s: unhandled option '%c'"
 msgstr ""
 
-#: stap-serverd.cxx:297
+#: stap-serverd.cxx:322
 #, fuzzy, c-format
 msgid "%s: unrecognized argument '%s'"
 msgstr "nerozpoznaná varianta časovače"
 
-#: stap-serverd.cxx:315
+#: stap-serverd.cxx:340
 #, fuzzy, c-format
 msgid "Received another signal %d, exiting (forced)"
 msgstr "Časový limit dosažen. Ukončuji se"
 
-#: stap-serverd.cxx:318
+#: stap-serverd.cxx:343
 #, c-format
 msgid "Received signal %d, exiting"
 msgstr ""
 
-#: stap-serverd.cxx:362
+#: stap-serverd.cxx:387
 #, c-format
 msgid "Could not open server MOK fingerprint directory %s: %s"
 msgstr ""
 
-#: stap-serverd.cxx:408
+#: stap-serverd.cxx:433
 #, c-format
 msgid "Could not find server MOK files in directory %s"
 msgstr ""
 
-#: stap-serverd.cxx:423
+#: stap-serverd.cxx:448
 #, c-format
 msgid ""
 "Server MOK directory name '%s' doesn't match fingerprint from certificate %s"
 msgstr ""
 
-#: stap-serverd.cxx:452
+#: stap-serverd.cxx:477
 #, c-format
 msgid "Could not open server MOK directory %s: %s"
 msgstr ""
 
-#: stap-serverd.cxx:464 stap-serverd.cxx:1425
+#: stap-serverd.cxx:489 stap-serverd.cxx:1458
 #, c-format
 msgid "Error in MOK fingerprint regcomp: %s"
 msgstr ""
 
-#: stap-serverd.cxx:512
+#: stap-serverd.cxx:537
 #, c-format
 msgid "Found MOK with fingerprint '%s'"
 msgstr ""
 
-#: stap-serverd.cxx:546
+#: stap-serverd.cxx:571
 #, c-format
 msgid "Too many service name collisions for Avahi service %s"
 msgstr ""
 
-#: stap-serverd.cxx:556
+#: stap-serverd.cxx:581
 #, c-format
 msgid "Avahi service name collision, renaming service '%s' to '%s'"
 msgstr ""
 
-#: stap-serverd.cxx:578
+#: stap-serverd.cxx:603
 #, c-format
 msgid "Avahi service '%s' successfully established."
 msgstr ""
 
-#: stap-serverd.cxx:591
+#: stap-serverd.cxx:616
 #, c-format
 msgid "Avahi entry group failure: %s"
 msgstr ""
 
-#: stap-serverd.cxx:611
+#: stap-serverd.cxx:636
 #, c-format
 msgid "avahi_entry_group_new () failed: %s"
 msgstr ""
 
-#: stap-serverd.cxx:620
+#: stap-serverd.cxx:645
 #, c-format
 msgid "Adding Avahi service '%s'"
 msgstr ""
 
-#: stap-serverd.cxx:655
+#: stap-serverd.cxx:680
 msgid "Failed to allocate string list"
 msgstr "Chyba při alokaci seznamu řetězců"
 
-#: stap-serverd.cxx:670
+#: stap-serverd.cxx:695
 msgid "Failed to add a string to the list"
 msgstr "Chyba přidání řetězce do seznamu"
 
-#: stap-serverd.cxx:701
+#: stap-serverd.cxx:726
 #, fuzzy, c-format
 msgid "Failed to add %s service: %s"
 msgstr "Chyba přidání řetězce do seznamu"
 
-#: stap-serverd.cxx:709
+#: stap-serverd.cxx:734
 #, c-format
 msgid "Failed to commit avahi entry group: %s"
 msgstr ""
 
-#: stap-serverd.cxx:745
+#: stap-serverd.cxx:770
 #, c-format
 msgid "Avahi client failure: %s"
 msgstr ""
 
-#: stap-serverd.cxx:778
+#: stap-serverd.cxx:803
 #, c-format
 msgid ""
 "The Avahi daemon is not running. Avahi service '%s' will be established when "
 "the deamon is started"
 msgstr ""
 
-#: stap-serverd.cxx:806
+#: stap-serverd.cxx:831
 #, c-format
 msgid "Removing Avahi service '%s'"
 msgstr ""
 
-#: stap-serverd.cxx:866
+#: stap-serverd.cxx:891
 msgid "Failed to create avahi threaded poll object."
 msgstr "Selhalo vytvoření 'avahi poll' objektu."
 
-#: stap-serverd.cxx:880
+#: stap-serverd.cxx:905
 #, fuzzy, c-format
 msgid "Failed to create avahi client: %s"
 msgstr "Chyba vytváření Avahi 'simple poll object'"
 
-#: stap-serverd.cxx:895
+#: stap-serverd.cxx:920
 #, fuzzy, c-format
 msgid "Failed to initialize inotify: %s"
 msgstr "Chyba při inicializaci řídicího kanálu.\n"
 
-#: stap-serverd.cxx:901
+#: stap-serverd.cxx:926
 #, fuzzy, c-format
 msgid "Unable to find or create the MOK directory %s: %s"
 msgstr "Nedaří se mi stanovit domovský adresář"
 
-#: stap-serverd.cxx:910
+#: stap-serverd.cxx:935
 #, fuzzy, c-format
 msgid "Failed to add inotify watch: %s"
 msgstr "Selhalo vytvoření 'inotify' hlídače"
 
-#: stap-serverd.cxx:920
+#: stap-serverd.cxx:945
 msgid "Failed to create inotify watcher"
 msgstr "Selhalo vytvoření 'inotify' hlídače"
 
-#: stap-serverd.cxx:937
+#: stap-serverd.cxx:962
 msgid "Unable to advertise presence on the network. Avahi is not available"
 msgstr "Nemohu oznámit svoji přítomnost na síti. Avahi není dostupné"
 
-#: stap-serverd.cxx:984
+#: stap-serverd.cxx:1011
 #, fuzzy, c-format
 msgid "Unable to determine effective user name: %s"
 msgstr "Chyba uname: nelze určit verzi jádra"
 
-#: stap-serverd.cxx:987
+#: stap-serverd.cxx:1014
 #, c-format
 msgid "===== compile server pid %d starting as %s ====="
 msgstr ""
 
-#: stap-serverd.cxx:1032
+#: stap-serverd.cxx:1058
 msgid "Error reading size of request file"
 msgstr "Chyba čtení souboru s požadavkem"
 
-#: stap-serverd.cxx:1037 stap-serverd.cxx:1070
+#: stap-serverd.cxx:1063 stap-serverd.cxx:1103
 msgid "Error in PR_Read"
 msgstr "Chyba v PR_Read"
 
-#: stap-serverd.cxx:1055
+#: stap-serverd.cxx:1079
+#, fuzzy
+msgid "Error size of (compressed) request file is too large"
+msgstr "Chyba čtení souboru s požadavkem"
+
+#: stap-serverd.cxx:1088
 #, fuzzy, c-format
 msgid "Could not open output file %s"
 msgstr "vstupní soubor %s nelze otevřít\n"
 
-#: stap-serverd.cxx:1079
+#: stap-serverd.cxx:1112
 #, fuzzy, c-format
 msgid "Could not write to output file %s"
 msgstr "chyba zápisu do %s\n"
 
-#: stap-serverd.cxx:1087
+#: stap-serverd.cxx:1120
 #, c-format
 msgid "Expected %d bytes, got %d while reading client request from socket"
 msgstr ""
 
-#: stap-serverd.cxx:1115
+#: stap-serverd.cxx:1148
 msgid "Could not import socket into SSL"
 msgstr "Chyba importu soketu do SSL"
 
-#: stap-serverd.cxx:1124
+#: stap-serverd.cxx:1157
 msgid "Error setting SSL security for socket"
 msgstr "Selhalo nastavení SSL zabezpečení pro soket"
 
-#: stap-serverd.cxx:1132
+#: stap-serverd.cxx:1165
 msgid "Error setting handshake as server for socket"
 msgstr "Chyba inicializace serverového soketu."
 
-#: stap-serverd.cxx:1140 stap-serverd.cxx:1148
+#: stap-serverd.cxx:1173 stap-serverd.cxx:1181
 msgid "Error setting SSL client authentication mode for socket"
 msgstr "Selhalo nastavení SSL autentizace pro soket na straně klienta"
 
-#: stap-serverd.cxx:1159
+#: stap-serverd.cxx:1192
 msgid "Error in SSL_AuthCertificateHook"
 msgstr "Chyba v SSL_AuthCertificateHook()"
 
-#: stap-serverd.cxx:1168
+#: stap-serverd.cxx:1201
 msgid "Error in SSL_BadCertHook"
 msgstr "Chyba v SSL_BadCertHook()"
 
-#: stap-serverd.cxx:1176
+#: stap-serverd.cxx:1209
 msgid "Error in SSL_HandshakeCallback"
 msgstr "Chyba v SSL_HandshakeCallback()"
 
-#: stap-serverd.cxx:1187
+#: stap-serverd.cxx:1220
 msgid "Error configuring SSL server"
 msgstr "Selhalo nastavení SSL serveru"
 
-#: stap-serverd.cxx:1221
+#: stap-serverd.cxx:1254
 msgid "Error in SSL_OptionSet:SSL_REQUEST_CERTIFICATE"
 msgstr "Chyba v SSL_OptionSet:SSL_REQUEST_CERTIFICATE"
 
-#: stap-serverd.cxx:1231
+#: stap-serverd.cxx:1264
 msgid "Error in SSL_OptionSet:SSL_REQUIRE_CERTIFICATE"
 msgstr "Chyba v SSL_OptionSet:SSL_REQUIRE_CERTIFICATE"
 
-#: stap-serverd.cxx:1240
+#: stap-serverd.cxx:1273
 msgid "Error in SSL_ReHandshake"
 msgstr "Chyba v SSL_ReHandshake()"
 
-#: stap-serverd.cxx:1249
+#: stap-serverd.cxx:1282
 msgid "Error in SSL_ForceHandshake"
 msgstr "Chyba v SSL_ForceHandshake()"
 
-#: stap-serverd.cxx:1269
+#: stap-serverd.cxx:1302
 #, fuzzy, c-format
 msgid "Could not open input file %s"
 msgstr "vstupní soubor %s nelze otevřít\n"
 
-#: stap-serverd.cxx:1285
+#: stap-serverd.cxx:1318
 msgid "Error writing response to socket"
 msgstr "Chyba zápisu odpovědi do soketu"
 
-#: stap-serverd.cxx:1308
+#: stap-serverd.cxx:1341
 #, fuzzy, c-format
 msgid "Unable to open file %s for reading: %s"
 msgstr "Výstupní soubor %s nelze otevřít\n"
 
-#: stap-serverd.cxx:1341
+#: stap-serverd.cxx:1374
 #, fuzzy, c-format
 msgid "Error in regcomp: %s"
 msgstr "Chyba v příkazu: "
 
-#: stap-serverd.cxx:1358
+#: stap-serverd.cxx:1391
 #, c-format
 msgid "Localization key=value line '%s' cannot be parsed"
 msgstr ""
 
-#: stap-serverd.cxx:1369
+#: stap-serverd.cxx:1402
 #, c-format
 msgid "Localization key '%s' not found in global list"
 msgstr ""
 
-#: stap-serverd.cxx:1377
+#: stap-serverd.cxx:1410
 #, fuzzy, c-format
 msgid "Localization value '%s' contains illegal characters"
 msgstr "příkaz obsahuje nepřípustné znaky"
 
-#: stap-serverd.cxx:1388
+#: stap-serverd.cxx:1421
 #, fuzzy, c-format
 msgid "Error reading file %s: %s"
 msgstr "Chyba čtení souboru s požadavkem"
 
-#: stap-serverd.cxx:1443
+#: stap-serverd.cxx:1476
 #, c-format
 msgid "MOK fingerprint value '%s' isn't in the correct forma"
 msgstr ""
 
-#: stap-serverd.cxx:1481
+#: stap-serverd.cxx:1514
 #, c-format
 msgid "Running sign-file failed, rc = %d"
 msgstr ""
 
-#: stap-serverd.cxx:1486
+#: stap-serverd.cxx:1519
 #, c-format
 msgid "Module signed with MOK, fingerprint \"%s\""
 msgstr ""
 
-#: stap-serverd.cxx:1557
+#: stap-serverd.cxx:1590
 #, fuzzy, c-format
 msgid "Invalid argument '%s' for --privilege"
 msgstr "Neplatný parametr '%s' pro -C."
 
-#: stap-serverd.cxx:1598
+#: stap-serverd.cxx:1631
 #, fuzzy, c-format
 msgid "Could not open MOK config file %s: %s"
 msgstr "vstupní soubor %s nelze otevřít\n"
 
-#: stap-serverd.cxx:1610 stap-serverd.cxx:2135 stap-serverd.cxx:2147
-#: stap-serverd.cxx:2155
+#: stap-serverd.cxx:1643 stap-serverd.cxx:2214 stap-serverd.cxx:2226
+#: stap-serverd.cxx:2234
 #, fuzzy, c-format
 msgid "Could not create temporary directory %s: %s"
 msgstr "CHYBA: nemohu vytvořit dočasný adresář "
 
-#: stap-serverd.cxx:1640
+#: stap-serverd.cxx:1673
 #, c-format
 msgid "Generating MOK failed, rc = %d"
 msgstr ""
 
-#: stap-serverd.cxx:1653
+#: stap-serverd.cxx:1686
 #, fuzzy, c-format
 msgid "Could not rename temporary directory %s to %s: %s"
 msgstr "CHYBA: nemohu vytvořit dočasný adresář "
 
-#: stap-serverd.cxx:1671 stap-serverd.cxx:2241
+#: stap-serverd.cxx:1704 stap-serverd.cxx:2327
 msgid "Error in tmpdir cleanup"
 msgstr "Selhal úklid v dočasném adresáři"
 
-#: stap-serverd.cxx:1702
+#: stap-serverd.cxx:1735
 #, fuzzy, c-format
 msgid "Unable to open client version file %s"
 msgstr "Výstupní soubor %s nelze otevřít\n"
 
-#: stap-serverd.cxx:1708
+#: stap-serverd.cxx:1741
 #, c-format
 msgid "Client version is %s"
 msgstr ""
 
-#: stap-serverd.cxx:1720
+#: stap-serverd.cxx:1753
 msgid "Cannot parse stap options"
 msgstr "Chyba parsování parametrů příkazové řádky"
 
-#: stap-serverd.cxx:1732
+#: stap-serverd.cxx:1765
 #, fuzzy, c-format
 msgid "Could not create temporary directory %s"
 msgstr "CHYBA: nemohu vytvořit dočasný adresář "
 
-#: stap-serverd.cxx:1752
+#: stap-serverd.cxx:1787
 msgid "Out of memory"
 msgstr "Chyba alokace paměti"
 
-#: stap-serverd.cxx:1760
+#: stap-serverd.cxx:1795
 #, fuzzy, c-format
 msgid "Error opening %s: %s"
 msgstr "chyba otevírání soketu"
 
-#: stap-serverd.cxx:1769
+#: stap-serverd.cxx:1804
 #, fuzzy, c-format
 msgid "Error reading %s: %s"
 msgstr "Selhalo vytvoření soketu"
 
-#: stap-serverd.cxx:1833
+#: stap-serverd.cxx:1815
+#, c-format
+msgid "Options passed from the client: %s"
+msgstr ""
+
+#: stap-serverd.cxx:1871
 msgid "Failed spawning translator"
 msgstr "Chyba spuštění překladače v rámci kompilačního serveru"
 
-#: stap-serverd.cxx:1850
+#: stap-serverd.cxx:1888
 #, fuzzy, c-format
 msgid "Unable to find a module in %s"
 msgstr "Výstupní soubor %s nelze otevřít\n"
 
-#: stap-serverd.cxx:1852
+#: stap-serverd.cxx:1890
 #, c-format
 msgid "Too many modules (%zu) in %s"
 msgstr ""
 
-#: stap-serverd.cxx:1876
+#: stap-serverd.cxx:1914
 msgid ""
 "No matching machine owner key (MOK) available on the server to sign the\n"
 " module."
@@ -4691,177 +4822,189 @@ msgstr ""
 "Na serveru není žádný 'machine owner key' (MOK) použitelný k podepsání\n"
 " modulu."
 
-#: stap-serverd.cxx:1943
+#: stap-serverd.cxx:1981
 #, fuzzy, c-format
 msgid "Could not link to %s from %s"
 msgstr "chyba zápisu do %s\n"
 
-#: stap-serverd.cxx:2013
+#: stap-serverd.cxx:2051
 msgid "Error in spawn getcwd"
 msgstr "Chyba v getcwd"
 
-#: stap-serverd.cxx:2021
+#: stap-serverd.cxx:2059
 msgid "Error in spawn chdir"
 msgstr "Chyba v chdir"
 
-#: stap-serverd.cxx:2035
+#: stap-serverd.cxx:2073
 msgid "Error in spawn unchdir"
 msgstr "Chyba v unchdir"
 
-#: stap-serverd.cxx:2040
+#: stap-serverd.cxx:2078
 #, fuzzy, c-format
 msgid "Error in spawn: %s"
 msgstr "Chyba v chdir"
 
-#: stap-serverd.cxx:2047
+#: stap-serverd.cxx:2085
 msgid "Error in waitpid"
 msgstr "Chyba ve waitpid"
 
-#: stap-serverd.cxx:2114
+#: stap-serverd.cxx:2112
+#, c-format
+msgid "Unable to check the zipefile size. Error code: %d ."
+msgstr ""
+
+#: stap-serverd.cxx:2129
+#, c-format
+msgid ""
+"Uncompressed request size of %ld bytes is not within the expected range of 1 "
+"to %zu bytes."
+msgstr ""
+
+#: stap-serverd.cxx:2193
 msgid "Error resetting SSL handshake"
 msgstr "Chyba v SSL 'handshake'"
 
-#: stap-serverd.cxx:2124
+#: stap-serverd.cxx:2203
 msgid "Error forcing SSL handshake"
 msgstr "Chyba ve vynucení SSL 'handshake'"
 
-#: stap-serverd.cxx:2194
+#: stap-serverd.cxx:2280
 msgid "Unable to extract client request"
 msgstr "Chyba získání klientského požadavku"
 
-#: stap-serverd.cxx:2214
+#: stap-serverd.cxx:2300
 msgid "Unable to compress server response"
 msgstr "Chyba komprese odezvy serveru"
 
-#: stap-serverd.cxx:2224
+#: stap-serverd.cxx:2310
 msgid "Error closing ssl socket"
 msgstr "Selhalo zavření SSL soketu"
 
-#: stap-serverd.cxx:2232
+#: stap-serverd.cxx:2318
 #, fuzzy, c-format
 msgid "Keeping temporary directory %s"
 msgstr "CHYBA: nemohu vytvořit dočasný adresář "
 
-#: stap-serverd.cxx:2246
+#: stap-serverd.cxx:2332
 msgid "Error processing client request"
 msgstr "Chyba při zpracování klientského požadavku"
 
-#: stap-serverd.cxx:2254
+#: stap-serverd.cxx:2340
 #, c-format
 msgid "Request from %s:%d complete"
 msgstr ""
 
-#: stap-serverd.cxx:2256
+#: stap-serverd.cxx:2342
 #, c-format
 msgid "Request from [%s]:%d complete"
 msgstr ""
 
-#: stap-serverd.cxx:2293
+#: stap-serverd.cxx:2379
 msgid "Unable to obtain certificate private key"
 msgstr "Chyba při získávání privátního klíče"
 
-#: stap-serverd.cxx:2308
+#: stap-serverd.cxx:2394
 msgid "Error accepting client connection"
 msgstr "Chyba při přijímání spojení od klienta"
 
-#: stap-serverd.cxx:2319
+#: stap-serverd.cxx:2405
 #, c-format
 msgid "Accepted connection from %s:%d"
 msgstr ""
 
-#: stap-serverd.cxx:2321
+#: stap-serverd.cxx:2407
 #, c-format
 msgid "Accepted connection from [%s]:%d"
 msgstr ""
 
-#: stap-serverd.cxx:2334
+#: stap-serverd.cxx:2420
 msgid "Server is overloaded. Processing times may be longer than normal."
 msgstr "Server je přetížen. Časy zpracování mohou být neobvykle dlouhé."
 
-#: stap-serverd.cxx:2336
+#: stap-serverd.cxx:2422
 msgid "Processing 1 request..."
 msgstr "Zpracovávám 1 požadavek..."
 
-#: stap-serverd.cxx:2338
+#: stap-serverd.cxx:2424
 #, fuzzy, c-format
 msgid "Processing %d concurrent requests..."
 msgstr "Zpracovávám 1 požadavek..."
 
-#: stap-serverd.cxx:2347
+#: stap-serverd.cxx:2433
 msgid "No memory available for new thread arg!"
 msgstr "Nedostatek paměti pro argumenty vlákna!"
 
-#: stap-serverd.cxx:2418
+#: stap-serverd.cxx:2504
 msgid "Unable to configure SSL server session ID cache"
 msgstr "Chyba SSL_ConfigServerSessionIDCache()"
 
-#: stap-serverd.cxx:2428
+#: stap-serverd.cxx:2514
 #, fuzzy, c-format
 msgid "Unable to find our certificate in the database at %s"
 msgstr "Chyba při nastavování platnosti certifikátu"
 
-#: stap-serverd.cxx:2450
+#: stap-serverd.cxx:2536
 #, c-format
 msgid "Waiting for %d outstanding requests to complete..."
 msgstr ""
 
-#: stap-serverd.cxx:2455
+#: stap-serverd.cxx:2541
 msgid "Timeout reached, exiting (forced)"
 msgstr "Časový limit dosažen. Ukončuji se"
 
-#: stap-serverd.cxx:2472
+#: stap-serverd.cxx:2558
 msgid "Unable to shut down server session ID cache"
 msgstr "Chyba SSL_ShutdownServerSessionIDCache()"
 
-#: stap-serverd.cxx:2487
+#: stap-serverd.cxx:2573
 msgid "Error creating socket"
 msgstr "Selhalo vytvoření soketu"
 
-#: stap-serverd.cxx:2499 stap-serverd.cxx:2511
+#: stap-serverd.cxx:2585 stap-serverd.cxx:2597
 msgid "Error setting socket properties"
 msgstr "Chyba při nastavení parametrů soketu"
 
-#: stap-serverd.cxx:2545
+#: stap-serverd.cxx:2631
 #, c-format
 msgid "Network port %hu is unavailable. Trying another port"
 msgstr ""
 
-#: stap-serverd.cxx:2552
+#: stap-serverd.cxx:2638
 #, c-format
 msgid "Network port %hu is busy. Trying another port"
 msgstr ""
 
-#: stap-serverd.cxx:2559
+#: stap-serverd.cxx:2645
 msgid "Error setting socket address"
 msgstr "Chyba při nastavení adresy soketu"
 
-#: stap-serverd.cxx:2568
+#: stap-serverd.cxx:2654
 msgid "Unable to obtain socket address"
 msgstr "Chyba při získání adresy soketu"
 
-#: stap-serverd.cxx:2575
+#: stap-serverd.cxx:2661
 #, c-format
 msgid "Using network address [%s]:%hu"
 msgstr ""
 
-#: stap-serverd.cxx:2578
+#: stap-serverd.cxx:2664
 #, c-format
 msgid "Using a maximum of %ld threads"
 msgstr ""
 
-#: stap-serverd.cxx:2580
+#: stap-serverd.cxx:2666
 msgid "Concurrency disabled"
 msgstr "Paralelní zpracování ve vláknech vypnuto"
 
-#: stap-serverd.cxx:2587
+#: stap-serverd.cxx:2673
 msgid "Error listening on socket"
 msgstr "Chyba poslouchání na soketu"
 
-#: stap-serverd.cxx:2617
+#: stap-serverd.cxx:2703
 msgid "Unable to authorize certificate for the local client"
 msgstr "Chyba při autorizaci certifikátu pro lokálního klienta"
 
-#: stap-serverd.cxx:2628
+#: stap-serverd.cxx:2714
 msgid "Error closing listen socket"
 msgstr "Selhalo uvolnění přijímacího soketu"
 
@@ -4869,112 +5012,112 @@ msgstr "Selhalo uvolnění přijímacího soketu"
 msgid "Module name was not specified."
 msgstr "Jméno modulu nebylo určeno."
 
-#: staptree.cxx:180
+#: staptree.cxx:178
 msgid "inconsistent arity"
 msgstr "nekonzistentní arita"
 
-#: staptree.cxx:184
+#: staptree.cxx:182
 #, fuzzy, c-format
 msgid "inconsistent arity (%s vs %d)"
 msgstr "nekonzistentní arita"
 
-#: staptree.cxx:188
+#: staptree.cxx:186
 #, c-format
 msgid "arity %s first inferred here"
 msgstr ""
 
-#: staptree.cxx:225
+#: staptree.cxx:223
 msgid "internal error, joining a non-synthetic function"
 msgstr "interní chyba, zpracovávám nesyntetickou funkci"
 
-#: staptree.cxx:227
+#: staptree.cxx:225
 #, c-format
 msgid "synthetic function '%s' conflicts with an existing function"
 msgstr ""
 
-#: staptree.cxx:274
+#: staptree.cxx:272
 #, c-format
 msgid "%s variable '%s' may not be used as array"
 msgstr ""
 
-#: staptree.cxx:277
+#: staptree.cxx:275
 #, c-format
 msgid "%s variable '%s' may not be used as a structure"
 msgstr ""
 
-#: staptree.cxx:281
+#: staptree.cxx:279
 #, c-format
 msgid "%s variable '%s' may not be pretty-printed"
 msgstr ""
 
-#: staptree.cxx:285
+#: staptree.cxx:283
 #, c-format
 msgid "invalid use of %s variable '%s'"
 msgstr ""
 
-#: staptree.cxx:311
+#: staptree.cxx:309
 msgid "cannot write to pretty-printed variable"
 msgstr "nemohu zapisovat do 'pretty-printed' proměnné"
 
-#: staptree.cxx:1034
+#: staptree.cxx:1032
 msgid "invalid or missing conversion specifier"
 msgstr "neplatný nebo chybějící konverzní symbol"
 
-#: staptree.cxx:1053
+#: staptree.cxx:1051
 msgid "trailing incomplete print format conversion"
 msgstr "chybná typová konverze ve formátovacím řetězci"
 
-#: staptree.cxx:1390
+#: staptree.cxx:1388
 msgid "internal error: missing probe point component"
 msgstr "interní chyba: chybí komponenta sondy"
 
-#: staptree.cxx:1780
+#: staptree.cxx:1778
 msgid "Expecting symbol or histogram operator"
 msgstr "Očekávám symbol nebo operátor histogramu"
 
-#: staptree.cxx:1782
+#: staptree.cxx:1780
 msgid "Failed to classify indexable"
 msgstr "Chyba klasifikace pole"
 
-#: staptree.cxx:2412 staptree.cxx:2418 staptree.cxx:2473 staptree.cxx:2479
+#: staptree.cxx:2414 staptree.cxx:2420 staptree.cxx:2475 staptree.cxx:2481
 msgid "Aggregates not available in embedded-C"
 msgstr "Statistické funkce nejsou povoleny ve vloženém C kódu"
 
-#: staptree.cxx:2431
+#: staptree.cxx:2433
 #, fuzzy, c-format
 msgid "function may not be used when --privilege=%s is specified"
 msgstr "funkci nelze použít pokud není aktivován guru režim (-g)"
 
-#: staptree.cxx:2437
+#: staptree.cxx:2439
 msgid "function may not be used unless -g is specified"
 msgstr "funkci nelze použít pokud není aktivován guru režim (-g)"
 
-#: staptree.cxx:2492
+#: staptree.cxx:2494
 #, fuzzy, c-format
 msgid "embedded expression may not be used when --privilege=%s is specified"
 msgstr "vložený výraz nelze použít pokud není aktivován guru režim (-g)"
 
-#: staptree.cxx:2498
+#: staptree.cxx:2500
 msgid "embedded expression may not be used unless -g is specified"
 msgstr "vložený výraz nelze použít pokud není aktivován guru režim (-g)"
 
-#: staptree.cxx:2649
+#: staptree.cxx:2651
 msgid "symbol without referent"
 msgstr "symbol bez odkazu"
 
-#: staptree.cxx:2850
+#: staptree.cxx:2852
 msgid "invalid element"
 msgstr "neplatný element"
 
-#: staptree.h:1180
+#: staptree.h:1189
 msgid "update_visitor wasn't provided a value"
 msgstr "update_visitor nemá definovanou hodnotu"
 
-#: staptree.h:1184
+#: staptree.h:1193
 msgid "update_visitor was provided a NULL value"
 msgstr "update_visitor má hodnotu rovnu NULL"
 
-#: staptree.h:1187
+#: staptree.h:1196
 #, c-format
 msgid "update_visitor can't set type \"%s\" with a \"%s\""
 msgstr ""
@@ -5008,7 +5151,7 @@ msgstr ""
 "neplatný cílový symbol pro značku; očekávám $argN, $name, $format, $$parms "
 "nebo $$vars "
 
-#: tapset-mark.cxx:447 translate.cxx:3052
+#: tapset-mark.cxx:447 translate.cxx:3064
 msgid "cannot expand unknown type"
 msgstr "neznámý typ"
 
@@ -5021,7 +5164,7 @@ msgstr "mark_builder uvolňuje cache"
 msgid " cannot be opened: "
 msgstr " nemohu otevřít: "
 
-#: tapset-mark.cxx:734 tapsets.cxx:8051 tapsets.cxx:8224
+#: tapset-mark.cxx:734 tapsets.cxx:8054 tapsets.cxx:8227
 #, c-format
 msgid "no match (similar mark: %s)"
 msgid_plural "no match (similar marks: %s)"
@@ -5133,7 +5276,7 @@ msgstr "chybí jméno počitadla perf sondy"
 msgid "duplicate counter name"
 msgstr "duplicitní jméno počitadla"
 
-#: tapset-perfmon.cxx:353 tapsets.cxx:7914
+#: tapset-perfmon.cxx:353 tapsets.cxx:7917
 msgid "invalid -c command for unspecified process probe [man stapprobes]"
 msgstr ""
 "neplatný -c PŘÍKAZ pro nespecifikovanou sondu v uživatelském procesu [man "
@@ -5207,7 +5350,7 @@ msgstr "'procfs' cesta nesmí končit '/'"
 msgid "need read/write component"
 msgstr "potřebuji 'read'/'write' komponentu"
 
-#: tapsets.cxx:733 tapsets.cxx:8064
+#: tapsets.cxx:733 tapsets.cxx:8067
 #, fuzzy, c-format
 msgid "cannot find executable '%s'"
 msgstr "nemohu najít "
@@ -5311,7 +5454,7 @@ msgstr ""
 msgid "selected function %s\n"
 msgstr "očekávám 'function'"
 
-#: tapsets.cxx:2210 tapsets.cxx:8394 tapsets.cxx:8450
+#: tapsets.cxx:2210 tapsets.cxx:8397 tapsets.cxx:8453
 msgid "Couldn't get elf header"
 msgstr "Chyba čtení ELF hlavičky"
 
@@ -5380,70 +5523,70 @@ msgstr "nelze přisoudit adresu 'pretty-printed' proměnné"
 msgid "invalid target_symbol for pretty-print"
 msgstr "neplatný cílový symbol pro 'pretty-print'"
 
-#: tapsets.cxx:4084
+#: tapsets.cxx:4086
 msgid "unknown type to save in kretprobe"
 msgstr "neznámý typ pro uložení pro sondu 'kretprobe'"
 
-#: tapsets.cxx:4234 tapsets.cxx:10316
+#: tapsets.cxx:4236 tapsets.cxx:10319
 msgid "variable location problem [man error::dwarf]: "
 msgstr "problém se symbolickou (dwarf) adresací proměnné [man error::dwarf]:"
 
-#: tapsets.cxx:4287
+#: tapsets.cxx:4289
 msgid "write to target variable not permitted; need stap -g"
 msgstr "zápis do proměnné není dovolen; použijte stap -g"
 
-#: tapsets.cxx:4299
+#: tapsets.cxx:4301
 msgid "write to target variable not permitted in .return probes"
 msgstr "zápis do proměnné není dovolen v '.return' sondě"
 
-#: tapsets.cxx:4308
+#: tapsets.cxx:4310
 msgid "cannot write to context variable"
 msgstr "nelze zapisovat do kontextové proměnné"
 
-#: tapsets.cxx:4311 tapsets.cxx:6264 tapsets.cxx:10270
+#: tapsets.cxx:4313 tapsets.cxx:6266 tapsets.cxx:10273
 msgid "cannot take address of context variable"
 msgstr "nelze přisoudit adresu kontextové proměnné"
 
-#: tapsets.cxx:4444
+#: tapsets.cxx:4446
 #, c-format
 msgid "perf counter '%s' not defined"
 msgstr ""
 
 #. TRANSLATORS: Here we're using a cached module.
-#: tapsets.cxx:4609
+#: tapsets.cxx:4611
 msgid "Pass 2: using cached "
 msgstr "Fáze 2: využívám cache: "
 
-#: tapsets.cxx:4633
+#: tapsets.cxx:4635
 msgid "write to @cast context variable not permitted; need stap -g"
 msgstr "zápis do @cast kontextové proměnné není dovolen; použijte stap -g"
 
-#: tapsets.cxx:4722
+#: tapsets.cxx:4724
 msgid "write not permitted; need stap -g"
 msgstr "zápis není povolen; použijte stap -g"
 
-#: tapsets.cxx:4727 tapsets.cxx:10223
+#: tapsets.cxx:4729 tapsets.cxx:10226
 msgid "cannot take address of tracepoint variable"
 msgstr "nelze přisoudit adresu proměnné 'tracepoint' bodu"
 
-#: tapsets.cxx:4730
+#: tapsets.cxx:4732
 msgid "internal error: no-op autocast encountered"
 msgstr "interní chyba: pokus o přetypování 'NOP' operace"
 
-#: tapsets.cxx:4866
+#: tapsets.cxx:4868
 msgid "write to @var variable not permitted; need stap -g"
 msgstr "zápis do @var není dovolen; použijte stap -g"
 
-#: tapsets.cxx:4924
+#: tapsets.cxx:4926
 msgid ", in "
 msgstr ", v "
 
-#: tapsets.cxx:4922
+#: tapsets.cxx:4924
 #, c-format
 msgid "unable to find global '%s' in %s%s%s"
 msgstr ""
 
-#: tapsets.cxx:5011
+#: tapsets.cxx:5013
 msgid ""
 "process probes not available without kernel CONFIG_UTRACE or "
 "CONFIG_TRACEPOINTS/CONFIG_ARCH_SUPPORTS_UPROBES/CONFIG_UPROBES"
@@ -5451,200 +5594,200 @@ msgstr ""
 "instrumentace userspace programů není dostupná bez kernel CONFIG_UTRACE nebo "
 "CONFIG_TRACEPOINTS/CONFIG_ARCH_SUPPORTS_UPROBES/CONFIG_UPROBES"
 
-#: tapsets.cxx:5075
+#: tapsets.cxx:5077
 msgid "missing relocation basis"
 msgstr "chybějící relokační báze"
 
-#: tapsets.cxx:5077
+#: tapsets.cxx:5079
 msgid "inconsistent relocation address"
 msgstr "nekonzistentní relokační adresa"
 
-#: tapsets.cxx:5087
+#: tapsets.cxx:5089
 #, fuzzy, c-format
 msgid "maxactive value out of range [0,%s]"
 msgstr "hodnota 'randomization' mimo rozsah"
 
-#: tapsets.cxx:5107
+#: tapsets.cxx:5109
 #, c-format
 msgid ""
 "expanding .return vars at prologue_end (0x%s) rather than entrypc (0x%s)\n"
 msgstr ""
 
-#: tapsets.cxx:5264
+#: tapsets.cxx:5266
 #, c-format
 msgid "adding caller checks for callee %s\n"
 msgstr ""
 
-#: tapsets.cxx:5287
+#: tapsets.cxx:5289
 #, c-format
 msgid "adding caller check [u]stack(%d) == reloc(0x%s)\n"
 msgstr ""
 
-#: tapsets.cxx:5341
+#: tapsets.cxx:5343
 #, c-format
 msgid "saveargs: examining '%s' (dieoffset: %#<PRIx64>)\n"
 msgstr ""
 
-#: tapsets.cxx:5353
+#: tapsets.cxx:5355
 #, c-format
 msgid ""
 "saveargs: failed to retrieve type name for return value (dieoffset: %s)\n"
 msgstr ""
 
-#: tapsets.cxx:5381
+#: tapsets.cxx:5383
 #, c-format
 msgid "saveargs: failed to retrieve name for local (dieoffset: %s)\n"
 msgstr ""
 
-#: tapsets.cxx:5387
+#: tapsets.cxx:5389
 #, c-format
 msgid "saveargs: finding location for local '%s' (dieoffset: %s)\n"
 msgstr ""
 
-#: tapsets.cxx:5409
+#: tapsets.cxx:5411
 #, c-format
 msgid ""
 "saveargs: failed to resolve the location for local '%s' (dieoffset: %s)\n"
 msgstr ""
 
-#: tapsets.cxx:5420
+#: tapsets.cxx:5422
 #, c-format
 msgid ""
 "saveargs: local '%s' (dieoffset: %s) is not available at this address (%s)\n"
 msgstr ""
 
-#: tapsets.cxx:5434
+#: tapsets.cxx:5436
 #, c-format
 msgid "saveargs: failed to retrieve type name for local '%s' (dieoffset: %s)\n"
 msgstr ""
 
-#: tapsets.cxx:6343
+#: tapsets.cxx:6345
 msgid "target-symbol requires debuginfo"
 msgstr "chybějící ladicí informace pro symbol"
 
-#: tapsets.cxx:6541
+#: tapsets.cxx:6543
 #, fuzzy, c-format
 msgid "unrecognized register '%s'"
 msgstr "nerozpoznaná varianta časovače"
 
-#: tapsets.cxx:6604
+#: tapsets.cxx:6606
 #, fuzzy, c-format
 msgid "unrecognized base register '%s'"
 msgstr "nerozpoznaná varianta časovače"
 
-#: tapsets.cxx:6609
+#: tapsets.cxx:6611
 #, fuzzy, c-format
 msgid "unrecognized index register '%s'"
 msgstr "nerozpoznaná varianta časovače"
 
-#: tapsets.cxx:6690
+#: tapsets.cxx:6692
 msgid "can't retrieve symbol table"
 msgstr "nemám k dispozici tabulku symbolů"
 
-#: tapsets.cxx:6814
+#: tapsets.cxx:6817
 #, c-format
 msgid "Can't parse SDT_V3 operand '%s' [man error::sdt]"
 msgstr ""
 
-#: tapsets.cxx:6818
+#: tapsets.cxx:6821
 #, c-format
 msgid ""
 "Downgrading SDT_V2 probe argument to dwarf, can't parse '%s' [man error::sdt]"
 msgstr ""
 
-#: tapsets.cxx:6825
+#: tapsets.cxx:6828
 msgid "SDT asm not understood, requires debuginfo [man error::sdt]"
 msgstr ""
 "selhala interpretace 'SDT assembly' bez ladicích informací [man error::sdt]"
 
 #. TRANSLATORS: We're mapping the operand to a new expression*.
-#: tapsets.cxx:6835
+#: tapsets.cxx:6838
 #, c-format
 msgid "mapped asm operand %s to "
 msgstr ""
 
-#: tapsets.cxx:6840
+#: tapsets.cxx:6843
 msgid "cannot take address of sdt variable"
 msgstr "nelze přisoudit adresu 'sdt' proměnné"
 
-#: tapsets.cxx:6924
+#: tapsets.cxx:6927
 #, c-format
 msgid "unable to find plt variable '%s' (alternatives: %s)"
 msgstr ""
 
 #. TRANSLATORS: Describing what probe type (kprobe or uprobe) the probe
 #. TRANSLATORS: is matched to.
-#: tapsets.cxx:7040
+#: tapsets.cxx:7043
 #, c-format
 msgid "matched probe_name %s probe type "
 msgstr ""
 
-#: tapsets.cxx:7299 tapsets.cxx:7358
+#: tapsets.cxx:7302 tapsets.cxx:7361
 msgid " (provider "
 msgstr " (poskytovatel "
 
-#: tapsets.cxx:7299
+#: tapsets.cxx:7302
 #, c-format
 msgid " saw .note.stapsdt %s%s "
 msgstr ""
 
-#: tapsets.cxx:7320
+#: tapsets.cxx:7323
 #, c-format
 msgid "got unknown probe_type : 0x%x"
 msgstr ""
 
-#: tapsets.cxx:7358
+#: tapsets.cxx:7361
 msgid "saw .probes "
 msgstr "vidím '.probes'"
 
-#: tapsets.cxx:7378
+#: tapsets.cxx:7381
 #, c-format
 msgid "looking for semaphore symbol %s "
 msgstr ""
 
-#: tapsets.cxx:7399
+#: tapsets.cxx:7402
 msgid ", found at 0x"
 msgstr ", nalezen na 0x"
 
-#: tapsets.cxx:7404
+#: tapsets.cxx:7407
 msgid ", not found"
 msgstr ", nenalezen"
 
-#: tapsets.cxx:7494
+#: tapsets.cxx:7497
 msgid "probe_type == uprobe1, use statement addr: 0x"
 msgstr "probe_type == uprobe1, použijte 'statement addr': 0x"
 
-#: tapsets.cxx:7498
+#: tapsets.cxx:7501
 msgid "probe_type == uprobe2, use statement addr: 0x"
 msgstr "probe_type == uprobe2, použijte 'statement addr': 0x"
 
-#: tapsets.cxx:7502
+#: tapsets.cxx:7505
 msgid "probe_type == uprobe3, use statement addr: 0x"
 msgstr "probe_type == uprobe3, použijte 'statement addr': 0x"
 
-#: tapsets.cxx:7506
+#: tapsets.cxx:7509
 #, fuzzy, c-format
 msgid "probe_type == use_uprobe_no_dwarf, use label name: _stapprobe1_%s"
 msgstr "probe_type == uprobe1, použijte 'statement addr': 0x"
 
-#: tapsets.cxx:7730
+#: tapsets.cxx:7733
 #, fuzzy, c-format
 msgid "glob %s error (%d)"
 msgstr "wordexp: chyba syntaktické analýzy (%d)\n"
 
-#: tapsets.cxx:7789
+#: tapsets.cxx:7792
 #, c-format
 msgid "Expanded library(\"%s\") to library(\"%s\")"
 msgstr ""
 
-#: tapsets.cxx:7818
+#: tapsets.cxx:7821
 #, c-format
 msgid ""
 "'%s' is not a needed library of '%s'. Specify the full path to squelch this "
 "warning."
 msgstr ""
 
-#: tapsets.cxx:7827
+#: tapsets.cxx:7830
 #, c-format
 msgid "no match (similar library: %s)"
 msgid_plural "no match (similar libraries: %s)"
@@ -5652,11 +5795,11 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: tapsets.cxx:7911
+#: tapsets.cxx:7914
 msgid "invalid -x pid for unspecified process probe [man stapprobes]"
 msgstr "neplatný -x pid pro nespecifikovanou 'process' sondu [man stapprobes]"
 
-#: tapsets.cxx:7918
+#: tapsets.cxx:7921
 msgid ""
 "unspecified process probe is invalid without a -c COMMAND or -x PID [man "
 "stapprobes]"
@@ -5664,12 +5807,12 @@ msgstr ""
 "nespecifikovaná sonda pro uživatelský proces není validní viz -c PŘÍKAZ, "
 "nebo -x PID [man stapprobes]"
 
-#: tapsets.cxx:7986 tapsets.cxx:8128
+#: tapsets.cxx:7989 tapsets.cxx:8131
 #, c-format
 msgid "Expanded process(\"%s\") to process(\"%s\")"
 msgstr ""
 
-#: tapsets.cxx:8024 tapsets.cxx:8036 tapsets.cxx:8323 tapsets.cxx:8335
+#: tapsets.cxx:8027 tapsets.cxx:8039 tapsets.cxx:8326 tapsets.cxx:8338
 #, c-format
 msgid "no match (similar function: %s)"
 msgid_plural "no match (similar functions: %s)"
@@ -5677,23 +5820,23 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: tapsets.cxx:8174
+#: tapsets.cxx:8177
 msgid "process return probes not available [man error::inode-uprobes]"
 msgstr ""
 "'return' sondy pro uživatelské procesy nejsou dostupné [man error::inode-"
 "uprobes]"
 
-#: tapsets.cxx:8194
+#: tapsets.cxx:8197
 #, c-format
 msgid "dwarf_builder::build for %s"
 msgstr ""
 
-#: tapsets.cxx:8242 tapsets.cxx:9696
+#: tapsets.cxx:8245 tapsets.cxx:9699
 msgid "absolute statement probe in unprivileged script; need stap -g"
 msgstr ""
 "'kernel.statement.absolute' v neprivilegovaném skriptu; použijte stap -g"
 
-#: tapsets.cxx:8285
+#: tapsets.cxx:8288
 #, c-format
 msgid "cannot probe .return of %u inlined function %s"
 msgid_plural "cannot probe .return of %u inlined functions %s"
@@ -5701,7 +5844,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: tapsets.cxx:8291
+#: tapsets.cxx:8294
 #, c-format
 msgid "skipped .return probe of %u inlined function"
 msgid_plural "skipped .return probe of %u inlined functions"
@@ -5709,113 +5852,113 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: tapsets.cxx:8571
+#: tapsets.cxx:8574
 msgid "Multiple 'sys_ni_syscall' symbols found.\n"
 msgstr "Nalezeno více 'sys_ni_syscall' symbolů\n"
 
-#: tapsets.cxx:8606
+#: tapsets.cxx:8609
 msgid "Error: Cannot find vmlinux."
 msgstr "Chyba: Nemohu najít 'vmlinux'."
 
-#: tapsets.cxx:8785
+#: tapsets.cxx:8788
 msgid "absolute process probes not available [man error::inode-uprobes]"
 msgstr ""
 "sondy 'process.statement.absolute' nedostupné [man error::inode-uprobes]"
 
-#: tapsets.cxx:9856
+#: tapsets.cxx:9859
 #, c-format
 msgid "Too many hardware breakpoint probes requested for %s (%zu vs. %u)"
 msgstr ""
 
-#: tapsets.cxx:10066
+#: tapsets.cxx:10069
 msgid "CONFIG_PERF_EVENTS not available on this kernel"
 msgstr "běžící jádro nemá CONFIG_PERF_EVENTS"
 
-#: tapsets.cxx:10069
+#: tapsets.cxx:10072
 msgid "CONFIG_HAVE_HW_BREAKPOINT not available on this kernel"
 msgstr "běžící jádro nemá CONFIG_HAVE_HW_BREAKPOINT"
 
-#: tapsets.cxx:10199
+#: tapsets.cxx:10202
 msgid " (alternatives: "
 msgstr " (alternativy: "
 
-#: tapsets.cxx:10197
+#: tapsets.cxx:10200
 #, fuzzy, c-format
 msgid "unable to find tracepoint variable '%s'%s"
 msgstr "nelze přisoudit adresu proměnné 'tracepoint' bodu"
 
-#: tapsets.cxx:10214
+#: tapsets.cxx:10217
 #, fuzzy, c-format
 msgid "write to tracepoint variable '%s' not permitted; need stap -g"
 msgstr "zápis do proměnné není dovolen; použijte stap -g"
 
-#: tapsets.cxx:10273
+#: tapsets.cxx:10276
 #, fuzzy, c-format
 msgid "write to tracepoint '%s' not permitted"
 msgstr "zápis do parametru značky není povolen"
 
-#: tapsets.cxx:10520
+#: tapsets.cxx:10523
 #, fuzzy, c-format
 msgid "cannot get type of parameter '%s' of tracepoint '%s'"
 msgstr "nemohu číst parametry bitového pole: %s"
 
-#: tapsets.cxx:10526
+#: tapsets.cxx:10529
 #, c-format
 msgid "found parameter for tracepoint '%s': type:'%s' name:'%s' %s"
 msgstr ""
 
-#: tapsets.cxx:11050
+#: tapsets.cxx:11092
 msgid "SYSTEM:TRACEPOINT syntax not supported with --compatible <= 2.6"
 msgstr "syntaxe SYSTEM:TRACEPOINT není podporovaná pro '--compatible <= 2.6'"
 
-#: tapsets.cxx:11059
+#: tapsets.cxx:11101
 msgid "invalid tracepoint string provided"
 msgstr "neplatný 'tracepoint' string"
 
-#: tapsets.cxx:11169
+#: tapsets.cxx:11211
 #, c-format
 msgid "tracepoint %s is blacklisted on architecture %s"
 msgstr ""
 
-#: tapsets.cxx:11217
+#: tapsets.cxx:11259
 msgid "tracepoint_builder releasing dwflpp"
 msgstr "'tracepoint_builder' uvolňuje 'dwflpp'"
 
-#: tapsets.cxx:11243
+#: tapsets.cxx:11285
 #, c-format
 msgid "Pass 2: getting a tracepoint query for %zu headers: "
 msgstr ""
 
-#: tapsets.cxx:11265
+#: tapsets.cxx:11307
 #, fuzzy, c-format
 msgid "Pass 2: using cached %s"
 msgstr "Fáze 2: využívám cache: "
 
-#: tapsets.cxx:11405
+#: tapsets.cxx:11447
 #, c-format
 msgid "Ignoring inaccessible kernel source tree (DW_AT_comp_dir) at '%s'"
 msgstr ""
 
-#: tapsets.cxx:11410
+#: tapsets.cxx:11452
 #, c-format
 msgid "Ignoring duplicate kernel source tree (DW_AT_comp_dir) at '%s'"
 msgstr ""
 
-#: tapsets.cxx:11415
+#: tapsets.cxx:11457
 #, c-format
 msgid "Located kernel source tree (DW_AT_comp_dir) at '%s'"
 msgstr ""
 
-#: tapsets.cxx:11435
+#: tapsets.cxx:11477
 #, c-format
 msgid "Located kernel source tree at '%s'"
 msgstr ""
 
-#: tapsets.cxx:11482
+#: tapsets.cxx:11524
 msgid "Checking tracepoint glob "
 msgstr "Ověřuji 'tracepoint' glob "
 
-#: tapsets.cxx:11551
+#: tapsets.cxx:11593
 #, c-format
 msgid "no match (similar tracepoint: %s)"
 msgid_plural "no match (similar tracepoints: %s)"
@@ -5945,350 +6088,351 @@ msgstr "\"prázdný agregátor\";"
 msgid "\"histogram index out of range\";"
 msgstr "\"index histogramu mimo rozsah\";"
 
-#: translate.cxx:480
+#: translate.cxx:481
 #, fuzzy, c-format
 msgid "unsupported local stats init for %s"
 msgstr "nepodporovaná operace přiřazení "
 
-#: translate.cxx:504
+#: translate.cxx:505
 #, fuzzy, c-format
 msgid "unsupported stats type for %s"
 msgstr "nepodporovaný unární operátor "
 
-#: translate.cxx:512
+#: translate.cxx:513
 #, fuzzy, c-format
 msgid "unsupported initializer for %s"
 msgstr "nepodporovaný binarní operátor "
 
-#: translate.cxx:526
+#: translate.cxx:527
 #, fuzzy, c-format
 msgid "unsupported deallocator for %s"
 msgstr "nepodporovaný unární operátor "
 
-#: translate.cxx:670 translate.cxx:2992
+#: translate.cxx:671 translate.cxx:3004
 msgid "unknown type of map"
 msgstr "neznámý typ pole"
 
-#: translate.cxx:691
+#: translate.cxx:692
 msgid "index type mismatch"
 msgstr "chybný typ indexu"
 
-#: translate.cxx:707
+#: translate.cxx:708
 msgid "aggregating non-parallel map type"
 msgstr "agregace neparalelních polí"
 
-#: translate.cxx:715
+#: translate.cxx:716
 msgid "fetching aggregate of non-parallel map type"
 msgstr "agregace neparalelních polí"
 
-#: translate.cxx:733
+#: translate.cxx:734
 msgid "checking existence of an unsupported map type"
 msgstr "ověřování existence nepodporovaného typu pole"
 
-#: translate.cxx:746
+#: translate.cxx:747
 msgid "getting a value from an unsupported map type"
 msgstr "získávání hodnoty z nepodporovaného typu pole"
 
-#: translate.cxx:757
+#: translate.cxx:758
 msgid "adding a value of an unsupported map type"
 msgstr "přidávání hodnoty do nepodporovaného typu pole"
 
-#: translate.cxx:779
+#: translate.cxx:780
 msgid "setting a value of an unsupported map type"
 msgstr "nastavování hodnoty v nepodporovaném typu pole"
 
-#: translate.cxx:807
+#: translate.cxx:808
 #, fuzzy, c-format
 msgid "unsupported local map init for %s"
 msgstr "nepodporovaný typ lokální proměnné"
 
-#: translate.cxx:869
+#: translate.cxx:870
 msgid "iterating over unknown reference type"
 msgstr "iterování přes neznámý typ odkazu"
 
-#: translate.cxx:882
+#: translate.cxx:883
 msgid "inconsistent iterator type in itervar::start()"
 msgstr "nekonzistentní typ iterátoru v itervar::start()"
 
-#: translate.cxx:893 translate.cxx:905
+#: translate.cxx:894 translate.cxx:906
 msgid "inconsistent iterator type in itervar::next()"
 msgstr "nekonzistentní typ iterátoru v itervar::next()"
 
-#: translate.cxx:908
+#: translate.cxx:909
 msgid "deleting a value of an unsupported map type"
 msgstr "mazání hodnoty z nepodporovaného typu pole"
 
-#: translate.cxx:927
+#: translate.cxx:928
 msgid "illegal key type"
 msgstr "neplatný typ klíče"
 
-#: translate.cxx:934
+#: translate.cxx:935
 msgid "inconsistent iterator value in itervar::get_value()"
 msgstr "Neplatná hodnota iterátoru v itervar::get_value()"
 
-#: translate.cxx:946
+#: translate.cxx:947
 msgid "illegal value type"
 msgstr "neplatný typ hodnoty"
 
-#: translate.cxx:1152
+#: translate.cxx:1153
 msgid "internal error translating printf"
 msgstr "interní chyba při překladu 'printf'"
 
-#: translate.cxx:2390
+#: translate.cxx:2396
 #, c-format
 msgid "variable %s for function %s will be passed by reference (char *)"
 msgstr ""
 
-#: translate.cxx:2422
+#: translate.cxx:2429
 #, c-format
 msgid "return value for function %s will be passed by reference (char *)"
 msgstr ""
 
-#: translate.cxx:2492 translate.cxx:2732
+#: translate.cxx:2503 translate.cxx:2744
 msgid "array locals not supported, missing global declaration?"
 msgstr "lokální pole není podporováno, chybí klíčové slovo 'global'?"
 
-#: translate.cxx:2650
+#: translate.cxx:2662
 #, c-format
 msgid "%s elided, duplicates %s\n"
 msgstr ""
 
-#: translate.cxx:2741
+#: translate.cxx:2753
 msgid "unsupported local variable type"
 msgstr "nepodporovaný typ lokální proměnné"
 
-#: translate.cxx:2750
+#: translate.cxx:2762
 #, c-format
 msgid "%d statements for probe %s"
 msgstr ""
 
-#: translate.cxx:2892
+#: translate.cxx:2904
 msgid " nothing"
 msgstr " nic"
 
-#: translate.cxx:2940 translate.cxx:2968
+#: translate.cxx:2952 translate.cxx:2980
 msgid "array type is neither string nor long"
 msgstr "typ pole není ani 'string' ani 'long'"
 
-#: translate.cxx:2954
+#: translate.cxx:2966
 msgid "array key is neither string nor long"
 msgstr "typ klíče pole není ani 'string' ani 'long'"
 
-#: translate.cxx:3176
+#: translate.cxx:3188
 msgid "unknown lvalue type in assignment"
 msgstr "neznámý typ l-hodnoty v přiřazení"
 
-#: translate.cxx:3262 translate.cxx:3282
+#: translate.cxx:3274 translate.cxx:3294
 msgid " type unsupported"
 msgstr " nepodporovaný typ"
 
-#: translate.cxx:3311
+#: translate.cxx:3323
 msgid "post assignment on strings not supported"
 msgstr "pozdní přiřazení nelze provést na proměnné typu řetězec"
 
-#: translate.cxx:3325
+#: translate.cxx:3337
 #, fuzzy, c-format
 msgid "string assignment operator %s unsupported"
 msgstr "pozdní přiřazení nelze provést na proměnné typu řetězec"
 
-#: translate.cxx:3358
+#: translate.cxx:3370
 msgid "unknown macop for assignment"
 msgstr "interní chyba: neznámá 'macop' při přiřazování"
 
-#: translate.cxx:3363
+#: translate.cxx:3375
 msgid "invalid post-mode operator"
 msgstr "neplatný 'post-mode' operátor"
 
-#: translate.cxx:3400
+#: translate.cxx:3412
 msgid "assignment type not yet implemented"
 msgstr "zatím neimplementovaný typ přiřazení"
 
-#: translate.cxx:3487
+#: translate.cxx:3499
 msgid "unresolved symbol"
 msgstr "chyba při rozpoznávání symbolu"
 
-#: translate.cxx:3489
+#: translate.cxx:3501
 msgid "unresolved symbol: "
 msgstr "nerozpoznaný symbol: "
 
-#: translate.cxx:3528
+#: translate.cxx:3540
 msgid "attempt to use scalar where map expected"
 msgstr "pokus o použití skaláru na místě, kde se očekává pole"
 
-#: translate.cxx:3847 translate.cxx:4971 translate.cxx:4983
+#: translate.cxx:3859 translate.cxx:4985 translate.cxx:4997
 msgid "expected numeric type"
 msgstr "očekáván číselný typ"
 
-#: translate.cxx:4154 translate.cxx:4863 translate.cxx:4903
+#: translate.cxx:4166 translate.cxx:4876 translate.cxx:4917
 msgid "expected string types"
 msgstr "očekávány řetězcové typy"
 
-#: translate.cxx:4162 translate.cxx:4600 translate.cxx:4659 translate.cxx:4688
-#: translate.cxx:4704 translate.cxx:4879
+#: translate.cxx:4174 translate.cxx:4613 translate.cxx:4672 translate.cxx:4701
+#: translate.cxx:4717 translate.cxx:4893
 msgid "expected numeric types"
 msgstr "očekávány číselné typy"
 
-#: translate.cxx:4168 translate.cxx:4438 translate.cxx:4808 translate.cxx:4888
+#: translate.cxx:4180 translate.cxx:4451 translate.cxx:4821 translate.cxx:4902
 msgid "unexpected type"
 msgstr "neočekávaný typ"
 
-#: translate.cxx:4205 translate.cxx:5279
+#: translate.cxx:4217 translate.cxx:5293
 msgid "Invalid indexing of histogram"
 msgstr "Neplatné indexování histogramu"
 
-#: translate.cxx:4272
+#: translate.cxx:4284
 msgid "cannot 'return' from probe"
 msgstr "v sondě nelze použít 'return'"
 
-#: translate.cxx:4275
+#: translate.cxx:4287
 msgid "return type mismatch"
 msgstr "chybný typ návratové hodnoty"
 
-#: translate.cxx:4288
-msgid "cannot 'next' from function"
-msgstr "ve funkci nelze použít 'next'"
-
-#: translate.cxx:4341
+#: translate.cxx:4354
 msgid "Cannot delete unknown expression type"
 msgstr "Nemohu promazat neznámý typ objektu"
 
-#: translate.cxx:4471
+#: translate.cxx:4484
 msgid "cannot delete histogram bucket entries\n"
 msgstr "nemohu smazat položky histogramu\n"
 
-#: translate.cxx:4489
+#: translate.cxx:4502
 msgid "cannot 'break' outside loop"
 msgstr "'break' nelze použít mimo smyčku"
 
-#: translate.cxx:4500
+#: translate.cxx:4513
 msgid "cannot 'continue' outside loop"
 msgstr "'continue' nelze použít mimo smyčku"
 
-#: translate.cxx:4580
+#: translate.cxx:4593
 msgid "expected numeric or string type"
 msgstr "očekáván numerický nebo řetězcový typ"
 
-#: translate.cxx:4650
+#: translate.cxx:4663
 msgid "operator not yet implemented"
 msgstr "operátor ještě nebyl implementován"
 
-#: translate.cxx:4898
+#: translate.cxx:4912
 msgid "unexpected concatenation operator"
 msgstr "neočekávaný operátor zřetězení"
 
-#: translate.cxx:4921
+#: translate.cxx:4935
 msgid "expected numeric condition"
 msgstr "očekávám číselnou podmínku"
 
-#: translate.cxx:4926
+#: translate.cxx:4940
 msgid "expected matching types"
 msgstr "očekávám souhlasné datové typy"
 
-#: translate.cxx:4944
+#: translate.cxx:4958
 msgid "non-number <<< expression"
 msgstr "nečíselný '<<<' výraz"
 
-#: translate.cxx:4947
+#: translate.cxx:4961
 msgid "non-stats left operand to <<< expression"
 msgstr "levý operand operace '<<<' není statistického typu"
 
-#: translate.cxx:4950
+#: translate.cxx:4964
 msgid "non-number right operand to <<< expression"
 msgstr "pravý operand operace '<<<' není statistického typu"
 
-#: translate.cxx:4956 translate.cxx:4958
+#: translate.cxx:4970 translate.cxx:4972
 msgid "type mismatch"
 msgstr "chybný datový typ"
 
-#: translate.cxx:4997
+#: translate.cxx:5011
 msgid "invalid reference to array"
 msgstr "neplatný odkaz do pole"
 
-#: translate.cxx:5041
+#: translate.cxx:5055
 msgid "need rvalue for assignment"
 msgstr "přiřazení musí mít r-hodnotu"
 
-#: translate.cxx:5053
+#: translate.cxx:5067
 msgid "unexpected reference to array"
 msgstr "neplatný odkaz do pole"
 
-#: translate.cxx:5072
+#: translate.cxx:5086
 msgid "cannot translate general target-symbol expression"
 msgstr "chyba překladu výrazu s cílovým symbolem"
 
-#: translate.cxx:5079
+#: translate.cxx:5093
 msgid "cannot translate general @var expression"
 msgstr "chyba překladu '@var' výrazu"
 
-#: translate.cxx:5086
+#: translate.cxx:5100
 msgid "cannot translate general @cast expression"
 msgstr "chyba překladu '@cast' výrazu"
 
-#: translate.cxx:5093
+#: translate.cxx:5107
 msgid "cannot translate general dereference expression"
 msgstr "chyba překladu výrazu s dereferencí"
 
-#: translate.cxx:5100
+#: translate.cxx:5114
 msgid "cannot translate general @defined expression"
 msgstr "chyba překladu '@defined' výrazu"
 
-#: translate.cxx:5107
+#: translate.cxx:5121
 msgid "cannot translate general @entry expression"
 msgstr "chyba překladu '@entry' výrazu"
 
-#: translate.cxx:5114
+#: translate.cxx:5128
 msgid "cannot translate general @perf expression"
 msgstr "chyba překladu '@perf' výrazu"
 
-#: translate.cxx:5135
+#: translate.cxx:5149
 msgid "invalid array reference"
 msgstr "neplatný odkaz do pole"
 
-#: translate.cxx:5140
+#: translate.cxx:5154
 msgid "array index type mismatch"
 msgstr "chybný typ indexu"
 
-#: translate.cxx:5164
+#: translate.cxx:5178
 msgid "unexpected aggregate of non-statistic"
 msgstr "neočekávaná agregace nestatistické proměnné"
 
-#: translate.cxx:5180
+#: translate.cxx:5194
 msgid "unexpected aggregate of non-arrayindex"
 msgstr "neočekávaná agregace nad něčím, co není index pole"
 
-#: translate.cxx:5227
+#: translate.cxx:5241
 msgid "statistic-valued array in rvalue context"
 msgstr "pole se statistickými daty v roli r-hodnoty"
 
-#: translate.cxx:5324
+#: translate.cxx:5338
 msgid "unexpected reference to scalar"
 msgstr "neočekávaná reference na skalár"
 
-#: translate.cxx:5390
+#: translate.cxx:5404
 msgid "cannot assign to histogram buckets"
 msgstr "nelze provést přiřazení prvkům histogramu"
 
-#: translate.cxx:5402
+#: translate.cxx:5422
 msgid "invalid length argument list"
 msgstr "nekonzistentní arita"
 
-#: translate.cxx:5418 translate.cxx:5435
+#: translate.cxx:5427
 msgid "function argument type mismatch"
 msgstr "nekonzistentní datové typy parametrů"
 
-#: translate.cxx:5427
+#: translate.cxx:5456
 msgid "function actual argument evaluation"
 msgstr "vyhodnocení skutečných parametrů funkce"
 
-#: translate.cxx:5538
+#: translate.cxx:5540
+#, fuzzy
+msgid "function return result evaluation"
+msgstr "vyhodnocení skutečných parametrů funkce"
+
+#: translate.cxx:5609
 msgid "cannot print unknown expression type"
 msgstr "nemohu vypsat výraz neznámého typu"
 
-#: translate.cxx:5540
+#: translate.cxx:5611
 msgid "cannot print a raw stats object"
 msgstr "nemohu vypsat statistický objekt"
 
-#: translate.cxx:5627
+#: translate.cxx:5698
 #, fuzzy, c-format
 msgid "additional argument to print"
 msgid_plural "too many arguments to print (%zu)"
@@ -6296,63 +6440,63 @@ msgstr[0] "nekonzistentní datové typy parametrů"
 msgstr[1] "nekonzistentní datové typy parametrů"
 msgstr[2] "nekonzistentní datové typy parametrů"
 
-#: translate.cxx:6147
+#: translate.cxx:6218
 msgid "unexpected build-id reloc section "
 msgstr "neočekávaná relokační sekce '.note.gnu.build-id'"
 
-#: translate.cxx:6155
+#: translate.cxx:6226
 #, c-format
 msgid "Found build-id in %s, length %d, start at %#<PRIx64>"
 msgstr ""
 
-#: translate.cxx:6449
+#: translate.cxx:6520
 #, fuzzy, c-format
 msgid "Getting symbol table for %s"
 msgstr "Získávám symboly"
 
-#: translate.cxx:6504
+#: translate.cxx:6575
 #, c-format
 msgid "Found kernel _stext extra offset %#<PRIx64>"
 msgstr ""
 
-#: translate.cxx:6628
+#: translate.cxx:6699
 #, c-format
 msgid "%s has unknown section %s for sym %s"
 msgstr ""
 
-#: translate.cxx:6690
+#: translate.cxx:6761
 #, c-format
 msgid "skipping module %s %s table (too big: %zi > %zi)"
 msgstr ""
 
-#: translate.cxx:6694
+#: translate.cxx:6765
 #, c-format
 msgid "skipping module %s, section %s %s table (too big: %zi > %zi)"
 msgstr ""
 
-#: translate.cxx:7251
+#: translate.cxx:7322
 msgid "Searching for vdso candidates: "
 msgstr "Hledám vhodné 'VDSO': "
 
-#: translate.cxx:7261
+#: translate.cxx:7332
 msgid "vdso candidate: "
 msgstr "Kandidát na 'VDSO': "
 
-#: translate.cxx:7443
+#: translate.cxx:7514
 msgid "missing unwind/symbol data for module '"
 msgstr "chybějící ladicí informace pro modul '"
 
-#: translate.cxx:7463
+#: translate.cxx:7537
 #, c-format
 msgid "identified max-nested function: %s (%d)"
 msgstr ""
 
-#: translate.cxx:7474
+#: translate.cxx:7548
 #, c-format
 msgid "identified recursive function: %s"
 msgstr ""
 
-#: translate.cxx:7490
+#: translate.cxx:7565
 #, c-format
 msgid ""
 "myproc-unprivileged tapset function called without is_myproc checking for "
@@ -6361,45 +6505,45 @@ msgstr ""
 "'myproc-unprivileged' tapset funkce volaná bez 'is_myproc' kontroly na pid "
 "%d (euid %d)"
 
-#: translate.cxx:7494
+#: translate.cxx:7569
 #, c-format
 msgid "read fault [man error::fault] at 0x%p (%s)"
 msgstr "chyba čtení [man error::fault] na 0x%p (%s)"
 
-#: translate.cxx:7496
+#: translate.cxx:7571
 #, c-format
 msgid "write fault [man error::fault] at 0x%p (%s)"
 msgstr "chyba zápisu [man error::fault] at 0x%p (%s)"
 
-#: translate.cxx:7498
+#: translate.cxx:7573
 #, c-format
 msgid "divide by zero in DWARF operand (%s)"
 msgstr "dělení nulou ve DWARF operandu (%s)"
 
-#: translate.cxx:7543
+#: translate.cxx:7618
 #, c-format
 msgid "ignoring extra parts of compat version: %s"
 msgstr ""
 
-#: translate.cxx:7547
+#: translate.cxx:7622
 #, c-format
 msgid "parse error in compatibility version: %s"
 msgstr ""
 
-#: translate.cxx:7550
+#: translate.cxx:7625
 #, fuzzy, c-format
 msgid "compatibility version out of range: %s"
 msgstr "hodnota 'randomization' mimo rozsah"
 
-#: translate.cxx:7570
+#: translate.cxx:7645
 msgid " recursive"
 msgstr " rekurzivní"
 
-#: translate.cxx:7570
+#: translate.cxx:7645
 msgid " non-recursive"
 msgstr " nerekurzivní"
 
-#: translate.cxx:7569
+#: translate.cxx:7644
 #, c-format
 msgid "function recursion-analysis: max-nesting %d %s"
 msgstr ""
@@ -6432,79 +6576,106 @@ msgstr ""
 msgid "cmdstr_join called with an empty command!"
 msgstr "cmdstr_join() zavolán s prázdným argumentem"
 
-#: util.cxx:656
+#: util.cxx:572
+#, fuzzy
+msgid "join called with an empty vector!"
+msgstr "cmdstr_join() zavolán s prázdným argumentem"
+
+#: util.cxx:671
 #, c-format
 msgid "Spawn waitpid call on unmanaged pid %d"
 msgstr ""
 
-#: util.cxx:663
+#: util.cxx:678
 #, c-format
 msgid "Spawn waitpid result (0x%x): %d"
 msgstr ""
 
-#: util.cxx:668
+#: util.cxx:683
 #, c-format
 msgid "Spawn waitpid error (%d): %s"
 msgstr ""
 
-#: util.cxx:709
+#: util.cxx:724
 #, c-format
 msgid "WARNING: %s is not executable (%s)"
 msgstr ""
 
-#: util.cxx:714
+#: util.cxx:729
 msgid "Running"
 msgstr "Běží"
 
-#: util.cxx:749
+#: util.cxx:764
 #, fuzzy, c-format
 msgid "Spawn error (%d): %s"
 msgstr "chyba zápisu (zapsáno %ld b)"
 
-#: util.cxx:864
+#: util.cxx:879
 #, fuzzy, c-format
 msgid "WARNING: %s exited with signal: %d (%s)"
 msgstr "Dceřiný proces ukončen signálem %d (%s)\n"
 
-#: util.cxx:867
+#: util.cxx:882
 #, fuzzy, c-format
 msgid "WARNING: %s exited with status: %d"
 msgstr "Dceřiný proces skončil s návratovou hodnotou %d\n"
 
-#: util.cxx:922
+#: util.cxx:918
+msgid "Forking subprocess..."
+msgstr ""
+
+#: util.cxx:926
+#, fuzzy, c-format
+msgid "Fork error (%d): %s"
+msgstr "chyba zápisu (zapsáno %ld b)"
+
+#: util.cxx:979
 #, c-format
 msgid "ERROR: Safety pattern mismatch for %s ('%s' vs. '%s') rc=%d"
 msgstr ""
 
-#: util.cxx:1097
+#: util.cxx:1154
 #, c-format
 msgid "Unknown kernel machine architecture '%s', don't know elf class"
 msgstr ""
 
 #. TRANSLATORS: Missing a file
-#: util.cxx:1113
+#: util.cxx:1170
 #, fuzzy, c-format
 msgid "Missing %s"
 msgstr "chybějící JVMID"
 
-#: util.cxx:1134
+#: util.cxx:1191
 #, c-format
 msgid "autosprintf/vasprintf error %d"
 msgstr ""
 
-#: util.cxx:1164
+#: util.cxx:1221
 #, c-format
 msgid "cannot probe pid %d: Invalid pid"
 msgstr ""
 
-#: util.cxx:1169
+#: util.cxx:1226
 #, fuzzy, c-format
 msgid "cannot probe pid %d: %s"
 msgstr " nemohu otevřít: "
 
-#: util.h:130 util.h:141 util.h:152 util.h:160 util.h:171 util.h:183 util.h:203
+#: util.h:133 util.h:144 util.h:155 util.h:163 util.h:174 util.h:186
+#: util.h:206
 msgid "bad lexical cast"
 msgstr "chybné zpracování řetězce"
+
+#~ msgid "duplicate function name"
+#~ msgstr "duplicitní jméno funkce"
+
+#~ msgid "global versus private function declaration conflict"
+#~ msgstr "konflikt mezi 'global' a 'private' deklarací funkce"
+
+#~ msgid "found 'next' not in probe context"
+#~ msgstr "našel jsem 'next' mimo kontext sondy"
+
+#~ msgid "cannot 'next' from function"
+#~ msgstr "ve funkci nelze použít 'next'"
 
 #~ msgid "cannot get constant address: %s"
 #~ msgstr "daná konstanta %s se nezdá být validní adresou"
