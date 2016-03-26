@@ -61,28 +61,27 @@ static void _stp_close_procfs(void);
  * Removes '/proc/systemtap/{module_name}'. Notice we're leaving
  * '/proc/systemtap' behind.  There is no way on newer kernels to know
  * if a procfs directory is empty.
+ *
+ * NB: this is suitable to call late in the module cleanup function,
+ * and does not rely on any other facilities in the runtime.  PR19833.
+ * See also PR15408.
  */
 static void _stp_rmdir_proc_module(void)
 {
-	if (!_stp_lock_transport_dir()) {
-		errk("Unable to remove '/proc/systemap/%s':"
-		     " can't lock transport directory.\n",
-		     THIS_MODULE->name);
-		return;
-	}
-
 	if (_stp_proc_root) {
 		proc_remove(_stp_proc_root);
 		_stp_proc_root = NULL;
 	}
-
-	_stp_unlock_transport_dir();
 }
 
 
 /*
  * Safely creates '/proc/systemtap' (if necessary) and
  * '/proc/systemtap/{module_name}'.
+ *
+ * NB: this function is suitable to call from early in the the
+ * module-init function, and doesn't rely on any other facilities
+ * in our runtime.  PR19833.  See also PR15408.
  */
 static int _stp_mkdir_proc_module(void)
 {	
@@ -100,13 +99,6 @@ static int _stp_mkdir_proc_module(void)
 
         if (_stp_proc_root != NULL)
 		return 0;
-
-	if (!_stp_lock_transport_dir()) {
-		errk("Unable to create '/proc/systemap/%s':"
-		     " can't lock transport directory.\n",
-		     THIS_MODULE->name);
-		return -EINVAL;
-	}
 
 #if defined(STAPCONF_PATH_LOOKUP) || defined(STAPCONF_KERN_PATH_PARENT)
 	/* Why "/proc/systemtap/foo"?  kern_path_parent() is basically
@@ -174,7 +166,6 @@ static int _stp_mkdir_proc_module(void)
 		     " proc_mkdir failed.\n", THIS_MODULE->name);
 
 done:
-	_stp_unlock_transport_dir();
 	return (_stp_proc_root) ? 0 : -EINVAL;
 }
 

@@ -307,6 +307,7 @@ static inline void stp_synchronize_sched(void)
 
 
 static int systemtap_kernel_module_init (void);
+static void systemtap_kernel_module_exit (void);
 
 static unsigned long stap_hash_seed; /* Init during module startup */
 int init_module (void)
@@ -316,21 +317,22 @@ int init_module (void)
      stap, it is beneficial to add some runtime-random value to the
      map hash. */
   get_random_bytes(&stap_hash_seed, sizeof (stap_hash_seed));
-  rc = _stp_transport_init();
-  if (rc)
-    return rc;
   rc = systemtap_kernel_module_init();
   if (rc)
-    _stp_transport_close();
+    return rc;
+  rc = _stp_transport_init();
+  if (rc)
+    systemtap_kernel_module_exit();
   return rc;
 }
 
-static void systemtap_kernel_module_exit (void);
-
 void cleanup_module(void)
 {
-  systemtap_kernel_module_exit();
   _stp_transport_close();
+  /* PR19833.  /proc/systemtap/$MODULENAME may be disposed-of here,
+     due to tapset-procfs.cxx cleaning up after procfs probes (such
+     as in --monitor mode).  */
+  systemtap_kernel_module_exit();
 }
 
 #define pseudo_atomic_cmpxchg(v, old, new) ({\
