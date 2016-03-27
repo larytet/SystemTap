@@ -278,7 +278,8 @@ void parse_args(int argc, char **argv)
 			err(_("File name is too long.\n"));
 			usage(argv[0],1);
 		}
-		ret = stap_strfloctime(tmp, PATH_MAX - 18, /* = _cpuNNN.SSSSSSSSSS */
+		ret = stap_strfloctime(tmp, PATH_MAX - 21,
+                                       /* = _cpuNNNNNN.SSSSSSSSSS */
 				       outfile_name, time(NULL));
 		if (ret < 0) {
 			err(_("Filename format is invalid or too long.\n"));
