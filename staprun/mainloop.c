@@ -214,6 +214,10 @@ void start_cmd(void)
     a.sa_handler = SIG_DFL;
     sigaction(SIGINT, &a, NULL);
 
+    /* Close any FDs we still hold, similarly as though this were
+       a program being spawned due to an system("") tapset function. */
+    closefrom(3);
+    
     /* We could call closefrom() here, to make sure we don't leak any
      * fds to the target, but it really isn't needed here since
      * close-on-exec should catch everything. We don't have the
@@ -257,6 +261,8 @@ void start_cmd(void)
    approximation, we just wait here for a signal from the parent. */
 
     dbug(1, "blocking briefly\n");
+    alarm(60); /* but not indefinitely */
+    
 #if WORKAROUND_BZ467568
     {
       /* Wait for the SIGUSR1 */
