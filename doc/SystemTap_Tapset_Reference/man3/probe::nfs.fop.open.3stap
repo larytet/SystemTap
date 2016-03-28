@@ -36,6 +36,21 @@ nfs\&.fop\&.open
 .fi
 .SH "VALUES"
 .PP
+\fIi_size\fR
+.RS 4
+file length in bytes
+.RE
+.PP
+\fIfile_name\fR
+.RS 4
+file name
+.RE
+.PP
+\fIflag\fR
+.RS 4
+file flag
+.RE
+.PP
 \fIdev\fR
 .RS 4
 device identifier
@@ -44,21 +59,6 @@ device identifier
 \fIino\fR
 .RS 4
 inode number
-.RE
-.PP
-\fIi_size\fR
-.RS 4
-file length in bytes
-.RE
-.PP
-\fIflag\fR
-.RS 4
-file flag
-.RE
-.PP
-\fIfile_name\fR
-.RS 4
-file name
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfs (3stap)

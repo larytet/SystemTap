@@ -41,14 +41,14 @@ vm\&.kfree
 pointer to the kmemory allocated which is returned by kmalloc
 .RE
 .PP
-\fIcall_site\fR
-.RS 4
-address of the function calling this kmemory function
-.RE
-.PP
 \fIname\fR
 .RS 4
 name of the probe point
+.RE
+.PP
+\fIcall_site\fR
+.RS 4
+address of the function calling this kmemory function
 .RE
 .PP
 \fIcaller_function\fR

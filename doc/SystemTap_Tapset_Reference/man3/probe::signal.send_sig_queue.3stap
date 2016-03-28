@@ -41,9 +41,9 @@ signal\&.send_sig_queue
 The PID of the process to which the signal is queued
 .RE
 .PP
-\fIsigqueue_addr\fR
+\fIpid_name\fR
 .RS 4
-The address of the signal queue
+Name of the process to which the signal is queued
 .RE
 .PP
 \fIname\fR
@@ -51,19 +51,19 @@ The address of the signal queue
 Name of the probe point
 .RE
 .PP
-\fIsig\fR
+\fIsigqueue_addr\fR
 .RS 4
-The queued signal
-.RE
-.PP
-\fIpid_name\fR
-.RS 4
-Name of the process to which the signal is queued
+The address of the signal queue
 .RE
 .PP
 \fIsig_name\fR
 .RS 4
 A string representation of the signal
+.RE
+.PP
+\fIsig\fR
+.RS 4
+The queued signal
 .RE
 .SH SEE ALSO\n 
 .IR tapset::signal (3stap)

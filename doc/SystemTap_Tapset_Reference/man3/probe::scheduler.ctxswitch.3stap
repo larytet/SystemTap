@@ -36,39 +36,9 @@ scheduler\&.ctxswitch
 .fi
 .SH "VALUES"
 .PP
-\fIprev_priority\fR
-.RS 4
-The priority of the process to be switched out
-.RE
-.PP
-\fInext_pid\fR
-.RS 4
-The PID of the process to be switched in
-.RE
-.PP
 \fIprevtsk_state\fR
 .RS 4
 the state of the process to be switched out
-.RE
-.PP
-\fIprev_pid\fR
-.RS 4
-The PID of the process to be switched out
-.RE
-.PP
-\fInext_task_name\fR
-.RS 4
-The name of the process to be switched in
-.RE
-.PP
-\fInext_tid\fR
-.RS 4
-The TID of the process to be switched in
-.RE
-.PP
-\fIname\fR
-.RS 4
-name of the probe point
 .RE
 .PP
 \fIprev_tid\fR
@@ -76,9 +46,14 @@ name of the probe point
 The TID of the process to be switched out
 .RE
 .PP
-\fInext_priority\fR
+\fInext_task_name\fR
 .RS 4
-The priority of the process to be switched in
+The name of the process to be switched in
+.RE
+.PP
+\fInext_pid\fR
+.RS 4
+The PID of the process to be switched in
 .RE
 .PP
 \fInexttsk_state\fR
@@ -86,9 +61,34 @@ The priority of the process to be switched in
 the state of the process to be switched in
 .RE
 .PP
+\fIprev_pid\fR
+.RS 4
+The PID of the process to be switched out
+.RE
+.PP
+\fIprev_priority\fR
+.RS 4
+The priority of the process to be switched out
+.RE
+.PP
 \fIprev_task_name\fR
 .RS 4
 The name of the process to be switched out
+.RE
+.PP
+\fInext_tid\fR
+.RS 4
+The TID of the process to be switched in
+.RE
+.PP
+\fInext_priority\fR
+.RS 4
+The priority of the process to be switched in
+.RE
+.PP
+\fIname\fR
+.RS 4
+name of the probe point
 .RE
 .SH SEE ALSO\n 
 .IR tapset::scheduler (3stap)

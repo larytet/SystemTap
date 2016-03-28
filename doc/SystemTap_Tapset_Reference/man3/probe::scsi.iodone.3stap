@@ -36,19 +36,14 @@ scsi\&.iodone
 .fi
 .SH "VALUES"
 .PP
-\fIdevice_state\fR
-.RS 4
-The current state of the device
-.RE
-.PP
-\fIlun\fR
-.RS 4
-The lun number
-.RE
-.PP
 \fIhost_no\fR
 .RS 4
 The host number
+.RE
+.PP
+\fIchannel\fR
+.RS 4
+The channel number
 .RE
 .PP
 \fIdev_id\fR
@@ -61,14 +56,9 @@ The scsi device id
 1 if a timer is pending on this request
 .RE
 .PP
-\fIchannel\fR
+\fIdata_direction\fR
 .RS 4
-The channel number
-.RE
-.PP
-\fIdevice_state_str\fR
-.RS 4
-The current state of the device, as a string
+The data_direction specifies whether this command is from/to the device\&.
 .RE
 .PP
 \fIreq_addr\fR
@@ -76,14 +66,24 @@ The current state of the device, as a string
 The current struct request pointer, as a number
 .RE
 .PP
-\fIdata_direction\fR
+\fIdevice_state_str\fR
 .RS 4
-The data_direction specifies whether this command is from/to the device\&.
+The current state of the device, as a string
 .RE
 .PP
 \fIdata_direction_str\fR
 .RS 4
 Data direction, as a string
+.RE
+.PP
+\fIlun\fR
+.RS 4
+The lun number
+.RE
+.PP
+\fIdevice_state\fR
+.RS 4
+The current state of the device
 .RE
 .SH SEE ALSO\n 
 .IR tapset::scsi (3stap)

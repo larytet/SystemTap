@@ -36,29 +36,14 @@ sunrpc\&.clnt\&.bind_new_program
 .fi
 .SH "VALUES"
 .PP
-\fIold_prog\fR
+\fIold_progname\fR
 .RS 4
-the number of old RPC program
-.RE
-.PP
-\fIprog\fR
-.RS 4
-the number of new RPC program
+the name of old RPC program
 .RE
 .PP
 \fIprogname\fR
 .RS 4
 the name of new RPC program
-.RE
-.PP
-\fIvers\fR
-.RS 4
-the version of new RPC program
-.RE
-.PP
-\fIold_progname\fR
-.RS 4
-the name of old RPC program
 .RE
 .PP
 \fIold_vers\fR
@@ -69,6 +54,21 @@ the version of old RPC program
 \fIservername\fR
 .RS 4
 the server machine name
+.RE
+.PP
+\fIprog\fR
+.RS 4
+the number of new RPC program
+.RE
+.PP
+\fIvers\fR
+.RS 4
+the version of new RPC program
+.RE
+.PP
+\fIold_prog\fR
+.RS 4
+the number of old RPC program
 .RE
 .SH SEE ALSO\n 
 .IR tapset::rpc (3stap)

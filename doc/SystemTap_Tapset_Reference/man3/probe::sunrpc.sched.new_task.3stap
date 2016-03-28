@@ -36,9 +36,19 @@ sunrpc\&.sched\&.new_task
 .fi
 .SH "VALUES"
 .PP
+\fIvers\fR
+.RS 4
+the program version in the RPC call
+.RE
+.PP
 \fIprog\fR
 .RS 4
 the program number in the RPC call
+.RE
+.PP
+\fIprot\fR
+.RS 4
+the IP protocol in the RPC call
 .RE
 .PP
 \fIxid\fR
@@ -46,19 +56,9 @@ the program number in the RPC call
 the transmission id in the RPC call
 .RE
 .PP
-\fIvers\fR
-.RS 4
-the program version in the RPC call
-.RE
-.PP
 \fItk_flags\fR
 .RS 4
 the flags of the task
-.RE
-.PP
-\fIprot\fR
-.RS 4
-the IP protocol in the RPC call
 .RE
 .SH SEE ALSO\n 
 .IR tapset::rpc (3stap)

@@ -36,9 +36,9 @@ vm\&.brk
 .fi
 .SH "VALUES"
 .PP
-\fIname\fR
+\fIlength\fR
 .RS 4
-name of the probe point
+the length of the memory segment
 .RE
 .PP
 \fIaddress\fR
@@ -46,9 +46,9 @@ name of the probe point
 the requested address
 .RE
 .PP
-\fIlength\fR
+\fIname\fR
 .RS 4
-the length of the memory segment
+name of the probe point
 .RE
 .SH "CONTEXT"
 .PP

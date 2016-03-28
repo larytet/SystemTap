@@ -36,6 +36,107 @@ netfilter\&.arp\&.forward
 .fi
 .SH "VALUES"
 .PP
+\fIlength\fR
+.RS 4
+The length of the packet buffer contents, in bytes
+.RE
+.PP
+\fInf_repeat\fR
+.RS 4
+Constant used to signify a \*(Aqrepeat\*(Aq verdict
+.RE
+.PP
+\fIar_hln\fR
+.RS 4
+Length of hardware address
+.RE
+.PP
+\fInf_stolen\fR
+.RS 4
+Constant used to signify a \*(Aqstolen\*(Aq verdict
+.RE
+.PP
+\fIar_data\fR
+.RS 4
+Address of ARP packet data region (after the header)
+.RE
+.PP
+\fInf_drop\fR
+.RS 4
+Constant used to signify a \*(Aqdrop\*(Aq verdict
+.RE
+.PP
+\fIindev_name\fR
+.RS 4
+Name of network device packet was received on (if known)
+.RE
+.PP
+\fIar_sip\fR
+.RS 4
+Ethernet+IP only (ar_pro==0x800): source IP address
+.RE
+.PP
+\fIarphdr\fR
+.RS 4
+Address of ARP header
+.RE
+.PP
+\fIar_op\fR
+.RS 4
+ARP opcode (command)
+.RE
+.PP
+\fIar_tip\fR
+.RS 4
+Ethernet+IP only (ar_pro==0x800): target IP address
+.RE
+.PP
+\fInf_queue\fR
+.RS 4
+Constant used to signify a \*(Aqqueue\*(Aq verdict
+.RE
+.PP
+\fIpf\fR
+.RS 4
+Protocol family \-\- always
+\(lqarp\(rq
+.RE
+.PP
+\fIar_tha\fR
+.RS 4
+Ethernet+IP only (ar_pro==0x800): target hardware (MAC) address
+.RE
+.PP
+\fIar_pro\fR
+.RS 4
+Format of protocol address
+.RE
+.PP
+\fIoutdev_name\fR
+.RS 4
+Name of network device packet will be routed to (if known)
+.RE
+.PP
+\fIindev\fR
+.RS 4
+Address of net_device representing input device, 0 if unknown
+.RE
+.PP
+\fIar_sha\fR
+.RS 4
+Ethernet+IP only (ar_pro==0x800): source hardware (MAC) address
+.RE
+.PP
+\fIar_pln\fR
+.RS 4
+Length of protocol address
+.RE
+.PP
+\fIoutdev\fR
+.RS 4
+Address of net_device representing output device, 0 if unknown
+.RE
+.PP
 \fInf_stop\fR
 .RS 4
 Constant used to signify a \*(Aqstop\*(Aq verdict
@@ -46,110 +147,9 @@ Constant used to signify a \*(Aqstop\*(Aq verdict
 Format of hardware address
 .RE
 .PP
-\fIoutdev_name\fR
-.RS 4
-Name of network device packet will be routed to (if known)
-.RE
-.PP
-\fIar_pro\fR
-.RS 4
-Format of protocol address
-.RE
-.PP
-\fIoutdev\fR
-.RS 4
-Address of net_device representing output device, 0 if unknown
-.RE
-.PP
-\fIpf\fR
-.RS 4
-Protocol family \-\- always
-\(lqarp\(rq
-.RE
-.PP
-\fIarphdr\fR
-.RS 4
-Address of ARP header
-.RE
-.PP
-\fIar_tha\fR
-.RS 4
-Ethernet+IP only (ar_pro==0x800): target hardware (MAC) address
-.RE
-.PP
-\fIar_hln\fR
-.RS 4
-Length of hardware address
-.RE
-.PP
-\fIindev\fR
-.RS 4
-Address of net_device representing input device, 0 if unknown
-.RE
-.PP
-\fInf_drop\fR
-.RS 4
-Constant used to signify a \*(Aqdrop\*(Aq verdict
-.RE
-.PP
-\fIar_op\fR
-.RS 4
-ARP opcode (command)
-.RE
-.PP
-\fIindev_name\fR
-.RS 4
-Name of network device packet was received on (if known)
-.RE
-.PP
 \fInf_accept\fR
 .RS 4
 Constant used to signify an \*(Aqaccept\*(Aq verdict
-.RE
-.PP
-\fIar_pln\fR
-.RS 4
-Length of protocol address
-.RE
-.PP
-\fInf_queue\fR
-.RS 4
-Constant used to signify a \*(Aqqueue\*(Aq verdict
-.RE
-.PP
-\fIlength\fR
-.RS 4
-The length of the packet buffer contents, in bytes
-.RE
-.PP
-\fIar_data\fR
-.RS 4
-Address of ARP packet data region (after the header)
-.RE
-.PP
-\fIar_tip\fR
-.RS 4
-Ethernet+IP only (ar_pro==0x800): target IP address
-.RE
-.PP
-\fInf_repeat\fR
-.RS 4
-Constant used to signify a \*(Aqrepeat\*(Aq verdict
-.RE
-.PP
-\fIar_sip\fR
-.RS 4
-Ethernet+IP only (ar_pro==0x800): source IP address
-.RE
-.PP
-\fInf_stolen\fR
-.RS 4
-Constant used to signify a \*(Aqstolen\*(Aq verdict
-.RE
-.PP
-\fIar_sha\fR
-.RS 4
-Ethernet+IP only (ar_pro==0x800): source hardware (MAC) address
 .RE
 .SH SEE ALSO\n 
 .IR tapset::netfilter (3stap)

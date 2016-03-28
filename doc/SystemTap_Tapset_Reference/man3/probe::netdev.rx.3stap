@@ -36,14 +36,14 @@ netdev\&.rx
 .fi
 .SH "VALUES"
 .PP
-\fIprotocol\fR
-.RS 4
-The packet protocol
-.RE
-.PP
 \fIdev_name\fR
 .RS 4
 The device received the packet
+.RE
+.PP
+\fIprotocol\fR
+.RS 4
+The packet protocol
 .RE
 .SH SEE ALSO\n 
 .IR tapset::networking (3stap)

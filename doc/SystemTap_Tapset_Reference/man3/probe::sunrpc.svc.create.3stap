@@ -36,9 +36,9 @@ sunrpc\&.svc\&.create
 .fi
 .SH "VALUES"
 .PP
-\fIpg_nvers\fR
+\fIprog\fR
 .RS 4
-the number of supported versions
+the number of the program
 .RE
 .PP
 \fIbufsize\fR
@@ -51,9 +51,9 @@ the buffer size
 the name of the program
 .RE
 .PP
-\fIprog\fR
+\fIpg_nvers\fR
 .RS 4
-the number of the program
+the number of supported versions
 .RE
 .SH SEE ALSO\n 
 .IR tapset::rpc (3stap)

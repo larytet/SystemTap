@@ -36,6 +36,16 @@ tty\&.read
 .fi
 .SH "VALUES"
 .PP
+\fIbuffer\fR
+.RS 4
+the buffer that will receive the characters
+.RE
+.PP
+\fIdriver_name\fR
+.RS 4
+the driver name
+.RE
+.PP
 \fIfile_name\fR
 .RS 4
 the file name lreated to the tty
@@ -44,16 +54,6 @@ the file name lreated to the tty
 \fInr\fR
 .RS 4
 The amount of characters to be read
-.RE
-.PP
-\fIdriver_name\fR
-.RS 4
-the driver name
-.RE
-.PP
-\fIbuffer\fR
-.RS 4
-the buffer that will receive the characters
 .RE
 .SH SEE ALSO\n 
 .IR tapset::tty (3stap)

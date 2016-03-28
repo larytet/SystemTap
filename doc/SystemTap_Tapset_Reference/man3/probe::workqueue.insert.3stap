@@ -36,14 +36,14 @@ workqueue\&.insert
 .fi
 .SH "VALUES"
 .PP
-\fIwq_thread\fR
-.RS 4
-task_struct of the workqueue thread
-.RE
-.PP
 \fIwork\fR
 .RS 4
 work_struct* being queued
+.RE
+.PP
+\fIwq_thread\fR
+.RS 4
+task_struct of the workqueue thread
 .RE
 .PP
 \fIwork_func\fR

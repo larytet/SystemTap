@@ -36,9 +36,19 @@ ioscheduler\&.elv_completed_request
 .fi
 .SH "VALUES"
 .PP
+\fIrq\fR
+.RS 4
+Address of the request
+.RE
+.PP
 \fIname\fR
 .RS 4
 Name of the probe point
+.RE
+.PP
+\fIdisk_minor\fR
+.RS 4
+Disk minor number of the request
 .RE
 .PP
 \fIdisk_major\fR
@@ -46,19 +56,9 @@ Name of the probe point
 Disk major number of the request
 .RE
 .PP
-\fIrq\fR
-.RS 4
-Address of the request
-.RE
-.PP
 \fIelevator_name\fR
 .RS 4
 The type of I/O elevator currently enabled
-.RE
-.PP
-\fIdisk_minor\fR
-.RS 4
-Disk minor number of the request
 .RE
 .PP
 \fIrq_flags\fR

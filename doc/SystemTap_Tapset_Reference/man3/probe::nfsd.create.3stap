@@ -36,9 +36,9 @@ nfsd\&.create
 .fi
 .SH "VALUES"
 .PP
-\fIiap_valid\fR
+\fIfilelen\fR
 .RS 4
-Attribute flags
+the length of file name
 .RE
 .PP
 \fItype\fR
@@ -46,9 +46,14 @@ Attribute flags
 file type(regular,dir,device,fifo \&.\&.\&.)
 .RE
 .PP
-\fIclient_ip\fR
+\fIiap_valid\fR
 .RS 4
-the ip address of client
+Attribute flags
+.RE
+.PP
+\fIiap_mode\fR
+.RS 4
+file access mode
 .RE
 .PP
 \fIfilename\fR
@@ -61,14 +66,9 @@ file name
 file handle (the first part is the length of the file handle)
 .RE
 .PP
-\fIfilelen\fR
+\fIclient_ip\fR
 .RS 4
-the length of file name
-.RE
-.PP
-\fIiap_mode\fR
-.RS 4
-file access mode
+the ip address of client
 .RE
 .SH "DESCRIPTION"
 .PP

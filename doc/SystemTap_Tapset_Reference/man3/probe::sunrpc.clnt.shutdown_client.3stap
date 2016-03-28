@@ -36,69 +36,9 @@ sunrpc\&.clnt\&.shutdown_client
 .fi
 .SH "VALUES"
 .PP
-\fIom_execute\fR
-.RS 4
-the RPC execution jiffies
-.RE
-.PP
 \fIom_ntrans\fR
 .RS 4
 the count of RPC transmissions
-.RE
-.PP
-\fInetreconn\fR
-.RS 4
-the count of reconnections
-.RE
-.PP
-\fIom_bytes_sent\fR
-.RS 4
-the count of bytes out
-.RE
-.PP
-\fIservername\fR
-.RS 4
-the server machine name
-.RE
-.PP
-\fIom_bytes_recv\fR
-.RS 4
-the count of bytes in
-.RE
-.PP
-\fIprot\fR
-.RS 4
-the IP protocol number
-.RE
-.PP
-\fItasks\fR
-.RS 4
-the number of references
-.RE
-.PP
-\fIclones\fR
-.RS 4
-the number of clones
-.RE
-.PP
-\fIom_rtt\fR
-.RS 4
-the RPC RTT jiffies
-.RE
-.PP
-\fIauthflavor\fR
-.RS 4
-the authentication flavor
-.RE
-.PP
-\fIport\fR
-.RS 4
-the port number
-.RE
-.PP
-\fIom_ops\fR
-.RS 4
-the count of operations
 .RE
 .PP
 \fIprog\fR
@@ -106,14 +46,59 @@ the count of operations
 the RPC program number
 .RE
 .PP
+\fIprot\fR
+.RS 4
+the IP protocol number
+.RE
+.PP
+\fIservername\fR
+.RS 4
+the server machine name
+.RE
+.PP
+\fIvers\fR
+.RS 4
+the RPC program version number
+.RE
+.PP
+\fIauthflavor\fR
+.RS 4
+the authentication flavor
+.RE
+.PP
+\fIom_rtt\fR
+.RS 4
+the RPC RTT jiffies
+.RE
+.PP
+\fItasks\fR
+.RS 4
+the number of references
+.RE
+.PP
 \fIom_queue\fR
 .RS 4
 the jiffies queued for xmit
 .RE
 .PP
-\fIprogname\fR
+\fIom_execute\fR
 .RS 4
-the RPC program name
+the RPC execution jiffies
+.RE
+.PP
+\fIom_bytes_sent\fR
+.RS 4
+the count of bytes out
+.RE
+.PP
+\fIclones\fR
+.RS 4
+the number of clones
+.RE
+.PP
+\fIom_bytes_recv\fR
+.RS 4
+the count of bytes in
 .RE
 .PP
 \fIrpccnt\fR
@@ -121,9 +106,24 @@ the RPC program name
 the count of RPC calls
 .RE
 .PP
-\fIvers\fR
+\fIprogname\fR
 .RS 4
-the RPC program version number
+the RPC program name
+.RE
+.PP
+\fIport\fR
+.RS 4
+the port number
+.RE
+.PP
+\fInetreconn\fR
+.RS 4
+the count of reconnections
+.RE
+.PP
+\fIom_ops\fR
+.RS 4
+the count of operations
 .RE
 .SH SEE ALSO\n 
 .IR tapset::rpc (3stap)

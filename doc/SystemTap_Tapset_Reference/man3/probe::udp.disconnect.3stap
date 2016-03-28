@@ -36,9 +36,9 @@ udp\&.disconnect
 .fi
 .SH "VALUES"
 .PP
-\fIsaddr\fR
+\fIfamily\fR
 .RS 4
-A string representing the source IP address
+IP address family
 .RE
 .PP
 \fIsock\fR
@@ -46,9 +46,24 @@ A string representing the source IP address
 Network socket used by the process
 .RE
 .PP
+\fIsaddr\fR
+.RS 4
+A string representing the source IP address
+.RE
+.PP
+\fIsport\fR
+.RS 4
+UDP source port
+.RE
+.PP
 \fIdaddr\fR
 .RS 4
 A string representing the destination IP address
+.RE
+.PP
+\fIname\fR
+.RS 4
+The name of this probe
 .RE
 .PP
 \fIdport\fR
@@ -59,21 +74,6 @@ UDP destination port
 \fIflags\fR
 .RS 4
 Flags (e\&.g\&. FIN, etc)
-.RE
-.PP
-\fIsport\fR
-.RS 4
-UDP source port
-.RE
-.PP
-\fIname\fR
-.RS 4
-The name of this probe
-.RE
-.PP
-\fIfamily\fR
-.RS 4
-IP address family
 .RE
 .SH "CONTEXT"
 .PP

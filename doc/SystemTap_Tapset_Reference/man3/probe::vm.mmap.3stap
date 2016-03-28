@@ -36,14 +36,14 @@ vm\&.mmap
 .fi
 .SH "VALUES"
 .PP
-\fIname\fR
-.RS 4
-name of the probe point
-.RE
-.PP
 \fIaddress\fR
 .RS 4
 the requested address
+.RE
+.PP
+\fIname\fR
+.RS 4
+name of the probe point
 .RE
 .PP
 \fIlength\fR

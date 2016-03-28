@@ -36,14 +36,14 @@ tcp\&.sendmsg\&.return
 .fi
 .SH "VALUES"
 .PP
-\fIsize\fR
-.RS 4
-Number of bytes sent or error code if an error occurred\&.
-.RE
-.PP
 \fIname\fR
 .RS 4
 Name of this probe
+.RE
+.PP
+\fIsize\fR
+.RS 4
+Number of bytes sent or error code if an error occurred\&.
 .RE
 .SH "CONTEXT"
 .PP

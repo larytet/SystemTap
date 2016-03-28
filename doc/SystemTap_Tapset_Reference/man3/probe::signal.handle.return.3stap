@@ -36,14 +36,14 @@ signal\&.handle\&.return
 .fi
 .SH "VALUES"
 .PP
-\fIretstr\fR
-.RS 4
-Return value as a string
-.RE
-.PP
 \fIname\fR
 .RS 4
 Name of the probe point
+.RE
+.PP
+\fIretstr\fR
+.RS 4
+Return value as a string
 .RE
 .SH "DESCRIPTION"
 .PP

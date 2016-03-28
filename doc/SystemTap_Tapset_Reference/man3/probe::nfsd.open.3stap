@@ -36,14 +36,14 @@ nfsd\&.open
 .fi
 .SH "VALUES"
 .PP
-\fIclient_ip\fR
-.RS 4
-the ip address of client
-.RE
-.PP
 \fIfh\fR
 .RS 4
 file handle (the first part is the length of the file handle)
+.RE
+.PP
+\fIclient_ip\fR
+.RS 4
+the ip address of client
 .RE
 .PP
 \fIaccess\fR

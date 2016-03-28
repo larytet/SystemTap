@@ -36,16 +36,6 @@ nfsd\&.dispatch
 .fi
 .SH "VALUES"
 .PP
-\fIprog\fR
-.RS 4
-program number
-.RE
-.PP
-\fIproto\fR
-.RS 4
-transfer protocol
-.RE
-.PP
 \fIproc\fR
 .RS 4
 procedure number
@@ -56,14 +46,24 @@ procedure number
 the ip address of client
 .RE
 .PP
+\fIxid\fR
+.RS 4
+transmission id
+.RE
+.PP
 \fIversion\fR
 .RS 4
 nfs version
 .RE
 .PP
-\fIxid\fR
+\fIprog\fR
 .RS 4
-transmission id
+program number
+.RE
+.PP
+\fIproto\fR
+.RS 4
+transfer protocol
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfsd (3stap)

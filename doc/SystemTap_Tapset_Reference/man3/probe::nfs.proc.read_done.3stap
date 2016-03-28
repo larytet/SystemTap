@@ -36,9 +36,9 @@ nfs\&.proc\&.read_done
 .fi
 .SH "VALUES"
 .PP
-\fIversion\fR
+\fIstatus\fR
 .RS 4
-NFS version
+result of last operation
 .RE
 .PP
 \fItimestamp\fR
@@ -46,14 +46,14 @@ NFS version
 V4 timestamp, which is used for lease renewal
 .RE
 .PP
+\fIversion\fR
+.RS 4
+NFS version
+.RE
+.PP
 \fIserver_ip\fR
 .RS 4
 IP address of server
-.RE
-.PP
-\fIstatus\fR
-.RS 4
-result of last operation
 .RE
 .PP
 \fIprot\fR

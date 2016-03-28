@@ -36,14 +36,14 @@ nfsd\&.unlink
 .fi
 .SH "VALUES"
 .PP
+\fIfilelen\fR
+.RS 4
+the length of file name
+.RE
+.PP
 \fItype\fR
 .RS 4
 file type (file or dir)
-.RE
-.PP
-\fIclient_ip\fR
-.RS 4
-the ip address of client
 .RE
 .PP
 \fIfilename\fR
@@ -51,9 +51,9 @@ the ip address of client
 file name
 .RE
 .PP
-\fIfilelen\fR
+\fIclient_ip\fR
 .RS 4
-the length of file name
+the ip address of client
 .RE
 .PP
 \fIfh\fR

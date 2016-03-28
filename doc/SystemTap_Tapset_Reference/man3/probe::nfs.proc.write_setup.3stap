@@ -46,22 +46,12 @@ NFS version
 IP address of server
 .RE
 .PP
-\fIhow\fR
+\fIprot\fR
 .RS 4
-used to set args\&.stable\&. The stable value could be: NFS_UNSTABLE,NFS_DATA_SYNC,NFS_FILE_SYNC (in nfs\&.proc3\&.write_setup and nfs\&.proc4\&.write_setup)
+transfer protocol
 .RE
 .PP
-\fIoffset\fR
-.RS 4
-the file offset
-.RE
-.PP
-\fIsize\fR
-.RS 4
-bytes written in this execution
-.RE
-.PP
-\fIbitmask0\fR
+\fIbitmask1\fR
 .RS 4
 V4 bitmask representing the set of attributes supported on this filesystem
 .RE
@@ -71,14 +61,24 @@ V4 bitmask representing the set of attributes supported on this filesystem
 bytes written in this execution
 .RE
 .PP
-\fIprot\fR
+\fIsize\fR
 .RS 4
-transfer protocol
+bytes written in this execution
 .RE
 .PP
-\fIbitmask1\fR
+\fIhow\fR
+.RS 4
+used to set args\&.stable\&. The stable value could be: NFS_UNSTABLE,NFS_DATA_SYNC,NFS_FILE_SYNC (in nfs\&.proc3\&.write_setup and nfs\&.proc4\&.write_setup)
+.RE
+.PP
+\fIbitmask0\fR
 .RS 4
 V4 bitmask representing the set of attributes supported on this filesystem
+.RE
+.PP
+\fIoffset\fR
+.RS 4
+the file offset
 .RE
 .SH "DESCRIPTION"
 .PP

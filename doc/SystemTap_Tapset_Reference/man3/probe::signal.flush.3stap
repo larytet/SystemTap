@@ -36,11 +36,6 @@ signal\&.flush
 .fi
 .SH "VALUES"
 .PP
-\fItask\fR
-.RS 4
-The task handler of the process performing the flush
-.RE
-.PP
 \fIpid_name\fR
 .RS 4
 The name of the process associated with the task performing the flush
@@ -49,6 +44,11 @@ The name of the process associated with the task performing the flush
 \fIsig_pid\fR
 .RS 4
 The PID of the process associated with the task performing the flush
+.RE
+.PP
+\fItask\fR
+.RS 4
+The task handler of the process performing the flush
 .RE
 .PP
 \fIname\fR

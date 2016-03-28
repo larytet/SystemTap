@@ -39,12 +39,8 @@ json_data
 None
 .SH "CONTEXT"
 .PP
-This probe fires when the JSON data is about to be read\&. This probe must gather up data and then call the following macros to output the data in JSON format\&. First,
-\fIjson_output_data_start\fR() must be called\&. That call is followed by one or more of the following (one call for each data item):
-\fIjson_output_string_value\fR(),
-\fIjson_output_numeric_value\fR(),
-\fIjson_output_array_string_value\fR(), and
-\fIjson_output_array_numeric_value\fR()\&. Finally
-\fIjson_output_data_end\fR() must be called\&.
+This probe fires when the JSON data is about to be read\&. This probe must gather up data and then call the following macros to output the data in JSON format\&. First, @\fBjson_output_data_start\fR
+must be called\&. That call is followed by one or more of the following (one call for each data item): @\fBjson_output_string_value\fR, @\fBjson_output_numeric_value\fR, @\fBjson_output_array_string_value\fR, and @\fBjson_output_array_numeric_value\fR\&. Finally @\fBjson_output_data_end\fR
+must be called\&.
 .SH SEE ALSO\n 
 .IR tapset::json (3stap)

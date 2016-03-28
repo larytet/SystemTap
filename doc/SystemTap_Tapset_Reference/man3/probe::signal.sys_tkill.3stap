@@ -36,19 +36,9 @@ signal\&.sys_tkill
 .fi
 .SH "VALUES"
 .PP
-\fIname\fR
+\fIsig\fR
 .RS 4
-Name of the probe point
-.RE
-.PP
-\fIsig_pid\fR
-.RS 4
-The PID of the process receiving the kill signal
-.RE
-.PP
-\fIpid_name\fR
-.RS 4
-The name of the signal recipient
+The specific signal sent to the process
 .RE
 .PP
 \fIsig_name\fR
@@ -56,14 +46,24 @@ The name of the signal recipient
 A string representation of the signal
 .RE
 .PP
-\fIsig\fR
+\fIname\fR
 .RS 4
-The specific signal sent to the process
+Name of the probe point
 .RE
 .PP
 \fItask\fR
 .RS 4
 A task handle to the signal recipient
+.RE
+.PP
+\fIpid_name\fR
+.RS 4
+The name of the signal recipient
+.RE
+.PP
+\fIsig_pid\fR
+.RS 4
+The PID of the process receiving the kill signal
 .RE
 .SH "DESCRIPTION"
 .PP

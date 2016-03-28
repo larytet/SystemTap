@@ -13,6 +13,14 @@ Convert seconds since epoch into human readable date/time string
 See 
 .IR function::ctime (3stap)
  for details.
+.P
+.TP
+.B ctime 
+Convert seconds since epoch into human readable date/time string
+.IP
+See 
+.IR function::ctime (3stap)
+ for details.
 
 .SH SEE ALSO
 .BR

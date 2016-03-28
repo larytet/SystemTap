@@ -36,16 +36,6 @@ softirq\&.entry
 .fi
 .SH "VALUES"
 .PP
-\fIh\fR
-.RS 4
-struct softirq_action* for current pending softirq
-.RE
-.PP
-\fIvec\fR
-.RS 4
-softirq_action vector
-.RE
-.PP
 \fIvec_nr\fR
 .RS 4
 softirq vector number
@@ -54,6 +44,16 @@ softirq vector number
 \fIaction\fR
 .RS 4
 pointer to softirq handler just about to execute
+.RE
+.PP
+\fIvec\fR
+.RS 4
+softirq_action vector
+.RE
+.PP
+\fIh\fR
+.RS 4
+struct softirq_action* for current pending softirq
 .RE
 .SH SEE ALSO\n 
 .IR tapset::irq (3stap)

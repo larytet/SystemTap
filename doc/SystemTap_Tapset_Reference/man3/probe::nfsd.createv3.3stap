@@ -36,29 +36,14 @@ nfsd\&.createv3
 .fi
 .SH "VALUES"
 .PP
+\fIfilelen\fR
+.RS 4
+the length of file name
+.RE
+.PP
 \fIiap_valid\fR
 .RS 4
 Attribute flags
-.RE
-.PP
-\fIcreatemode\fR
-.RS 4
-create mode \&.The possible values could be: NFS3_CREATE_EXCLUSIVE, NFS3_CREATE_UNCHECKED, or NFS3_CREATE_GUARDED
-.RE
-.PP
-\fIfilename\fR
-.RS 4
-file name
-.RE
-.PP
-\fIclient_ip\fR
-.RS 4
-the ip address of client
-.RE
-.PP
-\fIverifier\fR
-.RS 4
-file attributes (atime,mtime,mode)\&. It\*(Aqs used to reset file attributes for CREATE_EXCLUSIVE
 .RE
 .PP
 \fIiap_mode\fR
@@ -66,9 +51,14 @@ file attributes (atime,mtime,mode)\&. It\*(Aqs used to reset file attributes for
 file access mode
 .RE
 .PP
-\fIfilelen\fR
+\fIfilename\fR
 .RS 4
-the length of file name
+file name
+.RE
+.PP
+\fIverifier\fR
+.RS 4
+file attributes (atime,mtime,mode)\&. It\*(Aqs used to reset file attributes for CREATE_EXCLUSIVE
 .RE
 .PP
 \fIfh\fR
@@ -76,9 +66,19 @@ the length of file name
 file handle (the first part is the length of the file handle)
 .RE
 .PP
+\fIclient_ip\fR
+.RS 4
+the ip address of client
+.RE
+.PP
 \fItruncp\fR
 .RS 4
 trunp arguments, indicates if the file shouldbe truncate
+.RE
+.PP
+\fIcreatemode\fR
+.RS 4
+create mode \&.The possible values could be: NFS3_CREATE_EXCLUSIVE, NFS3_CREATE_UNCHECKED, or NFS3_CREATE_GUARDED
 .RE
 .SH "DESCRIPTION"
 .PP

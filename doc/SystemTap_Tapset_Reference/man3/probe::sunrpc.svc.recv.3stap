@@ -36,9 +36,9 @@ sunrpc\&.svc\&.recv
 .fi
 .SH "VALUES"
 .PP
-\fIsv_prog\fR
+\fItimeout\fR
 .RS 4
-the number of the program
+the timeout of waiting for data
 .RE
 .PP
 \fIsv_name\fR
@@ -46,9 +46,9 @@ the number of the program
 the service name
 .RE
 .PP
-\fItimeout\fR
+\fIsv_prog\fR
 .RS 4
-the timeout of waiting for data
+the number of the program
 .RE
 .PP
 \fIsv_nrthreads\fR

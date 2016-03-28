@@ -36,9 +36,9 @@ sunrpc\&.clnt\&.clone_client
 .fi
 .SH "VALUES"
 .PP
-\fIvers\fR
+\fIservername\fR
 .RS 4
-the RPC program version number
+the server machine name
 .RE
 .PP
 \fIprot\fR
@@ -46,9 +46,9 @@ the RPC program version number
 the IP protocol number
 .RE
 .PP
-\fIport\fR
+\fIprog\fR
 .RS 4
-the port number
+the RPC program number
 .RE
 .PP
 \fIprogname\fR
@@ -56,19 +56,19 @@ the port number
 the RPC program name
 .RE
 .PP
-\fIservername\fR
-.RS 4
-the server machine name
-.RE
-.PP
-\fIprog\fR
-.RS 4
-the RPC program number
-.RE
-.PP
 \fIauthflavor\fR
 .RS 4
 the authentication flavor
+.RE
+.PP
+\fIport\fR
+.RS 4
+the port number
+.RE
+.PP
+\fIvers\fR
+.RS 4
+the RPC program version number
 .RE
 .SH SEE ALSO\n 
 .IR tapset::rpc (3stap)

@@ -36,19 +36,9 @@ nfs\&.aop\&.write_begin
 .fi
 .SH "VALUES"
 .PP
-\fIto\fR
-.RS 4
-end address of this write operation
-.RE
-.PP
 \fIoffset\fR
 .RS 4
 start address of this write operation
-.RE
-.PP
-\fIino\fR
-.RS 4
-inode number
 .RE
 .PP
 \fIsize\fR
@@ -64,6 +54,16 @@ the address of page
 \fIpage_index\fR
 .RS 4
 offset within mapping, can used a page identifier and position identifier in the page frame
+.RE
+.PP
+\fIto\fR
+.RS 4
+end address of this write operation
+.RE
+.PP
+\fIino\fR
+.RS 4
+inode number
 .RE
 .PP
 \fIdev\fR

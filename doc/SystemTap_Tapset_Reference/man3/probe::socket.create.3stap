@@ -41,14 +41,14 @@ socket\&.create
 Requested by user process or the kernel (1 = kernel, 0 = user)
 .RE
 .PP
+\fIname\fR
+.RS 4
+Name of this probe
+.RE
+.PP
 \fItype\fR
 .RS 4
 Socket type value
-.RE
-.PP
-\fIfamily\fR
-.RS 4
-Protocol family value
 .RE
 .PP
 \fIprotocol\fR
@@ -56,9 +56,9 @@ Protocol family value
 Protocol value
 .RE
 .PP
-\fIname\fR
+\fIfamily\fR
 .RS 4
-Name of this probe
+Protocol family value
 .RE
 .SH "CONTEXT"
 .PP

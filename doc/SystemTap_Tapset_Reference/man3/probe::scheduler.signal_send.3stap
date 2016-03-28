@@ -36,9 +36,9 @@ scheduler\&.signal_send
 .fi
 .SH "VALUES"
 .PP
-\fIsignal_number\fR
+\fIpid\fR
 .RS 4
-signal number
+pid of the process sending signal
 .RE
 .PP
 \fIname\fR
@@ -46,9 +46,9 @@ signal number
 name of the probe point
 .RE
 .PP
-\fIpid\fR
+\fIsignal_number\fR
 .RS 4
-pid of the process sending signal
+signal number
 .RE
 .SH SEE ALSO\n 
 .IR tapset::scheduler (3stap)

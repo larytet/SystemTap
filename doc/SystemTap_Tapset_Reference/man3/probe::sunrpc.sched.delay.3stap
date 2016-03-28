@@ -36,24 +36,14 @@ sunrpc\&.sched\&.delay
 .fi
 .SH "VALUES"
 .PP
-\fIprot\fR
-.RS 4
-the IP protocol in the RPC call
-.RE
-.PP
-\fIdelay\fR
-.RS 4
-the time delayed
-.RE
-.PP
 \fIvers\fR
 .RS 4
 the program version in the RPC call
 .RE
 .PP
-\fIxid\fR
+\fIprot\fR
 .RS 4
-the transmission id in the RPC call
+the IP protocol in the RPC call
 .RE
 .PP
 \fIprog\fR
@@ -61,9 +51,19 @@ the transmission id in the RPC call
 the program number in the RPC call
 .RE
 .PP
+\fIxid\fR
+.RS 4
+the transmission id in the RPC call
+.RE
+.PP
 \fItk_pid\fR
 .RS 4
 the debugging id of the task
+.RE
+.PP
+\fIdelay\fR
+.RS 4
+the time delayed
 .RE
 .PP
 \fItk_flags\fR

@@ -36,9 +36,9 @@ nfsd\&.lookup
 .fi
 .SH "VALUES"
 .PP
-\fIfh\fR
+\fIfilename\fR
 .RS 4
-file handle of parent dir(the first part is the length of the file handle)
+file name
 .RE
 .PP
 \fIfilelen\fR
@@ -46,14 +46,14 @@ file handle of parent dir(the first part is the length of the file handle)
 the length of file name
 .RE
 .PP
-\fIfilename\fR
-.RS 4
-file name
-.RE
-.PP
 \fIclient_ip\fR
 .RS 4
 the ip address of client
+.RE
+.PP
+\fIfh\fR
+.RS 4
+file handle of parent dir(the first part is the length of the file handle)
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfsd (3stap)

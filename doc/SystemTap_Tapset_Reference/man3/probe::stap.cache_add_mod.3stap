@@ -36,14 +36,14 @@ stap\&.cache_add_mod
 .fi
 .SH "VALUES"
 .PP
-\fIdest_path\fR
-.RS 4
-the path the \&.ko file is going to (incl filename)
-.RE
-.PP
 \fIsource_path\fR
 .RS 4
 the path the \&.ko file is coming from (incl filename)
+.RE
+.PP
+\fIdest_path\fR
+.RS 4
+the path the \&.ko file is going to (incl filename)
 .RE
 .SH "DESCRIPTION"
 .PP

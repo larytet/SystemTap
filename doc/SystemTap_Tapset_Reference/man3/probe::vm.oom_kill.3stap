@@ -36,14 +36,14 @@ vm\&.oom_kill
 .fi
 .SH "VALUES"
 .PP
-\fIname\fR
-.RS 4
-name of the probe point
-.RE
-.PP
 \fItask\fR
 .RS 4
 the task being killed
+.RE
+.PP
+\fIname\fR
+.RS 4
+name of the probe point
 .RE
 .SH "CONTEXT"
 .PP

@@ -36,9 +36,9 @@ nfs\&.fop\&.release
 .fi
 .SH "VALUES"
 .PP
-\fIdev\fR
+\fIino\fR
 .RS 4
-device identifier
+inode number
 .RE
 .PP
 \fImode\fR
@@ -46,9 +46,9 @@ device identifier
 file mode
 .RE
 .PP
-\fIino\fR
+\fIdev\fR
 .RS 4
-inode number
+device identifier
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfs (3stap)

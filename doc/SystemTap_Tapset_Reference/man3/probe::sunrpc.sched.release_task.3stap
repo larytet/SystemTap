@@ -36,14 +36,14 @@ sunrpc\&.sched\&.release_task
 .fi
 .SH "VALUES"
 .PP
-\fIvers\fR
-.RS 4
-the program version in the RPC call
-.RE
-.PP
 \fIxid\fR
 .RS 4
 the transmission id in the RPC call
+.RE
+.PP
+\fIvers\fR
+.RS 4
+the program version in the RPC call
 .RE
 .PP
 \fIprog\fR
@@ -51,14 +51,14 @@ the transmission id in the RPC call
 the program number in the RPC call
 .RE
 .PP
-\fItk_flags\fR
-.RS 4
-the flags of the task
-.RE
-.PP
 \fIprot\fR
 .RS 4
 the IP protocol in the RPC call
+.RE
+.PP
+\fItk_flags\fR
+.RS 4
+the flags of the task
 .RE
 .SH "DESCRIPTION"
 .PP

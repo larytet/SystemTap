@@ -36,19 +36,19 @@ signal\&.force_segv
 .fi
 .SH "VALUES"
 .PP
-\fIname\fR
-.RS 4
-Name of the probe point
-.RE
-.PP
 \fIsig_pid\fR
 .RS 4
 The PID of the process receiving the signal
 .RE
 .PP
-\fIsig\fR
+\fIpid_name\fR
 .RS 4
-The number of the signal
+Name of the process receiving the signal
+.RE
+.PP
+\fIname\fR
+.RS 4
+Name of the probe point
 .RE
 .PP
 \fIsig_name\fR
@@ -56,9 +56,9 @@ The number of the signal
 A string representation of the signal
 .RE
 .PP
-\fIpid_name\fR
+\fIsig\fR
 .RS 4
-Name of the process receiving the signal
+The number of the signal
 .RE
 .SH SEE ALSO\n 
 .IR tapset::signal (3stap)

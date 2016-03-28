@@ -36,29 +36,14 @@ socket\&.read_iter\&.return
 .fi
 .SH "VALUES"
 .PP
-\fIname\fR
-.RS 4
-Name of this probe
-.RE
-.PP
 \fIstate\fR
 .RS 4
 Socket state value
 .RE
 .PP
-\fIprotocol\fR
+\fIname\fR
 .RS 4
-Protocol value
-.RE
-.PP
-\fIsuccess\fR
-.RS 4
-Was receive successful? (1 = yes, 0 = no)
-.RE
-.PP
-\fIfamily\fR
-.RS 4
-Protocol family value
+Name of this probe
 .RE
 .PP
 \fIflags\fR
@@ -66,14 +51,29 @@ Protocol family value
 Socket flags value
 .RE
 .PP
+\fItype\fR
+.RS 4
+Socket type value
+.RE
+.PP
+\fIprotocol\fR
+.RS 4
+Protocol value
+.RE
+.PP
 \fIsize\fR
 .RS 4
 Size of message received (in bytes) or error code if success = 0
 .RE
 .PP
-\fItype\fR
+\fIfamily\fR
 .RS 4
-Socket type value
+Protocol family value
+.RE
+.PP
+\fIsuccess\fR
+.RS 4
+Was receive successful? (1 = yes, 0 = no)
 .RE
 .SH "CONTEXT"
 .PP

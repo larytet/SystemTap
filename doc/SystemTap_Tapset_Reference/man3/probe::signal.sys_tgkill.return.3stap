@@ -36,14 +36,14 @@ signal\&.sys_tgkill\&.return
 .fi
 .SH "VALUES"
 .PP
-\fIretstr\fR
-.RS 4
-The return value to either __group_send_sig_info,
-.RE
-.PP
 \fIname\fR
 .RS 4
 Name of the probe point
+.RE
+.PP
+\fIretstr\fR
+.RS 4
+The return value to either __group_send_sig_info,
 .RE
 .SH SEE ALSO\n 
 .IR tapset::signal (3stap)

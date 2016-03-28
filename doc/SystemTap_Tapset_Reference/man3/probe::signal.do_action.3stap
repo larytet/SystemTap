@@ -36,14 +36,24 @@ signal\&.do_action
 .fi
 .SH "VALUES"
 .PP
-\fIsa_handler\fR
-.RS 4
-The new handler of the signal
-.RE
-.PP
 \fIname\fR
 .RS 4
 Name of the probe point
+.RE
+.PP
+\fIsig_name\fR
+.RS 4
+A string representation of the signal
+.RE
+.PP
+\fIsigact_addr\fR
+.RS 4
+The address of the new sigaction struct associated with the signal
+.RE
+.PP
+\fIsa_handler\fR
+.RS 4
+The new handler of the signal
 .RE
 .PP
 \fIsig\fR
@@ -59,16 +69,6 @@ The new mask of the signal
 \fIoldsigact_addr\fR
 .RS 4
 The address of the old sigaction struct associated with the signal
-.RE
-.PP
-\fIsigact_addr\fR
-.RS 4
-The address of the new sigaction struct associated with the signal
-.RE
-.PP
-\fIsig_name\fR
-.RS 4
-A string representation of the signal
 .RE
 .SH SEE ALSO\n 
 .IR tapset::signal (3stap)

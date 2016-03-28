@@ -36,9 +36,39 @@ ioblock_trace\&.end
 .fi
 .SH "VALUES"
 .PP
+\fIbdev_contains\fR
+.RS 4
+points to the device object which contains the partition (when bio structure represents a partition)
+.RE
+.PP
+\fIdevname\fR
+.RS 4
+block device name
+.RE
+.PP
+\fIflags\fR
+.RS 4
+see below BIO_UPTODATE 0 ok after I/O completion BIO_RW_BLOCK 1 RW_AHEAD set, and read/write would block BIO_EOF 2 out\-out\-bounds error BIO_SEG_VALID 3 nr_hw_seg valid BIO_CLONED 4 doesn\*(Aqt own data BIO_BOUNCED 5 bio is a bounce bio BIO_USER_MAPPED 6 contains user pages BIO_EOPNOTSUPP 7 not supported
+.RE
+.PP
+\fIsize\fR
+.RS 4
+total size in bytes
+.RE
+.PP
 \fIsector\fR
 .RS 4
 beginning sector for the entire bio
+.RE
+.PP
+\fIp_start_sect\fR
+.RS 4
+points to the start sector of the partition structure of the device
+.RE
+.PP
+\fIname\fR
+.RS 4
+name of the probe point
 .RE
 .PP
 \fIvcnt\fR
@@ -51,21 +81,6 @@ bio vector count which represents number of array element (page, offset, length)
 binary trace for read/write request
 .RE
 .PP
-\fIbytes_done\fR
-.RS 4
-number of bytes transferred
-.RE
-.PP
-\fIsize\fR
-.RS 4
-total size in bytes
-.RE
-.PP
-\fIq\fR
-.RS 4
-request queue on which this bio was queued\&.
-.RE
-.PP
 \fIidx\fR
 .RS 4
 offset into the bio vector array
@@ -73,24 +88,14 @@ offset into the bio vector array
 \- number of segments in this bio after physical address coalescing is performed\&.
 .RE
 .PP
-\fIname\fR
+\fIino\fR
 .RS 4
-name of the probe point
+i\-node number of the mapped file
 .RE
 .PP
-\fIflags\fR
+\fIq\fR
 .RS 4
-see below BIO_UPTODATE 0 ok after I/O completion BIO_RW_BLOCK 1 RW_AHEAD set, and read/write would block BIO_EOF 2 out\-out\-bounds error BIO_SEG_VALID 3 nr_hw_seg valid BIO_CLONED 4 doesn\*(Aqt own data BIO_BOUNCED 5 bio is a bounce bio BIO_USER_MAPPED 6 contains user pages BIO_EOPNOTSUPP 7 not supported
-.RE
-.PP
-\fIbdev_contains\fR
-.RS 4
-points to the device object which contains the partition (when bio structure represents a partition)
-.RE
-.PP
-\fIdevname\fR
-.RS 4
-block device name
+request queue on which this bio was queued\&.
 .RE
 .PP
 \fIbdev\fR
@@ -98,14 +103,9 @@ block device name
 target block device
 .RE
 .PP
-\fIino\fR
+\fIbytes_done\fR
 .RS 4
-i\-node number of the mapped file
-.RE
-.PP
-\fIp_start_sect\fR
-.RS 4
-points to the start sector of the partition structure of the device
+number of bytes transferred
 .RE
 .SH "CONTEXT"
 .PP

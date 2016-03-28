@@ -36,14 +36,14 @@ tty\&.poll
 .fi
 .SH "VALUES"
 .PP
-\fIfile_name\fR
-.RS 4
-the tty file name
-.RE
-.PP
 \fIwait_key\fR
 .RS 4
 the wait queue key
+.RE
+.PP
+\fIfile_name\fR
+.RS 4
+the tty file name
 .RE
 .SH SEE ALSO\n 
 .IR tapset::tty (3stap)

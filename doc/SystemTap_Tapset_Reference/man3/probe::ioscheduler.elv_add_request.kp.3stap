@@ -36,14 +36,9 @@ ioscheduler\&.elv_add_request\&.kp
 .fi
 .SH "VALUES"
 .PP
-\fIrq_flags\fR
+\fIq\fR
 .RS 4
-Request flags
-.RE
-.PP
-\fIdisk_minor\fR
-.RS 4
-Disk minor number of the request
+pointer to request queue
 .RE
 .PP
 \fIelevator_name\fR
@@ -51,14 +46,9 @@ Disk minor number of the request
 The type of I/O elevator currently enabled
 .RE
 .PP
-\fIrq\fR
+\fIrq_flags\fR
 .RS 4
-Address of the request
-.RE
-.PP
-\fIq\fR
-.RS 4
-pointer to request queue
+Request flags
 .RE
 .PP
 \fIdisk_major\fR
@@ -66,9 +56,19 @@ pointer to request queue
 Disk major number of the request
 .RE
 .PP
+\fIdisk_minor\fR
+.RS 4
+Disk minor number of the request
+.RE
+.PP
 \fIname\fR
 .RS 4
 Name of the probe point
+.RE
+.PP
+\fIrq\fR
+.RS 4
+Address of the request
 .RE
 .SH SEE ALSO\n 
 .IR tapset::ioscheduler (3stap)

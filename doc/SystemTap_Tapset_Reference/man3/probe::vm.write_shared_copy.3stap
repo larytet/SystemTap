@@ -36,9 +36,9 @@ vm\&.write_shared_copy
 .fi
 .SH "VALUES"
 .PP
-\fIzero\fR
+\fIaddress\fR
 .RS 4
-boolean indicating whether it is a zero page (can do a clear instead of a copy)
+The address of the shared write
 .RE
 .PP
 \fIname\fR
@@ -46,9 +46,9 @@ boolean indicating whether it is a zero page (can do a clear instead of a copy)
 Name of the probe point
 .RE
 .PP
-\fIaddress\fR
+\fIzero\fR
 .RS 4
-The address of the shared write
+boolean indicating whether it is a zero page (can do a clear instead of a copy)
 .RE
 .SH "CONTEXT"
 .PP

@@ -36,14 +36,9 @@ scsi\&.iocompleted
 .fi
 .SH "VALUES"
 .PP
-\fIhost_no\fR
+\fIreq_addr\fR
 .RS 4
-The host number
-.RE
-.PP
-\fIdev_id\fR
-.RS 4
-The scsi device id
+The current struct request pointer, as a number
 .RE
 .PP
 \fIgoodbytes\fR
@@ -51,14 +46,14 @@ The scsi device id
 The bytes completed
 .RE
 .PP
-\fIdevice_state\fR
+\fIdevice_state_str\fR
 .RS 4
-The current state of the device
+The current state of the device, as a string
 .RE
 .PP
-\fIlun\fR
+\fIhost_no\fR
 .RS 4
-The lun number
+The host number
 .RE
 .PP
 \fIchannel\fR
@@ -66,9 +61,9 @@ The lun number
 The channel number
 .RE
 .PP
-\fIdevice_state_str\fR
+\fIdev_id\fR
 .RS 4
-The current state of the device, as a string
+The scsi device id
 .RE
 .PP
 \fIdata_direction\fR
@@ -81,9 +76,14 @@ The data_direction specifies whether this command is from/to the device
 Data direction, as a string
 .RE
 .PP
-\fIreq_addr\fR
+\fIdevice_state\fR
 .RS 4
-The current struct request pointer, as a number
+The current state of the device
+.RE
+.PP
+\fIlun\fR
+.RS 4
+The lun number
 .RE
 .SH SEE ALSO\n 
 .IR tapset::scsi (3stap)

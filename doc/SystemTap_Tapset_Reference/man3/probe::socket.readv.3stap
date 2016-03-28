@@ -36,14 +36,19 @@ socket\&.readv
 .fi
 .SH "VALUES"
 .PP
-\fIname\fR
+\fIflags\fR
 .RS 4
-Name of this probe
+Socket flags value
 .RE
 .PP
-\fIstate\fR
+\fItype\fR
 .RS 4
-Socket state value
+Socket type value
+.RE
+.PP
+\fIsize\fR
+.RS 4
+Message size in bytes
 .RE
 .PP
 \fIprotocol\fR
@@ -56,19 +61,14 @@ Protocol value
 Protocol family value
 .RE
 .PP
-\fIflags\fR
+\fIstate\fR
 .RS 4
-Socket flags value
+Socket state value
 .RE
 .PP
-\fIsize\fR
+\fIname\fR
 .RS 4
-Message size in bytes
-.RE
-.PP
-\fItype\fR
-.RS 4
-Socket type value
+Name of this probe
 .RE
 .SH "CONTEXT"
 .PP

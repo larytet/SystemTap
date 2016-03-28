@@ -36,11 +36,6 @@ scheduler\&.cpu_on
 .fi
 .SH "VALUES"
 .PP
-\fIidle\fR
-.RS 4
-\- boolean indicating whether current is the idle process
-.RE
-.PP
 \fIname\fR
 .RS 4
 name of the probe point
@@ -49,6 +44,11 @@ name of the probe point
 \fItask_prev\fR
 .RS 4
 the process that was previously running on this cpu
+.RE
+.PP
+\fIidle\fR
+.RS 4
+\- boolean indicating whether current is the idle process
 .RE
 .SH "CONTEXT"
 .PP

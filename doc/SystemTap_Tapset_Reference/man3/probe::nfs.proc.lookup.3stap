@@ -41,19 +41,9 @@ nfs\&.proc\&.lookup
 IP address of server
 .RE
 .PP
-\fIname_len\fR
+\fIprot\fR
 .RS 4
-the length of file name
-.RE
-.PP
-\fIfilename\fR
-.RS 4
-the name of file which client opens/searches on server
-.RE
-.PP
-\fIbitmask0\fR
-.RS 4
-V4 bitmask representing the set of attributes supported on this filesystem
+transfer protocol
 .RE
 .PP
 \fIversion\fR
@@ -61,14 +51,24 @@ V4 bitmask representing the set of attributes supported on this filesystem
 NFS version
 .RE
 .PP
+\fIfilename\fR
+.RS 4
+the name of file which client opens/searches on server
+.RE
+.PP
+\fIname_len\fR
+.RS 4
+the length of file name
+.RE
+.PP
 \fIbitmask1\fR
 .RS 4
 V4 bitmask representing the set of attributes supported on this filesystem
 .RE
 .PP
-\fIprot\fR
+\fIbitmask0\fR
 .RS 4
-transfer protocol
+V4 bitmask representing the set of attributes supported on this filesystem
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfs_proc (3stap)

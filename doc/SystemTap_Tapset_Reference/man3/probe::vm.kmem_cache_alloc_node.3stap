@@ -36,34 +36,9 @@ vm\&.kmem_cache_alloc_node
 .fi
 .SH "VALUES"
 .PP
-\fIbytes_alloc\fR
-.RS 4
-allocated Bytes
-.RE
-.PP
-\fIcall_site\fR
-.RS 4
-address of the function calling this kmemory function
-.RE
-.PP
 \fIptr\fR
 .RS 4
 pointer to the kmemory allocated
-.RE
-.PP
-\fIcaller_function\fR
-.RS 4
-name of the caller function
-.RE
-.PP
-\fIgfp_flag_name\fR
-.RS 4
-type of kmemory to allocate(in string format)
-.RE
-.PP
-\fIbytes_req\fR
-.RS 4
-requested Bytes
 .RE
 .PP
 \fIname\fR
@@ -71,9 +46,34 @@ requested Bytes
 name of the probe point
 .RE
 .PP
+\fIcall_site\fR
+.RS 4
+address of the function calling this kmemory function
+.RE
+.PP
+\fIgfp_flag_name\fR
+.RS 4
+type of kmemory to allocate(in string format)
+.RE
+.PP
 \fIgfp_flags\fR
 .RS 4
 type of kmemory to allocate
+.RE
+.PP
+\fIcaller_function\fR
+.RS 4
+name of the caller function
+.RE
+.PP
+\fIbytes_alloc\fR
+.RS 4
+allocated Bytes
+.RE
+.PP
+\fIbytes_req\fR
+.RS 4
+requested Bytes
 .RE
 .SH SEE ALSO\n 
 .IR tapset::memory (3stap)

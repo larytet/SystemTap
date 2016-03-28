@@ -36,14 +36,14 @@ vm\&.pagefault\&.return
 .fi
 .SH "VALUES"
 .PP
-\fIfault_type\fR
-.RS 4
-returns either 0 (VM_FAULT_OOM) for out of memory faults, 2 (VM_FAULT_MINOR) for minor faults, 3 (VM_FAULT_MAJOR) for major faults, or 1 (VM_FAULT_SIGBUS) if the fault was neither OOM, minor fault, nor major fault\&.
-.RE
-.PP
 \fIname\fR
 .RS 4
 name of the probe point
+.RE
+.PP
+\fIfault_type\fR
+.RS 4
+returns either 0 (VM_FAULT_OOM) for out of memory faults, 2 (VM_FAULT_MINOR) for minor faults, 3 (VM_FAULT_MAJOR) for major faults, or 1 (VM_FAULT_SIGBUS) if the fault was neither OOM, minor fault, nor major fault\&.
 .RE
 .SH SEE ALSO\n 
 .IR tapset::memory (3stap)

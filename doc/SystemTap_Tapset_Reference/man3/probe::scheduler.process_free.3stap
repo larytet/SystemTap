@@ -36,11 +36,6 @@ scheduler\&.process_free
 .fi
 .SH "VALUES"
 .PP
-\fIpid\fR
-.RS 4
-PID of the process getting freed
-.RE
-.PP
 \fIpriority\fR
 .RS 4
 priority of the process getting freed
@@ -49,6 +44,11 @@ priority of the process getting freed
 \fIname\fR
 .RS 4
 name of the probe point
+.RE
+.PP
+\fIpid\fR
+.RS 4
+PID of the process getting freed
 .RE
 .SH SEE ALSO\n 
 .IR tapset::scheduler (3stap)

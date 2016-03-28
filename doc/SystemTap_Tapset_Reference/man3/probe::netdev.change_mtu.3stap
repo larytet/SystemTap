@@ -36,11 +36,6 @@ netdev\&.change_mtu
 .fi
 .SH "VALUES"
 .PP
-\fIold_mtu\fR
-.RS 4
-The current MTU
-.RE
-.PP
 \fInew_mtu\fR
 .RS 4
 The new MTU
@@ -49,6 +44,11 @@ The new MTU
 \fIdev_name\fR
 .RS 4
 The device that will have the MTU changed
+.RE
+.PP
+\fIold_mtu\fR
+.RS 4
+The current MTU
 .RE
 .SH SEE ALSO\n 
 .IR tapset::networking (3stap)

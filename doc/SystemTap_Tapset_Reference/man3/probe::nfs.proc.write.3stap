@@ -36,14 +36,9 @@ nfs\&.proc\&.write
 .fi
 .SH "VALUES"
 .PP
-\fIprot\fR
+\fIoffset\fR
 .RS 4
-transfer protocol
-.RE
-.PP
-\fIbitmask1\fR
-.RS 4
-V4 bitmask representing the set of attributes supported on this filesystem
+the file offset
 .RE
 .PP
 \fIbitmask0\fR
@@ -61,19 +56,24 @@ read bytes in this execution
 used to set task\->tk_flags in rpc_init_task function
 .RE
 .PP
-\fIoffset\fR
+\fIbitmask1\fR
 .RS 4
-the file offset
+V4 bitmask representing the set of attributes supported on this filesystem
 .RE
 .PP
-\fIversion\fR
+\fIprot\fR
 .RS 4
-NFS version
+transfer protocol
 .RE
 .PP
 \fIserver_ip\fR
 .RS 4
 IP address of server
+.RE
+.PP
+\fIversion\fR
+.RS 4
+NFS version
 .RE
 .SH "DESCRIPTION"
 .PP

@@ -36,9 +36,9 @@ scheduler\&.wait_task
 .fi
 .SH "VALUES"
 .PP
-\fIname\fR
+\fItask_priority\fR
 .RS 4
-name of the probe point
+priority of the task
 .RE
 .PP
 \fItask_pid\fR
@@ -46,9 +46,9 @@ name of the probe point
 PID of the task the scheduler is waiting on
 .RE
 .PP
-\fItask_priority\fR
+\fIname\fR
 .RS 4
-priority of the task
+name of the probe point
 .RE
 .SH SEE ALSO\n 
 .IR tapset::scheduler (3stap)

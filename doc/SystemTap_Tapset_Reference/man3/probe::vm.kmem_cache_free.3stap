@@ -36,16 +36,6 @@ vm\&.kmem_cache_free
 .fi
 .SH "VALUES"
 .PP
-\fIcaller_function\fR
-.RS 4
-Name of the caller function\&.
-.RE
-.PP
-\fIname\fR
-.RS 4
-Name of the probe point
-.RE
-.PP
 \fIcall_site\fR
 .RS 4
 Address of the function calling this kmemory function
@@ -54,6 +44,16 @@ Address of the function calling this kmemory function
 \fIptr\fR
 .RS 4
 Pointer to the kmemory allocated which is returned by kmem_cache
+.RE
+.PP
+\fIname\fR
+.RS 4
+Name of the probe point
+.RE
+.PP
+\fIcaller_function\fR
+.RS 4
+Name of the caller function\&.
 .RE
 .SH SEE ALSO\n 
 .IR tapset::memory (3stap)

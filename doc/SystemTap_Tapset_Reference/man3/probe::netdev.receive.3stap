@@ -41,14 +41,14 @@ netdev\&.receive
 Protocol of received packet\&.
 .RE
 .PP
-\fIdev_name\fR
-.RS 4
-The name of the device\&. e\&.g: eth0, ath1\&.
-.RE
-.PP
 \fIlength\fR
 .RS 4
 The length of the receiving buffer\&.
+.RE
+.PP
+\fIdev_name\fR
+.RS 4
+The name of the device\&. e\&.g: eth0, ath1\&.
 .RE
 .SH SEE ALSO\n 
 .IR tapset::networking (3stap)

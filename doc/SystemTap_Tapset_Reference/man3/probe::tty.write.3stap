@@ -36,9 +36,9 @@ tty\&.write
 .fi
 .SH "VALUES"
 .PP
-\fInr\fR
+\fIbuffer\fR
 .RS 4
-The amount of characters
+the buffer that will be written
 .RE
 .PP
 \fIfile_name\fR
@@ -46,14 +46,14 @@ The amount of characters
 the file name lreated to the tty
 .RE
 .PP
-\fIbuffer\fR
-.RS 4
-the buffer that will be written
-.RE
-.PP
 \fIdriver_name\fR
 .RS 4
 the driver name
+.RE
+.PP
+\fInr\fR
+.RS 4
+The amount of characters
 .RE
 .SH SEE ALSO\n 
 .IR tapset::tty (3stap)

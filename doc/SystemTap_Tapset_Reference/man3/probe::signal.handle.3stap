@@ -36,29 +36,14 @@ signal\&.handle
 .fi
 .SH "VALUES"
 .PP
+\fIsinfo\fR
+.RS 4
+The address of the siginfo table
+.RE
+.PP
 \fIka_addr\fR
 .RS 4
 The address of the k_sigaction table associated with the signal
-.RE
-.PP
-\fIoldset_addr\fR
-.RS 4
-The address of the bitmask array of blocked signals (deprecated in SystemTap 2\&.1)
-.RE
-.PP
-\fIsig_mode\fR
-.RS 4
-Indicates whether the signal was a user\-mode or kernel\-mode signal
-.RE
-.PP
-\fIname\fR
-.RS 4
-Name of the probe point
-.RE
-.PP
-\fIsig_name\fR
-.RS 4
-A string representation of the signal
 .RE
 .PP
 \fIsig_code\fR
@@ -66,19 +51,34 @@ A string representation of the signal
 The si_code value of the siginfo signal
 .RE
 .PP
+\fIname\fR
+.RS 4
+Name of the probe point
+.RE
+.PP
 \fIregs\fR
 .RS 4
 The address of the kernel\-mode stack area (deprecated in SystemTap 2\&.1)
 .RE
 .PP
-\fIsinfo\fR
+\fIsig_mode\fR
 .RS 4
-The address of the siginfo table
+Indicates whether the signal was a user\-mode or kernel\-mode signal
+.RE
+.PP
+\fIsig_name\fR
+.RS 4
+A string representation of the signal
 .RE
 .PP
 \fIsig\fR
 .RS 4
 The signal number that invoked the signal handler
+.RE
+.PP
+\fIoldset_addr\fR
+.RS 4
+The address of the bitmask array of blocked signals (deprecated in SystemTap 2\&.1)
 .RE
 .SH SEE ALSO\n 
 .IR tapset::signal (3stap)

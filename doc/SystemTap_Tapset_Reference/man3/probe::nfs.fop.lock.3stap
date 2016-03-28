@@ -36,21 +36,6 @@ nfs\&.fop\&.lock
 .fi
 .SH "VALUES"
 .PP
-\fIino\fR
-.RS 4
-inode number
-.RE
-.PP
-\fIfl_start\fR
-.RS 4
-starting offset of locked region
-.RE
-.PP
-\fIcmd\fR
-.RS 4
-cmd arguments
-.RE
-.PP
 \fIfl_flag\fR
 .RS 4
 lock flags
@@ -61,9 +46,14 @@ lock flags
 device identifier
 .RE
 .PP
-\fIfl_end\fR
+\fIino\fR
 .RS 4
-ending offset of locked region
+inode number
+.RE
+.PP
+\fIi_mode\fR
+.RS 4
+file type and access rights
 .RE
 .PP
 \fIfl_type\fR
@@ -71,9 +61,19 @@ ending offset of locked region
 lock type
 .RE
 .PP
-\fIi_mode\fR
+\fIfl_start\fR
 .RS 4
-file type and access rights
+starting offset of locked region
+.RE
+.PP
+\fIfl_end\fR
+.RS 4
+ending offset of locked region
+.RE
+.PP
+\fIcmd\fR
+.RS 4
+cmd arguments
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfs (3stap)

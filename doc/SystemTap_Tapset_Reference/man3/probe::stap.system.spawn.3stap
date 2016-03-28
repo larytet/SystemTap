@@ -36,14 +36,14 @@ stap\&.system\&.spawn
 .fi
 .SH "VALUES"
 .PP
-\fIret\fR
-.RS 4
-the return value from posix_spawn
-.RE
-.PP
 \fIpid\fR
 .RS 4
 the pid of the spawned process
+.RE
+.PP
+\fIret\fR
+.RS 4
+the return value from posix_spawn
 .RE
 .SH "DESCRIPTION"
 .PP

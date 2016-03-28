@@ -41,24 +41,9 @@ ioblock\&.end
 block device name
 .RE
 .PP
-\fIino\fR
+\fIphys_segments\fR
 .RS 4
-i\-node number of the mapped file
-.RE
-.PP
-\fIhw_segments\fR
-.RS 4
-number of segments after physical and DMA remapping hardware coalescing is performed
-.RE
-.PP
-\fIname\fR
-.RS 4
-name of the probe point
-.RE
-.PP
-\fIidx\fR
-.RS 4
-offset into the bio vector array
+number of segments in this bio after physical address coalescing is performed\&.
 .RE
 .PP
 \fIerror\fR
@@ -66,19 +51,9 @@ offset into the bio vector array
 0 on success
 .RE
 .PP
-\fIflags\fR
+\fIsector\fR
 .RS 4
-see below BIO_UPTODATE 0 ok after I/O completion BIO_RW_BLOCK 1 RW_AHEAD set, and read/write would block BIO_EOF 2 out\-out\-bounds error BIO_SEG_VALID 3 nr_hw_seg valid BIO_CLONED 4 doesn\*(Aqt own data BIO_BOUNCED 5 bio is a bounce bio BIO_USER_MAPPED 6 contains user pages BIO_EOPNOTSUPP 7 not supported
-.RE
-.PP
-\fIrw\fR
-.RS 4
-binary trace for read/write request
-.RE
-.PP
-\fIphys_segments\fR
-.RS 4
-number of segments in this bio after physical address coalescing is performed\&.
+beginning sector for the entire bio
 .RE
 .PP
 \fIvcnt\fR
@@ -86,9 +61,14 @@ number of segments in this bio after physical address coalescing is performed\&.
 bio vector count which represents number of array element (page, offset, length) which makes up this I/O request
 .RE
 .PP
-\fIsector\fR
+\fIname\fR
 .RS 4
-beginning sector for the entire bio
+name of the probe point
+.RE
+.PP
+\fIflags\fR
+.RS 4
+see below BIO_UPTODATE 0 ok after I/O completion BIO_RW_BLOCK 1 RW_AHEAD set, and read/write would block BIO_EOF 2 out\-out\-bounds error BIO_SEG_VALID 3 nr_hw_seg valid BIO_CLONED 4 doesn\*(Aqt own data BIO_BOUNCED 5 bio is a bounce bio BIO_USER_MAPPED 6 contains user pages BIO_EOPNOTSUPP 7 not supported
 .RE
 .PP
 \fIsize\fR
@@ -96,9 +76,29 @@ beginning sector for the entire bio
 total size in bytes
 .RE
 .PP
+\fIrw\fR
+.RS 4
+binary trace for read/write request
+.RE
+.PP
+\fIidx\fR
+.RS 4
+offset into the bio vector array
+.RE
+.PP
+\fIino\fR
+.RS 4
+i\-node number of the mapped file
+.RE
+.PP
 \fIbytes_done\fR
 .RS 4
 number of bytes transferred
+.RE
+.PP
+\fIhw_segments\fR
+.RS 4
+number of segments after physical and DMA remapping hardware coalescing is performed
 .RE
 .SH "CONTEXT"
 .PP

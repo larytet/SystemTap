@@ -46,26 +46,6 @@ Number of bytes sent by the process
 The name of this probe
 .RE
 .PP
-\fIfamily\fR
-.RS 4
-IP address family
-.RE
-.PP
-\fIsport\fR
-.RS 4
-UDP source port
-.RE
-.PP
-\fIsaddr\fR
-.RS 4
-A string representing the source IP address
-.RE
-.PP
-\fIsock\fR
-.RS 4
-Network socket used by the process
-.RE
-.PP
 \fIdaddr\fR
 .RS 4
 A string representing the destination IP address
@@ -74,6 +54,26 @@ A string representing the destination IP address
 \fIdport\fR
 .RS 4
 UDP destination port
+.RE
+.PP
+\fIfamily\fR
+.RS 4
+IP address family
+.RE
+.PP
+\fIsock\fR
+.RS 4
+Network socket used by the process
+.RE
+.PP
+\fIsaddr\fR
+.RS 4
+A string representing the source IP address
+.RE
+.PP
+\fIsport\fR
+.RS 4
+UDP source port
 .RE
 .SH "CONTEXT"
 .PP

@@ -36,12 +36,12 @@ stap\&.cache_add_nss
 .fi
 .SH "VALUES"
 .PP
-\fIdest_path\fR
+\fIsource_path\fR
 .RS 4
 the path the \&.sgn file is coming from (incl filename)
 .RE
 .PP
-\fIsource_path\fR
+\fIdest_path\fR
 .RS 4
 the path the \&.sgn file is coming from (incl filename)
 .RE

@@ -36,6 +36,16 @@ sunrpc\&.svc\&.register
 .fi
 .SH "VALUES"
 .PP
+\fIsv_name\fR
+.RS 4
+the service name
+.RE
+.PP
+\fIport\fR
+.RS 4
+the port number
+.RE
+.PP
 \fIprogname\fR
 .RS 4
 the name of the program
@@ -44,16 +54,6 @@ the name of the program
 \fIprog\fR
 .RS 4
 the number of the program
-.RE
-.PP
-\fIport\fR
-.RS 4
-the port number
-.RE
-.PP
-\fIsv_name\fR
-.RS 4
-the service name
 .RE
 .PP
 \fIprot\fR

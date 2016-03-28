@@ -36,14 +36,14 @@ vm\&.kmem_cache_alloc
 .fi
 .SH "VALUES"
 .PP
+\fIbytes_alloc\fR
+.RS 4
+allocated Bytes
+.RE
+.PP
 \fIcaller_function\fR
 .RS 4
 name of the caller function\&.
-.RE
-.PP
-\fIgfp_flag_name\fR
-.RS 4
-type of kmemory to allocate(in string format)
 .RE
 .PP
 \fIgfp_flags\fR
@@ -61,14 +61,14 @@ requested Bytes
 name of the probe point
 .RE
 .PP
-\fIbytes_alloc\fR
-.RS 4
-allocated Bytes
-.RE
-.PP
 \fIptr\fR
 .RS 4
 pointer to the kmemory allocated
+.RE
+.PP
+\fIgfp_flag_name\fR
+.RS 4
+type of kmemory to allocate(in string format)
 .RE
 .PP
 \fIcall_site\fR

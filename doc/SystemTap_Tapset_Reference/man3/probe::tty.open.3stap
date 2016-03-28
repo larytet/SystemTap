@@ -36,6 +36,16 @@ tty\&.open
 .fi
 .SH "VALUES"
 .PP
+\fIinode_flags\fR
+.RS 4
+the inode flags
+.RE
+.PP
+\fIfile_flags\fR
+.RS 4
+the file flags
+.RE
+.PP
 \fIfile_name\fR
 .RS 4
 the file name
@@ -44,16 +54,6 @@ the file name
 \fIfile_mode\fR
 .RS 4
 the file mode
-.RE
-.PP
-\fIfile_flags\fR
-.RS 4
-the file flags
-.RE
-.PP
-\fIinode_flags\fR
-.RS 4
-the inode flags
 .RE
 .PP
 \fIinode_number\fR

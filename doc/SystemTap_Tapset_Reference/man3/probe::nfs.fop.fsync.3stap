@@ -41,14 +41,14 @@ nfs\&.fop\&.fsync
 number of dirty pages
 .RE
 .PP
-\fIdev\fR
-.RS 4
-device identifier
-.RE
-.PP
 \fIino\fR
 .RS 4
 inode number
+.RE
+.PP
+\fIdev\fR
+.RS 4
+device identifier
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfs (3stap)

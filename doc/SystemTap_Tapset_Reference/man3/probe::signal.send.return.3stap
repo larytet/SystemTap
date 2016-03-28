@@ -41,14 +41,14 @@ signal\&.send\&.return
 The name of the function used to send out the signal
 .RE
 .PP
-\fIshared\fR
-.RS 4
-Indicates whether the sent signal is shared by the thread group\&.
-.RE
-.PP
 \fIretstr\fR
 .RS 4
 The return value to either __group_send_sig_info, specific_send_sig_info, or send_sigqueue
+.RE
+.PP
+\fIshared\fR
+.RS 4
+Indicates whether the sent signal is shared by the thread group\&.
 .RE
 .PP
 \fIsend2queue\fR

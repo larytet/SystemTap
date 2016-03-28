@@ -36,9 +36,9 @@ irq_handler\&.entry
 .fi
 .SH "VALUES"
 .PP
-\fIdir\fR
+\fIflags\fR
 .RS 4
-pointer to the proc/irq/NN/name entry
+Flags for IRQ handler
 .RE
 .PP
 \fIdev_id\fR
@@ -46,14 +46,14 @@ pointer to the proc/irq/NN/name entry
 Cookie to identify device
 .RE
 .PP
-\fInext_irqaction\fR
+\fIthread_flags\fR
 .RS 4
-pointer to next irqaction for shared interrupts
+Flags related to thread
 .RE
 .PP
-\fIirq\fR
+\fIdir\fR
 .RS 4
-irq number
+pointer to the proc/irq/NN/name entry
 .RE
 .PP
 \fIhandler\fR
@@ -61,14 +61,19 @@ irq number
 interrupt handler function
 .RE
 .PP
-\fIthread\fR
+\fIaction\fR
 .RS 4
-thread pointer for threaded interrupts
+struct irqaction* for this interrupt num
 .RE
 .PP
 \fIthread_fn\fR
 .RS 4
 interrupt handler function for threaded interrupts
+.RE
+.PP
+\fInext_irqaction\fR
+.RS 4
+pointer to next irqaction for shared interrupts
 .RE
 .PP
 \fIdev_name\fR
@@ -81,19 +86,14 @@ name of device
 symbolic string representation of IRQ flags
 .RE
 .PP
-\fIflags\fR
+\fIirq\fR
 .RS 4
-Flags for IRQ handler
+irq number
 .RE
 .PP
-\fIthread_flags\fR
+\fIthread\fR
 .RS 4
-Flags related to thread
-.RE
-.PP
-\fIaction\fR
-.RS 4
-struct irqaction* for this interrupt num
+thread pointer for threaded interrupts
 .RE
 .SH SEE ALSO\n 
 .IR tapset::irq (3stap)

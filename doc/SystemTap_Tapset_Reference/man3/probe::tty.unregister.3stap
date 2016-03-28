@@ -41,14 +41,14 @@ tty\&.unregister
 the driver \&.dev_name name
 .RE
 .PP
-\fImodule\fR
-.RS 4
-the module name
-.RE
-.PP
 \fIdriver_name\fR
 .RS 4
 the driver name
+.RE
+.PP
+\fImodule\fR
+.RS 4
+the module name
 .RE
 .PP
 \fIindex\fR

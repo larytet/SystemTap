@@ -41,19 +41,9 @@ ioscheduler_trace\&.elv_abort_request
 Name of the probe point
 .RE
 .PP
-\fIdisk_major\fR
+\fIrq\fR
 .RS 4
-Disk major no of request\&.
-.RE
-.PP
-\fIrq_flags\fR
-.RS 4
-Request flags\&.
-.RE
-.PP
-\fIdisk_minor\fR
-.RS 4
-Disk minor number of request\&.
+Address of request\&.
 .RE
 .PP
 \fIelevator_name\fR
@@ -61,9 +51,19 @@ Disk minor number of request\&.
 The type of I/O elevator currently enabled\&.
 .RE
 .PP
-\fIrq\fR
+\fIrq_flags\fR
 .RS 4
-Address of request\&.
+Request flags\&.
+.RE
+.PP
+\fIdisk_major\fR
+.RS 4
+Disk major no of request\&.
+.RE
+.PP
+\fIdisk_minor\fR
+.RS 4
+Disk minor number of request\&.
 .RE
 .SH SEE ALSO\n 
 .IR tapset::ioscheduler (3stap)

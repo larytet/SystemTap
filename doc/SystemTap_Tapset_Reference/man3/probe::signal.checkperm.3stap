@@ -41,26 +41,6 @@ signal\&.checkperm
 Name of the probe point
 .RE
 .PP
-\fIsig_pid\fR
-.RS 4
-The PID of the process receiving the signal
-.RE
-.PP
-\fIsi_code\fR
-.RS 4
-Indicates the signal type
-.RE
-.PP
-\fIsinfo\fR
-.RS 4
-The address of the siginfo structure
-.RE
-.PP
-\fIsig\fR
-.RS 4
-The number of the signal
-.RE
-.PP
 \fItask\fR
 .RS 4
 A task handle to the signal recipient
@@ -69,6 +49,26 @@ A task handle to the signal recipient
 \fIsig_name\fR
 .RS 4
 A string representation of the signal
+.RE
+.PP
+\fIsig\fR
+.RS 4
+The number of the signal
+.RE
+.PP
+\fIsinfo\fR
+.RS 4
+The address of the siginfo structure
+.RE
+.PP
+\fIsi_code\fR
+.RS 4
+Indicates the signal type
+.RE
+.PP
+\fIsig_pid\fR
+.RS 4
+The PID of the process receiving the signal
 .RE
 .PP
 \fIpid_name\fR

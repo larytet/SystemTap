@@ -36,9 +36,9 @@ nfs\&.proc\&.release
 .fi
 .SH "VALUES"
 .PP
-\fIfilename\fR
+\fIflag\fR
 .RS 4
-file name
+file flag
 .RE
 .PP
 \fImode\fR
@@ -46,19 +46,19 @@ file name
 file mode
 .RE
 .PP
-\fIflag\fR
+\fIversion\fR
 .RS 4
-file flag
+NFS version (the function is used for all NFS version)
+.RE
+.PP
+\fIfilename\fR
+.RS 4
+file name
 .RE
 .PP
 \fIprot\fR
 .RS 4
 transfer protocol
-.RE
-.PP
-\fIversion\fR
-.RS 4
-NFS version (the function is used for all NFS version)
 .RE
 .PP
 \fIserver_ip\fR

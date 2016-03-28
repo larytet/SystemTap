@@ -46,9 +46,9 @@ Name of this probe
 Socket state value
 .RE
 .PP
-\fIprotocol\fR
+\fIfamily\fR
 .RS 4
-Protocol value
+Protocol family value
 .RE
 .PP
 \fIsuccess\fR
@@ -56,24 +56,24 @@ Protocol value
 Was send successful? (1 = yes, 0 = no)
 .RE
 .PP
+\fItype\fR
+.RS 4
+Socket type value
+.RE
+.PP
 \fIflags\fR
 .RS 4
 Socket flags value
 .RE
 .PP
-\fIfamily\fR
+\fIprotocol\fR
 .RS 4
-Protocol family value
+Protocol value
 .RE
 .PP
 \fIsize\fR
 .RS 4
 Size of message sent (in bytes) or error code if success = 0
-.RE
-.PP
-\fItype\fR
-.RS 4
-Socket type value
 .RE
 .SH "CONTEXT"
 .PP

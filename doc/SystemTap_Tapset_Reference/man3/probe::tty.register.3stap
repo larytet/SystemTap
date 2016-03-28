@@ -36,6 +36,11 @@ tty\&.register
 .fi
 .SH "VALUES"
 .PP
+\fIindex\fR
+.RS 4
+the tty index requested
+.RE
+.PP
 \fImodule\fR
 .RS 4
 the module name
@@ -49,11 +54,6 @@ the driver \&.dev_name name
 \fIdriver_name\fR
 .RS 4
 the driver name
-.RE
-.PP
-\fIindex\fR
-.RS 4
-the tty index requested
 .RE
 .SH SEE ALSO\n 
 .IR tapset::tty (3stap)

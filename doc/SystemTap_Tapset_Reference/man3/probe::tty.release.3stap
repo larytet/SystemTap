@@ -36,14 +36,9 @@ tty\&.release
 .fi
 .SH "VALUES"
 .PP
-\fIfile_name\fR
+\fIinode_flags\fR
 .RS 4
-the file name
-.RE
-.PP
-\fIfile_flags\fR
-.RS 4
-the file flags
+the inode flags
 .RE
 .PP
 \fIfile_mode\fR
@@ -51,14 +46,19 @@ the file flags
 the file mode
 .RE
 .PP
-\fIinode_flags\fR
+\fIfile_name\fR
 .RS 4
-the inode flags
+the file name
 .RE
 .PP
 \fIinode_number\fR
 .RS 4
 the inode number
+.RE
+.PP
+\fIfile_flags\fR
+.RS 4
+the file flags
 .RE
 .PP
 \fIinode_state\fR

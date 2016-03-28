@@ -41,14 +41,9 @@ sunrpc\&.svc\&.destroy
 the number of the program
 .RE
 .PP
-\fIrpcbadauth\fR
+\fIsv_nrthreads\fR
 .RS 4
-the count of requests drooped for authentication failure
-.RE
-.PP
-\fInetcnt\fR
-.RS 4
-the count of received RPC requests
+the number of concurrent threads
 .RE
 .PP
 \fIrpcbadfmt\fR
@@ -61,24 +56,29 @@ the count of requests dropped for bad formats
 the service name
 .RE
 .PP
-\fIsv_progname\fR
-.RS 4
-the name of the program
-.RE
-.PP
 \fInettcpconn\fR
 .RS 4
 the count of accepted TCP connections
 .RE
 .PP
-\fIsv_nrthreads\fR
+\fInetcnt\fR
 .RS 4
-the number of concurrent threads
+the count of received RPC requests
 .RE
 .PP
 \fIrpccnt\fR
 .RS 4
 the count of valid RPC requests
+.RE
+.PP
+\fIrpcbadauth\fR
+.RS 4
+the count of requests drooped for authentication failure
+.RE
+.PP
+\fIsv_progname\fR
+.RS 4
+the name of the program
 .RE
 .SH SEE ALSO\n 
 .IR tapset::rpc (3stap)

@@ -36,14 +36,14 @@ nfs\&.proc\&.remove
 .fi
 .SH "VALUES"
 .PP
-\fIserver_ip\fR
-.RS 4
-IP address of server
-.RE
-.PP
 \fIfh\fR
 .RS 4
 file handle of parent dir
+.RE
+.PP
+\fIfilelen\fR
+.RS 4
+length of file name
 .RE
 .PP
 \fIversion\fR
@@ -56,9 +56,9 @@ NFS version (the function is used for all NFS version)
 file name
 .RE
 .PP
-\fIfilelen\fR
+\fIserver_ip\fR
 .RS 4
-length of file name
+IP address of server
 .RE
 .PP
 \fIprot\fR

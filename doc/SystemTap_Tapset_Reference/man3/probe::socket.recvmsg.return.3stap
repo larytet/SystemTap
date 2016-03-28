@@ -36,24 +36,9 @@ socket\&.recvmsg\&.return
 .fi
 .SH "VALUES"
 .PP
-\fItype\fR
+\fIname\fR
 .RS 4
-Socket type value
-.RE
-.PP
-\fIfamily\fR
-.RS 4
-Protocol family value
-.RE
-.PP
-\fIflags\fR
-.RS 4
-Socket flags value
-.RE
-.PP
-\fIsize\fR
-.RS 4
-Size of message received (in bytes) or error code if success = 0
+Name of this probe
 .RE
 .PP
 \fIstate\fR
@@ -66,14 +51,29 @@ Socket state value
 Was receive successful? (1 = yes, 0 = no)
 .RE
 .PP
+\fIfamily\fR
+.RS 4
+Protocol family value
+.RE
+.PP
+\fIflags\fR
+.RS 4
+Socket flags value
+.RE
+.PP
+\fItype\fR
+.RS 4
+Socket type value
+.RE
+.PP
+\fIsize\fR
+.RS 4
+Size of message received (in bytes) or error code if success = 0
+.RE
+.PP
 \fIprotocol\fR
 .RS 4
 Protocol value
-.RE
-.PP
-\fIname\fR
-.RS 4
-Name of this probe
 .RE
 .SH "CONTEXT"
 .PP

@@ -41,14 +41,14 @@ signal\&.pending
 The size of the user\-space signal set
 .RE
 .PP
-\fIname\fR
-.RS 4
-Name of the probe point
-.RE
-.PP
 \fIsigset_add\fR
 .RS 4
 The address of the user\-space signal set (sigset_t)
+.RE
+.PP
+\fIname\fR
+.RS 4
+Name of the probe point
 .RE
 .SH "DESCRIPTION"
 .PP

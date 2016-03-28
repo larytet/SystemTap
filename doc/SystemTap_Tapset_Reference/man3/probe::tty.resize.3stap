@@ -36,29 +36,9 @@ tty\&.resize
 .fi
 .SH "VALUES"
 .PP
-\fInew_col\fR
-.RS 4
-the new col value
-.RE
-.PP
-\fInew_row\fR
-.RS 4
-the new row value
-.RE
-.PP
 \fIold_row\fR
 .RS 4
 the old row value
-.RE
-.PP
-\fIold_ypixel\fR
-.RS 4
-the old ypixel
-.RE
-.PP
-\fIname\fR
-.RS 4
-the tty name
 .RE
 .PP
 \fIold_xpixel\fR
@@ -66,9 +46,24 @@ the tty name
 the old xpixel
 .RE
 .PP
-\fInew_xpixel\fR
+\fIname\fR
 .RS 4
-the new xpixel value
+the tty name
+.RE
+.PP
+\fIold_ypixel\fR
+.RS 4
+the old ypixel
+.RE
+.PP
+\fInew_col\fR
+.RS 4
+the new col value
+.RE
+.PP
+\fIold_col\fR
+.RS 4
+the old col value
 .RE
 .PP
 \fInew_ypixel\fR
@@ -76,9 +71,14 @@ the new xpixel value
 the new ypixel value
 .RE
 .PP
-\fIold_col\fR
+\fInew_row\fR
 .RS 4
-the old col value
+the new row value
+.RE
+.PP
+\fInew_xpixel\fR
+.RS 4
+the new xpixel value
 .RE
 .SH SEE ALSO\n 
 .IR tapset::tty (3stap)

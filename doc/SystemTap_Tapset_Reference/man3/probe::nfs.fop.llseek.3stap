@@ -46,6 +46,11 @@ symbolic string representation of the position to seek from
 the offset of the file will be repositioned
 .RE
 .PP
+\fIwhence\fR
+.RS 4
+the position to seek from
+.RE
+.PP
 \fIino\fR
 .RS 4
 inode number
@@ -54,11 +59,6 @@ inode number
 \fIdev\fR
 .RS 4
 device identifier
-.RE
-.PP
-\fIwhence\fR
-.RS 4
-the position to seek from
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfs (3stap)

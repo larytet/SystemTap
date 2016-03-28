@@ -36,14 +36,14 @@ ipmib\&.ReasmReqds
 .fi
 .SH "VALUES"
 .PP
-\fIop\fR
-.RS 4
-value to be added to the counter (default value of 1)
-.RE
-.PP
 \fIskb\fR
 .RS 4
 pointer to the struct sk_buff being acted on
+.RE
+.PP
+\fIop\fR
+.RS 4
+value to be added to the counter (default value of 1)
 .RE
 .SH "DESCRIPTION"
 .PP

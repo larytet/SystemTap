@@ -41,6 +41,16 @@ socket\&.aio_write
 Socket type value
 .RE
 .PP
+\fIprotocol\fR
+.RS 4
+Protocol value
+.RE
+.PP
+\fIflags\fR
+.RS 4
+Socket flags value
+.RE
+.PP
 \fIsize\fR
 .RS 4
 Message size in bytes
@@ -51,24 +61,14 @@ Message size in bytes
 Protocol family value
 .RE
 .PP
-\fIflags\fR
+\fIname\fR
 .RS 4
-Socket flags value
-.RE
-.PP
-\fIprotocol\fR
-.RS 4
-Protocol value
+Name of this probe
 .RE
 .PP
 \fIstate\fR
 .RS 4
 Socket state value
-.RE
-.PP
-\fIname\fR
-.RS 4
-Name of this probe
 .RE
 .SH "CONTEXT"
 .PP

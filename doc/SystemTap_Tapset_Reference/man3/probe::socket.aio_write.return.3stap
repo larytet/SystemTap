@@ -41,19 +41,19 @@ socket\&.aio_write\&.return
 Socket state value
 .RE
 .PP
-\fIsuccess\fR
-.RS 4
-Was receive successful? (1 = yes, 0 = no)
-.RE
-.PP
-\fIprotocol\fR
-.RS 4
-Protocol value
-.RE
-.PP
 \fIname\fR
 .RS 4
 Name of this probe
+.RE
+.PP
+\fIfamily\fR
+.RS 4
+Protocol family value
+.RE
+.PP
+\fIsuccess\fR
+.RS 4
+Was receive successful? (1 = yes, 0 = no)
 .RE
 .PP
 \fItype\fR
@@ -61,9 +61,9 @@ Name of this probe
 Socket type value
 .RE
 .PP
-\fIfamily\fR
+\fIprotocol\fR
 .RS 4
-Protocol family value
+Protocol value
 .RE
 .PP
 \fIflags\fR

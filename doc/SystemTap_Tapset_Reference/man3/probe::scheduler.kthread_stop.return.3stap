@@ -36,14 +36,14 @@ scheduler\&.kthread_stop\&.return
 .fi
 .SH "VALUES"
 .PP
-\fIname\fR
-.RS 4
-name of the probe point
-.RE
-.PP
 \fIreturn_value\fR
 .RS 4
 return value after stopping the thread
+.RE
+.PP
+\fIname\fR
+.RS 4
+name of the probe point
 .RE
 .SH SEE ALSO\n 
 .IR tapset::scheduler (3stap)

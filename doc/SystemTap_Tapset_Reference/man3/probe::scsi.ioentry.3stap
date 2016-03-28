@@ -36,16 +36,6 @@ scsi\&.ioentry
 .fi
 .SH "VALUES"
 .PP
-\fIdisk_minor\fR
-.RS 4
-The minor number of the disk (\-1 if no information)
-.RE
-.PP
-\fIreq_addr\fR
-.RS 4
-The current struct request pointer, as a number
-.RE
-.PP
 \fIdisk_major\fR
 .RS 4
 The major number of the disk (\-1 if no information)
@@ -59,6 +49,16 @@ The current state of the device, as a string
 \fIdevice_state\fR
 .RS 4
 The current state of the device
+.RE
+.PP
+\fIdisk_minor\fR
+.RS 4
+The minor number of the disk (\-1 if no information)
+.RE
+.PP
+\fIreq_addr\fR
+.RS 4
+The current struct request pointer, as a number
 .RE
 .SH SEE ALSO\n 
 .IR tapset::scsi (3stap)

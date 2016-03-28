@@ -36,6 +36,36 @@ socket\&.sendmsg\&.return
 .fi
 .SH "VALUES"
 .PP
+\fIflags\fR
+.RS 4
+Socket flags value
+.RE
+.PP
+\fItype\fR
+.RS 4
+Socket type value
+.RE
+.PP
+\fIprotocol\fR
+.RS 4
+Protocol value
+.RE
+.PP
+\fIsize\fR
+.RS 4
+Size of message sent (in bytes) or error code if success = 0
+.RE
+.PP
+\fIfamily\fR
+.RS 4
+Protocol family value
+.RE
+.PP
+\fIsuccess\fR
+.RS 4
+Was send successful? (1 = yes, 0 = no)
+.RE
+.PP
 \fIname\fR
 .RS 4
 Name of this probe
@@ -44,36 +74,6 @@ Name of this probe
 \fIstate\fR
 .RS 4
 Socket state value
-.RE
-.PP
-\fIprotocol\fR
-.RS 4
-Protocol value
-.RE
-.PP
-\fIsuccess\fR
-.RS 4
-Was send successful? (1 = yes, 0 = no)
-.RE
-.PP
-\fIfamily\fR
-.RS 4
-Protocol family value
-.RE
-.PP
-\fIflags\fR
-.RS 4
-Socket flags value
-.RE
-.PP
-\fIsize\fR
-.RS 4
-Size of message sent (in bytes) or error code if success = 0
-.RE
-.PP
-\fItype\fR
-.RS 4
-Socket type value
 .RE
 .SH "CONTEXT"
 .PP

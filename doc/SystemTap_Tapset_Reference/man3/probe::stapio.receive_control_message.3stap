@@ -36,9 +36,9 @@ stapio\&.receive_control_message
 .fi
 .SH "VALUES"
 .PP
-\fIlen\fR
+\fItype\fR
 .RS 4
-the length (in bytes) of the data blob
+type of message being send; defined in runtime/transport/transport_msgs\&.h
 .RE
 .PP
 \fIdata\fR
@@ -46,9 +46,9 @@ the length (in bytes) of the data blob
 a ptr to a binary blob of data sent as the control message
 .RE
 .PP
-\fItype\fR
+\fIlen\fR
 .RS 4
-type of message being send; defined in runtime/transport/transport_msgs\&.h
+the length (in bytes) of the data blob
 .RE
 .SH "DESCRIPTION"
 .PP

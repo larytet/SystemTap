@@ -36,9 +36,9 @@ netdev\&.set_promiscuity
 .fi
 .SH "VALUES"
 .PP
-\fIdisable\fR
+\fIinc\fR
 .RS 4
-If the device is leaving promiscuity mode
+Count the number of promiscuity openers
 .RE
 .PP
 \fIdev_name\fR
@@ -46,14 +46,14 @@ If the device is leaving promiscuity mode
 The device that is entering/leaving promiscuity mode
 .RE
 .PP
-\fIinc\fR
-.RS 4
-Count the number of promiscuity openers
-.RE
-.PP
 \fIenable\fR
 .RS 4
 If the device is entering promiscuity mode
+.RE
+.PP
+\fIdisable\fR
+.RS 4
+If the device is leaving promiscuity mode
 .RE
 .SH SEE ALSO\n 
 .IR tapset::networking (3stap)

@@ -36,9 +36,10 @@ tcp\&.setsockopt
 .fi
 .SH "VALUES"
 .PP
-\fIsock\fR
+\fIoptlen\fR
 .RS 4
-Network socket
+Used to access values for
+\fBsetsockopt\fR
 .RE
 .PP
 \fIoptstr\fR
@@ -46,19 +47,14 @@ Network socket
 Resolves optname to a human\-readable format
 .RE
 .PP
-\fIoptname\fR
-.RS 4
-TCP socket options (e\&.g\&. TCP_NODELAY, TCP_MAXSEG, etc)
-.RE
-.PP
 \fIname\fR
 .RS 4
 Name of this probe
 .RE
 .PP
-\fIfamily\fR
+\fIsock\fR
 .RS 4
-IP address family
+Network socket
 .RE
 .PP
 \fIlevel\fR
@@ -66,10 +62,14 @@ IP address family
 The level at which the socket options will be manipulated
 .RE
 .PP
-\fIoptlen\fR
+\fIfamily\fR
 .RS 4
-Used to access values for
-\fBsetsockopt\fR
+IP address family
+.RE
+.PP
+\fIoptname\fR
+.RS 4
+TCP socket options (e\&.g\&. TCP_NODELAY, TCP_MAXSEG, etc)
 .RE
 .SH "CONTEXT"
 .PP

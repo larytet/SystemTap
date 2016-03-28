@@ -36,14 +36,14 @@ netdev\&.change_rx_flag
 .fi
 .SH "VALUES"
 .PP
-\fIdev_name\fR
-.RS 4
-The device that will be changed
-.RE
-.PP
 \fIflags\fR
 .RS 4
 The new flags
+.RE
+.PP
+\fIdev_name\fR
+.RS 4
+The device that will be changed
 .RE
 .SH SEE ALSO\n 
 .IR tapset::networking (3stap)

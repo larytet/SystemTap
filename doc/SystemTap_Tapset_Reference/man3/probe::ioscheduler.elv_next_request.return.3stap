@@ -36,19 +36,14 @@ ioscheduler\&.elv_next_request\&.return
 .fi
 .SH "VALUES"
 .PP
-\fIdisk_major\fR
-.RS 4
-Disk major number of the request
-.RE
-.PP
-\fIname\fR
-.RS 4
-Name of the probe point
-.RE
-.PP
 \fIrq_flags\fR
 .RS 4
 Request flags
+.RE
+.PP
+\fIdisk_major\fR
+.RS 4
+Disk major number of the request
 .RE
 .PP
 \fIdisk_minor\fR
@@ -59,6 +54,11 @@ Disk minor number of the request
 \fIrq\fR
 .RS 4
 Address of the request
+.RE
+.PP
+\fIname\fR
+.RS 4
+Name of the probe point
 .RE
 .SH SEE ALSO\n 
 .IR tapset::ioscheduler (3stap)

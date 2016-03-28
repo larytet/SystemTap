@@ -36,16 +36,6 @@ signal\&.procmask
 .fi
 .SH "VALUES"
 .PP
-\fIname\fR
-.RS 4
-Name of the probe point
-.RE
-.PP
-\fIoldsigset_addr\fR
-.RS 4
-The old address of the signal set (sigset_t)
-.RE
-.PP
 \fIsigset_addr\fR
 .RS 4
 The address of the signal set (sigset_t) to be implemented
@@ -54,6 +44,16 @@ The address of the signal set (sigset_t) to be implemented
 \fIsigset\fR
 .RS 4
 The actual value to be set for sigset_t (correct?)
+.RE
+.PP
+\fIoldsigset_addr\fR
+.RS 4
+The old address of the signal set (sigset_t)
+.RE
+.PP
+\fIname\fR
+.RS 4
+Name of the probe point
 .RE
 .PP
 \fIhow\fR

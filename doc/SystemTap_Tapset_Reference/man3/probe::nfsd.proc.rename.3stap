@@ -36,14 +36,9 @@ nfsd\&.proc\&.rename
 .fi
 .SH "VALUES"
 .PP
-\fItfh\fR
+\fIuid\fR
 .RS 4
-file handler of new path
-.RE
-.PP
-\fIclient_ip\fR
-.RS 4
-the ip address of client
+requester\*(Aqs user id
 .RE
 .PP
 \fIfilename\fR
@@ -51,24 +46,19 @@ the ip address of client
 old file name
 .RE
 .PP
+\fItfh\fR
+.RS 4
+file handler of new path
+.RE
+.PP
 \fItlen\fR
 .RS 4
 length of new file name
 .RE
 .PP
-\fIuid\fR
+\fItname\fR
 .RS 4
-requester\*(Aqs user id
-.RE
-.PP
-\fIgid\fR
-.RS 4
-requester\*(Aqs group id
-.RE
-.PP
-\fIfh\fR
-.RS 4
-file handler of old path
+new file name
 .RE
 .PP
 \fIflen\fR
@@ -76,9 +66,19 @@ file handler of old path
 length of old file name
 .RE
 .PP
-\fItname\fR
+\fIfh\fR
 .RS 4
-new file name
+file handler of old path
+.RE
+.PP
+\fIclient_ip\fR
+.RS 4
+the ip address of client
+.RE
+.PP
+\fIgid\fR
+.RS 4
+requester\*(Aqs group id
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfsd (3stap)

@@ -36,14 +36,9 @@ kprocess\&.exec_complete
 .fi
 .SH "VALUES"
 .PP
-\fIsuccess\fR
+\fIretstr\fR
 .RS 4
-A boolean indicating whether the exec was successful
-.RE
-.PP
-\fIerrno\fR
-.RS 4
-The error number resulting from the exec
+A string representation of errno (SystemTap v2\&.5+)
 .RE
 .PP
 \fIname\fR
@@ -51,9 +46,14 @@ The error number resulting from the exec
 Name of the system call (\(lqexecve\(rq) (SystemTap v2\&.5+)
 .RE
 .PP
-\fIretstr\fR
+\fIerrno\fR
 .RS 4
-A string representation of errno (SystemTap v2\&.5+)
+The error number resulting from the exec
+.RE
+.PP
+\fIsuccess\fR
+.RS 4
+A boolean indicating whether the exec was successful
 .RE
 .SH "CONTEXT"
 .PP

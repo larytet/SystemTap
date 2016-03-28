@@ -36,6 +36,11 @@ nfs\&.proc\&.commit_setup
 .fi
 .SH "VALUES"
 .PP
+\fIsize\fR
+.RS 4
+bytes in this commit
+.RE
+.PP
 \fIcount\fR
 .RS 4
 bytes in this commit
@@ -51,21 +56,6 @@ V4 bitmask representing the set of attributes supported on this filesystem
 transfer protocol
 .RE
 .PP
-\fIsize\fR
-.RS 4
-bytes in this commit
-.RE
-.PP
-\fIbitmask0\fR
-.RS 4
-V4 bitmask representing the set of attributes supported on this filesystem
-.RE
-.PP
-\fIoffset\fR
-.RS 4
-the file offset
-.RE
-.PP
 \fIserver_ip\fR
 .RS 4
 IP address of server
@@ -74,6 +64,16 @@ IP address of server
 \fIversion\fR
 .RS 4
 NFS version
+.RE
+.PP
+\fIoffset\fR
+.RS 4
+the file offset
+.RE
+.PP
+\fIbitmask0\fR
+.RS 4
+V4 bitmask representing the set of attributes supported on this filesystem
 .RE
 .SH "DESCRIPTION"
 .PP

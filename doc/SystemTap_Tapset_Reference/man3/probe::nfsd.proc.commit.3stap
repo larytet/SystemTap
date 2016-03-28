@@ -41,29 +41,14 @@ nfsd\&.proc\&.commit
 file handle (the first part is the length of the file handle)
 .RE
 .PP
-\fIgid\fR
-.RS 4
-requester\*(Aqs group id
-.RE
-.PP
-\fIproto\fR
-.RS 4
-transfer protocol
-.RE
-.PP
-\fIuid\fR
-.RS 4
-requester\*(Aqs user id
-.RE
-.PP
 \fIclient_ip\fR
 .RS 4
 the ip address of client
 .RE
 .PP
-\fIoffset\fR
+\fIgid\fR
 .RS 4
-the offset of file
+requester\*(Aqs group id
 .RE
 .PP
 \fIversion\fR
@@ -71,14 +56,29 @@ the offset of file
 nfs version
 .RE
 .PP
-\fIcount\fR
+\fIoffset\fR
 .RS 4
-read bytes
+the offset of file
 .RE
 .PP
 \fIsize\fR
 .RS 4
 read bytes
+.RE
+.PP
+\fIcount\fR
+.RS 4
+read bytes
+.RE
+.PP
+\fIuid\fR
+.RS 4
+requester\*(Aqs user id
+.RE
+.PP
+\fIproto\fR
+.RS 4
+transfer protocol
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfsd (3stap)

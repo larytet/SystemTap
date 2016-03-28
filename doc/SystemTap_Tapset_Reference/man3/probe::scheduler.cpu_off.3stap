@@ -36,9 +36,9 @@ scheduler\&.cpu_off
 .fi
 .SH "VALUES"
 .PP
-\fIidle\fR
+\fItask_prev\fR
 .RS 4
-boolean indicating whether current is the idle process
+the process leaving the cpu (same as current)
 .RE
 .PP
 \fIname\fR
@@ -51,9 +51,9 @@ name of the probe point
 the process replacing current
 .RE
 .PP
-\fItask_prev\fR
+\fIidle\fR
 .RS 4
-the process leaving the cpu (same as current)
+boolean indicating whether current is the idle process
 .RE
 .SH "CONTEXT"
 .PP

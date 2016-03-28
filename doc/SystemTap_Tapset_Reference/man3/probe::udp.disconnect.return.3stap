@@ -36,6 +36,11 @@ udp\&.disconnect\&.return
 .fi
 .SH "VALUES"
 .PP
+\fIname\fR
+.RS 4
+The name of this probe
+.RE
+.PP
 \fIdaddr\fR
 .RS 4
 A string representing the destination IP address
@@ -56,19 +61,14 @@ Error code (0: no error)
 A string representing the source IP address
 .RE
 .PP
-\fIsport\fR
-.RS 4
-UDP source port
-.RE
-.PP
-\fIname\fR
-.RS 4
-The name of this probe
-.RE
-.PP
 \fIfamily\fR
 .RS 4
 IP address family
+.RE
+.PP
+\fIsport\fR
+.RS 4
+UDP source port
 .RE
 .SH "CONTEXT"
 .PP

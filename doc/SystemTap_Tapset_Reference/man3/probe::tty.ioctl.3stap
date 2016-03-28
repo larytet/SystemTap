@@ -36,11 +36,6 @@ tty\&.ioctl
 .fi
 .SH "VALUES"
 .PP
-\fIcmd\fR
-.RS 4
-the ioctl command
-.RE
-.PP
 \fIname\fR
 .RS 4
 the file name
@@ -49,6 +44,11 @@ the file name
 \fIarg\fR
 .RS 4
 the ioctl argument
+.RE
+.PP
+\fIcmd\fR
+.RS 4
+the ioctl command
 .RE
 .SH SEE ALSO\n 
 .IR tapset::tty (3stap)

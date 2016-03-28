@@ -32,7 +32,11 @@ function::ctime \- Convert seconds since epoch into human readable date/time str
 .SH "SYNOPSIS"
 .sp
 .nf
-    ctime:string(epochsecs:long)
+1) ctime:string(epochsecs:long)
+.fi
+.sp
+.nf
+2) ctime:string()
 .fi
 .SH "ARGUMENTS"
 .PP
@@ -43,9 +47,9 @@ Number of seconds since epoch (as returned by
 .RE
 .SH "DESCRIPTION"
 .PP
-Takes an argument of seconds since the epoch as returned by
-\fBgettimeofday_s\fR\&. Returns a string of the form
+1) Takes an argument of seconds since the epoch as returned by\fBgettimeofday_s\fR\&. Returns a string of the form
 .PP
+2)
 \(lqWed Jun 30 21:49:08 1993\(rq
 .PP
 The string will always be exactly 24 characters\&. If the time would be unreasonable far in the past (before what can be represented with a 32 bit offset in seconds from the epoch) an error will occur (which can be avoided with try/catch)\&. If the time would be unreasonable far in the future, an error will also occur\&.
@@ -63,5 +67,7 @@ The abbreviations for the days of the week are \(oqSun\(cq, \(oqMon\(cq, \(oqTue
 Note that the real C library
 \fBctime\fR
 function puts a newline (\*(Aq\en\*(Aq) character at the end of the string that this function does not\&. Also note that since the kernel has no concept of timezones, the returned time is always in GMT\&.
+.PP
+Without an argument, does the same as ctime(\fBgettimeofday_s\fR)\&.
 .SH SEE ALSO\n 
 .IR tapset::ctime (3stap)

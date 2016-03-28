@@ -36,9 +36,9 @@ nfs\&.proc\&.read
 .fi
 .SH "VALUES"
 .PP
-\fIflags\fR
+\fIprot\fR
 .RS 4
-used to set task\->tk_flags in rpc_init_task function
+transfer protocol
 .RE
 .PP
 \fIserver_ip\fR
@@ -51,19 +51,19 @@ IP address of server
 NFS version
 .RE
 .PP
-\fIcount\fR
-.RS 4
-read bytes in this execution
-.RE
-.PP
 \fIoffset\fR
 .RS 4
 the file offset
 .RE
 .PP
-\fIprot\fR
+\fIflags\fR
 .RS 4
-transfer protocol
+used to set task\->tk_flags in rpc_init_task function
+.RE
+.PP
+\fIcount\fR
+.RS 4
+read bytes in this execution
 .RE
 .SH "DESCRIPTION"
 .PP

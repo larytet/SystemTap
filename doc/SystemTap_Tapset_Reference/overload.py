@@ -45,7 +45,8 @@ def annotate(entry):
     """
     Numbers all overloaded entries.
     """
-    num_overloads = len(entry.xpath("refsect1[2]/para"))
+    sys.stderr.write("entry: %s\n" % etree.tostring(entry))
+    num_overloads = len(entry.xpath("refsynopsisdiv/programlisting"))
     synopsis = entry.xpath("refsynopsisdiv/programlisting")
     description = entry.xpath("refsect1[2]/para")
     for i in range(num_overloads):
@@ -58,6 +59,8 @@ def merge(functions):
     """
     merged = functions[0]
 
+    sys.stderr.write("processing item %s\n" % merged.xpath("refnamediv/refname")[0].text)
+    
     # merge params
     new_params = get_params(functions)
     param_list = merged.xpath("refsect1[1]/variablelist")[0]

@@ -36,29 +36,9 @@ netfilter\&.bridge\&.post_routing
 .fi
 .SH "VALUES"
 .PP
-\fInf_repeat\fR
-.RS 4
-Constant used to signify a \*(Aqrepeat\*(Aq verdict
-.RE
-.PP
 \fIbr_rmac\fR
 .RS 4
 Root bridge MAC address
-.RE
-.PP
-\fIbr_type\fR
-.RS 4
-BPDU type
-.RE
-.PP
-\fIbr_max\fR
-.RS 4
-Max age in 1/256 secs
-.RE
-.PP
-\fInf_stolen\fR
-.RS 4
-Constant used to signify a \*(Aqstolen\*(Aq verdict
 .RE
 .PP
 \fInf_drop\fR
@@ -66,14 +46,19 @@ Constant used to signify a \*(Aqstolen\*(Aq verdict
 Constant used to signify a \*(Aqdrop\*(Aq verdict
 .RE
 .PP
-\fIbr_rid\fR
+\fIindev_name\fR
 .RS 4
-Identity of root bridge
+Name of network device packet was received on (if known)
 .RE
 .PP
-\fIindev\fR
+\fIbr_type\fR
 .RS 4
-Address of net_device representing input device, 0 if unknown
+BPDU type
+.RE
+.PP
+\fInf_stolen\fR
+.RS 4
+Constant used to signify a \*(Aqstolen\*(Aq verdict
 .RE
 .PP
 \fIbr_poid\fR
@@ -81,29 +66,19 @@ Address of net_device representing input device, 0 if unknown
 Port identifier
 .RE
 .PP
-\fIllcproto_stp\fR
-.RS 4
-Constant used to signify Bridge Spanning Tree Protocol packet
-.RE
-.PP
-\fIllcpdu\fR
-.RS 4
-Address of LLC Protocol Data Unit
-.RE
-.PP
-\fIbr_mac\fR
-.RS 4
-Bridge MAC address
-.RE
-.PP
-\fInf_queue\fR
-.RS 4
-Constant used to signify a \*(Aqqueue\*(Aq verdict
-.RE
-.PP
 \fIlength\fR
 .RS 4
 The length of the packet buffer contents, in bytes
+.RE
+.PP
+\fInf_repeat\fR
+.RS 4
+Constant used to signify a \*(Aqrepeat\*(Aq verdict
+.RE
+.PP
+\fIprotocol\fR
+.RS 4
+Packet protocol
 .RE
 .PP
 \fIbr_fd\fR
@@ -111,9 +86,14 @@ The length of the packet buffer contents, in bytes
 Forward delay in 1/256 secs
 .RE
 .PP
-\fIbr_flags\fR
+\fIbr_mac\fR
 .RS 4
-BPDU flags
+Bridge MAC address
+.RE
+.PP
+\fIbr_vid\fR
+.RS 4
+Protocol version identifier
 .RE
 .PP
 \fIbr_msg\fR
@@ -121,14 +101,34 @@ BPDU flags
 Message age in 1/256 secs
 .RE
 .PP
-\fIindev_name\fR
+\fIbr_prid\fR
 .RS 4
-Name of network device packet was received on (if known)
+Protocol identifier
 .RE
 .PP
-\fInf_accept\fR
+\fIbrhdr\fR
 .RS 4
-Constant used to signify an \*(Aqaccept\*(Aq verdict
+Address of bridge header
+.RE
+.PP
+\fInf_queue\fR
+.RS 4
+Constant used to signify a \*(Aqqueue\*(Aq verdict
+.RE
+.PP
+\fIbr_flags\fR
+.RS 4
+BPDU flags
+.RE
+.PP
+\fIindev\fR
+.RS 4
+Address of net_device representing input device, 0 if unknown
+.RE
+.PP
+\fIbr_htime\fR
+.RS 4
+Hello time in 1/256 secs
 .RE
 .PP
 \fIbr_cost\fR
@@ -136,14 +136,14 @@ Constant used to signify an \*(Aqaccept\*(Aq verdict
 Total cost from transmitting bridge to root
 .RE
 .PP
-\fIoutdev\fR
+\fIoutdev_name\fR
 .RS 4
-Address of net_device representing output device, 0 if unknown
+Name of network device packet will be routed to (if known)
 .RE
 .PP
-\fIprotocol\fR
+\fIllcproto_stp\fR
 .RS 4
-Packet protocol
+Constant used to signify Bridge Spanning Tree Protocol packet
 .RE
 .PP
 \fIpf\fR
@@ -152,14 +152,24 @@ Protocol family \-\- always
 \(lqbridge\(rq
 .RE
 .PP
-\fIbr_htime\fR
+\fInf_accept\fR
 .RS 4
-Hello time in 1/256 secs
+Constant used to signify an \*(Aqaccept\*(Aq verdict
 .RE
 .PP
-\fIbr_vid\fR
+\fIllcpdu\fR
 .RS 4
-Protocol version identifier
+Address of LLC Protocol Data Unit
+.RE
+.PP
+\fIbr_rid\fR
+.RS 4
+Identity of root bridge
+.RE
+.PP
+\fIoutdev\fR
+.RS 4
+Address of net_device representing output device, 0 if unknown
 .RE
 .PP
 \fInf_stop\fR
@@ -167,19 +177,9 @@ Protocol version identifier
 Constant used to signify a \*(Aqstop\*(Aq verdict
 .RE
 .PP
-\fIbrhdr\fR
+\fIbr_max\fR
 .RS 4
-Address of bridge header
-.RE
-.PP
-\fIoutdev_name\fR
-.RS 4
-Name of network device packet will be routed to (if known)
-.RE
-.PP
-\fIbr_prid\fR
-.RS 4
-Protocol identifier
+Max age in 1/256 secs
 .RE
 .PP
 \fIbr_bid\fR

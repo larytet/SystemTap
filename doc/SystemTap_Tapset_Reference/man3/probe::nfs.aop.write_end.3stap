@@ -36,24 +36,9 @@ nfs\&.aop\&.write_end
 .fi
 .SH "VALUES"
 .PP
-\fIi_flag\fR
+\fIoffset\fR
 .RS 4
-file flags
-.RE
-.PP
-\fIdev\fR
-.RS 4
-device identifier
-.RE
-.PP
-\fIsb_flag\fR
-.RS 4
-super block flags
-.RE
-.PP
-\fIpage_index\fR
-.RS 4
-offset within mapping, can used a page identifier and position identifier in the page frame
+start address of this write operation
 .RE
 .PP
 \fIsize\fR
@@ -61,9 +46,9 @@ offset within mapping, can used a page identifier and position identifier in the
 write bytes
 .RE
 .PP
-\fIoffset\fR
+\fIsb_flag\fR
 .RS 4
-start address of this write operation
+super block flags
 .RE
 .PP
 \fIto\fR
@@ -76,6 +61,16 @@ end address of this write operation
 inode number
 .RE
 .PP
+\fIi_flag\fR
+.RS 4
+file flags
+.RE
+.PP
+\fIdev\fR
+.RS 4
+device identifier
+.RE
+.PP
 \fI__page\fR
 .RS 4
 the address of page
@@ -84,6 +79,11 @@ the address of page
 \fIi_size\fR
 .RS 4
 file length in bytes
+.RE
+.PP
+\fIpage_index\fR
+.RS 4
+offset within mapping, can used a page identifier and position identifier in the page frame
 .RE
 .SH "DESCRIPTION"
 .PP

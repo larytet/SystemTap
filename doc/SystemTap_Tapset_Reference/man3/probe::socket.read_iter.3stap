@@ -41,9 +41,9 @@ socket\&.read_iter
 Socket type value
 .RE
 .PP
-\fIfamily\fR
+\fIprotocol\fR
 .RS 4
-Protocol family value
+Protocol value
 .RE
 .PP
 \fIflags\fR
@@ -56,19 +56,19 @@ Socket flags value
 Message size in bytes
 .RE
 .PP
-\fIstate\fR
+\fIfamily\fR
 .RS 4
-Socket state value
-.RE
-.PP
-\fIprotocol\fR
-.RS 4
-Protocol value
+Protocol family value
 .RE
 .PP
 \fIname\fR
 .RS 4
 Name of this probe
+.RE
+.PP
+\fIstate\fR
+.RS 4
+Socket state value
 .RE
 .SH "CONTEXT"
 .PP

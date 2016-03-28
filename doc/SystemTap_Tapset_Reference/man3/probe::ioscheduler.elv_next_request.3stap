@@ -36,14 +36,14 @@ ioscheduler\&.elv_next_request
 .fi
 .SH "VALUES"
 .PP
-\fIname\fR
-.RS 4
-Name of the probe point
-.RE
-.PP
 \fIelevator_name\fR
 .RS 4
 The type of I/O elevator currently enabled
+.RE
+.PP
+\fIname\fR
+.RS 4
+Name of the probe point
 .RE
 .SH SEE ALSO\n 
 .IR tapset::ioscheduler (3stap)

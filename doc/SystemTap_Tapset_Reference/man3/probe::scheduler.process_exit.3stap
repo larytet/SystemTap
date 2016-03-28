@@ -36,14 +36,14 @@ scheduler\&.process_exit
 .fi
 .SH "VALUES"
 .PP
-\fIpid\fR
-.RS 4
-PID of the process exiting
-.RE
-.PP
 \fIpriority\fR
 .RS 4
 priority of the process exiting
+.RE
+.PP
+\fIpid\fR
+.RS 4
+PID of the process exiting
 .RE
 .PP
 \fIname\fR

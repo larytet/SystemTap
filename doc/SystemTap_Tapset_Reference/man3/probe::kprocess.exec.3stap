@@ -36,16 +36,6 @@ kprocess\&.exec
 .fi
 .SH "VALUES"
 .PP
-\fIargstr\fR
-.RS 4
-A string containing the filename followed by the arguments to pass, excluding 0th arg (SystemTap v2\&.5+)
-.RE
-.PP
-\fIfilename\fR
-.RS 4
-The path to the new executable
-.RE
-.PP
 \fIargs\fR
 .RS 4
 The arguments to pass to the new executable, including the 0th arg (SystemTap v2\&.5+)
@@ -54,6 +44,16 @@ The arguments to pass to the new executable, including the 0th arg (SystemTap v2
 \fIname\fR
 .RS 4
 Name of the system call (\(lqexecve\(rq) (SystemTap v2\&.5+)
+.RE
+.PP
+\fIargstr\fR
+.RS 4
+A string containing the filename followed by the arguments to pass, excluding 0th arg (SystemTap v2\&.5+)
+.RE
+.PP
+\fIfilename\fR
+.RS 4
+The path to the new executable
 .RE
 .SH "CONTEXT"
 .PP

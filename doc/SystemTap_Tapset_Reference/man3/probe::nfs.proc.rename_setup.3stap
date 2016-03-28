@@ -36,24 +36,24 @@ nfs\&.proc\&.rename_setup
 .fi
 .SH "VALUES"
 .PP
-\fIprot\fR
-.RS 4
-transfer protocol
-.RE
-.PP
 \fIversion\fR
 .RS 4
 NFS version
 .RE
 .PP
-\fIfh\fR
-.RS 4
-file handle of parent dir
-.RE
-.PP
 \fIserver_ip\fR
 .RS 4
 IP address of server
+.RE
+.PP
+\fIprot\fR
+.RS 4
+transfer protocol
+.RE
+.PP
+\fIfh\fR
+.RS 4
+file handle of parent dir
 .RE
 .SH "DESCRIPTION"
 .PP

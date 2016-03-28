@@ -36,14 +36,14 @@ nfs\&.aop\&.set_page_dirty
 .fi
 .SH "VALUES"
 .PP
-\fIpage_flag\fR
-.RS 4
-page flags
-.RE
-.PP
 \fI__page\fR
 .RS 4
 the address of page
+.RE
+.PP
+\fIpage_flag\fR
+.RS 4
+page flags
 .RE
 .SH "DESCRIPTION"
 .PP

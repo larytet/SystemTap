@@ -36,14 +36,14 @@ vm\&.pagefault
 .fi
 .SH "VALUES"
 .PP
-\fIname\fR
-.RS 4
-name of the probe point
-.RE
-.PP
 \fIwrite_access\fR
 .RS 4
 indicates whether this was a write or read access; 1 indicates a write, while 0 indicates a read
+.RE
+.PP
+\fIname\fR
+.RS 4
+name of the probe point
 .RE
 .PP
 \fIaddress\fR

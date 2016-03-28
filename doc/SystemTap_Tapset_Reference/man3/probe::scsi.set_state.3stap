@@ -36,6 +36,26 @@ scsi\&.set_state
 .fi
 .SH "VALUES"
 .PP
+\fIold_state\fR
+.RS 4
+The current state of the device
+.RE
+.PP
+\fIlun\fR
+.RS 4
+The lun number
+.RE
+.PP
+\fIchannel\fR
+.RS 4
+The channel number
+.RE
+.PP
+\fIhost_no\fR
+.RS 4
+The host number
+.RE
+.PP
 \fIstate_str\fR
 .RS 4
 The new state of the device, as a string
@@ -49,26 +69,6 @@ The new state of the device
 \fIold_state_str\fR
 .RS 4
 The current state of the device, as a string
-.RE
-.PP
-\fIchannel\fR
-.RS 4
-The channel number
-.RE
-.PP
-\fIlun\fR
-.RS 4
-The lun number
-.RE
-.PP
-\fIhost_no\fR
-.RS 4
-The host number
-.RE
-.PP
-\fIold_state\fR
-.RS 4
-The current state of the device
 .RE
 .PP
 \fIdev_id\fR

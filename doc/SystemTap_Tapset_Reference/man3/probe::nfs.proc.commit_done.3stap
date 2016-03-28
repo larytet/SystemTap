@@ -36,14 +36,9 @@ nfs\&.proc\&.commit_done
 .fi
 .SH "VALUES"
 .PP
-\fIversion\fR
+\fIprot\fR
 .RS 4
-NFS version
-.RE
-.PP
-\fItimestamp\fR
-.RS 4
-V4 timestamp, which is used for lease renewal
+transfer protocol
 .RE
 .PP
 \fIserver_ip\fR
@@ -51,9 +46,19 @@ V4 timestamp, which is used for lease renewal
 IP address of server
 .RE
 .PP
-\fIvalid\fR
+\fIversion\fR
 .RS 4
-fattr\->valid, indicates which fields are valid
+NFS version
+.RE
+.PP
+\fIcount\fR
+.RS 4
+number of bytes committed
+.RE
+.PP
+\fItimestamp\fR
+.RS 4
+V4 timestamp, which is used for lease renewal
 .RE
 .PP
 \fIstatus\fR
@@ -61,14 +66,9 @@ fattr\->valid, indicates which fields are valid
 result of last operation
 .RE
 .PP
-\fIprot\fR
+\fIvalid\fR
 .RS 4
-transfer protocol
-.RE
-.PP
-\fIcount\fR
-.RS 4
-number of bytes committed
+fattr\->valid, indicates which fields are valid
 .RE
 .SH "DESCRIPTION"
 .PP

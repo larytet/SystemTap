@@ -36,9 +36,44 @@ scsi\&.iodispatching
 .fi
 .SH "VALUES"
 .PP
+\fIdev_id\fR
+.RS 4
+The scsi device id
+.RE
+.PP
+\fIdata_direction\fR
+.RS 4
+The data_direction specifies whether this command is from/to the device 0 (DMA_BIDIRECTIONAL), 1 (DMA_TO_DEVICE), 2 (DMA_FROM_DEVICE), 3 (DMA_NONE)
+.RE
+.PP
+\fIhost_no\fR
+.RS 4
+The host number
+.RE
+.PP
+\fIrequest_buffer\fR
+.RS 4
+The request buffer address
+.RE
+.PP
 \fIchannel\fR
 .RS 4
 The channel number
+.RE
+.PP
+\fIdevice_state_str\fR
+.RS 4
+The current state of the device, as a string
+.RE
+.PP
+\fIreq_addr\fR
+.RS 4
+The current struct request pointer, as a number
+.RE
+.PP
+\fIrequest_bufflen\fR
+.RS 4
+The request buffer length
 .RE
 .PP
 \fIlun\fR
@@ -51,44 +86,9 @@ The lun number
 The current state of the device
 .RE
 .PP
-\fIdev_id\fR
-.RS 4
-The scsi device id
-.RE
-.PP
-\fIhost_no\fR
-.RS 4
-The host number
-.RE
-.PP
-\fIreq_addr\fR
-.RS 4
-The current struct request pointer, as a number
-.RE
-.PP
-\fIdata_direction\fR
-.RS 4
-The data_direction specifies whether this command is from/to the device 0 (DMA_BIDIRECTIONAL), 1 (DMA_TO_DEVICE), 2 (DMA_FROM_DEVICE), 3 (DMA_NONE)
-.RE
-.PP
 \fIdata_direction_str\fR
 .RS 4
 Data direction, as a string
-.RE
-.PP
-\fIrequest_bufflen\fR
-.RS 4
-The request buffer length
-.RE
-.PP
-\fIdevice_state_str\fR
-.RS 4
-The current state of the device, as a string
-.RE
-.PP
-\fIrequest_buffer\fR
-.RS 4
-The request buffer address
 .RE
 .SH SEE ALSO\n 
 .IR tapset::scsi (3stap)

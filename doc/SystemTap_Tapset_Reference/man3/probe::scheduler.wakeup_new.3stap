@@ -41,11 +41,6 @@ scheduler\&.wakeup_new
 priority of the new task
 .RE
 .PP
-\fItask_tid\fR
-.RS 4
-TID of the new task woken up
-.RE
-.PP
 \fItask_cpu\fR
 .RS 4
 cpu of the task woken up
@@ -56,14 +51,19 @@ cpu of the task woken up
 PID of the new task woken up
 .RE
 .PP
+\fItask_state\fR
+.RS 4
+state of the task woken up
+.RE
+.PP
 \fIname\fR
 .RS 4
 name of the probe point
 .RE
 .PP
-\fItask_state\fR
+\fItask_tid\fR
 .RS 4
-state of the task woken up
+TID of the new task woken up
 .RE
 .SH SEE ALSO\n 
 .IR tapset::scheduler (3stap)

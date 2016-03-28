@@ -36,14 +36,29 @@ nfs\&.fop\&.aio_write
 .fi
 .SH "VALUES"
 .PP
-\fIfile_name\fR
-.RS 4
-file name
-.RE
-.PP
 \fIino\fR
 .RS 4
 inode number
+.RE
+.PP
+\fIparent_name\fR
+.RS 4
+parent dir name
+.RE
+.PP
+\fIpos\fR
+.RS 4
+offset of the file
+.RE
+.PP
+\fIdev\fR
+.RS 4
+device identifier
+.RE
+.PP
+\fIfile_name\fR
+.RS 4
+file name
 .RE
 .PP
 \fIcount\fR
@@ -54,21 +69,6 @@ read bytes
 \fIbuf\fR
 .RS 4
 the address of buf in user space
-.RE
-.PP
-\fIparent_name\fR
-.RS 4
-parent dir name
-.RE
-.PP
-\fIdev\fR
-.RS 4
-device identifier
-.RE
-.PP
-\fIpos\fR
-.RS 4
-offset of the file
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfs (3stap)

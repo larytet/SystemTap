@@ -41,14 +41,14 @@ tcp\&.sendmsg
 IP address family
 .RE
 .PP
-\fIsock\fR
-.RS 4
-Network socket
-.RE
-.PP
 \fIsize\fR
 .RS 4
 Number of bytes to send
+.RE
+.PP
+\fIsock\fR
+.RS 4
+Network socket
 .RE
 .PP
 \fIname\fR

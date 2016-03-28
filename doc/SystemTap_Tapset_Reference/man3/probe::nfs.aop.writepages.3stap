@@ -36,34 +36,14 @@ nfs\&.aop\&.writepages
 .fi
 .SH "VALUES"
 .PP
-\fIfor_reclaim\fR
-.RS 4
-a flag of writeback_control, indicates if it\*(Aqs invoked from the page allocator
-.RE
-.PP
-\fInr_to_write\fR
-.RS 4
-number of pages attempted to be written in this execution
-.RE
-.PP
 \fIdev\fR
 .RS 4
 device identifier
 .RE
 .PP
-\fIfor_kupdate\fR
-.RS 4
-a flag of writeback_control, indicates if it\*(Aqs a kupdate writeback
-.RE
-.PP
 \fIwpages\fR
 .RS 4
 write size (in pages)
-.RE
-.PP
-\fIsize\fR
-.RS 4
-number of pages attempted to be written in this execution
 .RE
 .PP
 \fIwsize\fR
@@ -74,6 +54,26 @@ write size
 \fIino\fR
 .RS 4
 inode number
+.RE
+.PP
+\fIfor_reclaim\fR
+.RS 4
+a flag of writeback_control, indicates if it\*(Aqs invoked from the page allocator
+.RE
+.PP
+\fInr_to_write\fR
+.RS 4
+number of pages attempted to be written in this execution
+.RE
+.PP
+\fIfor_kupdate\fR
+.RS 4
+a flag of writeback_control, indicates if it\*(Aqs a kupdate writeback
+.RE
+.PP
+\fIsize\fR
+.RS 4
+number of pages attempted to be written in this execution
 .RE
 .SH "DESCRIPTION"
 .PP
