@@ -1,0 +1,17 @@
+set test staprunwait
+
+if {! [installtest_p]} { untested $test; return }
+    
+foreach runtime [get_runtime_list] {
+    if {$runtime != ""} {
+        set ok [catch {exec stap $srcdir/$subdir/$test.stp --runtime=$runtime -c "sleep 120"} foo]
+    } else {
+        set ok [catch {exec stap $srcdir/$subdir/$test.stp -c "sleep 120"} foo]
+    }
+    verbose -log "$ok $foo"
+    if {$ok != 0} {
+        fail "$test $runtime"
+    } else {
+        pass "$test $runtime"
+    }
+}

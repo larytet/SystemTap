@@ -281,6 +281,7 @@ void start_cmd(void)
     raise (SIGCONT); /* Harmless; just passes control to parent. */
 #endif /* !WORKAROUND_BZ467568 */
 
+    alarm(0); /* clear alarms */
     dbug(1, "execing target_cmd %s\n", target_cmd);
 
     /* Note that execvp() is not a direct system call; it does a $PATH
