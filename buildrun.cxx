@@ -119,6 +119,9 @@ make_any_make_cmd(systemtap_session& s, const string& dir, const string& target)
   // PR13847: suppress debuginfo creation by default
   make_cmd.insert(make_cmd.end(), "CONFIG_DEBUG_INFO=");
 
+  // RHBZ1321628: suppress stack validation; expected to be temporary
+  make_cmd.insert(make_cmd.end(), "CONFIG_STACK_VALIDATION=");
+
   // Add any custom kbuild flags
   make_cmd.insert(make_cmd.end(), s.kbuildflags.begin(), s.kbuildflags.end());
 
