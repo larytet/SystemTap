@@ -1,5 +1,5 @@
 // stapdyn main program
-// Copyright (C) 2012-2015 Red Hat Inc.
+// Copyright (C) 2012-2016 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -100,7 +100,7 @@ main(int argc, char * const argv[])
 
         case 'V':
           printf("Systemtap Dyninst loader/runner (version %s/%s, %s)\n"
-                 "Copyright (C) 2012-2015 Red Hat, Inc. and others\n"
+                 "Copyright (C) 2012-2016 Red Hat, Inc. and others\n"
                  "This is free software; see the source for copying conditions.\n",
                  VERSION, DYNINST_FULL_VERSION, STAP_EXTENDED_VERSION);
           return 0;
