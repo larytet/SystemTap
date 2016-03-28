@@ -59,7 +59,7 @@
 %define dracutstap %{_prefix}/lib/dracut/modules.d/99stap
 
 Name: systemtap
-Version: 3.0
+Version: 3.1
 Release: 1%{?dist}
 # for version, see also configure.ac
 
@@ -1051,6 +1051,9 @@ done
 #   http://sourceware.org/systemtap/wiki/SystemTapReleases
 
 %changelog
+* Sun Mar 27 2016 Frank Ch. Eigler <fche@redhat.com> - 3.0-1
+- Upstream release.
+
 * Thu Oct 08 2015 Frank Ch. Eigler <fche@redhat.com> - 2.9-1
 - Upstream release.
 

@@ -1,4 +1,7 @@
-* What's new in version 3.0
+* What's new in version 3.1
+
+
+* What's new in version 3.0, 2016-03-27
 
 - The new experimental "interactive" mode, specified by "stap -i",
   drops you into a command-line prompt where you can build up a script,
