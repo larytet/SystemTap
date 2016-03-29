@@ -48,7 +48,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 		set opt_ch [ string index $arg $ch_idx ]
 		if { $opt_ch == "" } { break }
 		incr ch_idx
-		switch $opt_ch {
+		switch -- $opt_ch {
 		    p {
 			# We're already doing p4. Ignore this option
 			# as long as the next character is '4'.
@@ -68,8 +68,8 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 		    - {
 			# Handle long arguments ("--FOO") by testing
 			# the whole argument.
-			switch -regexp $arg {
-			    {^--compatible=\d+(\.\d*)?} {
+			switch -regexp -- $arg {
+			    {^--compatible=.*} {
 				# We can't handle the '--compatible'
 				# option. Once the library scripts
 				# have been read, they are "set" at a
@@ -127,7 +127,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     if {!$rc} {set rc [stapi_test_no_output "set timing $timing"] }
     if {!$rc} {set rc [stapi_test_no_output \
 			       "set unoptimized $unoptimized"] }
-    switch $rc {
+    switch -- $rc {
 	0 { pass "${full_test} - reset" }
 	1 { fail "${full_test} - reset"; break }
 	-1 { fail "${full_test} - reset: crashed"; break }
@@ -146,7 +146,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     verbose -log "Running $file"
     set rc [stapi_run_batch]
     if {$rc < 0} {
-	switch $rc {
+	switch -- $rc {
 	    -1 { fail "${full_test} - compile: crashed" }
 	    -2 { fail "${full_test} - compile timeout" }
 	    default { fail "${full_test} - unknown error" }
@@ -158,7 +158,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     #
     # (Note that tcl doesn't like comments directly inside the switch
     # statement, but comments can go in sub-blocks.)
-    switch $test {
+    switch -- $test {
 	buildok/memory-write_shared_copy.stp {
 	    if {$rc == 1} { setup_kfail 1155 *-*-* } }
 
@@ -231,7 +231,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	    if {$rc != 0 && ![uprobes_p]} { setup_kfail UPROBES *-*-* }
 	}
     }
-    switch $rc {
+    switch -- $rc {
 	0 { pass "${full_test} - compile" }
 	1 { fail "${full_test} - compile"; continue }
 	2 { fail "${full_test} - compile: cache used"; continue }
@@ -241,7 +241,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     # script again, making sure the cache was used.
     verbose -log "Running $file again"
     set rc [stapi_run_batch 1]
-    switch $rc {
+    switch -- $rc {
 	-1 { fail "${full_test} - cached compile: crashed"; break }
 	0 { pass "${full_test} - cached compile" }
 	1 { fail "${full_test} - cached compile" }

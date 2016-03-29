@@ -28,6 +28,14 @@ proc stapi_start { {args ""} } {
     }
     pass "Started stap -i"
     set stapi_spawn_id $spawn_id
+
+    # If the pathnames given to the interactive stap's 'load' command
+    # are long, then readline will try to scroll them, causing lots of
+    # control characters in the output. This confuses us when reading
+    # the output. Instead of trying to interpret the control
+    # characters, just lie and tell the system stap's terminal is
+    # *really* wide, to avoid the need to scroll.
+    stty columns 4096 < $spawn_out(slave,name)
     return 0
 }
 
