@@ -907,6 +907,28 @@ probe __nd_syscall.socketcall.connect.return =
 	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_CONNECT %}) next;
 }
 
+# copy_file_range ___________________________________________
+# ssize_t copy_file_range(int fd_in, loff_t *off_in,
+#                         int fd_out, loff_t *off_out,
+#                         size_t len, unsigned int flags)
+probe nd_syscall.copy_file_range = kprobe.function("sys_copy_file_range") ?
+{
+  name = "copy_file_range"
+  fd_in = int_arg(1)
+  off_in = longlong_arg(2)
+  fd_out = int_arg(3)
+  off_out = longlong_arg(4)
+  len = ulong_arg(5)
+  flags = uint_arg(6)
+  argstr = sprintf("%d, %d, %d, %d, %d, %d", __int32($fd_in), $off_in,
+      __int32(fd_out), $off_out, __ulong(len), __uint32($flags))
+}
+probe nd_syscall.copy_file_range.return = kprobe.function("sys_copy_file_range").return ?
+{
+  name = "copy_file_range"
+	retstr = returnstr(1)
+}
+
 # creat
 # long sys_creat(const char __user * pathname, int mode)
 probe nd_syscall.creat = kprobe.function("sys_creat") ?

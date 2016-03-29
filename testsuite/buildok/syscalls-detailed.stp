@@ -261,6 +261,16 @@ probe syscall.connect.return
 	printf("%s, %s\n", name, retstr)
 }
 
+probe syscall.copy_file_range ?
+{
+	printf("%s, %s\n", name, argstr)
+  printf("%d, %d, %d, %d, %d, %d\n", fd_in, off_in, fd_out, off_out, len, flags);
+}
+probe syscall.copy_file_range.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe syscall.creat
 {
 	printf("%s, %s\n", name, argstr)
