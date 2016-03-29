@@ -99,6 +99,7 @@ main(int argc, char * const argv[])
 	  break;
 
         case 'V':
+          // PRERELEASE
           printf("Systemtap Dyninst loader/runner (version %s/%s, %s)\n"
                  "Copyright (C) 2012-2016 Red Hat, Inc. and others\n"
                  "This is free software; see the source for copying conditions.\n",
