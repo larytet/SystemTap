@@ -1249,6 +1249,9 @@ static const _stp_val_array const _stp_pipe2_flags_list[] = {
 #ifdef O_CLOEXEC
 	V(O_CLOEXEC),
 #endif
+#ifdef O_DIRECT
+	V(O_DIRECT),
+#endif
 	{0, NULL}
 };
 %}
@@ -6007,4 +6010,23 @@ function _membarrier_cmd_str(cmd:long)
 %{
 	_stp_lookup_str(_stp_membarrier_cmd_list, (unsigned int)STAP_ARG_cmd,
 	                STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_userfaultfd_flags_list[] = {
+#ifdef O_NONBLOCK
+	V(O_NONBLOCK),
+#endif
+#ifdef O_CLOEXEC
+	V(O_CLOEXEC),
+#endif
+	{0, NULL}
+};
+%}
+
+function _userfaultfd_flags_str:string (f:long)
+%{ /* pure */ /* unprivileged */
+	unsigned int flags = (unsigned int)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_userfaultfd_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}

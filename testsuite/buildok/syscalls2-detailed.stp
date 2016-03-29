@@ -1586,6 +1586,16 @@ probe syscall.uselib.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
+probe syscall.userfaultfd ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %s\n", flags, flags_str)
+}
+probe syscall.userfaultfd.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe syscall.ustat, syscall.ustat32 ?
 {
 	printf("%s, %s\n", name, argstr)

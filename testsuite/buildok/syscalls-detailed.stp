@@ -1294,7 +1294,7 @@ probe syscall.mbind.return ?
 probe syscall.membarrier ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %s, %d", cmd, cmd_str, flags)
+	printf("%d, %s, %d\n", cmd, cmd_str, flags)
 }
 probe syscall.membarrier.return ?
 {
