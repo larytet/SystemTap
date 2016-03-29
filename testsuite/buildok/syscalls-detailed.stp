@@ -1283,10 +1283,20 @@ probe syscall.madvise.return
 probe syscall.mbind ?
 {
 	printf("%s, %s\n", name, argstr)
-    printf("%p, %u, %d, %s, %p, %u, %u, %s", start, len, mode,    
+	printf("%p, %u, %d, %s, %p, %u, %u, %s", start, len, mode,    
 	       mode_str, nmask_uaddr, maxnode, flags, flags_str)
 }
 probe syscall.mbind.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe syscall.membarrier ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %s, %d", cmd, cmd_str, flags)
+}
+probe syscall.membarrier.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

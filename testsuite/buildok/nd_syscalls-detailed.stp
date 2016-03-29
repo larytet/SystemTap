@@ -1293,6 +1293,16 @@ probe nd_syscall.mbind.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
+probe nd_syscall.membarrier ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %s, %d", cmd, cmd_str, flags)
+}
+probe nd_syscall.membarrier.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe nd_syscall.memfd_create ?
 {
 	printf("%s, %s\n", name, argstr)

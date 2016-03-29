@@ -5989,3 +5989,22 @@ function _bpf_cmd_str:string(cmd:long)
 	                STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
+%{
+#ifdef CONFIG_MEMBARRIER
+#include <linux/membarrier.h>
+#endif
+
+static const _stp_val_array const _stp_membarrier_cmd_list[] = {
+#ifdef CONFIG_MEMBARRIER
+	V(MEMBARRIER_CMD_QUERY),
+	V(MEMBARRIER_CMD_SHARED),
+#endif
+	{0, NULL}
+};
+%}
+
+function _membarrier_cmd_str(cmd:long)
+%{
+	_stp_lookup_str(_stp_membarrier_cmd_list, (unsigned int)STAP_ARG_cmd,
+	                STAP_RETVALUE, MAXSTRINGLEN);
+%}

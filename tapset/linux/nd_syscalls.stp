@@ -3776,6 +3776,22 @@ probe __nd_syscall.mbind.return = kprobe.function("sys_mbind").return
 %)
 }
 
+# membarrier _______________________________________________________
+# SYSCALL_DEFINE2(membarrier, int, cmd, int, flags)
+probe nd_syscall.membarrier = kprobe.function("sys_membarrier").call ?
+{
+	name = "membarrier"
+	cmd = int_arg(1)
+	cmd_str = _membarrier_cmd_str(cmd)
+	flags = int_arg(2)
+	argstr = sprintf("%s, %d", _membarrier_cmd_str(cmd), flags)
+}
+probe nd_syscall.membarrier.return = kprobe.function("sys_membarrier").return ?
+{
+	name = "membarrier"
+	retstr = returnstr(1)
+}
+
 # memfd_create _____________________________________________________
 # long sys_memfd_create (const char __user* uname, unsigned int flags)
 probe nd_syscall.memfd_create = kprobe.function("sys_memfd_create") ?
