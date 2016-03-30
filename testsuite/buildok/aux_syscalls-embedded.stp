@@ -214,4 +214,7 @@ probe begin {
 	print (_struct_sched_attr_u(0))
         print (_struct_compat_itimerspec_u(0))
         print (_struct_compat_timex_u(0))
+
+	print (_membarrier_cmd_str(0))
+	print (_userfaultfd_flags_str(0))
 }
