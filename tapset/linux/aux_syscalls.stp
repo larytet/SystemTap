@@ -232,7 +232,7 @@ function _struct_timezone_u:string(uaddr:long)
 %}
 
 function _stp_clock_nanosleep_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	static const _stp_val_array const nanosleep_flags_list[] = {
 		V(TIMER_ABSTIME),
 		{0, NULL}
@@ -500,37 +500,44 @@ typedef enum {
 
 function _struct_sockaddr_u_ip_addr:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IP_ADDR %});
+    return _struct_sockaddr_u_impl(uaddr, len,
+				   %{ /* pure */ /* unprivileged */ SA_IP_ADDR %});
 }
 
 function _struct_sockaddr_u_tcp_port:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_TCP_PORT %});
+    return _struct_sockaddr_u_impl(uaddr, len,
+				   %{ /* pure */ /* unprivileged */ SA_TCP_PORT %});
 }
 
 @__private30 function _struct_sockaddr_u_ip_addr_tcp_port:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IP_ADDR | SA_TCP_PORT %});
+    return _struct_sockaddr_u_impl(uaddr, len,
+				   %{ /* pure */ /* unprivileged */ SA_IP_ADDR | SA_TCP_PORT %});
 }
 
 function _struct_sockaddr_u_sa_family:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_FAMILY %});
+    return _struct_sockaddr_u_impl(uaddr, len,
+				   %{ /* pure */ /* unprivileged */ SA_FAMILY %});
 }
 
 function _struct_sockaddr_u_ipv6_flowinfo:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IPV6_FLOWINFO %});
+    return _struct_sockaddr_u_impl(uaddr, len,
+				   %{ /* pure */ /* unprivileged */ SA_IPV6_FLOWINFO %});
 }
 
 function _struct_sockaddr_u_ipv6_scope_id:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IPV6_SCOPE_ID %});
+    return _struct_sockaddr_u_impl(uaddr, len,
+				   %{ /* pure */ /* unprivileged */ SA_IPV6_SCOPE_ID %});
 }
 
 function _struct_sockaddr_u:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_PRETTY %});
+    return _struct_sockaddr_u_impl(uaddr, len,
+				   %{ /* pure */ /* unprivileged */ SA_PRETTY %});
 }
 
 %{
@@ -830,7 +837,7 @@ function _fildes_index_u:long (uaddr:long, index:long)
 
 
 function __sem_flags:string(semflg:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	long semflg = STAP_ARG_semflg;
 	char *str = STAP_RETVALUE;
 	int mode;
@@ -1043,7 +1050,7 @@ static const _stp_val_array const _stp_getrandom_list[] = {
 %}
 
 function _getrandom_flags_str:string(flag:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int grflag = (unsigned int)STAP_ARG_flag;  
 	_stp_lookup_or_str(_stp_getrandom_list, grflag, STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1085,7 +1092,7 @@ static const _stp_val_array const _stp_inotify_watch_mask_list[] = {
 %}
 
 function _inotify_watch_mask_str:string(mask:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	uint32_t mask = (uint32_t)STAP_ARG_mask;
 	_stp_lookup_or_str(_stp_inotify_watch_mask_list, mask, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -1100,7 +1107,7 @@ function _inotify_watch_mask_str:string(mask:long)
  *    syscall.rt_sigprocmask
  */
 function _sigprocmask_how_str:string(how:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	int len;
 	char *str = STAP_RETVALUE;
 	switch (STAP_ARG_how) {
@@ -1137,7 +1144,7 @@ static const _stp_val_array const _stp_itimer_which_list[] = {
 };
 %}
 function _itimer_which_str:string(which:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_itimer_which_list, (unsigned int)STAP_ARG_which,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1170,7 +1177,7 @@ static const _stp_val_array const _stp_nfsctl_cmd_list[] = {
 %}
 
 function _nfsctl_cmd_str:string(cmd:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_nfsctl_cmd_list, (unsigned int)STAP_ARG_cmd,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1222,7 +1229,7 @@ static const _stp_val_array const _stp_wc_str_list[] = {
 %}
 
 function _get_wc_str:string(wc:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int clkid = (unsigned int)STAP_ARG_wc;
 	_stp_lookup_str(_stp_wc_str_list, clkid, STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1257,7 +1264,7 @@ static const _stp_val_array const _stp_pipe2_flags_list[] = {
 %}
 
 function _flock_cmd_str:string(c:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_flock_cmd_list, (unsigned int)STAP_ARG_c,
 			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1350,7 +1357,7 @@ static const _stp_val_array const _stp_open_mode_flags_list[] = {
 
 /* `man 2 open` for more information */
 function _sys_open_flag_str:string (f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	int flags = (int)STAP_ARG_f;
 	int acc = flags & O_ACCMODE;
 
@@ -1387,31 +1394,35 @@ static const _stp_val_array const _stp_access_mode_list[] = {
 
 /* `man 2 open` for more information */
 function _access_mode_str:string(mode:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int mode = (unsigned int)STAP_ARG_mode;
 	_stp_lookup_or_str(_stp_access_mode_list, mode, STAP_RETVALUE,
 			   MAXSTRINGLEN);
 %}
 
 /* `man 2 open` for more information */
-@__private30 function _sys_open_mode_str(f) {
-   if((f & %{ /* pure */ S_IRWXU %}) == %{ /* pure */ S_IRWXU %}) bs="S_IRWXU|".bs
+@__private30 function _sys_open_mode_str(f)
+{
+   if ((f & %{ /* pure */ /* unprivileged */ S_IRWXU %})
+       == %{ /* pure */ /* unprivileged */ S_IRWXU %}) bs="S_IRWXU|".bs
    else {
-        if(f & %{ /* pure */ S_IRUSR %}) bs="S_IRUSR|" . bs
-        if(f & %{ /* pure */ S_IWUSR %}) bs="S_IWUSR|" . bs
-        if(f & %{ /* pure */ S_IXUSR %}) bs="S_IXUSR|" . bs
+        if (f & %{ /* pure */ /* unprivileged */ S_IRUSR %}) bs="S_IRUSR|" . bs
+        if (f & %{ /* pure */ /* unprivileged */ S_IWUSR %}) bs="S_IWUSR|" . bs
+        if (f & %{ /* pure */ /* unprivileged */ S_IXUSR %}) bs="S_IXUSR|" . bs
    }
-   if((f & %{ /* pure */ S_IRWXG %}) == %{ /* pure */ S_IRWXG %}) bs="S_IRWXG|" . bs
+   if ((f & %{ /* pure */ /* unprivileged */ S_IRWXG %})
+       == %{ /* pure */ /* unprivileged */ S_IRWXG %}) bs="S_IRWXG|" . bs
    else {
-        if(f & %{ /* pure */ S_IRGRP %}) bs="S_IRGRP|" . bs
-        if(f & %{ /* pure */ S_IWGRP %}) bs="S_IWGRP|" . bs
-        if(f & %{ /* pure */ S_IXGRP %}) bs="S_IXGRP|" . bs
+        if (f & %{ /* pure */ /* unprivileged */ S_IRGRP %}) bs="S_IRGRP|" . bs
+        if (f & %{ /* pure */ /* unprivileged */ S_IWGRP %}) bs="S_IWGRP|" . bs
+        if (f & %{ /* pure */ /* unprivileged */ S_IXGRP %}) bs="S_IXGRP|" . bs
    }
-   if((f & %{ /* pure */ S_IRWXO %}) == %{ /* pure */ S_IRWXO %}) bs="S_IRWXO|" . bs
+   if ((f & %{ /* pure */ /* unprivileged */ S_IRWXO %})
+       == %{ /* pure */ /* unprivileged */ S_IRWXO %}) bs="S_IRWXO|" . bs
    else {
-        if(f & %{ /* pure */ S_IROTH %}) bs="S_IROTH|" . bs
-        if(f & %{ /* pure */ S_IWOTH %}) bs="S_IWOTH|" . bs
-        if(f & %{ /* pure */ S_IXOTH %}) bs="S_IXOTH|" . bs
+        if (f & %{ /* pure */ /* unprivileged */ S_IROTH %}) bs="S_IROTH|" . bs
+        if (f & %{ /* pure */ /* unprivileged */ S_IWOTH %}) bs="S_IWOTH|" . bs
+        if (f & %{ /* pure */ /* unprivileged */ S_IXOTH %}) bs="S_IXOTH|" . bs
    }
    return (strlen(bs) > 0) ? substr(bs, 0, strlen(bs) - 1) : sprintf("%#o", f)
 }
@@ -1419,17 +1430,17 @@ function _access_mode_str:string(mode:long)
 /* `man 2 mknod` for more information */
 function _mknod_mode_str:string(mode:long)
 {
-   type = mode & %{ /* pure */ S_IFMT %}
+   type = mode & %{ /* pure */ /* unprivileged */ S_IFMT %}
    mode &= %{ /* pure */ ~S_IFMT %}
-   if (type == %{ /* pure */ S_IFREG %})
+   if (type == %{ /* pure */ /* unprivileged */ S_IFREG %})
         return sprintf("S_IFREG|%#o", mode)
-   if (type == %{ /* pure */ S_IFCHR %})
+   if (type == %{ /* pure */ /* unprivileged */ S_IFCHR %})
         return sprintf("S_IFCHR|%#o", mode)
-   if (type == %{ /* pure */ S_IFBLK %})
+   if (type == %{ /* pure */ /* unprivileged */ S_IFBLK %})
         return sprintf("S_IFBLK|%#o", mode)
-   if (type == %{ /* pure */ S_IFIFO %})
+   if (type == %{ /* pure */ /* unprivileged */ S_IFIFO %})
         return sprintf("S_IFIFO|%#o", mode)
-   if (type == %{ /* pure */ S_IFSOCK %})
+   if (type == %{ /* pure */ /* unprivileged */ S_IFSOCK %})
         return sprintf("S_IFSOCK|%#o", mode)
    return sprintf("%#o", type | mode)
 }
@@ -1447,7 +1458,7 @@ static const _stp_val_array const _stp_msync_flag_list[] = {
 
 /* `man msync` for more information */
 function _msync_flag_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	uint32_t flags = (uint32_t)STAP_ARG_f;
 	_stp_lookup_or_str(_stp_msync_flag_list, flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -1477,7 +1488,7 @@ static const _stp_val_array const _stp_wait4_op_list[] = {
 
 %(systemtap_v <= "2.7" %?
 function _internal_wait_opt_str:string(f:long, bit_num:long, bit_str:string)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	/* ignore bit_num and bit_str */
 	_stp_lookup_or_str(_stp_wait4_op_list, (unsigned int)STAP_ARG_f,
 			   STAP_RETVALUE, MAXSTRINGLEN);
@@ -1485,7 +1496,7 @@ function _internal_wait_opt_str:string(f:long, bit_num:long, bit_str:string)
 
 /* `man waitid` for more information */
 function _waitid_opt_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_wait4_op_list, (unsigned int)STAP_ARG_f,
 			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1493,7 +1504,7 @@ function _waitid_opt_str:string(f:long)
 
 /* `man wait4` for more information */
 function _wait4_opt_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_wait4_op_list, (unsigned int)STAP_ARG_f,
 			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1532,17 +1543,17 @@ function WTERMSIG(f) {
 
 @__private30 function _ptrace_event_name(f)
 {
-  if (f == %{ /* pure */ PTRACE_EVENT_FORK %})
+  if (f == %{ /* pure */ /* unprivileged */ PTRACE_EVENT_FORK %})
     return "PTRACE_EVENT_FORK"
-  if (f == %{ /* pure */ PTRACE_EVENT_VFORK %})
+  if (f == %{ /* pure */ /* unprivileged */ PTRACE_EVENT_VFORK %})
     return "PTRACE_EVENT_VFORK"
-  if (f == %{ /* pure */ PTRACE_EVENT_CLONE %})
+  if (f == %{ /* pure */ /* unprivileged */ PTRACE_EVENT_CLONE %})
     return "PTRACE_EVENT_CLONE"
-  if (f == %{ /* pure */ PTRACE_EVENT_EXEC %})
+  if (f == %{ /* pure */ /* unprivileged */ PTRACE_EVENT_EXEC %})
     return "PTRACE_EVENT_EXEC"
-  if (f == %{ /* pure */ PTRACE_EVENT_VFORK_DONE %})
+  if (f == %{ /* pure */ /* unprivileged */ PTRACE_EVENT_VFORK_DONE %})
     return "PTRACE_EVENT_VFORK_DONE"
-  if (f == %{ /* pure */ PTRACE_EVENT_EXIT %})
+  if (f == %{ /* pure */ /* unprivileged */ PTRACE_EVENT_EXIT %})
     return "PTRACE_EVENT_EXIT"
   return ""
 }
@@ -1563,7 +1574,7 @@ function _wait_status_str(f) {
     }
   if (WIFSTOPPED(f))
     {
-      if (WSTOPSIG(f) == %{ /* pure */ SIGTRAP %})
+      if (WSTOPSIG(f) == %{ /* pure */ /* unprivileged */ SIGTRAP %})
 	{
 	  event = _ptrace_event_name (f >> 16)
 	  if (event != "")
@@ -1600,7 +1611,7 @@ static const _stp_val_array const _stp_seccomp_mode_list[] = {
 %}
 
 function _seccomp_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
         unsigned int flags = (unsigned int)STAP_ARG_flags;
 	_stp_lookup_str(_stp_seccomp_flags_list, flags, STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1642,7 +1653,7 @@ static const _stp_val_array const _stp_msg_flags_list[] = {
 %}
 
 function _msg_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	// Ignore MSG_CMSG_COMPAT in flags.
 	_stp_lookup_or_str(_stp_msg_flags_list,
 			   (STAP_ARG_flags & ~MSG_CMSG_COMPAT), STAP_RETVALUE,
@@ -1676,7 +1687,7 @@ static const _stp_val_array const _stp_mfd_flags_list[] = {
 %}
 
 function _mfd_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
           unsigned int flags = (unsigned int)STAP_ARG_flags;
 	  _stp_lookup_or_str(_stp_mfd_flags_list, flags, STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1692,7 +1703,7 @@ static const _stp_val_array const _stp_mlock2_flags_list[] = {
 %}
 /* `man mlock2` for more information */
 function _stp_mlock2_str:string(flags:long)
-%{
+%{ /* pure */ /* unprivileged */
         uint32_t flags = (uint32_t)STAP_ARG_flags;
         _stp_lookup_or_str(_stp_mlock2_flags_list, flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -1711,7 +1722,7 @@ static const _stp_val_array const _stp_mlockall_flags_list[] = {
 %}
 /* `man mlockall` for more information */
 function _mlockall_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	uint32_t flags = (uint32_t)STAP_ARG_flags;
 	_stp_lookup_or_str(_stp_mlockall_flags_list, flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -1727,7 +1738,7 @@ static const _stp_val_array const _stp_module_flags_list[] = {
 
 /* used by sys_delete_module */
 function _module_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
  	_stp_lookup_or_str(_stp_module_flags_list, (unsigned int)STAP_ARG_flags,
 			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1751,7 +1762,7 @@ static const _stp_val_array const _stp_sched_policy_list[] = {
 %}
 
 function _sched_policy_str:string(policy:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int policy = (unsigned int)STAP_ARG_policy;
 	int len;
 
@@ -1776,7 +1787,7 @@ static const _stp_val_array const _stp_priority_which_list[] = {
 %}
 
 function _priority_which_str:string(which:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_priority_which_list, (unsigned int)STAP_ARG_which,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1791,7 +1802,7 @@ static const _stp_val_array const _stp_shutdown_how_list[] = {
 %}
 
 function _shutdown_how_str:string(how:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_shutdown_how_list, (unsigned int)STAP_ARG_how,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1813,7 +1824,7 @@ static const _stp_val_array const _stp_reboot_magic_list[] = {
 %}
 
 function _reboot_magic_str:string(magic:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int magic = (unsigned int)STAP_ARG_magic;
 	_stp_lookup_str(_stp_reboot_magic_list, magic, STAP_RETVALUE,
 			MAXSTRINGLEN);
@@ -1835,7 +1846,7 @@ static const _stp_val_array const _stp_reboot_flag_list[] = {
 %}
 
 function _reboot_flag_str:string(flag:long)
-%{  /* pure */
+%{  /* pure */ /* unprivileged */
 	unsigned int flag = (unsigned int)STAP_ARG_flag;
 	_stp_lookup_str(_stp_reboot_flag_list, flag, STAP_RETVALUE,
 			MAXSTRINGLEN);
@@ -1852,7 +1863,7 @@ static const _stp_val_array const _stp_waitid_which_list[] = {
 %}
 
 function _waitid_which_str:string(flag:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_waitid_which_list, (unsigned int)STAP_ARG_flag,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -1941,13 +1952,13 @@ static const _stp_val_array const _stp_futex_wake_cmps_list[] = {
 %}
 
 function _futex_op_str:string(op:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_futex_op_list, (unsigned int)STAP_ARG_op,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 function _futex_wake_op_str:string(encoded_op:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	int encoded_op = (int)STAP_ARG_encoded_op;
 	int op = (encoded_op >> 28) & 7;
 	int cmp = (encoded_op >> 24) & 15;
@@ -2033,13 +2044,13 @@ static const _stp_val_array const _stp_umountflags_list[] = {
 %}
 
 function _mountflags_str:string(op:long) 
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_mountflags_list, (unsigned long)STAP_ARG_op,
 			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 function _umountflags_str:string(op:long) 
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_umountflags_list, (unsigned int)STAP_ARG_op,
 			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -2106,7 +2117,7 @@ static const _stp_val_array const _stp_mremap_flags_list[] = {
 %}
 
 function _mremap_flags:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_mremap_flags_list, (uint32_t)STAP_ARG_flags,
 			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -2152,7 +2163,7 @@ static const _stp_val_array const _stp_madvice_advice_list[] = {
 %}
 
 function _madvice_advice_str:string(behavior:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_madvice_advice_list,
 			(unsigned int)STAP_ARG_behavior, STAP_RETVALUE,
 			MAXSTRINGLEN);
@@ -2179,7 +2190,7 @@ static const _stp_val_array const _stp_fadvice_advice_list[] = {
 %}
 
 function _fadvice_advice_str:string(behavior:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_fadvice_advice_list,
 			(unsigned int)STAP_ARG_behavior, STAP_RETVALUE,
 			MAXSTRINGLEN);
@@ -2242,7 +2253,7 @@ static const _stp_val_array const _stp_fcntl_cmd_list[] = {
 %}
 
 function _fcntl_cmd_str:string(cmd:long)
-%{
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_fcntl_cmd_list, (unsigned int)STAP_ARG_cmd,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -2275,7 +2286,7 @@ static const _stp_val_array const _stp_seek_whence_list[] = {
 
 %}
 function _seek_whence_str:string(w:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_seek_whence_list, (unsigned int)STAP_ARG_w,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -2308,7 +2319,7 @@ static const _stp_val_array const _stp_quotactl_cmd_list[] = {
 %}
 
 function _quotactl_cmd_str:string(cmd:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int cmd = (unsigned int)STAP_ARG_cmd >> SUBCMDSHIFT;
 	unsigned int type = (unsigned int)STAP_ARG_cmd & SUBCMDMASK;
 
@@ -2326,7 +2337,7 @@ function _quotactl_cmd_str:string(cmd:long)
 %}
 
 function _quotactl_subcmd:long(cmd:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	STAP_RETVALUE = (unsigned int)STAP_ARG_cmd >> SUBCMDSHIFT;
 %}
 
@@ -2348,7 +2359,7 @@ static const _stp_val_array const _stp_quotactl_format_list[] = {
 %}
 
 function _quotactl_quota_type_str:string(fmt:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_quotactl_format_list,
 	                (int)STAP_ARG_fmt, STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -2489,7 +2500,7 @@ static const _stp_val_array const _stp_sockopt_optname_list[] = {
 
 /* see sys/socket.h (for setsockopt) */
 function _sockopt_optname_str:string(opt:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_sockopt_optname_list, STAP_ARG_opt, STAP_RETVALUE,
 			MAXSTRINGLEN);
 %}
@@ -2556,7 +2567,7 @@ static const _stp_val_array const _stp_sockopt_level_list[] = {
 
 /* `man 2 setsockopt` for more information */
 function _sockopt_level_str:string(level:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_sockopt_level_list, STAP_ARG_level, STAP_RETVALUE,
 			MAXSTRINGLEN);
 %}
@@ -2631,13 +2642,13 @@ static const _stp_val_array const _stp_sock_family_list[] = {
 %}
 
 function _sock_family_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_sock_family_list, (unsigned int)STAP_ARG_f,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 function _sock_type_str:string(type:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 #ifdef SOCK_TYPE_MASK
 	int flags = (int)STAP_ARG_type & ~SOCK_TYPE_MASK;
 	int t = (int)STAP_ARG_type & SOCK_TYPE_MASK;
@@ -2742,7 +2753,7 @@ static const _stp_val_array const _stp_sock_flags_list[] = {
 %}
 
 function _sock_flags_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_sock_flags_list, (unsigned int)STAP_ARG_f,
 			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -2767,37 +2778,39 @@ function _sock_flags_str:string(f:long)
 #endif
 %}
 
-function _sock_protocol_str:string(family:long, protocol:long) {
-    if (family == %{ /* pure */ PF_INET %} || family == %{ /* pure */ PF_INET6 %}) {
-	if (protocol == %{ /* pure */ IPPROTO_IP %}) return "IPPROTO_IP"
-	if (protocol == %{ /* pure */ IPPROTO_ICMP %}) return "IPPROTO_ICMP"
-	if (protocol == %{ /* pure */ IPPROTO_IGMP %}) return "IPPROTO_IGMP"
-	if (protocol == %{ /* pure */ IPPROTO_IPIP %}) return "IPPROTO_IPIP"
-	if (protocol == %{ /* pure */ IPPROTO_TCP %}) return "IPPROTO_TCP"
-	if (protocol == %{ /* pure */ IPPROTO_EGP %}) return "IPPROTO_EGP"
-	if (protocol == %{ /* pure */ IPPROTO_PUP %}) return "IPPROTO_PUP"
-	if (protocol == %{ /* pure */ IPPROTO_UDP %}) return "IPPROTO_UDP"
-	if (protocol == %{ /* pure */ IPPROTO_IDP %}) return "IPPROTO_IDP"
-	if (protocol == %{ /* pure */ IPPROTO_TP %}) return "IPPROTO_TP"
-	if (protocol == %{ /* pure */ IPPROTO_DCCP %}) return "IPPROTO_DCCP"
-	if (protocol == %{ /* pure */ IPPROTO_IPV6 %}) return "IPPROTO_IPV6"
-	if (protocol == %{ /* pure */ IPPROTO_RSVP %}) return "IPPROTO_RSVP"
-	if (protocol == %{ /* pure */ IPPROTO_GRE %}) return "IPPROTO_GRE"
-	if (protocol == %{ /* pure */ IPPROTO_ESP %}) return "IPPROTO_ESP"
-	if (protocol == %{ /* pure */ IPPROTO_AH %}) return "IPPROTO_AH"
-	if (protocol == %{ /* pure */ IPPROTO_MTP %}) return "IPPROTO_MTP"
-	if (protocol == %{ /* pure */ IPPROTO_ENCAP %}) return "IPPROTO_ENCAP"
-	if (protocol == %{ /* pure */ IPPROTO_PIM %}) return "IPPROTO_PIM"
-	if (protocol == %{ /* pure */ IPPROTO_COMP %}) return "IPPROTO_COMP"
-	if (protocol == %{ /* pure */ IPPROTO_SCTP %}) return "IPPROTO_SCTP"
-	if (protocol == %{ /* pure */ IPPROTO_UDPLITE %}) return "IPPROTO_UDPLITE"
-	if (protocol == %{ /* pure */ IPPROTO_RAW %}) return "IPPROTO_RAW"
+function _sock_protocol_str:string(family:long, protocol:long)
+{
+    if (family == %{ /* pure */ /* unprivileged */ PF_INET %}
+	|| family == %{ /* pure */ /* unprivileged */PF_INET6 %}) {
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_IP %}) return "IPPROTO_IP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_ICMP %}) return "IPPROTO_ICMP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_IGMP %}) return "IPPROTO_IGMP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_IPIP %}) return "IPPROTO_IPIP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_TCP %}) return "IPPROTO_TCP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_EGP %}) return "IPPROTO_EGP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_PUP %}) return "IPPROTO_PUP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_UDP %}) return "IPPROTO_UDP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_IDP %}) return "IPPROTO_IDP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_TP %}) return "IPPROTO_TP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_DCCP %}) return "IPPROTO_DCCP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_IPV6 %}) return "IPPROTO_IPV6"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_RSVP %}) return "IPPROTO_RSVP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_GRE %}) return "IPPROTO_GRE"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_ESP %}) return "IPPROTO_ESP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_AH %}) return "IPPROTO_AH"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_MTP %}) return "IPPROTO_MTP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_ENCAP %}) return "IPPROTO_ENCAP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_PIM %}) return "IPPROTO_PIM"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_COMP %}) return "IPPROTO_COMP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_SCTP %}) return "IPPROTO_SCTP"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_UDPLITE %}) return "IPPROTO_UDPLITE"
+	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_RAW %}) return "IPPROTO_RAW"
     }
     return sprintf("%d", protocol)
 }
 
 function _opoll_op_str:string(o:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	static const _stp_val_array const opoll_op_list[] = {
 		V(EPOLL_CTL_ADD),
 		V(EPOLL_CTL_MOD),
@@ -2859,49 +2872,56 @@ static const _stp_val_array const _stp_rusage_who_list[] = {
 %}
 
 function _rlimit_resource_str:string(r:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_rlimit_resource_list, (unsigned int)STAP_ARG_r,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 function _rusage_who_str:string(w:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_rusage_who_list, (unsigned int)STAP_ARG_w,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 /* for accessing 16-bit values encoded in a long */
-function __short:long(val:long) %{ /* pure */
+function __short:long(val:long)
+%{ /* pure */ /* unprivileged */
 	STAP_RETVALUE = (short)STAP_ARG_val;
 %}
 
-function __ushort:long(val:long) %{ /* pure */
+function __ushort:long(val:long)
+%{ /* pure */ /* unprivileged */
 	STAP_RETVALUE = (unsigned short)STAP_ARG_val;
 %}
 
 /* uid_t is unsigned, but calling functions take "-1" as a parameter */
 /* so this hack is necessary to correct that mismatch. */
-function __int32:long(val:long) %{ /* pure */
+function __int32:long(val:long)
+%{ /* pure */ /* unprivileged */
 	STAP_RETVALUE = (int32_t)STAP_ARG_val;
 %}
 
-function __uint32:long(val:long) %{ /* pure */
+function __uint32:long(val:long)
+%{ /* pure */ /* unprivileged */
 	STAP_RETVALUE = (uint32_t)STAP_ARG_val;
 %}
 
 /* Unsigned values can get get sign-extended and become negative. */
-function __ulong:long(val:long) %{ /* pure */
+function __ulong:long(val:long)
+%{ /* pure */ /* unprivileged */
 	STAP_RETVALUE = (unsigned long)STAP_ARG_val;
 %}
 
-function __long:long(val:long) %{ /* pure */
+function __long:long(val:long)
+%{ /* pure */ /* unprivileged */
 	STAP_RETVALUE = (long)STAP_ARG_val;
 %}
 
 # For utimensat and futimesat, the directory fd can have a special value
 function _dfd_str:string(d:long)
 {
-	if (d == %{ /* pure */ AT_FDCWD %}) return "AT_FDCWD"
+	if (d == %{ /* pure */ /* unprivileged */ AT_FDCWD %})
+		return "AT_FDCWD"
 	return sprint(d)
 }
 
@@ -2919,7 +2939,7 @@ static const _stp_val_array const _stp_adjtimex_return_str_list[] = {
 %}
 
 function _adjtimex_return_str:string(ret:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	int len;
 	snprintf (STAP_RETVALUE, MAXSTRINGLEN, "%d (", (int)STAP_ARG_ret);
 	len = strlen(STAP_RETVALUE);
@@ -2995,7 +3015,7 @@ static void _stp_sigset_str(sigset_t *mask, char *ptr, int len)
 %}
 
 function _signal_name:string(sig:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_signal_list, (unsigned int)STAP_ARG_sig,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -3020,7 +3040,7 @@ static const _stp_val_array const _stp_semctl_list[] = {
 %}
 
 function _semctl_cmd:string(cmd:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int cmd = STAP_ARG_cmd;
 	int len;
 
@@ -3114,13 +3134,14 @@ static const _stp_val_array const _stp_fork_list[] = {
 %}
 
 function __fork_flags:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_fork_list, STAP_ARG_flags & ~0xff, STAP_RETVALUE, MAXSTRINGLEN);
 	if ( STAP_ARG_flags & 0xff ) {
 		/* flags contains the termination signal */
 		if (*STAP_RETVALUE)
 			strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
-		_stp_lookup_str(_stp_signal_list, STAP_ARG_flags & 0xff, STAP_RETVALUE, MAXSTRINGLEN);
+		_stp_lookup_str(_stp_signal_list, STAP_ARG_flags & 0xff,
+				STAP_RETVALUE, MAXSTRINGLEN);
 	}
 %}
 
@@ -3146,7 +3167,7 @@ static const _stp_val_array const _stp_atflag_list[] = {
 %}
 
 function _at_flag_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_atflag_list, STAP_ARG_f, STAP_RETVALUE,
 			   MAXSTRINGLEN);
 %}
@@ -3155,7 +3176,7 @@ function _at_flag_str:string(f:long)
 #include <linux/eventpoll.h>
 %}
 function _epoll_create1_flag_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	static const _stp_val_array const epoll_create1_flags_list[] = {
 #ifdef EPOLL_CLOEXEC
 		V(EPOLL_CLOEXEC),
@@ -3185,7 +3206,7 @@ static const _stp_val_array const _stp_eventfd2_flag_list[] = {
 };
 %}
 function _eventfd2_flag_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	uint32_t flags = (uint32_t)STAP_ARG_flags;
 	_stp_lookup_or_str(_stp_eventfd2_flag_list, flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -3207,7 +3228,7 @@ static const _stp_val_array const _stp_signalfd4_flags_list[] = {
 };
 %}
 function _signalfd4_flags_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	uint32_t flags = (uint32_t)STAP_ARG_f;
 	_stp_lookup_or_str(_stp_signalfd4_flags_list, flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -3230,14 +3251,14 @@ static const _stp_val_array const _stp_inotify_init1_flag_list[] = {
 %}
 
 function _inotify_init1_flag_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int flags = (unsigned int)STAP_ARG_f;
 	_stp_lookup_or_str(_stp_inotify_init1_flag_list, flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
 %}
 
 function _dup3_flag_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int flags = (unsigned int)STAP_ARG_f;
 	_stp_lookup_or_str(_stp_open_mode_flags_list, flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -3255,7 +3276,7 @@ static const _stp_val_array const _stp_shmat_list[] = {
 %}
 
 function _shmat_flags_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_shmat_list, STAP_ARG_f, STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
@@ -3273,7 +3294,7 @@ static const _stp_val_array const _stp_mprotect_list[] = {
 %}
 
 function _mprotect_prot_str:string(prot:long) 
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_mprotect_list, STAP_ARG_prot, STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
@@ -3296,7 +3317,7 @@ static const _stp_val_array const _stp_mmap_list[] = {
 %}
 
 function _mmap_flags:string(flags:long) 
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_mmap_list, STAP_ARG_flags, STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
@@ -3343,7 +3364,7 @@ function get_mmap_args:string (args:long)
 
 
 function _sighandler_str:string(uaddr:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	static const _stp_val_array const _stp_sa_handler_list[] = {
 		{0, "SIG_DFL"},
 		{1, "SIG_IGN"},
@@ -3558,7 +3579,7 @@ static const _stp_val_array const _stp_irq_list[] = {
 %}
 
 function irqflags_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_irq_list, STAP_ARG_f, STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
@@ -3624,7 +3645,7 @@ static const _stp_val_array const _stp_ptrace_options_list[] = {
 
 /* PTRACE_SETOPTIONS parser of the DATA parameter. */
 function _ptrace_options_str:string(f:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned long f = (unsigned long)STAP_ARG_f;  
 	_stp_lookup_or_str(_stp_ptrace_options_list, f, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -3726,7 +3747,7 @@ static const _stp_val_array const _stp_elf_notes_list[] = {
 %}
 
 @__private30 function _stp_elf_notes_str:string(value:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_elf_notes_list, (unsigned long)STAP_ARG_value,
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -3791,7 +3812,7 @@ static const _stp_val_array const _stp_ptrace_request_list[] = {
 %}
 
 @__private30 function __ptrace_request_str:string(request:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_ptrace_request_list,
 			(unsigned long)STAP_ARG_request, STAP_RETVALUE,
 			MAXSTRINGLEN);
@@ -3805,51 +3826,51 @@ function _ptrace_argstr(request, pid, addr, data)
 		return retval
 
 	// Handle generic ptrace requests.
-	if (request == %{ /* pure */ PTRACE_PEEKTEXT %}
-	    || request == %{ /* pure */ PTRACE_PEEKDATA %}
-	    || request == %{ /* pure */ PTRACE_PEEKUSR %})
+	if (request == %{ /* pure */ /* unprivileged */ PTRACE_PEEKTEXT %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_PEEKDATA %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_PEEKUSR %})
 		/* For PTRACE_PEEK{TEXT,DATA,USR}, 'data' is ignored
 		 * from the user's point of view, but glibc stores the
 		 * result at the 'data' address. */
 		return sprintf("%s, %d, %p, [%p]",
 			       __ptrace_request_str(request), pid, addr, data)
-	if (request == %{ /* pure */ PTRACE_POKETEXT %}
-	    || request == %{ /* pure */ PTRACE_POKEDATA %}
-	    || request == %{ /* pure */ PTRACE_POKEUSR %}
-	    || request == %{ /* pure */ PTRACE_PEEKSIGINFO %})
+	if (request == %{ /* pure */ /* unprivileged */ PTRACE_POKETEXT %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_POKEDATA %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_POKEUSR %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_PEEKSIGINFO %})
 		return sprintf("%s, %d, %p, %p",
 			       __ptrace_request_str(request), pid, addr, data)
-	if (request == %{ /* pure */ PTRACE_CONT %}
-	    || request == %{ /* pure */ PTRACE_SYSCALL %}
-	    || request == %{ /* pure */ PTRACE_SINGLESTEP %}
-	    || request == %{ /* pure */ PTRACE_DETACH %})
+	if (request == %{ /* pure */ /* unprivileged */ PTRACE_CONT %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_SYSCALL %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_SINGLESTEP %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_DETACH %})
 		return sprintf("%s, %d, %#x, %s",
 			       __ptrace_request_str(request), pid, addr,
 			       _signal_name (data))
-	if (request == %{ /* pure */ PTRACE_GETSIGINFO %}
-	    || request == %{ /* pure */ PTRACE_SETSIGINFO %}
-	    || request == %{ /* pure */ PTRACE_GETEVENTMSG %}
-	    || request == %{ /* pure */ PTRACE_GETSIGMASK %}
-	    || request == %{ /* pure */ PTRACE_SETSIGMASK %})
+	if (request == %{ /* pure */ /* unprivileged */ PTRACE_GETSIGINFO %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_SETSIGINFO %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_GETEVENTMSG %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_GETSIGMASK %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_SETSIGMASK %})
 		return sprintf("%s, %d, %#x, %p",
 			       __ptrace_request_str(request), pid, addr, data)
-	if (request == %{ /* pure */ PTRACE_GETREGSET %}
-	    || request == %{ /* pure */ PTRACE_SETREGSET %})
+	if (request == %{ /* pure */ /* unprivileged */ PTRACE_GETREGSET %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_SETREGSET %})
 		return sprintf("%s, %d, %s, %s",
 			       __ptrace_request_str(request), pid,
 			       _stp_elf_notes_str(addr),
 			       (@__compat_task
 			        ? _stp_struct_compat_iovec_u(data)
 				: _stp_struct_iovec_u(data)))
-	if (request == %{ /* pure */ PTRACE_TRACEME %}
-	    || request == %{ /* pure */ PTRACE_KILL %}
-	    || request == %{ /* pure */ PTRACE_ATTACH %}
-	    || request == %{ /* pure */ PTRACE_SEIZE %}
-	    || request == %{ /* pure */ PTRACE_INTERRUPT %}
-	    || request == %{ /* pure */ PTRACE_LISTEN %})
+	if (request == %{ /* pure */ /* unprivileged */ PTRACE_TRACEME %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_KILL %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_ATTACH %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_SEIZE %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_INTERRUPT %}
+	    || request == %{ /* pure */ /* unprivileged */ PTRACE_LISTEN %})
 		return sprintf("%s, %d, %#x, %#x",
 			       __ptrace_request_str(request), pid, addr, data)
-	if (request == %{ /* pure */ PTRACE_SETOPTIONS %})
+	if (request == %{ /* pure */ /* unprivileged */ PTRACE_SETOPTIONS %})
 		return sprintf("PTRACE_SETOPTIONS, %d, %#x, %s", pid,
 			       addr, _ptrace_options_str(data))
 
@@ -3860,7 +3881,7 @@ function _ptrace_argstr(request, pid, addr, data)
 /* ptrace.return syscall decoder for PTRACE_GETEVENTMSG. */
 function _ptrace_return_geteventmsg_data(request,data)
 {
-	if (request == %{ /* pure */ PTRACE_GETEVENTMSG %})
+	if (request == %{ /* pure */ /* unprivileged */ PTRACE_GETEVENTMSG %})
 		return user_long(data)
 }
 
@@ -3883,7 +3904,7 @@ static const _stp_val_array const _stp_swapon_flags_list[] = {
 %}
 
 function _swapon_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int flags = (unsigned int)STAP_ARG_flags;
 	_stp_lookup_or_str(_stp_swapon_flags_list,
 			   (flags & ~SWAP_FLAG_PRIO_MASK), STAP_RETVALUE,
@@ -3898,8 +3919,7 @@ function _swapon_flags_str:string(flags:long)
 
 /* do_fork helper function to determine fork type. */
 @__private30 function __is_user_regs:long (regs:long)
-%{
-	/* pure */
+%{ /* pure */
 	struct pt_regs * regs = (void *)((unsigned long)STAP_ARG_regs);
 /* copied from asm/ptrace.h */
 #if defined(__i386__)
@@ -3949,7 +3969,7 @@ static const _stp_val_array const _stp_shmget_flags_list[] = {
 %}
 
 function _stp_shmget_flags_str:string(shmflg:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int shmflg = (unsigned int)STAP_ARG_shmflg;  
 	unsigned int modebits;
 
@@ -3972,7 +3992,8 @@ function _stp_shmget_flags_str:string(shmflg:long)
 
 function _stp_msgget_key_str:string(key:long)
 {
-	if (key == %{ /* pure */ IPC_PRIVATE %}) return "IPC_PRIVATE"
+	if (key == %{ /* pure */ /* unprivileged */ IPC_PRIVATE %})
+		return "IPC_PRIVATE"
 	return sprintf("%d", key)
 }
 
@@ -3991,7 +4012,7 @@ static const _stp_val_array const _stp_msgctl_list[] = {
 %}
 
 function _stp_msgctl_cmd_str:string(cmd:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int cmd = STAP_ARG_cmd;
 
 	if (cmd & IPC_64) {
@@ -4011,7 +4032,7 @@ static const _stp_val_array const _stp_msgflg_list[] = {
 %}
 
 function _stp_msgflg_str:string(msgflg:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int msgflg = STAP_ARG_msgflg;
 
 	_stp_lookup_or_str(_stp_msgflg_list, msgflg, STAP_RETVALUE,
@@ -4081,7 +4102,7 @@ static const _stp_val_array const _stp_xattr_flags_list[] = {
 %}
 
 function _stp_xattr_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int flags = STAP_ARG_flags;
 
 	_stp_lookup_or_str(_stp_xattr_flags_list, flags, STAP_RETVALUE,
@@ -4158,13 +4179,13 @@ static const _stp_val_array const _stp_ioprio_class_list[] = {
 %}
 
 function _stp_ioprio_which_str:string(who:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str2(_stp_ioprio_who_list, (int)STAP_ARG_who,
 			 STAP_RETVALUE, MAXSTRINGLEN, 10);
 %}
 
 function _stp_ioprio_value_str:string(value:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int class = IOPRIO_PRIO_CLASS(((unsigned int)STAP_ARG_value));
 	int slen;
 
@@ -4213,14 +4234,14 @@ static const _stp_val_array const _stp_mempolicy_mode_list[] = {
 %}
 
 function _mempolicy_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_mempolicy_flags_list,
 			   (unsigned long)STAP_ARG_flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
 %}
 
 function _mempolicy_mode_str:string(mode:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int mode = (unsigned int)STAP_ARG_mode;
 	int len = 0;
 
@@ -4301,7 +4322,7 @@ static const _stp_val_array const _stp_keyctl_cmd_list[] = {
 %}
 
 function _stp_keyctl_cmd_str:string(cmd:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
         _stp_lookup_str2(_stp_keyctl_cmd_list, (int)STAP_ARG_cmd,
                         STAP_RETVALUE, MAXSTRINGLEN, 10);
 %}
@@ -4323,7 +4344,7 @@ static const _stp_val_array const _stp_keyctl_keyring_shortcut_list[] = {
 %}
 
 function _stp_keyctl_keyring_shortcut_str:string(id:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
         _stp_lookup_str2(_stp_keyctl_keyring_shortcut_list, (int)STAP_ARG_id,
                         STAP_RETVALUE, MAXSTRINGLEN, 10);
 %}
@@ -4343,7 +4364,7 @@ static const _stp_val_array const _stp_keyctl_default_keyrings_list[] = {
 %}
 
 function _stp_keyctl_default_keyrings_str:string(id:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
         _stp_lookup_str2(_stp_keyctl_default_keyrings_list, (int)STAP_ARG_id,
                         STAP_RETVALUE, MAXSTRINGLEN, 10);
 %}
@@ -4389,7 +4410,7 @@ static const _stp_val_array const _stp_keyctl_perm_list[] = {
 %}
 
 function _stp_keyctl_perm_str:string(mask:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	uint32_t mask = (uint32_t)STAP_ARG_mask;
 	_stp_lookup_or_str2(_stp_keyctl_perm_list, mask, STAP_RETVALUE,
 			   MAXSTRINGLEN, 10);
@@ -4413,7 +4434,7 @@ static const _stp_val_array const _stp_finit_module_flags_list[] = {
 %}
 
 function _finit_module_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_finit_module_flags_list,
 			   (unsigned int)STAP_ARG_flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -4721,7 +4742,7 @@ static const _stp_val_array const _stp_linux_securebits_list[] = {
 
 function _prctl_argstr:string(option:long, arg2:long, arg3:long, arg4:long,
 			      arg5:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	int len;
 
 	_stp_lookup_str(_stp_prctl_option_list, (unsigned int)STAP_ARG_option,
@@ -4972,7 +4993,7 @@ static const _stp_val_array const _stp_timerfd_flags_list[] = {
 %}
 
 function _stp_timerfd_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_timerfd_flags_list,
 			   (unsigned int)STAP_ARG_flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -5004,7 +5025,7 @@ static const _stp_val_array const _stp_splice_flags_list[] = {
 %}
 
 function _stp_splice_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_splice_flags_list,
 			   (unsigned int)STAP_ARG_flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -5032,7 +5053,7 @@ static const _stp_val_array const _stp_fallocate_mode_list[] = {
 %}
 
 function _stp_fallocate_mode_str:string(mode:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_or_str(_stp_fallocate_mode_list,
 			   (unsigned int)STAP_ARG_mode, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -5060,7 +5081,7 @@ static const _stp_val_array const _stp_arch_prctl_func_list[] = {
 %}
 
 function _stp_arch_prctl_func_str:string(func:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str2(_stp_arch_prctl_func_list,
 	                   (int)STAP_ARG_func, STAP_RETVALUE,
 	                   MAXSTRINGLEN, 10);
@@ -5082,7 +5103,7 @@ static const _stp_val_array const _stp_adjtimex_modes_list[] = {
 %}
 
 function _struct_timex_u:string(uaddr:long)
-%{
+%{ /* pure */
 	struct timex ts;
 	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
 	int len;
@@ -5113,7 +5134,7 @@ function _struct_timex_u:string(uaddr:long)
 %}
 
 function _struct_compat_timex_u:string(uaddr:long)
-%{
+%{ /* pure */
 #ifdef CONFIG_COMPAT
 	struct compat_timex ts;
 	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
@@ -5162,7 +5183,7 @@ static const _stp_val_array const _stp_sync_file_range_list[] = {
 %}
 
 function _sync_file_range_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int flags = (unsigned int)STAP_ARG_flags;
 	_stp_lookup_or_str(_stp_sync_file_range_list, flags,
 			   STAP_RETVALUE, MAXSTRINGLEN);
@@ -5666,14 +5687,14 @@ static const _stp_val_array const _stp_kexec_file_load_flags_list[] = {
 %}
 
 function _kexec_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned long flags = (unsigned long)STAP_ARG_flags;
 	_stp_lookup_or_str(_stp_kexec_flags_list, flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
 %}
 
 function _kexec_file_load_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned long flags = (unsigned long)STAP_ARG_flags;
 	_stp_lookup_or_str(_stp_kexec_file_load_flags_list, flags,
 			   STAP_RETVALUE, MAXSTRINGLEN);
@@ -5764,7 +5785,7 @@ static const _stp_val_array const _stp_renameat2_flags_list[] = {
 %}
 
 function _renameat2_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 	unsigned int flags = (unsigned int)STAP_ARG_flags;
 	_stp_lookup_or_str(_stp_renameat2_flags_list, flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
@@ -5822,7 +5843,7 @@ static const _stp_val_array const _stp_fanotify_mark_mask_list[] = {
 %}
 
 function _fanotify_init_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37) \
     && defined(__NR_fanotify_init) && defined(__NR_fanotify_mark)
 	unsigned int flags = (unsigned int)STAP_ARG_flags;
@@ -5840,7 +5861,7 @@ function _fanotify_init_flags_str:string(flags:long)
 %}
 
 function _fanotify_mark_flags_str:string(flags:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37) \
     && defined(__NR_fanotify_init) && defined(__NR_fanotify_mark)
 	unsigned int flags = (unsigned int)STAP_ARG_flags;
@@ -5851,7 +5872,7 @@ function _fanotify_mark_flags_str:string(flags:long)
 %}
 
 function _fanotify_mark_mask_str:string(mask:long)
-%{ /* pure */
+%{ /* pure */ /* unprivileged */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37) \
     && defined(__NR_fanotify_init) && defined(__NR_fanotify_mark)
 	__u64 mask = (__u64)STAP_ARG_mask;
@@ -5880,7 +5901,7 @@ static const _stp_val_array const _stp_perf_event_open_flags_list[] = {
 %}
 
 function _perf_event_open_flags_str:string(flags:long)
-%{
+%{ /* pure */ /* unprivileged */
 #if defined(__NR_perf_event_open) && defined(CONFIG_PERF_EVENTS)
 	unsigned long flags = (unsigned long)STAP_ARG_flags;
 
@@ -5910,7 +5931,7 @@ static const _stp_val_array const _stp_kcmp_type_list[] = {
 %}
 
 function _kcmp_type_str:string(type:long)
-%{
+%{ /* pure */ /* unprivileged */
 	unsigned long type = (unsigned long)STAP_ARG_type;
         _stp_lookup_str(_stp_kcmp_type_list, (unsigned int)STAP_ARG_type,
                         STAP_RETVALUE, MAXSTRINGLEN);
@@ -5963,7 +5984,7 @@ static const _stp_val_array const _stp_seccomp_op_list[] = {
 %}
 
 function _seccomp_op_str:string(op:long)
-%{
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_seccomp_op_list, (unsigned int)STAP_ARG_op,
 	                STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -5987,7 +6008,7 @@ static const _stp_val_array const _stp_bpf_cmd_list[] = {
 %}
 
 function _bpf_cmd_str:string(cmd:long)
-%{
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_bpf_cmd_list, (int)STAP_ARG_cmd,
 	                STAP_RETVALUE, MAXSTRINGLEN);
 %}
@@ -6006,8 +6027,8 @@ static const _stp_val_array const _stp_membarrier_cmd_list[] = {
 };
 %}
 
-function _membarrier_cmd_str(cmd:long)
-%{
+function _membarrier_cmd_str:string(cmd:long)
+%{ /* pure */ /* unprivileged */
 	_stp_lookup_str(_stp_membarrier_cmd_list, (unsigned int)STAP_ARG_cmd,
 	                STAP_RETVALUE, MAXSTRINGLEN);
 %}
