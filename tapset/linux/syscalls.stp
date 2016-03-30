@@ -838,25 +838,27 @@ probe __syscall.socketcall.connect.return =
 }
 
 # copy_file_range ___________________________________________
-# ssize_t copy_file_range(int fd_in, loff_t *off_in,
-#                         int fd_out, loff_t *off_out,
-#                         size_t len, unsigned int flags)
+# SYSCALL_DEFINE6(copy_file_range, int, fd_in, loff_t __user *, off_in,
+#		int, fd_out, loff_t __user *, off_out,
+#		size_t, len, unsigned int, flags)
 probe syscall.copy_file_range = kernel.function("sys_copy_file_range").call ?
 {
-  name = "copy_file_range"
-  fd_in = __int32($fd_in)
-  off_in = $off_in
-  fd_out = __int32($fd_out)
-  off_out = $off_out
-  len = __ulong($len)
-  flags = __uint32($flags)
-  argstr = sprintf("%d, %d, %d, %d, %d, %d", __int32($fd_in), $off_in,
-      __int32(fd_out), $off_out, __ulong($len), __uint32($flags))
+	name = "copy_file_range"
+	fd_in = __int32($fd_in)
+	off_in = $off_in
+	fd_out = __int32($fd_out)
+	off_out = $off_out
+	len = __ulong($len)
+	flags = __uint32($flags)
+	argstr = sprintf("%d, %p, %d, %p, %d, 0x%x", __int32($fd_in), $off_in,
+			 __int32(fd_out), $off_out, __ulong($len),
+			 __uint32($flags))
 }
-probe syscall.copy_file_range.return = kernel.function("sys_copy_file_range").return ?
+probe syscall.copy_file_range.return =
+	kernel.function("sys_copy_file_range").return ?
 {
-  name = "copy_file_range"
-  retstr = return_str(1, $return)
+	name = "copy_file_range"
+	retstr = return_str(1, $return)
 }
 
 # creat
