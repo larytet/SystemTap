@@ -52,6 +52,6 @@ the length (in bytes) of the data blob
 .RE
 .SH "DESCRIPTION"
 .PP
-Fires just after a message was receieved and before it\*(Aqs processed\&.
+Fires just after a message was received and before it\*(Aqs processed\&.
 .SH SEE ALSO\n 
 .IR tapset::stap_staticmarkers (3stap)

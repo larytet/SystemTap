@@ -58,7 +58,7 @@ name of the caller function
 .PP
 \fIcall_site\fR
 .RS 4
-address of the function caling this kmemory function
+address of the function calling this kmemory function
 .RE
 .PP
 \fIgfp_flag_name\fR

@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-function::qsq_blocked \- Returns the time reqest was on the wait queue
+function::qsq_blocked \- Returns the time request was on the wait queue
 .SH "SYNOPSIS"
 .sp
 .nf

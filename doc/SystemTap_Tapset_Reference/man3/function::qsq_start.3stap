@@ -42,6 +42,6 @@ the name of the service that finished
 .RE
 .SH "DESCRIPTION"
 .PP
-This function resets the statistics counters for the given queue, and restarts tracking from the moment the function was called\&. This function is also used to create intialize a queue\&.
+This function resets the statistics counters for the given queue, and restarts tracking from the moment the function was called\&. This function is also used to create initialize a queue\&.
 .SH SEE ALSO\n 
 .IR tapset::queue_stats (3stap)

@@ -67,6 +67,6 @@ Name of the probe point
 .RE
 .SH "DESCRIPTION"
 .PP
-put back on the queue, when the hadware cannot accept more requests\&.
+put back on the queue, when the hardware cannot accept more requests\&.
 .SH SEE ALSO\n 
 .IR tapset::ioscheduler (3stap)

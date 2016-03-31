@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-probe::scheduler.ctxswitch \- A context switch is occuring\&.
+probe::scheduler.ctxswitch \- A context switch is occurring\&.
 .SH "SYNOPSIS"
 .sp
 .nf

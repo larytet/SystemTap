@@ -43,7 +43,7 @@ the buffer that will be written
 .PP
 \fIfile_name\fR
 .RS 4
-the file name lreated to the tty
+the file name related to the tty
 .RE
 .PP
 \fIdriver_name\fR

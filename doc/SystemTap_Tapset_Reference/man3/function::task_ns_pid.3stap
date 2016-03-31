@@ -42,6 +42,6 @@ task_struct pointer
 .RE
 .SH "DESCRIPTION"
 .PP
-This fucntion returns the process id of the given task based on the specified pid namespace\&.\&.
+This function returns the process id of the given task based on the specified pid namespace\&.\&.
 .SH SEE ALSO\n 
 .IR tapset::task (3stap)

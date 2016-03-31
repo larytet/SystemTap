@@ -48,7 +48,7 @@ the driver name
 .PP
 \fIfile_name\fR
 .RS 4
-the file name lreated to the tty
+the file name related to the tty
 .RE
 .PP
 \fInr\fR

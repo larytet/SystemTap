@@ -39,6 +39,6 @@ function::ppid \- Returns the process ID of a target process\*(Aqs parent proces
 None
 .SH "DESCRIPTION"
 .PP
-This function return the process ID of the target proccess\*(Aqs parent process\&.
+This function return the process ID of the target process\*(Aqs parent process\&.
 .SH SEE ALSO\n 
 .IR tapset::context (3stap)

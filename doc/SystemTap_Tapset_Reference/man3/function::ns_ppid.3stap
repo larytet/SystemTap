@@ -39,6 +39,6 @@ function::ns_ppid \- Returns the process ID of a target process\*(Aqs parent pro
 None
 .SH "DESCRIPTION"
 .PP
-This function return the process ID of the target proccess\*(Aqs parent process as seen in the target pid namespace if provided, or the stap process namespace\&.
+This function return the process ID of the target process\*(Aqs parent process as seen in the target pid namespace if provided, or the stap process namespace\&.
 .SH SEE ALSO\n 
 .IR tapset::context (3stap)

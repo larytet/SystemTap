@@ -47,6 +47,6 @@ string to write out when commit occurs
 .RE
 .SH "DESCRIPTION"
 .PP
-Add a string to the speculaive buffer for id\&.
+Add a string to the speculative buffer for id\&.
 .SH SEE ALSO\n 
 .IR tapset::speculative (3stap)

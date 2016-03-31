@@ -58,7 +58,7 @@ the transmission id in the request
 .PP
 \fIrq_prot\fR
 .RS 4
-the IP protocol of the reqeust
+the IP protocol of the request
 .RE
 .PP
 \fIrq_proc\fR

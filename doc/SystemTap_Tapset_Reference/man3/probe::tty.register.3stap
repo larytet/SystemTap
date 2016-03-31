@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-probe::tty.register \- Called when a tty device is registred
+probe::tty.register \- Called when a tty device is registered
 .SH "SYNOPSIS"
 .sp
 .nf
