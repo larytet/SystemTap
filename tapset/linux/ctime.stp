@@ -184,8 +184,7 @@ function ctime:string(epochsecs:long)
 /**
  * sfunction ctime - Convert seconds since epoch into human readable date/time string
  *
- *
- * Description: Without an argument, does the same as ctime(gettimeofday_s()).
+ * Without an argument, does the same as ctime(gettimeofday_s()).
  *
  */
 function ctime:string()
