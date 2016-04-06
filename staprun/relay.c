@@ -220,8 +220,8 @@ static void *reader_thread(void *data)
                                 }
                                 wbytes -= rc;
                                 wbuf += rc;
+                                wsize += rc;
                         }
-			wsize += wbytes;
 		}
         } while (!stop_threads);
 	dbug(3, "exiting thread for cpu %d\n", cpu);
