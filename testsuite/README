@@ -1,0 +1,62 @@
+This is a collection of tests for systemtap.
+
+
+Running the Testsuite
+*********************
+
+There are two ways to run the testsuite and pass additional parameters to
+DejaGnu.  The first is to do `make check' in the main build directory and
+specifying the makefile variable `RUNTESTFLAGS':
+
+        make check RUNTESTFLAGS='argv.exp -v --debug'
+
+"make check" runs unprivileged tests only against an uninstalled build tree.
+"make installcheck" runs all tests against an installed tree. E.g.
+
+        make installcheck RUNTESTFLAGS=
+
+Runs whole the testsuite.
+
+
+Parallel testing
+****************
+
+To save testing time, you can run the systemtap test suite in a fully parallel
+mode using the installcheck-parallel target.  In this mode, each .exp file runs
+separately and maybe simultaneously.  The test suite ensures that all the
+temporary files created by the test suite do not clash, by putting them into
+separate subdirectories of testsuite/artifacts. E.g.
+
+        make -j6 installcheck-parallel
+
+runs all tests against an installed tree in parallel mode. You can use the -j
+parameter of make to specify the number of tests to run simultaneously.
+
+Some tests need to be run serially, like e.g. the server tests.  They start a
+new systemtap server and only expect one local server to run.  Their logs are
+being kept in separate artifacts/__serialtests folder.
+
+There are a few tests known to be slow. We run them right from the beginning to
+try to lessen the overall time taken by the test suite -- if one of these tests
+happens to be run late, it will cause the overall time to increase.
+
+After the parallel test run is finished, systemtap.sum and systemtap.log files
+get generated as usual, but, please, see dg-extract-results.sh script for
+limitations.
+
+Setting -j6 seems to be testtime-wise optimum for Lenovo T440s.  In this case
+the load is around 8.  You can limit the load using -l.  See man make.  In this
+particular case the testing time is around 60 mins, which is about 1/4 of the
+time needed for the full serial run.
+
+In parallel mode, you can use the TESTS variable pass on the command line to
+easily say "Only run these tests.". The RUNTESTFLAGS variable is still available
+for passing additional parameters to DejaGnu. So, e.g.  
+
+        make -j2 installcheck-parallel RUNTESTFLAGS= TESTS='*/argv.exp */add.exp'
+
+runs argv.exp and add.exp in parallel.
+
+
+
+

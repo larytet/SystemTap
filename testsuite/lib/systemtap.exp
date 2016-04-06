@@ -206,7 +206,7 @@ proc print_systemtap_version {} {
 
 
 proc setup_systemtap_environment {} {
-    global srcdir env server_pid logfile systemtap_dyninst_p
+    global srcdir env server_pid systemtap_dyninst_p
     global systemtap_nss_p systemtap_java_p
     global have_hw_breakpoint_p systemtap_readline_p
     global kill_needs_doubledash
@@ -237,15 +237,6 @@ proc setup_systemtap_environment {} {
     puts $chan "--rlimit-cpu=850"
     puts $chan "-E 'probe timer.s(900){error(\"probe timeout after 15 minutes\")}'"
     close $chan
-
-    # Erase the old server log file.
-    set logfile "[pwd]/server.log"
-    if {[file exists $logfile]} then {
-	exec rm -f $logfile;
-    }
-    # Create a new one and make sure it's world writable.
-    exec touch $logfile
-    exec chmod 666 $logfile
 
     # Zap any previous uprobes, if any
     catch { exec /sbin/rmmod uprobes }
@@ -335,6 +326,12 @@ proc setup_server { args } {
 	return 0
     }
 
+    # Create a temporary log file
+    if {[catch {exec mktemp -t stap-list-servers-XXXXXX} tmpfile]} {
+        verbose -log "Failed to create temporary log file: $tmpfile"
+        exit 1
+    }
+
     # Make sure that stap can find the server.
     set waited 0
     set use_server --use-server
@@ -349,6 +346,9 @@ proc setup_server { args } {
     verbose -log "stap --list-servers returned: res==$res"
     verbose -log $seen_servers[exec cat stap-list-servers.out]
     verbose -log "grep for servers returned: res==$res\n$looksee"
+
+    # Delete the temporary log file
+    catch {exec rm $tmpfile}
 
     # Try to discover the port the server is listening on from the server log.
     # We're matching a line of the form:
@@ -509,6 +509,82 @@ proc get_system_info {} {
     regexp {\d[^\-]*} [exec sh -c "dracut --help 2>&1 | grep Version || echo 0"] Dracut_Version
 }
 
+proc environment_sanity_test {} {
+    # PR11798: die if kernel-devel is not sufficient to build any modules
+    if {[catch {exec -ignorestderr stap -p4 -e {probe begin {exit()}}} result]} {
+        puts "\n\n\n**** failed systemtap kernel-devel smoke test:\n"
+        puts $result
+    #    puts "****\n"
+    #    puts $options
+        puts "\n**** aborting testing.\n"
+        cleanup
+        exit 1
+    }
+
+    # PR11798: die also if kernel-debuginfo is not available
+    # NB: if one introduced a [kernel_debuginfo_p] proc like the
+    # ones for uprobes/utrace above, and sprinkled it throughout,
+    # then this wouldn't have to be a failing condition.
+    # Note the --skip-badvars -w, we just care there is some debuginfo,
+    # it is allowed have bad var location descriptors (which will cause
+    # some tests to fail of course). Just test -p2, kernel-devel smoke
+    # test above does a full module build, we don't need another one.
+    if {[catch {exec -ignorestderr stap --skip-badvars -w -p2 -e {probe syscall.open {println (argstr)}}} result]} {
+        puts "\n\n\n**** failed systemtap kernel-debuginfo smoke test:\n"
+        puts $result
+    #    puts "****\n"
+    #    puts $options
+        puts "\n**** aborting testing.\n"
+        cleanup
+        exit 1
+    }
+
+    # Create a tempory directory.
+    if {[catch {exec mktemp -d -t staptestXXXXXX-sanity-test} tmpdir]} {
+        verbose -log "Failed to create temporary directory: $tmpdir"
+        exit 1
+    }
+    set curdir [pwd]
+    cd ${tmpdir}
+
+    # Make more likely that all development packages for the supported ABIs (-m64 -m32/-m31)
+    # are installed by building a quick hello.c and hello.cxx program with both.
+    set source "hello.c"
+    set hello_file [open $source "w"]
+    puts $hello_file "#include <stdio.h>"
+    puts $hello_file "int main () { printf(\"Hello World!\"); return 0; }"
+    close $hello_file
+    for {set i 0} {$i < [arch_compile_flags]} {incr i} {
+      set flags "additional_flags=-g compiler=gcc [arch_compile_flag $i]"
+      set exe "hello-[arch_compile_flag_name $i]"
+      set result [target_compile $source $exe executable $flags]
+      if { $result != "" } {
+        puts "\n\n\n**** failed gcc [arch_compile_flag_name $i] smoke test:\n"
+        puts $result
+        puts "Please install libgcc and glibc development packages for [arch_compile_flag_name $i]\n"
+      }
+    }
+    set source "hello.cxx"
+    set hello_file [open $source "w"]
+    puts $hello_file "#include <iostream>"
+    puts $hello_file "using namespace std;"
+    puts $hello_file "int main () { cout << \"Hello World!\" << endl; return 0; }"
+    close $hello_file
+    for {set i 0} {$i < [arch_compile_flags]} {incr i} {
+      set flags "additional_flags=-g compiler=g++ [arch_compile_flag $i]"
+      set exe "hello-[arch_compile_flag_name $i]"
+      set result [target_compile $source $exe executable $flags]
+      if { $result != "" } {
+        puts "\n\n\n**** failed g++ [arch_compile_flag_name $i] smoke test:\n"
+        puts $result
+        puts "Please install libstdc++-devel package for [arch_compile_flag_name $i]\n"
+      }
+    }
+
+    cd ${curdir}
+    catch {exec rm -rf $tmpdir}
+}
+
 if {! [setup_systemtap_environment]} then {
     cleanup
     exit 1
@@ -517,71 +593,33 @@ if {! [setup_systemtap_environment]} then {
 print_systemtap_version
 get_system_info
 
-# PR11798: die if kernel-devel is not sufficient to build any modules
-if {[catch {exec stap -p4 -e {probe begin {exit()}}} result]} {
-    puts "\n\n\n**** failed systemtap kernel-devel smoke test:\n"
-    puts $result
-#    puts "****\n"
-#    puts $options
-    puts "\n**** aborting testing.\n"
-    cleanup
-    exit 1
+if { ! [info exists env(STAP_PARALLEL)] } {
+    environment_sanity_test
 }
 
-# PR11798: die also if kernel-debuginfo is not available
-# NB: if one introduced a [kernel_debuginfo_p] proc like the
-# ones for uprobes/utrace above, and sprinkled it throughout,
-# then this wouldn't have to be a failing condition.
-# Note the --skip-badvars -w, we just care there is some debuginfo,
-# it is allowed have bad var location descriptors (which will cause
-# some tests to fail of course). Just test -p2, kernel-devel smoke
-# test above does a full module build, we don't need another one.
-if {[catch {exec stap --skip-badvars -w -p2 -e {probe syscall.open {println (argstr)}}} result]} {
-    puts "\n\n\n**** failed systemtap kernel-debuginfo smoke test:\n"
-    puts $result
-#    puts "****\n"
-#    puts $options
-    puts "\n**** aborting testing.\n"
-    cleanup
-    exit 1
+proc systemtap_init {args} {
+    global env srcdir artifactdir
+    if {[info exists env(STAP_PARALLEL)] } {
+        regsub {\.exp$} $args {} args
+        regsub ${srcdir}/ $args {} args
+        set artifactdir "$srcdir/artifacts/$args"
+        if {[catch {exec mkdir -p $artifactdir} err_msg]} {
+            verbose -log "Failed to create artifacts directory: $err_msg"
+            exit 1
+        }
+        # Switch to the artifacts directory before the testcase starts
+        cd $artifactdir
+    }
 }
 
-# Make more likely that all development packages for the supported ABIs (-m64 -m32/-m31)
-# are installed by building a quick hello.c and hello.cxx program with both.
-set source "hello.c"
-set hello_file [open $source "w"]
-puts $hello_file "#include <stdio.h>"
-puts $hello_file "int main () { printf(\"Hello World!\"); return 0; }"
-close $hello_file
-for {set i 0} {$i < [arch_compile_flags]} {incr i} {
-  set flags "additional_flags=-g compiler=gcc [arch_compile_flag $i]"
-  set exe "hello-[arch_compile_flag_name $i]"
-  set result [target_compile $source $exe executable $flags]
-  if { $result != "" } {
-    puts "\n\n\n**** failed gcc [arch_compile_flag_name $i] smoke test:\n"
-    puts $result
-    puts "Please install libgcc and glibc development packages for [arch_compile_flag_name $i]\n"
-  }
+proc systemtap_finish {args} {
+    global env srcdir
+    if {[info exists env(STAP_PARALLEL)] } {
+        # Return from the artifacts directory after the testcase finishes
+        cd $srcdir
+    }
 }
-set source "hello.cxx"
-set hello_file [open $source "w"]
-puts $hello_file "#include <iostream>"
-puts $hello_file "using namespace std;"
-puts $hello_file "int main () { cout << \"Hello World!\" << endl; return 0; }"
-close $hello_file
-for {set i 0} {$i < [arch_compile_flags]} {incr i} {
-  set flags "additional_flags=-g compiler=g++ [arch_compile_flag $i]"
-  set exe "hello-[arch_compile_flag_name $i]"
-  set result [target_compile $source $exe executable $flags]
-  if { $result != "" } {
-    puts "\n\n\n**** failed g++ [arch_compile_flag_name $i] smoke test:\n"
-    puts $result
-    puts "Please install libstdc++-devel package for [arch_compile_flag_name $i]\n"
-  }
-}
-catch { eval [list exec rm -f] [glob "hello.c*" "hello-*"] }
 
-proc systemtap_init {args} {}
 proc systemtap_version {} {}
 
 proc cleanup {} {

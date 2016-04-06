@@ -1,5 +1,7 @@
 * What's new in version 3.1, PRERELEASE
 
+- New installcheck-parallel testsuite feature allows running the tests in
+  parallel in order to save time.  See testsuite/README for details.
 
 * What's new in version 3.0, 2016-03-27
 

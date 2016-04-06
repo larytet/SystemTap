@@ -39,6 +39,7 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
     }
     send_log "executing: $cmd\n"
     eval spawn $cmd
+    set mypid [exp_pid -i $spawn_id]
     expect {
 	-timeout 180
 	-re {^WARNING: cannot find module [^\r]*DWARF[^\r]*\r\n} {exp_continue}
@@ -60,7 +61,7 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
 		}
 	    }
 
-	    kill -INT -[exp_pid]
+	    kill -INT -$mypid
 
 	    # check the output to see if it is sane
 	    set output "^systemtap ending probe\r\n$OUTPUT_CHECK_STRING"
@@ -100,7 +101,7 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
 		}
 		timeout { 
                     fail "$TEST_NAME shutdown (timeout)"
-                    kill -INT -[exp_pid]
+                    kill -INT -$mypid
                 }
 		eof { fail "$TEST_NAME shutdown (eof)" }
 	    }
@@ -109,12 +110,12 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
 	-re "semantic error:" { fail "$TEST_NAME compilation" }
 	timeout { 
             fail "$TEST_NAME startup (timeout)"
-            kill -INT -[exp_pid]
+            kill -INT -$mypid
         }
 	eof { fail "$TEST_NAME startup (eof)" }
     }
   # again for good measure with KILL after 3s
-  kill -INT -[exp_pid] 3
+  kill -INT -$mypid 3
   catch close
   wait
 }
@@ -165,7 +166,9 @@ proc print_system_info {} {
         clone_output "\n"
 }
 
-print_system_info
+if { ! [info exists env(STAP_PARALLEL)] } {
+    print_system_info
+}
 
 # tests better all be true
 #

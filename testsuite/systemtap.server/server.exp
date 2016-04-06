@@ -1,7 +1,10 @@
 set test "Server Tests:"
 
-# We will be looking for specific log messages, so specify our own log file.
-set server_log $logfile
+# Create a new server log and make sure it's world writable.
+set logfile "[pwd]/server.log"
+catch {exec rm -f $logfile}
+catch {exec touch $logfile}
+catch {exec chmod 666 $logfile}
 
 # Don't attempt these tests if the client/server are not available
 if {! [setup_server]} then {
@@ -135,7 +138,7 @@ if {$dontTest == 1} {
 if {$dontTest == 1} {
     untested "$test $subtest"
 } else {
-    set rc [catch {exec grep "Avahi client failure: Daemon connection failed" $server_log} result]
+    set rc [catch {exec grep "Avahi client failure: Daemon connection failed" $logfile} result]
     if {$rc != 0} {
 	fail "$test $subtest"
     } else {
@@ -147,7 +150,7 @@ set subtest "server re-established avahi-daemon connection"
 if {$dontTest == 1} {
     untested "$test $subtest"
 } else {
-    set rc [catch {exec grep -c {Adding Avahi service .Systemtap Compile Server.*} $server_log} result]
+    set rc [catch {exec grep -c {Adding Avahi service .Systemtap Compile Server.*} $logfile} result]
     # Make sure the target line was found more than once.
     if {$rc != 0 || $result < 2} {
 	fail "$test $subtest"

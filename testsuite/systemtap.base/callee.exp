@@ -99,7 +99,7 @@ proc expect_list { func callee expout {return_p 0} {call_p 0} } {
     set regexp ""
     foreach {expcaller expcallee} $expout {
 	# process(path)
-	set cregexp "^process\\\(\"/\[^\"\]*/testsuite/${test}\"\\\)"
+	set cregexp "^process\\\(\"[pwd]/${test}\"\\\)"
 	# .function(func@/path/callee.subtest
 	append cregexp "\\\.function\\\(\"$expcaller@\[^\"\]*${test}\\\.${subtest}"
 	# fileno:lineno")

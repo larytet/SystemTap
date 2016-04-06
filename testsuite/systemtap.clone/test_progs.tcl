@@ -51,7 +51,6 @@ proc build_test_progs {Makefile test_progs {CFLAGS ""}} {
 
 proc cleanup_test_progs {} {
     global build_dir
-    catch { kill -INT -[exp_pid] 2 }
     if {$build_dir != ""} {
 	catch { exec rm -rf $build_dir }
     }
