@@ -5308,6 +5308,7 @@ probe nd_syscall.uselib.return = kprobe.function("sys_uselib").return ?
 probe nd_syscall.userfaultfd = kprobe.function("sys_userfaultfd").call ?
 {
 	name = "userfaultfd"
+	asmlinkage()
 	flags = int_arg(1)
 	flags_str = _userfaultfd_flags_str(flags)
 	argstr = sprintf("%s", _userfaultfd_flags_str(flags))

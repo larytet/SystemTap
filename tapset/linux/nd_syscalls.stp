@@ -3805,6 +3805,7 @@ probe __nd_syscall.mbind.return = kprobe.function("sys_mbind").return
 probe nd_syscall.membarrier = kprobe.function("sys_membarrier").call ?
 {
 	name = "membarrier"
+	asmlinkage()
 	cmd = int_arg(1)
 	cmd_str = _membarrier_cmd_str(cmd)
 	flags = int_arg(2)
