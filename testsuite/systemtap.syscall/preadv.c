@@ -2,15 +2,22 @@
 #define _GNU_SOURCE
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
+#define _LARGEFILE64_SOURCE
+#define _ISOC99_SOURCE		   /* Needed for LLONG_MAX on RHEL5 */
+#define _FILE_OFFSET_BITS 64
+#define _XOPEN_SOURCE 500
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <limits.h>
 #include <linux/unistd.h>
 #include <sys/uio.h>
-#include <string.h>
 #include <sys/syscall.h>
+#include <endian.h>
+#include <linux/fs.h>
 
 int main()
 {
@@ -75,13 +82,23 @@ int main()
   //staptest// [[[[mkdir (!!!!mkdirat (AT_FDCWD, ]]]]"dir1", 0700) = 0
 
   fd = open("dir1", O_RDONLY);
-  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"dir1", O_RDONLY) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"dir1", O_RDONLY[[[[|O_LARGEFILE]]]]?) = NNNN
   
   preadv(fd, rd_iovec, 1, 0);
   //staptest// preadv (NNNN, XXXX, 1, 0x0) = -NNNN (EISDIR)
 
   close (fd);
   //staptest// close (NNNN) = 0
+
+  preadv(-1, rd_iovec, 1, -1);
+  //staptest// preadv (-1, XXXX, 1, 0xffffffffffffffff) = -NNNN
+
+  preadv(-1, rd_iovec, 1, 0x12345678deadbeefLL);
+  //staptest// preadv (-1, XXXX, 1, 0x12345678deadbeef) = -NNNN
+
+  preadv(-1, rd_iovec, 1, LLONG_MAX);
+  //staptest// preadv (-1, XXXX, 1, 0x7fffffffffffffff) = -NNNN
+
 #endif
 
   return 0;

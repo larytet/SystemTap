@@ -674,19 +674,21 @@ probe __syscall.preadv = kernel.function("sys_preadv")
 	fd = __int32($fd)
 	vector_uaddr = $vec
 	count = __int32($vlen)
-	offset = ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + $pos_l
+	offset = ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + __ulong($pos_l)
 	argstr = sprintf("%d, %p, %d, 0x%x", __int32($fd), $vec,
 			 __int32($vlen),
-			 ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + $pos_l)
+			 (($pos_h << %{ /* pure */ BITS_PER_LONG %})
+			  + __ulong($pos_l)))
 }
 probe __syscall.compat_preadv = kernel.function("compat_sys_preadv")
 {
 	fd = __int32($fd)
 	vector_uaddr = $vec
 	count = __int32($vlen)
-	offset = ($pos_high << 32) + $pos_low
+	offset = ($pos_high << 32) + __uint32($pos_low)
 	argstr = sprintf("%d, %p, %d, 0x%x", __int32($fd), $vec,
-			 __int32($vlen), ($pos_high << 32) + $pos_low)
+			 __int32($vlen),
+			 (($pos_high << 32) + __uint32($pos_low)))
 }
 probe syscall.preadv.return = kernel.function("sys_preadv").return ?,
 			      kernel.function("compat_sys_preadv").return ?
@@ -949,20 +951,21 @@ probe __syscall.pwritev = kernel.function("sys_pwritev").call
 	fd = __int32($fd)
 	vector_uaddr = $vec
 	count = __int32($vlen)
-	offset = ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + $pos_l
+	offset = ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + __ulong($pos_l)
 	argstr = sprintf("%d, %p, %d, 0x%x", __int32($fd), $vec,
 			 __int32($vlen),
-			 ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + $pos_l)
+			 (($pos_h << %{ /* pure */ BITS_PER_LONG %})
+			  + __ulong($pos_l)))
 }
 probe __syscall.compat_pwritev = kernel.function("compat_sys_pwritev").call
 {
 	fd = __int32($fd)
 	vector_uaddr = $vec
 	count = __int32($vlen)
-	offset = ($pos_high << 32) + $pos_low
+	offset = ($pos_high << 32) + __uint32($pos_low)
 	argstr = sprintf("%d, %p, %d, 0x%x", __int32($fd), $vec,
 			 __int32($vlen),
-			 ($pos_high << 32) + $pos_low)
+			 (($pos_high << 32) + __uint32($pos_low)))
 }
 probe syscall.pwritev.return = kernel.function("sys_pwritev").return ?,
 			       kernel.function("compat_sys_pwritev").return ?

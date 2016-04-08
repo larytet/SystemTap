@@ -2,15 +2,22 @@
 #define _GNU_SOURCE
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
+#define _LARGEFILE64_SOURCE
+#define _ISOC99_SOURCE		   /* Needed for LLONG_MAX on RHEL5 */
+#define _FILE_OFFSET_BITS 64
+#define _XOPEN_SOURCE 500
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <limits.h>
 #include <linux/unistd.h>
 #include <sys/uio.h>
-#include <string.h>
 #include <sys/syscall.h>
+#include <endian.h>
+#include <linux/fs.h>
 
 int main()
 {
@@ -55,7 +62,16 @@ int main()
 
   close (fd);
   //staptest// close (NNNN) = 0
-#endif
 
+  pwritev(-1, wr_iovec, 3, -1);
+  //staptest// pwritev (-1, XXXX, 3, 0xffffffffffffffff) = -NNNN
+
+  pwritev(-1, wr_iovec, 3, 0x12345678deadbeefLL);
+  //staptest// pwritev (-1, XXXX, 3, 0x12345678deadbeef) = -NNNN
+
+  pwritev(-1, wr_iovec, 3, LLONG_MAX);
+  //staptest// pwritev (-1, XXXX, 3, 0x7fffffffffffffff) = -NNNN
+
+#endif
   return 0;
 }
