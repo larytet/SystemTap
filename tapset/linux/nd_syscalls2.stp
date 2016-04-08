@@ -673,6 +673,51 @@ probe nd_syscall.preadv.return = kprobe.function("sys_preadv").return ?,
 	retstr = returnstr(1)
 }
 
+# preadv2 __________________________________________________
+#
+# SYSCALL_DEFINE6(preadv2, unsigned long, fd, const struct iovec __user *, vec,
+#		unsigned long, vlen, unsigned long, pos_l, unsigned long, pos_h,
+#		int, flags)
+#COMPAT_SYSCALL_DEFINE6(preadv2, compat_ulong_t, fd,
+#		const struct compat_iovec __user *,vec,
+#		compat_ulong_t, vlen, u32, pos_low, u32, pos_high,
+#		int, flags)
+probe nd_syscall.preadv2 = __nd_syscall.preadv2 ?,
+	__nd_syscall.compat_preadv2 ?
+{
+	name = "preadv2"
+}
+probe __nd_syscall.preadv2 = kprobe.function("sys_preadv2")
+{
+	asmlinkage()
+	fd = int_arg(1)
+	vector_uaddr = pointer_arg(2)
+	count = int_arg(3)
+	offset = (ulong_arg(5) << %{ /* pure */ BITS_PER_LONG %}) + ulong_arg(4)
+	flags = int_arg(6)
+	flags_str = _preadv2_flags_str(flags)
+	argstr = sprintf("%d, %p, %d, 0x%x, %s", fd, vector_uaddr,
+			 count, offset, flags_str)
+}
+probe __nd_syscall.compat_preadv2 = kprobe.function("compat_sys_preadv2")
+{
+	asmlinkage()
+	fd = int_arg(1)
+	vector_uaddr = pointer_arg(2)
+	count = int_arg(3)
+	offset = (u32_arg(5) << 32) + u32_arg(4)
+	flags = int_arg(5)
+	flags_str = _preadv2_flags_str(flags)
+	argstr = sprintf("%d, %p, %d, 0x%x, %s", fd, vector_uaddr,
+			 count, offset, flags_str)
+}
+probe nd_syscall.preadv2.return = kprobe.function("sys_preadv2").return ?,
+	kprobe.function("compat_sys_preadv2").return ?
+{
+	name = "preadv2"
+	retstr = returnstr(1)
+}
+
 # prlimit64 ____________________________________________________
 #
 # SYSCALL_DEFINE4(prlimit64, pid_t, pid, unsigned int, resource,
@@ -957,6 +1002,51 @@ probe nd_syscall.pwritev.return =
 	kprobe.function("compat_sys_pwritev").return ?
 {
 	name = "pwritev"
+	retstr = returnstr(1)
+}
+
+# pwritev2 __________________________________________________
+#
+# SYSCALL_DEFINE6(pwritev2, unsigned long, fd, const struct iovec __user *, vec,
+#		unsigned long, vlen, unsigned long, pos_l, unsigned long, pos_h,
+#		int, flags)
+# COMPAT_SYSCALL_DEFINE6(pwritev2, compat_ulong_t, fd,
+#		const struct compat_iovec __user *,vec,
+#		compat_ulong_t, vlen, u32, pos_low, u32, pos_high, int, flags)
+probe nd_syscall.pwritev2 = __nd_syscall.pwritev2 ?,
+	__nd_syscall.compat_pwritev2 ?
+{
+	name = "pwritev2"
+}
+probe __nd_syscall.pwritev2 = kprobe.function("sys_pwritev2").call
+{
+	asmlinkage()
+	fd = int_arg(1)
+	vector_uaddr = pointer_arg(2)
+	count = int_arg(3)
+	offset = (ulong_arg(5) << %{ /* pure */ BITS_PER_LONG %}) + ulong_arg(4)
+	flags = int_arg(6)
+	flags_str = _preadv2_flags_str(flags)
+	argstr = sprintf("%d, %p, %d, 0x%x, %s", fd, vector_uaddr,
+			 count, offset, flags_str)
+}
+probe __nd_syscall.compat_pwritev2 =
+	kprobe.function("compat_sys_pwritev2").call
+{
+	asmlinkage()
+	fd = int_arg(1)
+	vector_uaddr = pointer_arg(2)
+	count = int_arg(3)
+	offset = (u32_arg(5) << 32) + u32_arg(4)
+	flags = int_arg(5)
+	flags_str = _preadv2_flags_str(flags)
+	argstr = sprintf("%d, %p, %d, 0x%x, %s", fd, vector_uaddr,
+			 count, offset, flags_str)
+}
+probe nd_syscall.pwritev2.return = kprobe.function("sys_pwritev2").return ?,
+	kprobe.function("compat_sys_pwritev2").return ?
+{
+	name = "pwritev2"
 	retstr = returnstr(1)
 }
 

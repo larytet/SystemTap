@@ -1,4 +1,4 @@
-/* COVERAGE: preadv */
+/* COVERAGE: preadv preadv2 */
 #define _GNU_SOURCE
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
@@ -18,6 +18,19 @@
 #include <sys/syscall.h>
 #include <endian.h>
 #include <linux/fs.h>
+
+#ifdef __NR_preadv2
+#define LO_HI_LONG(val) \
+  (unsigned long) val, \
+  (unsigned long) ((((u_int64_t) (val)) >> (sizeof (long) * 4)) >> (sizeof (long) * 4))
+
+static inline ssize_t
+preadv2(int fd, const struct iovec *iov, int iovcnt, loff_t offset, int flags)
+{
+    return syscall(__NR_preadv2, fd, iov, iovcnt,
+		   LO_HI_LONG(offset), flags);
+}
+#endif
 
 int main()
 {
@@ -99,6 +112,70 @@ int main()
   preadv(-1, rd_iovec, 1, LLONG_MAX);
   //staptest// preadv (-1, XXXX, 1, 0x7fffffffffffffff) = -NNNN
 
+#ifdef __NR_preadv2
+  fd = open("foobar1", O_WRONLY|O_CREAT, 0666);
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
+  memset(buf, (int)'B', sizeof(buf));
+  write(fd, buf, sizeof(buf));
+  //staptest// write (NNNN, "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"..., 64) = 64
+  close(fd);
+  //staptest// close (NNNN) = 0
+
+  fd = open("foobar1", O_RDONLY);
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar1", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
+
+  rd_iovec[0].iov_base = buf;
+  rd_iovec[0].iov_len = sizeof(buf);
+  rd_iovec[1].iov_base = NULL;
+  rd_iovec[1].iov_len = 0;
+  rd_iovec[2].iov_base = NULL;
+  rd_iovec[2].iov_len = 0;
+
+  preadv2(fd, rd_iovec, 0, 0, 0);
+  //staptest// preadv2 (NNNN, XXXX, 0, 0x0, 0x0) = 0
+
+  memset(buf, 0x0, sizeof(buf));
+  preadv2(fd, rd_iovec, 3, 0, 0);
+  //staptest// preadv2 (NNNN, XXXX, 3, 0x0, 0x0) = 64
+  
+  memset(buf, 0x0, sizeof(buf));
+  preadv2(fd, rd_iovec, 3, 32, 0);
+  //staptest// preadv2 (NNNN, XXXX, 3, 0x20, 0x0) = 32
+
+  rd_iovec[0].iov_len = -1;
+  preadv2(fd, rd_iovec, 1, 0, RWF_HIPRI);
+  //staptest// preadv2 (NNNN, XXXX, 1, 0x0, RWF_HIPRI) = -NNNN (EINVAL)
+
+  rd_iovec[0].iov_base = (char *)-1;
+  rd_iovec[0].iov_len = sizeof(buf);
+  preadv2(fd, rd_iovec, 1, 0, 0);
+  // On 64-bit platforms, we get a EFAULT. On 32-on-64 bits, we
+  // typically get a 0.
+  //staptest// preadv2 (NNNN, XXXX, 1, 0x0, 0x0) = [[[[0!!!!-NNNN (EFAULT)]]]]
+
+  rd_iovec[0].iov_base = buf;
+  rd_iovec[0].iov_len = sizeof(buf);
+  preadv2(-1, rd_iovec, 1, 0, 0);
+  //staptest// preadv2 (-1, XXXX, 1, 0x0, 0x0) = -NNNN (EBADF)
+
+  preadv2(fd, rd_iovec, -1, 0, 0);
+  //staptest// preadv2 (NNNN, XXXX, -1, 0x0, 0x0) = -NNNN (EINVAL)
+
+  preadv2(fd, rd_iovec, 1, 0, -1);
+  //staptest// preadv2 (NNNN, XXXX, 1, 0x0, RWF_[^ ]+|XXXX) = -NNNN
+
+  close (fd);
+  //staptest// close (NNNN) = 0
+
+  preadv2(-1, rd_iovec, 1, -1, 0);
+  //staptest// preadv2 (-1, XXXX, 1, 0xffffffffffffffff, 0x0) = -NNNN
+
+  preadv2(-1, rd_iovec, 1, 0x12345678deadbeefLL, 0);
+  //staptest// preadv2 (-1, XXXX, 1, 0x12345678deadbeef, 0x0) = -NNNN
+
+  preadv2(-1, rd_iovec, 1, LLONG_MAX, 0);
+  //staptest// preadv2 (-1, XXXX, 1, 0x7fffffffffffffff, 0x0) = -NNNN
+#endif
 #endif
 
   return 0;

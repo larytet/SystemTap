@@ -6051,3 +6051,19 @@ function _userfaultfd_flags_str:string (f:long)
 	_stp_lookup_or_str(_stp_userfaultfd_flags_list, flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
 %}
+
+%{
+static const _stp_val_array const _stp_preadv2_flags_list[] = {
+#ifdef RWF_HIPRI
+	V(RWF_HIPRI),
+#endif
+	{0, NULL}
+};
+%}
+
+function _preadv2_flags_str:string (f:long)
+%{ /* pure */ /* unprivileged */
+	unsigned int flags = (unsigned int)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_preadv2_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
