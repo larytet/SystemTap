@@ -52,7 +52,7 @@ __access_process_vm_ (struct task_struct *tsk, unsigned long addr, void *buf,
 	  reader (vma, page, addr, buf, maddr + offset, bytes);
 	}
       kunmap (page);
-      page_cache_release (page);
+      put_page (page);
       len -= bytes;
       buf += bytes;
       addr += bytes;
