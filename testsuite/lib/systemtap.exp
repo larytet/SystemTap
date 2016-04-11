@@ -562,6 +562,7 @@ proc environment_sanity_test {} {
         puts "\n\n\n**** failed gcc [arch_compile_flag_name $i] smoke test:\n"
         puts $result
         puts "Please install libgcc and glibc development packages for [arch_compile_flag_name $i]\n"
+        exit 1
       }
     }
     set source "hello.cxx"
@@ -578,6 +579,7 @@ proc environment_sanity_test {} {
         puts "\n\n\n**** failed g++ [arch_compile_flag_name $i] smoke test:\n"
         puts $result
         puts "Please install libstdc++-devel package for [arch_compile_flag_name $i]\n"
+        exit 1
       }
     }
 
