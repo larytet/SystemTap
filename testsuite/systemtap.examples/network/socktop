@@ -46,7 +46,7 @@ function usage {
 	echo "    -p pid       # this process ID only (default: all)"
 	echo "    -u username  # this user only (default: all)"
 	echo "    -c count     # number of iteration"
-	echo "    -m mod_name  # generate instrumentation (but do not run)"
+	echo "    -D           # dry run (generate instrumentation but do not run)"
 	echo "    -h           # print this help text"
 	echo ""
 	echo "Protocol Families:"
@@ -60,7 +60,7 @@ function usage {
 }
 
 # Process options
-while getopts df:i:n:N:P:p:t:u:c:m:h option; do
+while getopts df:i:n:N:P:p:t:u:c:Dh option; do
 	case $option in
 	d)      P_DEVICES=1 ;;
 	i)      P_INTERVAL=$OPTARG ;;
@@ -84,9 +84,7 @@ while getopts df:i:n:N:P:p:t:u:c:m:h option; do
 	            let "ERROR++"
 	        fi ;;
 	c)      ITER_COUNT=$OPTARG ;;
-	m)      MOD_NAME=$OPTARG
-		MOD_GEN="-p4 -m $MOD_NAME"
-		;;
+	D)      MOD_GEN="-p4" ;;
 	h|?|*)  usage
 	        exit 1 ;;
 	esac
