@@ -604,7 +604,7 @@ proc systemtap_init {args} {
     if {[info exists env(STAP_PARALLEL)] } {
         regsub {\.exp$} $args {} args
         regsub ${srcdir}/ $args {} args
-        set artifactdir "$srcdir/artifacts/$args"
+        set artifactdir "$env(SYSTEMTAP_DIR)/../artifacts/$args"
         if {[catch {exec mkdir -p $artifactdir} err_msg]} {
             verbose -log "Failed to create artifacts directory: $err_msg"
             exit 1
