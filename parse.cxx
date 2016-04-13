@@ -1937,7 +1937,7 @@ parser::parse ()
         }
     }
 
-  if (empty)
+  if (empty && user_file)
     {
       // vary message depending on whether file was *actually* empty:
       cerr << (input.saw_tokens

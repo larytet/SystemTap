@@ -751,6 +751,11 @@ passes_0_4 (systemtap_session &s)
             }
         }
     }
+  else if (s.cmdline_script.empty()) // -e ''
+    {
+      cerr << _("Input file '<input>' is empty.") << endl;
+      rc++;
+    }
 
   // Dump a list of probe aliases picked up, if requested
   if (s.dump_mode == systemtap_session::dump_probe_aliases)
