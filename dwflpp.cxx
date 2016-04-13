@@ -4321,7 +4321,6 @@ dwflpp::build_kernel_blacklist()
   blfn += "|.*spin_is_locked.*";
   blfn += "|rwsem_.*lock.*";
   blfn += "|.*mutex_.*lock.*";
-  blfn += "|raw_.*";
 
   // atomic functions
   blfn += "|atomic_.*";
