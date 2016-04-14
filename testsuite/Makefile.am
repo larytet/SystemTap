@@ -46,6 +46,7 @@ installcheck-parallel: site.exp
 	`find artifacts -name systemtap.sum -print` > systemtap.sum; \
 	$(SHELL) $(srcdir)/dg-extract-results.sh -L \
 	`find artifacts -name systemtap.log -print` > systemtap.log; \
+	tail systemtap.sum
 	exit $$result
 
 # TESTS exists for the user to pass on the command line to easily
