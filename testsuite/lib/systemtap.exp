@@ -511,7 +511,7 @@ proc get_system_info {} {
 
 proc environment_sanity_test {} {
     # PR11798: die if kernel-devel is not sufficient to build any modules
-    if {[catch {exec -ignorestderr stap -p4 -e {probe begin {exit()}}} result]} {
+    if {[catch {exec stap -p4 -e {probe begin {exit()}} 2> /dev/null} result]} {
         puts "\n\n\n**** failed systemtap kernel-devel smoke test:\n"
         puts $result
     #    puts "****\n"
@@ -529,7 +529,7 @@ proc environment_sanity_test {} {
     # it is allowed have bad var location descriptors (which will cause
     # some tests to fail of course). Just test -p2, kernel-devel smoke
     # test above does a full module build, we don't need another one.
-    if {[catch {exec -ignorestderr stap --skip-badvars -w -p2 -e {probe syscall.open {println (argstr)}}} result]} {
+    if {[catch {exec stap --skip-badvars -w -p2 -e {probe syscall.open {println (argstr)}} 2> /dev/null} result]} {
         puts "\n\n\n**** failed systemtap kernel-debuginfo smoke test:\n"
         puts $result
     #    puts "****\n"
