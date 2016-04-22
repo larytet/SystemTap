@@ -812,9 +812,10 @@ Pauses the script by toggling off all probes.
 Hides/shows the status window. This allows for more output to be seen.
 .TP
 .BI navigation-keys
-The j/k/ArrowDown/ArrowUp keys can be used to scroll through the probe
-list and the d,D/u,U/PageDown,End/PageUp,Home keys can be used to scroll
-through the module output.
+The navigation keys can be used to scroll up and down the windows.
+.TP
+.BI Tab
+Toggle scrolling between status and output windows.
 .RE
 
 .SH ARGUMENTS

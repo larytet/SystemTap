@@ -5,6 +5,7 @@
 #include <json-c/json.h>
 #include <curses.h>
 #include <time.h>
+#include <string.h>
 
 #define COMP_FNS 7
 #define MAX_INDEX_LEN 5
@@ -54,6 +55,7 @@ static char probe[MAX_INDEX_LEN];
 static WINDOW *monitor_status = NULL;
 static WINDOW *monitor_output = NULL;
 static int comp_fn_index = 0;
+static int num_probes = 0;
 static int probe_scroll = 0;
 static int output_scroll = 0;
 static time_t elapsed_time = 0;
@@ -62,6 +64,7 @@ static int resized = 0;
 static int input = 0; /* fresh input received in monitor_input() */
 static int rendered = 0;
 static int status_hidden = 0;
+static int active_window = 1; /* 0 for status window, 1 for output window */
 
 /* Forward declarations */
 static int comp_index(const void *p1, const void *p2);
@@ -153,10 +156,11 @@ static int comp_name(const void *p1, const void *p2)
   return strcmp(json_object_get_string(name1), json_object_get_string(name2));
 }
 
-static void write_command(const char *msg, const unsigned len)
+static void write_command(const char *msg)
 {
   char path[PATH_MAX];
   FILE* fp;
+  size_t len = strlen(msg);
 
   if (sprintf_chk(path, "/proc/systemtap/%s/monitor_control", modname))
     return;
@@ -269,9 +273,10 @@ void monitor_render(void)
       wprintw(monitor_status, "p/r - Pause/Resume script by toggling off/on all probes.\n");
       wprintw(monitor_status, "x - Hide/Show the status window.\n");
       wprintw(monitor_status, "q - Quit script.\n");
-      wprintw(monitor_status, "j,k/DownArrow,UpArrow - Scroll down/up the probe list.\n");
-      wprintw(monitor_status, "d,D/PageDown,End - Scroll down the output by one page/end.\n");
-      wprintw(monitor_status, "u,U/PageUp,Home - Scroll up the output by one page/beginning.\n");
+      wprintw(monitor_status, "j,k/DownArrow,UpArrow - Scroll down/up by one entry.\n");
+      wprintw(monitor_status, "PgDown/PgUp - Scroll down/up by one page.\n");
+      wprintw(monitor_status, "Home/End - Scroll to beginning/end.\n");
+      wprintw(monitor_status, "Tab - Toggle scroll window.\n");
       mvwprintw(monitor_status, max_rows-1, 0, "press h to go back\n");
       wrefresh(monitor_status);
     }
@@ -284,9 +289,10 @@ void monitor_render(void)
       wprintw(monitor_status, "h - Display help page.\n");
       wprintw(monitor_status, "s - Rotate sort columns for probes.\n");
       wprintw(monitor_status, "q - Quit script.\n");
-      wprintw(monitor_status, "j,k/DownArrow,UpArrow - Scroll down/up the probe list.\n");
-      wprintw(monitor_status, "d,D/PageDown,End - Scroll down the output by one page/end.\n");
-      wprintw(monitor_status, "u,U/PageUp,Home - Scroll up the output by one page/beginning.\n");
+      wprintw(monitor_status, "j,k/DownArrow,UpArrow - Scroll down/up by one entry.\n");
+      wprintw(monitor_status, "PgDown/PgUp - Scroll down/up by one page.\n");
+      wprintw(monitor_status, "Home/End - Scroll to beginning/end.\n");
+      wprintw(monitor_status, "Tab - Toggle scroll window.\n");
       mvwprintw(monitor_status, max_rows-1, 0, "press h to go back\n");
       wrefresh(monitor_status);
     }
@@ -331,7 +337,6 @@ void monitor_render(void)
           int printed;
           int col;
           int i;
-          int num_probes;
           size_t width[num_attributes] = {0};
           json_object *jso_uptime, *jso_uid, *jso_mem,
                       *jso_name, *jso_globals, *jso_probe_list;
@@ -413,6 +418,8 @@ void monitor_render(void)
 
           json_object_array_sort(jso_probe_list, comp_fn[comp_fn_index]);
 
+          if (active_window == 0)
+            wattron(monitor_status, A_BOLD);
           wprintw(monitor_status, "\n%*s\t%*s\t%*s\t%*s\t%*s\t%*s\t%s\n",
                   width[p_index], HIGHLIGHT("index", p_index, comp_fn_index),
                   width[p_state], HIGHLIGHT("state", p_state, comp_fn_index),
@@ -421,10 +428,12 @@ void monitor_render(void)
                   width[p_avg], HIGHLIGHT("avg", p_avg, comp_fn_index),
                   width[p_max], HIGHLIGHT("max", p_max, comp_fn_index),
                   HIGHLIGHT("name", p_name, comp_fn_index));
+          if (active_window == 0)
+            wattroff(monitor_status, A_BOLD);
 
           getyx(monitor_status, cur_y, cur_x);
           if (probe_scroll >= num_probes)
-            probe_scroll--;
+            probe_scroll = num_probes-1;
           for (i = probe_scroll; i < MIN(num_probes, probe_scroll+max_rows-cur_y); i++)
             {
               json_object *probe, *field;
@@ -484,6 +493,7 @@ void monitor_input(void)
   static int i = 0;
   int ch;
   int max_rows, max_cols;
+  int cur_y, cur_x;
 
   /* NB: monitor_pfd[0] is the read side, O_NONBLOCK, of the pipe
      that collects/serializes all the per-cpu outputs.  We can't
@@ -528,7 +538,9 @@ void monitor_input(void)
     }          
 
   getmaxyx(monitor_output, max_rows, max_cols);
+  getyx(monitor_status, cur_y, cur_x);
   (void) max_cols; /* Unused */
+  (void) cur_x; /* Unused */
 
   switch (monitor_state)
     {
@@ -537,31 +549,46 @@ void monitor_input(void)
         ch = getch();
         switch (ch)
           {
+            case '\t':
+              active_window ^= 1;
+              break;
             case 'j':
             case KEY_DOWN:
-              probe_scroll++;
+              if (active_window == 0)
+                probe_scroll++;
+              else
+                output_scroll--;
               break;
             case 'k':
             case KEY_UP:
-              probe_scroll--;
-              probe_scroll = MAX(0, probe_scroll);
+              if (active_window == 0)
+                probe_scroll--;
+              else
+                output_scroll++;
               break;
-            case 'd':
             case KEY_NPAGE:
-              output_scroll -= max_rows-1;
-              output_scroll = MAX(0, output_scroll);
+              if (active_window == 0)
+                probe_scroll += max_rows-cur_y;
+              else
+                output_scroll -= max_rows-1;
               break;
-            case 'u':
             case KEY_PPAGE:
-              output_scroll += max_rows-1;
+              if (active_window == 0)
+                probe_scroll -= max_rows-cur_y;
+              else
+                output_scroll += max_rows-1;
               break;
             case KEY_HOME:
-            case 'U':
-              output_scroll = h_queue.count-max_rows+1;
+              if (active_window == 0)
+                probe_scroll = 0;
+              else
+                output_scroll = h_queue.count-max_rows+1;
               break;
             case KEY_END:
-            case 'D':
-              output_scroll = 0;
+              if (active_window == 0)
+                probe_scroll = num_probes-1;
+              else
+                output_scroll = 0;
               break;
             case 's':
               comp_fn_index++;
@@ -569,13 +596,13 @@ void monitor_input(void)
                 comp_fn_index = 0;
               break;
             case 'c':
-              write_command("clear", 5);
+              write_command("clear");
               break;
             case 'r':
-              write_command("resume", 6);
+              write_command("resume");
               break;
             case 'p':
-              write_command("pause", 5);
+              write_command("pause");
               break;
             case 'q':
               if (status_hidden)
@@ -586,7 +613,7 @@ void monitor_input(void)
               if (monitor_state == exited)
                 cleanup_and_exit(0, 0 /* error_detected unavailable here */ );
               else
-                write_command("quit", 4);
+                write_command("quit");
               break;
             case 't':
               monitor_state = insert;
@@ -599,6 +626,8 @@ void monitor_input(void)
               handle_resize();
               break;
           }
+        probe_scroll = MAX(0, probe_scroll);
+        output_scroll = MAX(0, output_scroll);
         if (ch != ERR)
           input = 1;
         break;
@@ -606,7 +635,7 @@ void monitor_input(void)
         ch = getch();
         if (ch == '\n' || i == MAX_INDEX_LEN)
           {
-            write_command(probe, i);
+            write_command(probe);
             monitor_state = normal;
             i = 0;
             probe[0] = '\0';
