@@ -455,6 +455,7 @@ compile_pass (systemtap_session& s)
 		  "STAPCONF_MODULE_LAYOUT", NULL);
   output_autoconf(s, o, "autoconf-mod_kallsyms.c",
 		  "STAPCONF_MOD_KALLSYMS", NULL);
+  output_exportconf(s, o, "get_user_pages_remote", "STAPCONF_GET_USER_PAGES_REMOTE");
 
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 

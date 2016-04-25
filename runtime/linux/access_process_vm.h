@@ -32,7 +32,11 @@ __access_process_vm_ (struct task_struct *tsk, unsigned long addr, void *buf,
       int bytes, ret, offset;
       void *maddr;
 
+#ifdef STAPCONF_GET_USER_PAGES_REMOTE
+      ret = get_user_pages_remote (tsk, mm, addr, 1, write, 1, &page, &vma);
+#else
       ret = get_user_pages (tsk, mm, addr, 1, write, 1, &page, &vma);
+#endif
       if (ret <= 0)
 	break;
 
