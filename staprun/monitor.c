@@ -3,6 +3,7 @@
 #ifdef HAVE_MONITOR_LIBS
 
 #include <json-c/json.h>
+#include <panel.h>
 #include <curses.h>
 #include <time.h>
 #include <string.h>
@@ -46,14 +47,18 @@ static enum state
   normal,
   exited,
   insert,
-  help,
-  exited_help,
 } monitor_state; 
 
 static History_Queue h_queue;
 static char probe[MAX_INDEX_LEN];
 static WINDOW *monitor_status = NULL;
 static WINDOW *monitor_output = NULL;
+static WINDOW *help_win = NULL;
+static WINDOW *help_border_win = NULL;
+static PANEL *status_panel = NULL;
+static PANEL *output_panel = NULL;
+static PANEL *help_panel = NULL;
+static PANEL *help_border_panel = NULL;
 static int comp_fn_index = 0;
 static int num_probes = 0;
 static int probe_scroll = 0;
@@ -156,6 +161,25 @@ static int comp_name(const void *p1, const void *p2)
   return strcmp(json_object_get_string(name1), json_object_get_string(name2));
 }
 
+static void help_msg()
+{
+  wattron(help_win, A_BOLD);
+  wprintw(help_win, "MONITOR MODE COMMANDS\n");
+  wattroff(help_win, A_BOLD);
+  wprintw(help_win, "h - Show/Hide help page.\n");
+  wprintw(help_win, "c - Reset all global variables to initial state, zeroes if unset.\n");
+  wprintw(help_win, "s - Rotate sort columns for probes.\n");
+  wprintw(help_win, "t - Open a prompt to enter the index of a probe to toggle.\n");
+  wprintw(help_win, "p/r - Pause/Resume script by toggling off/on all probes.\n");
+  wprintw(help_win, "x - Hide/Show the status window.\n");
+  wprintw(help_win, "q - Quit script.\n");
+  wprintw(help_win, "j,k/DownArrow,UpArrow - Scroll down/up by one entry.\n");
+  wprintw(help_win, "PgDown/PgUp - Scroll down/up by one page.\n");
+  wprintw(help_win, "Home/End - Scroll to beginning/end.\n");
+  wprintw(help_win, "Tab - Toggle scroll window.\n");
+  box(help_border_win, 0 ,0);
+}
+
 static void write_command(const char *msg)
 {
   char path[PATH_MAX];
@@ -181,20 +205,49 @@ static void handle_resize()
   refresh();
 
   if (monitor_status)
-    delwin(monitor_status);
+    {
+      del_panel(status_panel);
+      delwin(monitor_status);
+      monitor_status = NULL;
+    }
+  if (monitor_output)
+    {
+      del_panel(output_panel);
+      delwin(monitor_output);
+      monitor_output = NULL;
+    }
+  if (help_win)
+    {
+      del_panel(help_border_panel);
+      del_panel(help_panel);
+      delwin(help_border_win);
+      delwin(help_win);
+      help_win = NULL;
+    }
+
   /* Status window not needed when hidden */
   if (!status_hidden)
-    monitor_status = newwin(LINES/2,COLS,0,0);
+    {
+      monitor_status = newwin(LINES/2,COLS,0,0);
+      status_panel = new_panel(monitor_status);
+    }
 
-  if (monitor_output)
-    delwin(monitor_output);
   /* Use the entire screen if not displaying status */
   if (status_hidden)
     monitor_output = newwin(LINES,COLS,0,0);
   else
     monitor_output = newwin(LINES/2,COLS,LINES/2,0);
-
+  output_panel = new_panel(monitor_output);
   scrollok(monitor_output, TRUE);
+
+  help_border_win = newwin((2.0/3)*LINES+2, (2.0/3)*COLS+2, LINES/6-1, COLS/6-1);
+  help_win = newwin((2.0/3)*LINES, (2.0/3)*COLS, LINES/6, COLS/6);
+  help_border_panel = new_panel(help_border_win);
+  help_panel = new_panel(help_win);
+  hide_panel(help_border_panel);
+  hide_panel(help_panel);
+  help_msg();
+
   resized = 0;
 }
 
@@ -216,6 +269,15 @@ void monitor_setup(void)
   monitor_status = newwin(LINES/2,COLS,0,0);
   monitor_output = newwin(LINES/2,COLS,LINES/2,0);
   scrollok(monitor_output, TRUE);
+  help_border_win = newwin((2.0/3)*LINES+2, (2.0/3)*COLS+2, LINES/6-1, COLS/6-1);
+  help_win = newwin((2.0/3)*LINES, (2.0/3)*COLS, LINES/6, COLS/6);
+  status_panel = new_panel(monitor_status);
+  output_panel = new_panel(monitor_output);
+  help_border_panel = new_panel(help_border_win);
+  help_panel = new_panel(help_win);
+  hide_panel(help_border_panel);
+  hide_panel(help_panel);
+  help_msg();
 }
 
 void monitor_cleanup(void)
@@ -223,6 +285,8 @@ void monitor_cleanup(void)
   monitor_end = 1;
   if (monitor_status) delwin(monitor_status);
   if (monitor_output) delwin(monitor_output);
+  if (help_win) delwin(help_win);
+  if (help_border_win) delwin(help_border_win);
   endwin();
 }
 
@@ -245,7 +309,8 @@ void monitor_render(void)
   wclear(monitor_output);
   for (i = 0; i < h_queue.count-output_scroll; i++)
     wprintw(monitor_output, "%s", h_queue.lines[(h_queue.oldest+i) % MAX_HISTORY]);
-  wrefresh(monitor_output);
+  update_panels();
+  doupdate();
 
   if (status_hidden)
     return;
@@ -260,209 +325,172 @@ void monitor_render(void)
   max_rows = monitor_y;
   max_cols = MIN(MAX_COLS, monitor_x);
 
-  if (monitor_state == help)
+  static json_object *jso = NULL; /* survives across refresh calls */
+  char json[MAX_DATA];
+  size_t bytes = 0;
+
+  /* Render monitor mode statistics */
+  if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
+    return;
+  monitor_fp = fopen(path, "r");
+  if (monitor_fp)
     {
-      /* Render help page */
-      rendered = 0;
-      wclear(monitor_status);
-      wprintw(monitor_status, "MONITOR MODE COMMANDS\n");
-      wprintw(monitor_status, "h - Display help page.\n");
-      wprintw(monitor_status, "c - Reset all global variables to initial state, zeroes if unset.\n");
-      wprintw(monitor_status, "s - Rotate sort columns for probes.\n");
-      wprintw(monitor_status, "t - Open a prompt to enter the index of a probe to toggle.\n");
-      wprintw(monitor_status, "p/r - Pause/Resume script by toggling off/on all probes.\n");
-      wprintw(monitor_status, "x - Hide/Show the status window.\n");
-      wprintw(monitor_status, "q - Quit script.\n");
-      wprintw(monitor_status, "j,k/DownArrow,UpArrow - Scroll down/up by one entry.\n");
-      wprintw(monitor_status, "PgDown/PgUp - Scroll down/up by one page.\n");
-      wprintw(monitor_status, "Home/End - Scroll to beginning/end.\n");
-      wprintw(monitor_status, "Tab - Toggle scroll window.\n");
-      mvwprintw(monitor_status, max_rows-1, 0, "press h to go back\n");
-      wrefresh(monitor_status);
+      bytes = fread(json, sizeof(char), sizeof(json), monitor_fp);
+      fclose(monitor_fp);
     }
-  else if (monitor_state == exited_help)
+  if (bytes >= 1)
     {
-      /* Render help page */
-      rendered = 0;
-      wclear(monitor_status);
-      wprintw(monitor_status, "EXITED MONITOR MODE COMMANDS\n");
-      wprintw(monitor_status, "h - Display help page.\n");
-      wprintw(monitor_status, "s - Rotate sort columns for probes.\n");
-      wprintw(monitor_status, "q - Quit script.\n");
-      wprintw(monitor_status, "j,k/DownArrow,UpArrow - Scroll down/up by one entry.\n");
-      wprintw(monitor_status, "PgDown/PgUp - Scroll down/up by one page.\n");
-      wprintw(monitor_status, "Home/End - Scroll to beginning/end.\n");
-      wprintw(monitor_status, "Tab - Toggle scroll window.\n");
-      mvwprintw(monitor_status, max_rows-1, 0, "press h to go back\n");
-      wrefresh(monitor_status);
-    }
-  else /* monitor_state == normal OR exited OR insert */
-    {
-      static json_object *jso = NULL; /* survives across refresh calls */
-      char json[MAX_DATA];
-      size_t bytes = 0;
-
-      /* Render monitor mode statistics */
-      if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
-        return;
-      monitor_fp = fopen(path, "r");
-      if (monitor_fp)
-        {
-          bytes = fread(json, sizeof(char), sizeof(json), monitor_fp);
-          fclose(monitor_fp);
-        }
-      if (bytes >= 1)
-        {
-          /* Free allocated memory */
-          if (jso)
-            json_object_put(jso);
-          jso = json_tokener_parse(json);
-        }
-
-      wclear(monitor_status);
-      
-      if (monitor_state == insert)
-        mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
-      else if (monitor_state == normal)
-        mvwprintw(monitor_status, max_rows-1, 0,
-                  "RUNNING: press h for help\n");
-      else if (monitor_state == exited)
-        mvwprintw(monitor_status, max_rows-1, 0,
-                  "EXITED: press h for help, q to quit\n");
-
+      /* Free allocated memory */
       if (jso)
-        {
-          char monitor_str[MAX_COLS];
-          char monitor_out[MAX_COLS];
-          int printed;
-          int col;
-          int i;
-          size_t width[num_attributes] = {0};
-          json_object *jso_uptime, *jso_uid, *jso_mem,
-                      *jso_name, *jso_globals, *jso_probe_list;
-          struct json_object_iterator it, it_end;
-
-          rendered = 1;
-
-          json_object_object_get_ex(jso, "uptime", &jso_uptime);
-          json_object_object_get_ex(jso, "uid", &jso_uid);
-          json_object_object_get_ex(jso, "memory", &jso_mem);
-          json_object_object_get_ex(jso, "module_name", &jso_name);
-          json_object_object_get_ex(jso, "globals", &jso_globals);
-          json_object_object_get_ex(jso, "probe_list", &jso_probe_list);
-          num_probes = json_object_array_length(jso_probe_list);
-
-          wmove(monitor_status, 0, 0);
-
-          wprintw(monitor_status, "uptime: %s uid: %s memory: %s\n",
-                  json_object_get_string(jso_uptime),
-                  json_object_get_string(jso_uid),
-                  json_object_get_string(jso_mem));
-
-          wprintw(monitor_status, "module_name: %s probes: %d \n",
-                  json_object_get_string(jso_name),
-                  num_probes);
-
-          col = 0;
-          col += snprintf(monitor_out, max_cols, "globals: ");
-          it = json_object_iter_begin(jso_globals);
-          it_end = json_object_iter_end(jso_globals);
-          while (!json_object_iter_equal(&it, &it_end))
-            {
-              printed = snprintf(monitor_str, max_cols, "%s: %s ",
-                                 json_object_iter_peek_name(&it),
-                                 json_object_get_string(json_object_iter_peek_value(&it))) + 1;
-
-              /* Prevent line folding for globals */
-              if ((max_cols - (col + printed)) >= 0)
-                {
-                  col += snprintf(monitor_out+col, printed, "%s", monitor_str);
-                  json_object_iter_next(&it);
-                }
-              else if (printed > max_cols)
-                {
-                  /* Skip globals that do not fit on one line */
-                  json_object_iter_next(&it);
-                }
-              else
-                {
-                  wprintw(monitor_status, "%s\n", monitor_out);
-                  col = 0;
-                }
-            }
-          if (col != 0)
-            wprintw(monitor_status, "%s\n", monitor_out);
-
-
-          /* Find max width of each field for alignment uses */
-          for (i = 0; i < num_probes; i++)
-            {
-              json_object *probe, *field;
-              probe = json_object_array_get_idx(jso_probe_list, i);
-
-              json_object_object_get_ex(probe, "index", &field);
-              width[p_index] = MAX(width[p_index], strlen(json_object_get_string(field)));
-              json_object_object_get_ex(probe, "state", &field);
-              width[p_state] = MAX(width[p_state], strlen(json_object_get_string(field)));
-              json_object_object_get_ex(probe, "hits", &field);
-              width[p_hits] = MAX(width[p_hits], strlen(json_object_get_string(field)));
-              json_object_object_get_ex(probe, "min", &field);
-              width[p_min] = MAX(width[p_min], strlen(json_object_get_string(field)));
-              json_object_object_get_ex(probe, "avg", &field);
-              width[p_avg] = MAX(width[p_avg], strlen(json_object_get_string(field)));
-              json_object_object_get_ex(probe, "max", &field);
-              width[p_max] = MAX(width[p_max], strlen(json_object_get_string(field)));
-              json_object_object_get_ex(probe, "name", &field);
-              width[p_name] = MAX(width[p_name], strlen(json_object_get_string(field)));
-            }
-
-          json_object_array_sort(jso_probe_list, comp_fn[comp_fn_index]);
-
-          if (active_window == 0)
-            wattron(monitor_status, A_BOLD);
-          wprintw(monitor_status, "\n%*s\t%*s\t%*s\t%*s\t%*s\t%*s\t%s\n",
-                  width[p_index], HIGHLIGHT("index", p_index, comp_fn_index),
-                  width[p_state], HIGHLIGHT("state", p_state, comp_fn_index),
-                  width[p_hits], HIGHLIGHT("hits", p_hits, comp_fn_index),
-                  width[p_min], HIGHLIGHT("min", p_min, comp_fn_index),
-                  width[p_avg], HIGHLIGHT("avg", p_avg, comp_fn_index),
-                  width[p_max], HIGHLIGHT("max", p_max, comp_fn_index),
-                  HIGHLIGHT("name", p_name, comp_fn_index));
-          if (active_window == 0)
-            wattroff(monitor_status, A_BOLD);
-
-          getyx(monitor_status, cur_y, cur_x);
-          if (probe_scroll >= num_probes)
-            probe_scroll = num_probes-1;
-          for (i = probe_scroll; i < MIN(num_probes, probe_scroll+max_rows-cur_y); i++)
-            {
-              json_object *probe, *field;
-              probe = json_object_array_get_idx(jso_probe_list, i);
-              json_object_object_get_ex(probe, "index", &field);
-              wprintw(monitor_status, "%*s\t", width[p_index], json_object_get_string(field));
-              json_object_object_get_ex(probe, "state", &field);
-              wprintw(monitor_status, "%*s\t", width[p_state], json_object_get_string(field));
-              json_object_object_get_ex(probe, "hits", &field);
-              wprintw(monitor_status, "%*s\t", width[p_hits], json_object_get_string(field));
-              json_object_object_get_ex(probe, "min", &field);
-              wprintw(monitor_status, "%*s\t", width[p_min], json_object_get_string(field));
-              json_object_object_get_ex(probe, "avg", &field);
-              wprintw(monitor_status, "%*s\t", width[p_avg], json_object_get_string(field));
-              json_object_object_get_ex(probe, "max", &field);
-              wprintw(monitor_status, "%*s\t", width[p_max], json_object_get_string(field));
-              getyx(monitor_status, cur_y, cur_x);
-              json_object_object_get_ex(probe, "name", &field);
-              wprintw(monitor_status, "%.*s", max_cols-cur_x-1, json_object_get_string(field));
-              wprintw(monitor_status, "\n");
-            }
-        }
-      else /* ! jso */
-        {
-          wmove(monitor_status, 0, 0);
-          wprintw(monitor_status, "(data not available)");
-        }
-      wrefresh(monitor_status);
+        json_object_put(jso);
+      jso = json_tokener_parse(json);
     }
+
+  wclear(monitor_status);
+  
+  if (monitor_state == insert)
+    mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
+  else if (monitor_state == normal)
+    mvwprintw(monitor_status, max_rows-1, 0,
+              "RUNNING: press h for help\n");
+  else if (monitor_state == exited)
+    mvwprintw(monitor_status, max_rows-1, 0,
+              "EXITED: press h for help, q to quit\n");
+
+  if (jso)
+    {
+      char monitor_str[MAX_COLS];
+      char monitor_out[MAX_COLS];
+      int printed;
+      int col;
+      int i;
+      size_t width[num_attributes] = {0};
+      json_object *jso_uptime, *jso_uid, *jso_mem,
+                  *jso_name, *jso_globals, *jso_probe_list;
+      struct json_object_iterator it, it_end;
+
+      rendered = 1;
+
+      json_object_object_get_ex(jso, "uptime", &jso_uptime);
+      json_object_object_get_ex(jso, "uid", &jso_uid);
+      json_object_object_get_ex(jso, "memory", &jso_mem);
+      json_object_object_get_ex(jso, "module_name", &jso_name);
+      json_object_object_get_ex(jso, "globals", &jso_globals);
+      json_object_object_get_ex(jso, "probe_list", &jso_probe_list);
+      num_probes = json_object_array_length(jso_probe_list);
+
+      wmove(monitor_status, 0, 0);
+
+      wprintw(monitor_status, "uptime: %s uid: %s memory: %s\n",
+              json_object_get_string(jso_uptime),
+              json_object_get_string(jso_uid),
+              json_object_get_string(jso_mem));
+
+      wprintw(monitor_status, "module_name: %s probes: %d \n",
+              json_object_get_string(jso_name),
+              num_probes);
+
+      col = 0;
+      col += snprintf(monitor_out, max_cols, "globals: ");
+      it = json_object_iter_begin(jso_globals);
+      it_end = json_object_iter_end(jso_globals);
+      while (!json_object_iter_equal(&it, &it_end))
+        {
+          printed = snprintf(monitor_str, max_cols, "%s: %s ",
+                             json_object_iter_peek_name(&it),
+                             json_object_get_string(json_object_iter_peek_value(&it))) + 1;
+
+          /* Prevent line folding for globals */
+          if ((max_cols - (col + printed)) >= 0)
+            {
+              col += snprintf(monitor_out+col, printed, "%s", monitor_str);
+              json_object_iter_next(&it);
+            }
+          else if (printed > max_cols)
+            {
+              /* Skip globals that do not fit on one line */
+              json_object_iter_next(&it);
+            }
+          else
+            {
+              wprintw(monitor_status, "%s\n", monitor_out);
+              col = 0;
+            }
+        }
+      if (col != 0)
+        wprintw(monitor_status, "%s\n", monitor_out);
+
+
+      /* Find max width of each field for alignment uses */
+      for (i = 0; i < num_probes; i++)
+        {
+          json_object *probe, *field;
+          probe = json_object_array_get_idx(jso_probe_list, i);
+
+          json_object_object_get_ex(probe, "index", &field);
+          width[p_index] = MAX(width[p_index], strlen(json_object_get_string(field)));
+          json_object_object_get_ex(probe, "state", &field);
+          width[p_state] = MAX(width[p_state], strlen(json_object_get_string(field)));
+          json_object_object_get_ex(probe, "hits", &field);
+          width[p_hits] = MAX(width[p_hits], strlen(json_object_get_string(field)));
+          json_object_object_get_ex(probe, "min", &field);
+          width[p_min] = MAX(width[p_min], strlen(json_object_get_string(field)));
+          json_object_object_get_ex(probe, "avg", &field);
+          width[p_avg] = MAX(width[p_avg], strlen(json_object_get_string(field)));
+          json_object_object_get_ex(probe, "max", &field);
+          width[p_max] = MAX(width[p_max], strlen(json_object_get_string(field)));
+          json_object_object_get_ex(probe, "name", &field);
+          width[p_name] = MAX(width[p_name], strlen(json_object_get_string(field)));
+        }
+
+      json_object_array_sort(jso_probe_list, comp_fn[comp_fn_index]);
+
+      if (active_window == 0)
+        wattron(monitor_status, A_BOLD);
+      wprintw(monitor_status, "\n%*s\t%*s\t%*s\t%*s\t%*s\t%*s\t%s\n",
+              width[p_index], HIGHLIGHT("index", p_index, comp_fn_index),
+              width[p_state], HIGHLIGHT("state", p_state, comp_fn_index),
+              width[p_hits], HIGHLIGHT("hits", p_hits, comp_fn_index),
+              width[p_min], HIGHLIGHT("min", p_min, comp_fn_index),
+              width[p_avg], HIGHLIGHT("avg", p_avg, comp_fn_index),
+              width[p_max], HIGHLIGHT("max", p_max, comp_fn_index),
+              HIGHLIGHT("name", p_name, comp_fn_index));
+      if (active_window == 0)
+        wattroff(monitor_status, A_BOLD);
+
+      getyx(monitor_status, cur_y, cur_x);
+      if (probe_scroll >= num_probes)
+        probe_scroll = num_probes-1;
+      for (i = probe_scroll; i < MIN(num_probes, probe_scroll+max_rows-cur_y); i++)
+        {
+          json_object *probe, *field;
+          probe = json_object_array_get_idx(jso_probe_list, i);
+          json_object_object_get_ex(probe, "index", &field);
+          wprintw(monitor_status, "%*s\t", width[p_index], json_object_get_string(field));
+          json_object_object_get_ex(probe, "state", &field);
+          wprintw(monitor_status, "%*s\t", width[p_state], json_object_get_string(field));
+          json_object_object_get_ex(probe, "hits", &field);
+          wprintw(monitor_status, "%*s\t", width[p_hits], json_object_get_string(field));
+          json_object_object_get_ex(probe, "min", &field);
+          wprintw(monitor_status, "%*s\t", width[p_min], json_object_get_string(field));
+          json_object_object_get_ex(probe, "avg", &field);
+          wprintw(monitor_status, "%*s\t", width[p_avg], json_object_get_string(field));
+          json_object_object_get_ex(probe, "max", &field);
+          wprintw(monitor_status, "%*s\t", width[p_max], json_object_get_string(field));
+          getyx(monitor_status, cur_y, cur_x);
+          json_object_object_get_ex(probe, "name", &field);
+          wprintw(monitor_status, "%.*s", max_cols-cur_x-1, json_object_get_string(field));
+          wprintw(monitor_status, "\n");
+        }
+    }
+  else /* ! jso */
+    {
+      wmove(monitor_status, 0, 0);
+      wprintw(monitor_status, "(data not available)");
+    }
+
+  update_panels();
+  doupdate();
 }
 
 
@@ -605,11 +633,6 @@ void monitor_input(void)
               write_command("pause");
               break;
             case 'q':
-              if (status_hidden)
-                {
-                  status_hidden = 0;
-                  handle_resize();
-                }
               if (monitor_state == exited)
                 cleanup_and_exit(0, 0 /* error_detected unavailable here */ );
               else
@@ -619,7 +642,16 @@ void monitor_input(void)
               monitor_state = insert;
               break;
             case 'h':
-              monitor_state = (monitor_state == exited) ? exited_help : help;
+              if (panel_hidden(help_panel))
+                {
+                  show_panel(help_border_panel);
+                  show_panel(help_panel);
+                }
+              else
+                {
+                  hide_panel(help_border_panel);
+                  hide_panel(help_panel);
+                }
               break;
             case 'x':
               status_hidden ^= 1;
@@ -653,12 +685,6 @@ void monitor_input(void)
             input = 1;
           }
         break;
-      case help:
-      case exited_help:
-        ch = getch();
-        if(ch == 'h')
-          monitor_state = (monitor_state == exited_help) ? exited : normal;
-        break;
     }
 }
 
@@ -675,3 +701,4 @@ void monitor_exited(void) {}
 void monitor_remember_output_line(const char* buf, const size_t bytes) { (void)buf; (void) bytes; }
 
 #endif
+/* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */
