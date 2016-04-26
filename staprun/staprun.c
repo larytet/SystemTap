@@ -229,9 +229,13 @@ static void remove_all_modules(void)
 
 	moddir = opendir(base);
 	if (moddir) {
-		while ((d = readdir(moddir)))
+		while ((d = readdir(moddir))) {
+                        if (strcmp(d->d_name, ".") == 0) continue;
+                        if (strcmp(d->d_name, "..") == 0) continue;
+                        relay_basedir_fd = -1; /* each time! */
 			if (remove_module(d->d_name, 0) == 0)
 				printf("Module %s removed.\n", d->d_name);
+                }
 		closedir(moddir);
 	}
 }
@@ -256,7 +260,8 @@ static int remove_module(const char *name, int verb)
         /* We call init_ctl_channel/close_ctl_channel to check whether
            the module is a systemtap-built one (having the right files),
            and that it's already unattached (because otherwise it'd EBUSY
-           the opens. */
+           the opens, and that it belongs to our uid (because otherwise
+           a faccessat(2) test on the .cmd file will fail). */
         ret = init_ctl_channel (name, 0);
         if (ret < 0) {
                 err("'%s' is not a zombie systemtap module.\n", name);
