@@ -541,7 +541,7 @@ void monitor_input(void)
       char *p = h_queue.linebuf; /* scan position */
       char *p_end = h_queue.linebuf + h_queue.linebuf_ptr + bytes; /* one past last byte */
       char *line = p;
-      while (p <= p_end)
+      while (p < p_end)
         {
           if (*p == '\n') /* got a line */
             {
@@ -551,19 +551,10 @@ void monitor_input(void)
           p ++;
         }
 
-      if (line != p)
-        {
-          /* Move trailing partial line (if any) to front of buffer. */
-          memmove (h_queue.linebuf, line, (p_end - line));
-          h_queue.linebuf_ptr = (p_end - line);
-        }
-      else
-        {
-          /* No line found in entire buffer!  Pretend it was all one line. */
-          monitor_remember_output_line(line, (p_end - line));
-          h_queue.linebuf_ptr = 0;
-        }
-    }          
+      /* Flush remaining output */
+      monitor_remember_output_line(line, (p_end - line));
+      h_queue.linebuf_ptr = 0;
+    }
 
   getmaxyx(monitor_output, max_rows, max_cols);
   getyx(monitor_status, cur_y, cur_x);
