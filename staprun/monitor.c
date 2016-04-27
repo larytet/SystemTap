@@ -47,17 +47,19 @@ static enum state
   normal,
   exited,
   insert,
-} monitor_state; 
+} monitor_state;
 
 static History_Queue h_queue;
 static char probe[MAX_INDEX_LEN];
-static WINDOW *monitor_status = NULL;
-static WINDOW *monitor_output = NULL;
-static WINDOW *help_win = NULL;
-static WINDOW *help_border_win = NULL;
+static WINDOW *status = NULL;
+static WINDOW *output = NULL;
+static WINDOW *help = NULL;
+static WINDOW *status_border = NULL;
+static WINDOW *help_border = NULL;
 static PANEL *status_panel = NULL;
 static PANEL *output_panel = NULL;
 static PANEL *help_panel = NULL;
+static PANEL *status_border_panel = NULL;
 static PANEL *help_border_panel = NULL;
 static int comp_fn_index = 0;
 static int num_probes = 0;
@@ -161,25 +163,6 @@ static int comp_name(const void *p1, const void *p2)
   return strcmp(json_object_get_string(name1), json_object_get_string(name2));
 }
 
-static void help_msg()
-{
-  wattron(help_win, A_BOLD);
-  wprintw(help_win, "MONITOR MODE COMMANDS\n");
-  wattroff(help_win, A_BOLD);
-  wprintw(help_win, "h - Show/Hide help page.\n");
-  wprintw(help_win, "c - Reset all global variables to initial state, zeroes if unset.\n");
-  wprintw(help_win, "s - Rotate sort columns for probes.\n");
-  wprintw(help_win, "t - Open a prompt to enter the index of a probe to toggle.\n");
-  wprintw(help_win, "p/r - Pause/Resume script by toggling off/on all probes.\n");
-  wprintw(help_win, "x - Hide/Show the status window.\n");
-  wprintw(help_win, "q - Quit script.\n");
-  wprintw(help_win, "j,k/DownArrow,UpArrow - Scroll down/up by one entry.\n");
-  wprintw(help_win, "PgDown/PgUp - Scroll down/up by one page.\n");
-  wprintw(help_win, "Home/End - Scroll to beginning/end.\n");
-  wprintw(help_win, "Tab - Toggle scroll window.\n");
-  box(help_border_win, 0 ,0);
-}
-
 static void write_command(const char *msg)
 {
   char path[PATH_MAX];
@@ -198,56 +181,90 @@ static void write_command(const char *msg)
   fclose(fp);
 }
 
+static void clear_screen()
+{
+  if (status)
+    {
+      del_panel(status_panel);
+      del_panel(status_border_panel);
+      delwin(status);
+      delwin(status_border);
+      status = NULL;
+    }
+  if (output)
+    {
+      del_panel(output_panel);
+      delwin(output);
+      output = NULL;
+    }
+  if (help)
+    {
+      del_panel(help_border_panel);
+      del_panel(help_panel);
+      delwin(help_border);
+      delwin(help);
+      help = NULL;
+    }
+}
+
+static void setup_status_window()
+{
+  /* Status window not needed when hidden */
+  if (!status_hidden)
+    {
+      status_border = newwin(LINES/2, COLS, 0, 0);
+      status_border_panel = new_panel(status_border);
+      status = newwin(LINES/2-2, COLS-2, 1, 1);
+      status_panel = new_panel(status);
+      box(status_border, 0 ,0);
+    }
+}
+
+static void setup_output_window()
+{
+  /* Use the entire screen if not displaying status */
+  if (status_hidden)
+    output = newwin(LINES,COLS,0,0);
+  else
+    output = newwin(LINES/2,COLS,LINES/2,0);
+  output_panel = new_panel(output);
+  scrollok(output, TRUE);
+}
+
+static void setup_help_window()
+{
+  help_border = newwin((2.0/3)*LINES+2, (2.0/3)*COLS+2, LINES/6-1, COLS/6-1);
+  help = newwin((2.0/3)*LINES, (2.0/3)*COLS, LINES/6, COLS/6);
+  help_border_panel = new_panel(help_border);
+  help_panel = new_panel(help);
+  hide_panel(help_border_panel);
+  hide_panel(help_panel);
+  box(help_border, 0 ,0);
+  wattron(help, A_BOLD);
+  wprintw(help, "MONITOR MODE COMMANDS\n");
+  wattroff(help, A_BOLD);
+  wprintw(help, "h - Show/Hide help page.\n");
+  wprintw(help, "c - Reset all global variables to initial state, zeroes if unset.\n");
+  wprintw(help, "s - Rotate sort columns for probes.\n");
+  wprintw(help, "t - Open a prompt to enter the index of a probe to toggle.\n");
+  wprintw(help, "p/r - Pause/Resume script by toggling off/on all probes.\n");
+  wprintw(help, "x - Hide/Show the status window.\n");
+  wprintw(help, "q - Quit script.\n");
+  wprintw(help, "j,k/DownArrow,UpArrow - Scroll down/up by one entry.\n");
+  wprintw(help, "PgDown/PgUp - Scroll down/up by one page.\n");
+  wprintw(help, "Home/End - Scroll to beginning/end.\n");
+  wprintw(help, "Tab - Toggle scroll window.\n");
+}
+
 static void handle_resize()
 {
   usleep (500*1000); /* prevent too many allocations */
   endwin();
   refresh();
-
-  if (monitor_status)
-    {
-      del_panel(status_panel);
-      delwin(monitor_status);
-      monitor_status = NULL;
-    }
-  if (monitor_output)
-    {
-      del_panel(output_panel);
-      delwin(monitor_output);
-      monitor_output = NULL;
-    }
-  if (help_win)
-    {
-      del_panel(help_border_panel);
-      del_panel(help_panel);
-      delwin(help_border_win);
-      delwin(help_win);
-      help_win = NULL;
-    }
-
-  /* Status window not needed when hidden */
-  if (!status_hidden)
-    {
-      monitor_status = newwin(LINES/2,COLS,0,0);
-      status_panel = new_panel(monitor_status);
-    }
-
-  /* Use the entire screen if not displaying status */
-  if (status_hidden)
-    monitor_output = newwin(LINES,COLS,0,0);
-  else
-    monitor_output = newwin(LINES/2,COLS,LINES/2,0);
-  output_panel = new_panel(monitor_output);
-  scrollok(monitor_output, TRUE);
-
-  help_border_win = newwin((2.0/3)*LINES+2, (2.0/3)*COLS+2, LINES/6-1, COLS/6-1);
-  help_win = newwin((2.0/3)*LINES, (2.0/3)*COLS, LINES/6, COLS/6);
-  help_border_panel = new_panel(help_border_win);
-  help_panel = new_panel(help_win);
-  hide_panel(help_border_panel);
-  hide_panel(help_panel);
-  help_msg();
-
+  clear_screen();
+  setup_status_window();
+  setup_output_window();
+  setup_help_window();
   resized = 0;
 }
 
@@ -266,27 +283,14 @@ void monitor_setup(void)
   noecho();
   keypad(stdscr, TRUE);
   nodelay(stdscr, TRUE);
-  monitor_status = newwin(LINES/2,COLS,0,0);
-  monitor_output = newwin(LINES/2,COLS,LINES/2,0);
-  scrollok(monitor_output, TRUE);
-  help_border_win = newwin((2.0/3)*LINES+2, (2.0/3)*COLS+2, LINES/6-1, COLS/6-1);
-  help_win = newwin((2.0/3)*LINES, (2.0/3)*COLS, LINES/6, COLS/6);
-  status_panel = new_panel(monitor_status);
-  output_panel = new_panel(monitor_output);
-  help_border_panel = new_panel(help_border_win);
-  help_panel = new_panel(help_win);
-  hide_panel(help_border_panel);
-  hide_panel(help_panel);
-  help_msg();
+  setup_status_window();
+  setup_output_window();
+  setup_help_window();
 }
 
 void monitor_cleanup(void)
 {
   monitor_end = 1;
-  if (monitor_status) delwin(monitor_status);
-  if (monitor_output) delwin(monitor_output);
-  if (help_win) delwin(help_win);
-  if (help_border_win) delwin(help_border_win);
   endwin();
 }
 
@@ -297,18 +301,18 @@ void monitor_render(void)
   time_t current_time = time(NULL);
   int monitor_x, monitor_y, max_cols, max_rows, cur_y, cur_x;
   int i;
-  
+
   if (resized)
     handle_resize();
 
   /* Bound scrolling by window height and entry count */
-  getmaxyx(monitor_output, max_rows, max_cols);
+  getmaxyx(output, max_rows, max_cols);
   output_scroll = MIN(MAX(0, h_queue.count-max_rows+1), output_scroll);
 
   /* Render previously recorded output */
-  wclear(monitor_output);
+  wclear(output);
   for (i = 0; i < h_queue.count-output_scroll; i++)
-    wprintw(monitor_output, "%s", h_queue.lines[(h_queue.oldest+i) % MAX_HISTORY]);
+    wprintw(output, "%s", h_queue.lines[(h_queue.oldest+i) % MAX_HISTORY]);
   update_panels();
   doupdate();
 
@@ -321,7 +325,7 @@ void monitor_render(void)
   start_time = current_time;
   input = 0;
 
-  getmaxyx(monitor_status, monitor_y, monitor_x);
+  getmaxyx(status, monitor_y, monitor_x);
   max_rows = monitor_y;
   max_cols = MIN(MAX_COLS, monitor_x);
 
@@ -346,16 +350,13 @@ void monitor_render(void)
       jso = json_tokener_parse(json);
     }
 
-  wclear(monitor_status);
-  
+  wclear(status);
+
   if (monitor_state == insert)
-    mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
-  else if (monitor_state == normal)
-    mvwprintw(monitor_status, max_rows-1, 0,
-              "RUNNING: press h for help\n");
+    mvwprintw(status, max_rows-1, 0, "enter probe index: %s\n", probe);
   else if (monitor_state == exited)
-    mvwprintw(monitor_status, max_rows-1, 0,
-              "EXITED: press h for help, q to quit\n");
+    mvwprintw(status, max_rows-1, 0,
+              "EXITED: press q again to quit\n");
 
   if (jso)
     {
@@ -379,14 +380,14 @@ void monitor_render(void)
       json_object_object_get_ex(jso, "probe_list", &jso_probe_list);
       num_probes = json_object_array_length(jso_probe_list);
 
-      wmove(monitor_status, 0, 0);
+      wmove(status, 0, 0);
 
-      wprintw(monitor_status, "uptime: %s uid: %s memory: %s\n",
+      wprintw(status, "uptime: %s uid: %s memory: %s\n",
               json_object_get_string(jso_uptime),
               json_object_get_string(jso_uid),
               json_object_get_string(jso_mem));
 
-      wprintw(monitor_status, "module_name: %s probes: %d \n",
+      wprintw(status, "module_name: %s probes: %d \n",
               json_object_get_string(jso_name),
               num_probes);
 
@@ -413,12 +414,12 @@ void monitor_render(void)
             }
           else
             {
-              wprintw(monitor_status, "%s\n", monitor_out);
+              wprintw(status, "%s\n", monitor_out);
               col = 0;
             }
         }
       if (col != 0)
-        wprintw(monitor_status, "%s\n", monitor_out);
+        wprintw(status, "%s\n", monitor_out);
 
 
       /* Find max width of each field for alignment uses */
@@ -446,8 +447,8 @@ void monitor_render(void)
       json_object_array_sort(jso_probe_list, comp_fn[comp_fn_index]);
 
       if (active_window == 0)
-        wattron(monitor_status, A_BOLD);
-      wprintw(monitor_status, "\n%*s\t%*s\t%*s\t%*s\t%*s\t%*s\t%s\n",
+        wattron(status, A_BOLD);
+      wprintw(status, "\n%*s\t%*s\t%*s\t%*s\t%*s\t%*s\t%s\n",
               width[p_index], HIGHLIGHT("index", p_index, comp_fn_index),
               width[p_state], HIGHLIGHT("state", p_state, comp_fn_index),
               width[p_hits], HIGHLIGHT("hits", p_hits, comp_fn_index),
@@ -456,9 +457,9 @@ void monitor_render(void)
               width[p_max], HIGHLIGHT("max", p_max, comp_fn_index),
               HIGHLIGHT("name", p_name, comp_fn_index));
       if (active_window == 0)
-        wattroff(monitor_status, A_BOLD);
+        wattroff(status, A_BOLD);
 
-      getyx(monitor_status, cur_y, cur_x);
+      getyx(status, cur_y, cur_x);
       if (probe_scroll >= num_probes)
         probe_scroll = num_probes-1;
       for (i = probe_scroll; i < MIN(num_probes, probe_scroll+max_rows-cur_y); i++)
@@ -466,34 +467,32 @@ void monitor_render(void)
           json_object *probe, *field;
           probe = json_object_array_get_idx(jso_probe_list, i);
           json_object_object_get_ex(probe, "index", &field);
-          wprintw(monitor_status, "%*s\t", width[p_index], json_object_get_string(field));
+          wprintw(status, "%*s\t", width[p_index], json_object_get_string(field));
           json_object_object_get_ex(probe, "state", &field);
-          wprintw(monitor_status, "%*s\t", width[p_state], json_object_get_string(field));
+          wprintw(status, "%*s\t", width[p_state], json_object_get_string(field));
           json_object_object_get_ex(probe, "hits", &field);
-          wprintw(monitor_status, "%*s\t", width[p_hits], json_object_get_string(field));
+          wprintw(status, "%*s\t", width[p_hits], json_object_get_string(field));
           json_object_object_get_ex(probe, "min", &field);
-          wprintw(monitor_status, "%*s\t", width[p_min], json_object_get_string(field));
+          wprintw(status, "%*s\t", width[p_min], json_object_get_string(field));
           json_object_object_get_ex(probe, "avg", &field);
-          wprintw(monitor_status, "%*s\t", width[p_avg], json_object_get_string(field));
+          wprintw(status, "%*s\t", width[p_avg], json_object_get_string(field));
           json_object_object_get_ex(probe, "max", &field);
-          wprintw(monitor_status, "%*s\t", width[p_max], json_object_get_string(field));
-          getyx(monitor_status, cur_y, cur_x);
+          wprintw(status, "%*s\t", width[p_max], json_object_get_string(field));
+          getyx(status, cur_y, cur_x);
           json_object_object_get_ex(probe, "name", &field);
-          wprintw(monitor_status, "%.*s", max_cols-cur_x-1, json_object_get_string(field));
-          wprintw(monitor_status, "\n");
+          wprintw(status, "%.*s", max_cols-cur_x-1, json_object_get_string(field));
+          wprintw(status, "\n");
         }
     }
   else /* ! jso */
     {
-      wmove(monitor_status, 0, 0);
-      wprintw(monitor_status, "(data not available)");
+      wmove(status, 0, 0);
+      wprintw(status, "(data not available)");
     }
 
   update_panels();
   doupdate();
 }
-
-
 
 void monitor_remember_output_line(const char* buf, const size_t bytes)
 {
@@ -506,15 +505,12 @@ void monitor_remember_output_line(const char* buf, const size_t bytes)
   else
     h_queue.oldest = (h_queue.oldest+1) % MAX_HISTORY;
 }
-  
-
 
 void monitor_exited(void)
 {
   monitor_state = exited;
   input = 1;
 }
-
 
 void monitor_input(void)
 {
@@ -526,7 +522,7 @@ void monitor_input(void)
   /* NB: monitor_pfd[0] is the read side, O_NONBLOCK, of the pipe
      that collects/serializes all the per-cpu outputs.  We can't
      use stdio calls. */
-  
+
   /* Collect normal systemtap output */
   while (monitor_set)
     {
@@ -556,8 +552,8 @@ void monitor_input(void)
       h_queue.linebuf_ptr = 0;
     }
 
-  getmaxyx(monitor_output, max_rows, max_cols);
-  getyx(monitor_status, cur_y, cur_x);
+  getmaxyx(output, max_rows, max_cols);
+  getyx(status, cur_y, cur_x);
   (void) max_cols; /* Unused */
   (void) cur_x; /* Unused */
 
@@ -678,8 +674,6 @@ void monitor_input(void)
         break;
     }
 }
-
-
 
 #else /* ! HAVE_MONITOR_LIBS */
 
