@@ -751,7 +751,8 @@ passes_0_4 (systemtap_session &s)
             }
         }
     }
-  else if (s.cmdline_script.empty()) // -e ''
+  else if (s.cmdline_script.empty() &&
+           s.dump_mode == systemtap_session::dump_none) // -e ''
     {
       cerr << _("Input file '<input>' is empty.") << endl;
       rc++;
