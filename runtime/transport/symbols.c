@@ -249,7 +249,12 @@ static int _stp_module_update_self (void)
 		}
 		else if (!strcmp(".symtab", attr->name)) {
 #ifdef STAPCONF_MOD_KALLSYMS
-			struct mod_kallsyms *kallsyms = rcu_dereference_sched(mod->kallsyms);
+			struct mod_kallsyms *kallsyms;
+
+			rcu_read_lock_sched();
+			kallsyms = rcu_dereference_sched(mod->kallsyms);
+			rcu_read_unlock_sched();
+
 			if (attr->address == (unsigned long) kallsyms->symtab)
 				_stp_module_self.sections[0].size =
 					kallsyms->num_symtab * sizeof(kallsyms->symtab[0]);
