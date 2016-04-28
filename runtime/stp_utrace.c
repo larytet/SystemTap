@@ -66,17 +66,23 @@ struct utrace {
 	unsigned int vfork_stop:1; /* need utrace_stop() before vfork wait */
 	unsigned int death:1;	/* in utrace_report_death() now */
 	unsigned int reap:1;	/* release_task() has run */
-	unsigned int pending_attach:1; /* need splice_attaching() */
-	unsigned int task_work_added:1; /* called task_work_add() on 'work' */
-	unsigned int report_work_added:1; /* called task_work_add()
-					   * on 'report_work' */
+	unsigned int pending_attach:1;	/* need splice_attaching() */
+
+	/* We need the '*_work_added' variables to be atomic so they
+	 * can be modified without locking the utrace struct. This is
+	 * typically done in atomic context where we can't grab the
+	 * lock. */
+	atomic_t resume_work_added;	/* called task_work_add() on
+					 * 'resume_work' */
+	atomic_t report_work_added;	/* called task_work_add() on
+					 * 'report_work' */
 
 	unsigned long utrace_flags;
 
 	struct hlist_node hlist;       /* task_utrace_table linkage */
 	struct task_struct *task;
 
-	struct task_work work;
+	struct task_work resume_work;
 	struct task_work report_work;
 };
 
@@ -349,17 +355,20 @@ static int utrace_exit(void)
 static void
 stp_task_notify_resume(struct task_struct *target, struct utrace *utrace)
 {
-	if (! utrace->task_work_added) {
-		int rc = stp_task_work_add(target, &utrace->work);
-		if (rc == 0) {
-			utrace->task_work_added = 1;
-		}
-		/* stp_task_work_add() returns -ESRCH if the task has
-		 * already passed exit_task_work(). Just ignore this
-		 * error. */
-		else if (rc != -ESRCH) {
-			printk(KERN_ERR "%s:%d - task_work_add() returned %d\n",
-			       __FUNCTION__, __LINE__, rc);
+	if (atomic_add_unless(&utrace->resume_work_added, 1, 1)) {
+		int rc = stp_task_work_add(target, &utrace->resume_work);
+		if (rc != 0) {
+			atomic_set(&utrace->report_work_added, 0);
+
+			/* stp_task_work_add() returns -ESRCH if the
+			 * task has already passed
+			 * exit_task_work(). Just ignore this
+			 * error. */
+			if (rc != -ESRCH) {
+				printk(KERN_ERR
+				       "%s:%d - task_work_add() returned %d\n",
+				       __FUNCTION__, __LINE__, rc);
+			}
 		}
 	}
 }
@@ -394,8 +403,9 @@ static void utrace_cleanup(struct utrace *utrace)
 	    list_del(&engine->entry);
 	    kmem_cache_free(utrace_engine_cachep, engine);
 	}
+	stp_spin_unlock(&utrace->lock);
 
-	if (utrace->task_work_added) {
+	if (atomic_add_unless(&utrace->resume_work_added, -1, 0)) {
 #ifdef STP_TF_DEBUG
 		if (stp_task_work_cancel(utrace->task, &utrace_resume) == NULL)
 			printk(KERN_ERR "%s:%d - task_work_cancel() failed? task %p, %d, %s\n",
@@ -406,9 +416,8 @@ static void utrace_cleanup(struct utrace *utrace)
 #else
 		stp_task_work_cancel(utrace->task, &utrace_resume);
 #endif
-		utrace->task_work_added = 0;
 	}
-	if (utrace->report_work_added) {
+	if (atomic_add_unless(&utrace->report_work_added, -1, 0)) {
 #ifdef STP_TF_DEBUG
 		if (stp_task_work_cancel(utrace->task, &utrace_report_work) == NULL)
 			printk(KERN_ERR "%s:%d - task_work_cancel() failed? task %p, %d, %s\n",
@@ -419,9 +428,7 @@ static void utrace_cleanup(struct utrace *utrace)
 #else
 		stp_task_work_cancel(utrace->task, &utrace_report_work);
 #endif
-		utrace->report_work_added = 0;
 	}
-	stp_spin_unlock(&utrace->lock);
 
 	/* Free the struct utrace itself. */
 	kmem_cache_free(utrace_cachep, utrace);
@@ -522,8 +529,10 @@ static bool utrace_task_alloc(struct task_struct *task)
 	INIT_LIST_HEAD(&utrace->attaching);
 	utrace->resume = UTRACE_RESUME;
 	utrace->task = task;
-	stp_init_task_work(&utrace->work, &utrace_resume);
+	stp_init_task_work(&utrace->resume_work, &utrace_resume);
 	stp_init_task_work(&utrace->report_work, &utrace_report_work);
+	atomic_set(&utrace->resume_work_added, 0);
+	atomic_set(&utrace->report_work_added, 0);
 
 	stp_spin_lock(&task_utrace_lock);
 	u = __task_utrace_struct(task);
@@ -558,8 +567,8 @@ static void utrace_free(struct utrace *utrace)
 	stp_spin_unlock(&task_utrace_lock);
 
 	/* Free the utrace struct. */
-	stp_spin_lock(&utrace->lock);
 #ifdef STP_TF_DEBUG
+	stp_spin_lock(&utrace->lock);
 	if (unlikely(utrace->reporting)
 	    || unlikely(!list_empty(&utrace->attached))
 	    || unlikely(!list_empty(&utrace->attaching)))
@@ -567,27 +576,31 @@ static void utrace_free(struct utrace *utrace)
 		       __FUNCTION__, __LINE__, utrace->reporting,
 		       list_empty(&utrace->attached),
 		       list_empty(&utrace->attaching));
+	stp_spin_unlock(&utrace->lock);
 #endif
 
-	if (utrace->task_work_added) {
-		if (stp_task_work_cancel(utrace->task, &utrace_resume) == NULL)
-			printk(KERN_ERR "%s:%d - task_work_cancel() failed? task %p, %d, %s\n",
+	if (atomic_add_unless(&utrace->resume_work_added, -1, 0)) {
+		if ((stp_task_work_cancel(utrace->task, &utrace_resume)
+		     == NULL)
+		    && (utrace->task->flags & ~PF_EXITING)
+		    && (utrace->task->exit_state == 0))
+			printk(KERN_ERR "%s:%d * task_work_cancel() failed? task %p, %d, %s, 0x%lx 0x%x\n",
 			       __FUNCTION__, __LINE__, utrace->task,
 			       utrace->task->tgid,
 			       (utrace->task->comm ? utrace->task->comm
-				: "UNKNOWN"));
-		utrace->task_work_added = 0;
+				: "UNKNOWN"), utrace->task->state, utrace->task->exit_state);
 	}
-	if (utrace->report_work_added) {
-		if (stp_task_work_cancel(utrace->task, &utrace_report_work) == NULL)
-			printk(KERN_ERR "%s:%d - task_work_cancel() failed? task %p, %d, %s\n",
+	if (atomic_add_unless(&utrace->report_work_added, -1, 0)) {
+		if ((stp_task_work_cancel(utrace->task, &utrace_report_work)
+		     == NULL)
+		    && (utrace->task->flags & ~PF_EXITING)
+		    && (utrace->task->exit_state == 0))
+			printk(KERN_ERR "%s:%d ** task_work_cancel() failed? task %p, %d, %s, 0x%lx, 0x%x\n",
 			       __FUNCTION__, __LINE__, utrace->task,
 			       utrace->task->tgid,
 			       (utrace->task->comm ? utrace->task->comm
-				: "UNKNOWN"));
-		utrace->report_work_added = 0;
+				: "UNKNOWN"), utrace->task->state, utrace->task->exit_state);
 	}
-	stp_spin_unlock(&utrace->lock);
 
 	kmem_cache_free(utrace_cachep, utrace);
 }
@@ -2257,7 +2270,7 @@ static void utrace_report_death(void *cb_data __attribute__ ((unused)),
 	 * of detach bookkeeping.
 	 */
 	if (in_atomic() || irqs_disabled()) {
-		if (! utrace->report_work_added) {
+		if (atomic_add_unless(&utrace->report_work_added, 1, 1)) {
 			int rc;
 #ifdef STP_TF_DEBUG
 			printk(KERN_ERR "%s:%d - adding task_work\n",
@@ -2265,17 +2278,17 @@ static void utrace_report_death(void *cb_data __attribute__ ((unused)),
 #endif
 			rc = stp_task_work_add(task,
 					       &utrace->report_work);
-			if (rc == 0) {
-				utrace->report_work_added = 1;
-			}
-			/* stp_task_work_add() returns -ESRCH if the
-			 * task has already passed
-			 * exit_task_work(). Just ignore this
-			 * error. */
-			else if (rc != -ESRCH) {
-				printk(KERN_ERR
-				       "%s:%d - task_work_add() returned %d\n",
-				       __FUNCTION__, __LINE__, rc);
+			if (rc != 0) {
+				atomic_set(&utrace->report_work_added, 0);
+				/* stp_task_work_add() returns -ESRCH
+				 * if the task has already passed
+				 * exit_task_work(). Just ignore this
+				 * error. */
+				if (rc != -ESRCH) {
+					printk(KERN_ERR
+					       "%s:%d - task_work_add() returned %d\n",
+					       __FUNCTION__, __LINE__, rc);
+				}
 			}
 		}
 	}
@@ -2337,13 +2350,13 @@ static void utrace_resume(struct task_work *work)
 	 * instantaneous (where 'task_utrace_struct()' has to do a
 	 * hash lookup).
 	 */
-	struct utrace *utrace = container_of(work, struct utrace, work);
+	struct utrace *utrace = container_of(work, struct utrace, resume_work);
 	struct task_struct *task = current;
 	INIT_REPORT(report);
 	struct utrace_engine *engine;
 
 	might_sleep();
-	utrace->task_work_added = 0;
+	atomic_set(&utrace->resume_work_added, 0);
 
 	/* Make sure the task isn't exiting. */
 	if (task->flags & PF_EXITING) {
@@ -2436,8 +2449,8 @@ static void utrace_report_work(struct task_work *work)
 	       __FUNCTION__, __LINE__, in_atomic(), irqs_disabled());
 #endif
 	might_sleep();
-	utrace->report_work_added = 0;
 
+	atomic_set(&utrace->report_work_added, 0);
 	stp_spin_lock(&utrace->lock);
 	BUG_ON(utrace->death);
 	utrace->death = 1;
