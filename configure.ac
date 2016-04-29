@@ -88,6 +88,21 @@ AS_IF([test "x$enable_sdt_probes" != xno], [
             [Define to 1 to enable process.mark probes in stap, staprun, stapio.])
 ])
 
+dnl We're now requiring *some* C++11, using RHEL6 (gcc 4.4.7) as a baseline.
+dnl This is too strict about __cplusplus for gcc < 4.7, so we have a manual fallback.
+AX_CXX_COMPILE_STDCXX(11, noext, optional)
+AS_IF([test "x$HAVE_CXX11" != x1],[
+  AC_LANG_PUSH(C++)
+  AX_CHECK_COMPILE_FLAG([-std=c++0x], [
+      AC_MSG_NOTICE([Compiling with -std=c++0x])
+      CXX="$CXX -std=c++0x"
+      HAVE_CXX11=1
+    ], [
+      AC_MSG_ERROR([A compiler with C++11 support is required.])
+    ])
+  AC_LANG_POP(C++)
+  ])
+
 AC_ARG_ENABLE([ssp],
   [AS_HELP_STRING([--disable-ssp], [disable gcc stack-protector])])
 AS_IF([test "x$enable_ssp" != xno],[
@@ -718,12 +733,6 @@ AS_IF([test "x$with_extra_version" != "xno"], [
     stap_extra_version=""])
 AC_DEFINE_UNQUOTED(STAP_EXTRA_VERSION, "$stap_extra_version", [extra stap version code])
 AC_SUBST(STAP_EXTRA_VERSION, "$stap_extra_version")
-
-dnl The stap translator stringtable benefits performance-wise from c++11 constructs.
-AX_CHECK_COMPILE_FLAG([-std=c++11],[cxx11="-std=c++11"],[cxx11=""])
-AS_IF([test "x$cxx11" != "x"],[
-        AC_MSG_NOTICE([Compiling parts of systemtap with -std=c++11])])
-AC_SUBST(cxx11)
 
 dnl This is here mainly to make sure that configure --prefix=... changes
 dnl the config.h files so files depending on it are recompiled
