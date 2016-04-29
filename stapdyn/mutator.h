@@ -26,9 +26,6 @@ extern "C" {
 #include "../runtime/dyninst/stapdyn.h"
 }
 
-#if __cplusplus >= 201103L /* -std=c++11 */
-#define typeof(x) decltype(x)
-#endif
 
 // The mutator drives all instrumentation.
 class mutator {
@@ -74,7 +71,7 @@ class mutator {
     boost::shared_ptr<mutatee> find_mutatee(BPatch_process* process);
 
     // Stashed utrace probe enter function pointer.
-    typeof(&enter_dyninst_utrace_probe) utrace_enter_fn;
+    decltype(&enter_dyninst_utrace_probe) utrace_enter_fn;
   public:
 
     mutator (const std::string& module_name,

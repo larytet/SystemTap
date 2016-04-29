@@ -318,7 +318,7 @@ mutator::attach_process(pid_t pid)
 bool
 mutator::init_modoptions()
 {
-  typeof(&stp_global_setter) global_setter = NULL;
+  decltype(&stp_global_setter) global_setter = NULL;
   set_dlsym(global_setter, module, "stp_global_setter", false);
 
   if (global_setter == NULL)
@@ -364,7 +364,7 @@ mutator::init_modoptions()
 void
 mutator::init_session_attributes()
 {
-  typeof(&stp_global_setter) global_setter = NULL;
+  decltype(&stp_global_setter) global_setter = NULL;
   set_dlsym(global_setter, module, "stp_global_setter", false);
 
   if (global_setter == NULL)
@@ -440,8 +440,8 @@ mutator::run_module_init()
     return false;
 
   // First see if this is a shared-memory, multiprocess-capable module
-  typeof(&stp_dyninst_shm_init) shm_init = NULL;
-  typeof(&stp_dyninst_shm_connect) shm_connect = NULL;
+  decltype(&stp_dyninst_shm_init) shm_init = NULL;
+  decltype(&stp_dyninst_shm_connect) shm_connect = NULL;
   set_dlsym(shm_init, module, "stp_dyninst_shm_init", false);
   set_dlsym(shm_connect, module, "stp_dyninst_shm_connect", false);
   if (shm_init && shm_connect)
@@ -467,7 +467,7 @@ mutator::run_module_init()
   // From here, either this is a shared-memory module,
   // or we have no target and thus run init directly anyway.
 
-  typeof(&stp_dyninst_session_init) session_init = NULL;
+  decltype(&stp_dyninst_session_init) session_init = NULL;
   try
     {
       set_dlsym(session_init, module, "stp_dyninst_session_init");
@@ -521,7 +521,7 @@ mutator::run_module_exit()
   // From here, either this is a shared-memory module,
   // or we have no target and thus run exit directly anyway.
 
-  typeof(&stp_dyninst_session_exit) session_exit = NULL;
+  decltype(&stp_dyninst_session_exit) session_exit = NULL;
   try
     {
       set_dlsym(session_exit, module, "stp_dyninst_session_exit");
@@ -655,7 +655,7 @@ int mutator::exit_status ()
   // NB: Only shm modules are new enough to have stp_dyninst_exit_status at
   // all, so we don't need to try in-target for old modules like session_exit.
 
-  typeof(&stp_dyninst_exit_status) get_exit_status = NULL;
+  decltype(&stp_dyninst_exit_status) get_exit_status = NULL;
   set_dlsym(get_exit_status, module, "stp_dyninst_exit_status", false);
   if (get_exit_status)
     {
