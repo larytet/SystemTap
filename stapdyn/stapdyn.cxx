@@ -146,11 +146,7 @@ main(int argc, char * const argv[])
   if (!check_dyninst_sebools(pid != 0))
     return 1;
 
-#if __cplusplus >= 201103L /* -std=c++11 */
   unique_ptr<mutator> session(new mutator(module, modoptions));
-#else
-  auto_ptr<mutator> session(new mutator(module, modoptions));
-#endif
   if (!session.get() || !session->load())
     {
       staperror() << "Failed to create the mutator!" << endl;
