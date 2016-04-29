@@ -244,7 +244,6 @@ extern int ncpus;
 extern int initialized;
 extern int kernel_ptr_size;
 extern int monitor_pfd[2];
-extern int monitor_set;
 extern int monitor_end;
 
 /* flags */

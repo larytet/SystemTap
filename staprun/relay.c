@@ -13,8 +13,6 @@
 #include "staprun.h"
 
 int out_fd[NR_CPUS];
-int monitor_pfd[2];
-int monitor_set = 0;
 int monitor_end = 0;
 static pthread_t reader[NR_CPUS];
 static int relay_fd[NR_CPUS];
@@ -26,6 +24,7 @@ static volatile int stop_threads = 0;
 static time_t *time_backlog[NR_CPUS];
 static int backlog_order=0;
 #define BACKLOG_MASK ((1 << backlog_order) - 1)
+#define MONITORLINELENGTH 4096
 
 #ifdef NEED_PPOLL
 int ppoll(struct pollfd *fds, nfds_t nfds,
@@ -139,7 +138,7 @@ static void *reader_thread(void *data)
 
 	sigfillset(&sigs);
 	sigdelset(&sigs,SIGUSR2);
-	
+
 	if (bulkmode) {
 		cpu_set_t cpu_mask;
 		CPU_ZERO(&cpu_mask);
@@ -160,7 +159,7 @@ static void *reader_thread(void *data)
                 timeout->tv_sec = reader_timeout_ms / 1000;
                 timeout->tv_nsec = (reader_timeout_ms - timeout->tv_sec * 1000) * 1000000;
         }
-	
+
 	pollfd.fd = relay_fd[cpu];
 	pollfd.events = POLLIN;
 
@@ -194,7 +193,7 @@ static void *reader_thread(void *data)
 		while ((rc = read(relay_fd[cpu], buf, sizeof(buf))) > 0) {
                         int wbytes = rc;
                         char *wbuf = buf;
-                        
+
 			/* Switching file */
 			pthread_mutex_lock(&mutex[cpu]);
 			if ((fsize_max && ((wsize + rc) > fsize_max)) ||
@@ -212,15 +211,37 @@ static void *reader_thread(void *data)
                         /* Copy loop.  Must repeat write(2) in case of a pipe overflow
                            or other transient fullness. */
                         while (wbytes > 0) {
-                                rc = write(out_fd[cpu], wbuf, wbytes);
-                                if (rc <= 0) {
-					perr("Couldn't write to output %d for cpu %d, exiting.",
-                                             out_fd[cpu], cpu);
-                                        goto error_out;
-                                }
-                                wbytes -= rc;
-                                wbuf += rc;
-                                wsize += rc;
+				if (monitor) {
+					ssize_t bytes = wbytes > MONITORLINELENGTH ? MONITORLINELENGTH : wbytes;
+					/* Start scanning the wbuf[] for lines - \n.
+					  Plop each one found into the h_queue.lines[] ring. */
+					char *p = wbuf; /* scan position */
+					char *p_end = wbuf + bytes; /* one past last byte */
+					char *line = p;
+					while (p < p_end) {
+						if (*p == '\n') { /* got a line */
+							monitor_remember_output_line(line, (p-line)+1); /* strlen, including \n */
+							line = p+1;
+						}
+						p++;
+					}
+					/* Flush remaining output */
+					if (line != p_end)
+						monitor_remember_output_line(line, (p_end - line));
+					wbytes -= bytes;
+					wbuf += bytes;
+					wsize += bytes;
+				} else {
+	                                rc = write(out_fd[cpu], wbuf, wbytes);
+	                                if (rc <= 0) {
+						perr("Couldn't write to output %d for cpu %d, exiting.",
+	                                             out_fd[cpu], cpu);
+	                                        goto error_out;
+	                                }
+	                                wbytes -= rc;
+	                                wbuf += rc;
+	                                wsize += rc;
+				}
                         }
 		}
         } while (!stop_threads);
@@ -281,7 +302,7 @@ int init_relayfs(void)
 	char rqbuf[128];
         char buf[PATH_MAX];
         struct sigaction sa;
-        
+
 	dbug(2, "initializing relayfs\n");
 
 	reader[0] = (pthread_t)0;
@@ -370,7 +391,7 @@ int init_relayfs(void)
 				if (sprintf_chk(buf, "stpd_cpu%d", avail_cpus[i]))
 					return -1;
 			}
-			
+
 			out_fd[avail_cpus[i]] = open_cloexec (buf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
 			if (out_fd[avail_cpus[i]] < 0) {
 				perr("Couldn't open output file %s", buf);
@@ -392,24 +413,7 @@ int init_relayfs(void)
 				return -1;
 			}
 		} else
-			if (monitor) {
-				if (pipe_cloexec(monitor_pfd)) {
-					perr("Couldn't create pipe");
-					return -1;
-				}
-				fcntl(monitor_pfd[0], F_SETFL, O_NONBLOCK); /* read end */
-                                /* NB: leave write end of pipe normal blocking mode, since
-                                   that's the same mode as for STDOUT_FILENO. */
-				/* fcntl(monitor_pfd[1], F_SETFL, O_NONBLOCK); */ 
-#ifdef HAVE_F_SETPIPE_SZ
-                                /* Make it less likely for the pipe to be full. */
-				/* fcntl(monitor_pfd[1], F_SETPIPE_SZ, 8*65536); */
-#endif
-				monitor_set = 1;
-				out_fd[avail_cpus[0]] = monitor_pfd[1];
-			} else {
-				out_fd[avail_cpus[0]] = STDOUT_FILENO;
-			}
+			out_fd[avail_cpus[0]] = STDOUT_FILENO;
 	}
 
         memset(&sa, 0, sizeof(sa));
@@ -432,7 +436,7 @@ int init_relayfs(void)
                         return -1;
                 }
         }
-	
+
 	return 0;
 }
 
@@ -464,4 +468,3 @@ void close_relayfs(void)
 	}
 	dbug(2, "done\n");
 }
-
