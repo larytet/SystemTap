@@ -14,8 +14,8 @@
 #include <string>
 #include <cstring>
 
-// TODO use C++17's std::string_view when possible
-// (some already have std::experimental::string_view)
+// TODO use C++17's std::string_view when possible.  It even hashes natively.
+// (some compilers already have std::experimental::string_view)
 
 #if defined(HAVE_BOOST_UTILITY_STRING_REF_HPP)
 #include <boost/version.hpp>
@@ -108,6 +108,26 @@ private:
   // This is private so we can be sure of ownership, from our interned string table.
   interned_string(const boost::string_ref& value): boost::string_ref(value) {}
 };
+
+namespace std {
+  template<> struct hash<interned_string> {
+    size_t operator() (interned_string s) const
+    {
+      // NB: we'd love to be able to hook up to a blob hashing
+      // function in std::hash, but there isn't one.  We don't want
+      // to copy the interned_string into a temporary string just to
+      // hash the thing.
+      //
+      // This code is based on the g++ _Fnv_hash_base ptr/length case.
+      size_t hash = 0;
+      const char* x = s.data();
+      for (size_t i=s.length(); i>0; i--)
+        hash = (hash * 131) + *x++;
+      return hash;
+    }
+  };
+}
+
 #else /* !defined(HAVE_BOOST_UTILITY_STRING_REF_HPP) */
 
 struct interned_string : public std::string {
@@ -136,26 +156,17 @@ private:
   const char* c_str() const;
 };
 
-#endif /* defined(HAVE_BOOST_UTILITY_STRING_REF_HPP) */
-
 namespace std {
   template<> struct hash<interned_string> {
-    size_t operator() (interned_string s) const
+    size_t operator() (interned_string const& s) const
     {
-      // NB: we'd love to be able to hook up to a blob hashing
-      // function in std::hash, but there isn't one.  We don't want
-      // to copy the interned_string into a temporary string just to
-      // hash the thing.
-      //
-      // This code is based on the g++ _Fnv_hash_base ptr/length case.
-      size_t hash = 0;
-      const char* x = s.data();
-      for (size_t i=s.length(); i>0; i--)
-        hash = (hash * 131) + *x++;
-      return hash;
+      // strings are directly hashable
+      return hash<string>()(s);
     }
   };
 }
+
+#endif /* defined(HAVE_BOOST_UTILITY_STRING_REF_HPP) */
 
 #endif // STRINGTABLE_H
 
