@@ -509,8 +509,6 @@ AC_SUBST(DATE, "$date")
 # This is no longer necessary.
 
 AC_LANG_PUSH(C++)
-# Use tr1/unordered_map if available, else ext/hash_map
-AC_CHECK_HEADERS([tr1/unordered_map])
 # Use boost::string_ref if available
 AC_CHECK_HEADERS([boost/utility/string_ref.hpp])
 AC_LANG_POP(C++)

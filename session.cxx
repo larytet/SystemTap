@@ -497,9 +497,6 @@ systemtap_session::version ()
 #ifdef ENABLE_PROLOGUES
        << " PROLOGUES"
 #endif
-#ifdef HAVE_TR1_UNORDERED_MAP
-       << " TR1_UNORDERED_MAP"
-#endif
 #ifdef HAVE_LIBREADLINE
        << " READLINE"
 #endif
