@@ -19,7 +19,6 @@
 #include "util.h"
 #include "buildrun.h"
 #include "dwarf_wrappers.h"
-#include "auto_free.h"
 #include "hash.h"
 #include "dwflpp.h"
 #include "setupdwfl.h"

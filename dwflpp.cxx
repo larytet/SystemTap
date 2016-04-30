@@ -20,7 +20,6 @@
 #include "util.h"
 #include "buildrun.h"
 #include "dwarf_wrappers.h"
-#include "auto_free.h"
 #include "hash.h"
 #include "rpm_finder.h"
 #include "setupdwfl.h"
