@@ -14,6 +14,9 @@
 #include <string>
 #include <cstring>
 
+// TODO use C++17's std::string_view when possible
+// (some already have std::experimental::string_view)
+
 #if defined(HAVE_BOOST_UTILITY_STRING_REF_HPP)
 #include <boost/version.hpp>
 #include <boost/utility/string_ref.hpp> //header with string_ref
