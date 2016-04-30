@@ -5439,7 +5439,7 @@ typeresolution_info::typeresolution_info (systemtap_session& s):
   num_available_autocasts(0),
   assert_resolvability(false), mismatch_complexity(0),
   current_function(0), current_probe(0), t(pe_unknown),
-  null_type(new exp_type_null())
+  null_type(make_shared<exp_type_null>())
 {
 }
 

@@ -3613,8 +3613,8 @@ synthetic_embedded_deref_call(dwflpp& dw,
   fdecl->unmangled_name = fdecl->name = "__private_" + fhash + function_name;
   // The fdecl type is generic, but we'll be detailed on the fcall below.
   fdecl->type = pe_long;
-  fdecl->type_details.reset(new exp_type_dwarf(&dw, function_type,
-                                               userspace_p, e->addressof));
+  fdecl->type_details = make_shared<exp_type_dwarf>(&dw, function_type,
+                                                    userspace_p, e->addressof);
 
   embeddedcode *ec = new embeddedcode;
   ec->tok = e->tok;
@@ -10229,7 +10229,7 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
       symbol* sym = new symbol;
       sym->tok = e->tok;
       sym->name = "__tracepoint_arg_" + arg->name;
-      sym->type_details.reset(new exp_type_dwarf(&dw, &arg->type_die, false, false));
+      sym->type_details = make_shared<exp_type_dwarf>(&dw, &arg->type_die, false, false);
       provide (sym);
     }
   else
