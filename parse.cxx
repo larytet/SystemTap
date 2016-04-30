@@ -15,7 +15,6 @@
 #include "session.h"
 #include "util.h"
 #include "stringtable.h"
-#include "unordered.h"
 
 #include <iostream>
 
@@ -29,6 +28,7 @@
 #include <cstring>
 #include <cctype>
 #include <iterator>
+#include <unordered_set>
 
 extern "C" {
 #include <fnmatch.h>

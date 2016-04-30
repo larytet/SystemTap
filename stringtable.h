@@ -10,6 +10,7 @@
 #ifndef STRINGTABLE_H
 #define STRINGTABLE_H
 
+#include <functional>
 #include <string>
 #include <cstring>
 
@@ -134,6 +135,24 @@ private:
 
 #endif /* defined(HAVE_BOOST_UTILITY_STRING_REF_HPP) */
 
+namespace std {
+  template<> struct hash<interned_string> {
+    size_t operator() (interned_string s) const
+    {
+      // NB: we'd love to be able to hook up to a blob hashing
+      // function in std::hash, but there isn't one.  We don't want
+      // to copy the interned_string into a temporary string just to
+      // hash the thing.
+      //
+      // This code is based on the g++ _Fnv_hash_base ptr/length case.
+      size_t hash = 0;
+      const char* x = s.data();
+      for (size_t i=s.length(); i>0; i--)
+        hash = (hash * 131) + *x++;
+      return hash;
+    }
+  };
+}
 
 #endif // STRINGTABLE_H
 

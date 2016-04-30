@@ -15,7 +15,6 @@
 #include "dwarf_wrappers.h"
 #include "elaborate.h"
 #include "session.h"
-#include "unordered.h"
 #include "setupdwfl.h"
 #include "stringtable.h"
 
@@ -24,6 +23,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 // Old elf.h doesn't know about this machine type.
@@ -49,38 +49,38 @@ enum lineno_t { ABSOLUTE, RELATIVE, WILDCARD, ENUMERATED };
 enum info_status { info_unknown, info_present, info_absent };
 
 // module -> cu die[]
-typedef unordered_map<Dwarf*, std::vector<Dwarf_Die>*> module_cu_cache_t;
+typedef std::unordered_map<Dwarf*, std::vector<Dwarf_Die>*> module_cu_cache_t;
 
 // An instance of this type tracks whether the type units for a given
 // Dwarf have been read.
 typedef std::set<Dwarf*> module_tus_read_t;
 
 // typename -> die
-typedef unordered_map<std::string, Dwarf_Die> cu_type_cache_t;
+typedef std::unordered_map<std::string, Dwarf_Die> cu_type_cache_t;
 
 // cu die -> (typename -> die)
-typedef unordered_map<void*, cu_type_cache_t*> mod_cu_type_cache_t;
+typedef std::unordered_map<void*, cu_type_cache_t*> mod_cu_type_cache_t;
 
 // function -> die
-typedef unordered_multimap<interned_string, Dwarf_Die> cu_function_cache_t;
+typedef std::unordered_multimap<interned_string, Dwarf_Die> cu_function_cache_t;
 typedef std::pair<cu_function_cache_t::iterator,
                   cu_function_cache_t::iterator>
         cu_function_cache_range_t;
 
 // cu die -> (function -> die)
-typedef unordered_map<void*, cu_function_cache_t*> mod_cu_function_cache_t;
+typedef std::unordered_map<void*, cu_function_cache_t*> mod_cu_function_cache_t;
 
 // module -> (function -> die)
-typedef unordered_map<Dwarf*, cu_function_cache_t*> mod_function_cache_t;
+typedef std::unordered_map<Dwarf*, cu_function_cache_t*> mod_function_cache_t;
 
 // inline function die -> instance die[]
-typedef unordered_map<void*, std::vector<Dwarf_Die>*> cu_inl_function_cache_t;
+typedef std::unordered_map<void*, std::vector<Dwarf_Die>*> cu_inl_function_cache_t;
 
 // die -> parent die
-typedef unordered_map<void*, Dwarf_Die> cu_die_parent_cache_t;
+typedef std::unordered_map<void*, Dwarf_Die> cu_die_parent_cache_t;
 
 // cu die -> (die -> parent die)
-typedef unordered_map<void*, cu_die_parent_cache_t*> mod_cu_die_parent_cache_t;
+typedef std::unordered_map<void*, cu_die_parent_cache_t*> mod_cu_die_parent_cache_t;
 
 // Dwarf_Line[] (sorted by lineno)
 typedef std::vector<Dwarf_Line*> lines_t;
@@ -89,10 +89,10 @@ typedef std::pair<lines_t::iterator,
         lines_range_t;
 
 // srcfile -> Dwarf_Line[]
-typedef unordered_map<std::string, lines_t*> srcfile_lines_cache_t;
+typedef std::unordered_map<std::string, lines_t*> srcfile_lines_cache_t;
 
 // cu die -> (srcfile -> Dwarf_Line[])
-typedef unordered_map<void*, srcfile_lines_cache_t*> cu_lines_cache_t;
+typedef std::unordered_map<void*, srcfile_lines_cache_t*> cu_lines_cache_t;
 
 typedef std::vector<base_func_info> base_func_info_map_t;
 typedef std::vector<func_info> func_info_map_t;

@@ -8,13 +8,13 @@
 
 #include "config.h"
 #include "stringtable.h"
-#include "unordered.h"
 
 #include "stap-probe.h"
 
 #include <string>
 #include <cstring>
 #include <fstream>
+#include <unordered_set>
 
 
 using namespace std;
