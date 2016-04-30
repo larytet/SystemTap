@@ -16,9 +16,6 @@
 /* Define to 1 if you have the avahi libraries. */
 #undef HAVE_AVAHI
 
-/* Define to 1 if you have the <boost/shared_ptr.hpp> header file. */
-#undef HAVE_BOOST_SHARED_PTR_HPP
-
 /* Define to 1 if you have the <boost/utility/string_ref.hpp> header file. */
 #undef HAVE_BOOST_UTILITY_STRING_REF_HPP
 
@@ -121,9 +118,6 @@
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
-
-/* Define to 1 if you have the <tr1/memory> header file. */
-#undef HAVE_TR1_MEMORY
 
 /* Define to 1 if you have the <tr1/unordered_map> header file. */
 #undef HAVE_TR1_UNORDERED_MAP

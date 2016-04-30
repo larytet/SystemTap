@@ -270,7 +270,7 @@ mutator::create_process(const string& command)
       return false;
     }
 
-  boost::shared_ptr<mutatee> m(new mutatee(app));
+  auto m = make_shared<mutatee>(app);
   mutatees.push_back(m);
   target_mutatee = m;
   p_target_created = true;
@@ -301,7 +301,7 @@ mutator::attach_process(pid_t pid)
       return false;
     }
 
-  boost::shared_ptr<mutatee> m(new mutatee(app));
+  auto m = make_shared<mutatee>(app);
   mutatees.push_back(m);
   target_mutatee = m;
   p_target_created = false;
@@ -553,7 +553,7 @@ mutator::update_mutatees()
 
   for (size_t i = 0; i < mutatees.size();)
     {
-      boost::shared_ptr<mutatee> m = mutatees[i];
+      auto m = mutatees[i];
       if (m != target_mutatee && m->is_terminated())
         {
           mutatees.erase(mutatees.begin() + i);
@@ -669,13 +669,13 @@ int mutator::exit_status ()
 
 
 // Find a mutatee which matches the given process, else return NULL
-boost::shared_ptr<mutatee>
+shared_ptr<mutatee>
 mutator::find_mutatee(BPatch_process* process)
 {
   for (size_t i = 0; i < mutatees.size(); ++i)
     if (*mutatees[i] == process)
       return mutatees[i];
-  return boost::shared_ptr<mutatee>();
+  return {};
 }
 
 
@@ -692,7 +692,7 @@ mutator::dynamic_library_callback(BPatch_thread *thread,
   BPatch_process* process = thread->getProcess();
   staplog(1) << "dlopen \"" << object->name()
              << "\", pid = " << process->getPid() << endl;
-  boost::shared_ptr<mutatee> mut = find_mutatee(process);
+  auto mut = find_mutatee(process);
   if (mut)
     mut->instrument_object_dynprobes(object, targets);
 }
@@ -712,11 +712,11 @@ mutator::post_fork_callback(BPatch_thread *parent, BPatch_thread *child)
   staplog(1) << "post fork, parent " << parent_process->getPid()
 	     << ", child " << child_process->getPid() << endl;
 
-  boost::shared_ptr<mutatee> mut = find_mutatee(parent_process);
+  auto mut = find_mutatee(parent_process);
   if (mut)
     {
       // Clone the mutatee for the new process.
-      boost::shared_ptr<mutatee> m(new mutatee(child_process));
+      auto m = make_shared<mutatee>(child_process);
       mutatees.push_back(m);
       m->copy_forked_instrumentation(*mut);
 
@@ -738,7 +738,7 @@ mutator::exec_callback(BPatch_thread *thread)
 
   staplog(1) << "exec, pid = " << process->getPid() << endl;
 
-  boost::shared_ptr<mutatee> mut = find_mutatee(process);
+  auto mut = find_mutatee(process);
   if (mut)
     {
       // Clear previous instrumentation
@@ -785,7 +785,7 @@ mutator::exit_callback(BPatch_thread *thread,
   int pid = process->getPid();
   staplog(1) << "exit callback, pid = " << pid << endl;
 
-  boost::shared_ptr<mutatee> mut = find_mutatee(process);
+  auto mut = find_mutatee(process);
   if (mut)
     {
       // FIXME: We'd like to call the mutatee's exit_callback()
@@ -833,7 +833,7 @@ mutator::thread_create_callback(BPatch_process *proc, BPatch_thread *thread)
   if (!proc || !thread)
     return;
 
-  boost::shared_ptr<mutatee> mut = find_mutatee(proc);
+  auto mut = find_mutatee(proc);
   if (mut)
     mut->thread_callback(thread, true);
 }
@@ -845,7 +845,7 @@ mutator::thread_destroy_callback(BPatch_process *proc, BPatch_thread *thread)
   if (!proc || !thread)
     return;
 
-  boost::shared_ptr<mutatee> mut = find_mutatee(proc);
+  auto mut = find_mutatee(proc);
   if (mut)
     mut->thread_callback(thread, false);
 }

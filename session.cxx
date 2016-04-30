@@ -467,9 +467,6 @@ systemtap_session::version ()
 #ifdef HAVE_AVAHI
        << " AVAHI"
 #endif
-#ifdef HAVE_BOOST_SHARED_PTR_HPP
-       << " BOOST_SHARED_PTR"
-#endif
 #ifdef HAVE_BOOST_UTILITY_STRING_REF_HPP
        << " BOOST_STRING_REF"
 #endif

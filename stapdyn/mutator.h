@@ -9,10 +9,9 @@
 #ifndef MUTATOR_H
 #define MUTATOR_H
 
+#include <memory>
 #include <string>
 #include <vector>
-
-#include <boost/shared_ptr.hpp>
 
 #include <BPatch.h>
 #include <BPatch_module.h>
@@ -38,8 +37,8 @@ class mutator {
     std::string module_shmem; // the global name of this module's shared memory
     std::vector<dynprobe_target> targets; // the probe targets in the module
 
-    std::vector<boost::shared_ptr<mutatee> > mutatees; // all attached target processes
-    boost::shared_ptr<mutatee> target_mutatee; // the main target process we created or attached
+    std::vector<std::shared_ptr<mutatee> > mutatees; // all attached target processes
+    std::shared_ptr<mutatee> target_mutatee; // the main target process we created or attached
     bool p_target_created; // we only kill and wait on the target we created
     bool p_target_error; // indicates whether the target exited non-zero;
 
@@ -68,7 +67,7 @@ class mutator {
     bool matching_probes_exist(uint64_t flag);
 
     // Find a mutatee which matches the given process, else return NULL
-    boost::shared_ptr<mutatee> find_mutatee(BPatch_process* process);
+    std::shared_ptr<mutatee> find_mutatee(BPatch_process* process);
 
     // Stashed utrace probe enter function pointer.
     decltype(&enter_dyninst_utrace_probe) utrace_enter_fn;

@@ -11,6 +11,7 @@
 #define STAPTREE_H
 
 #include <map>
+#include <memory>
 #include <stack>
 #include <set>
 #include <string>
@@ -25,16 +26,6 @@ extern "C" {
 
 #include "util.h"
 #include "stringtable.h"
-
-#if defined(HAVE_TR1_MEMORY)
-#include <tr1/memory>
-using std::tr1::shared_ptr;
-#elif defined(HAVE_BOOST_SHARED_PTR_HPP)
-#include <boost/shared_ptr.hpp>
-using boost::shared_ptr;
-#else
-#error "No shared_ptr implementation found; get boost or modern g++"
-#endif
 
 
 struct token; // parse.h
@@ -133,7 +124,7 @@ struct exp_type_details
   virtual bool expandable() const = 0;
   virtual functioncall *expand(autocast_op* e, bool lvalue) = 0;
 };
-typedef shared_ptr<exp_type_details> exp_type_ptr;
+typedef std::shared_ptr<exp_type_details> exp_type_ptr;
 
 
 struct token;

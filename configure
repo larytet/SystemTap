@@ -11507,13 +11507,13 @@ DATE="$date"
 # being compiled on 32-bit userspace but running against 64-bit kernels.
 # This is no longer necessary.
 
-# Use tr1/unordered_map if available
 ac_ext=cpp
 ac_cpp='$CXXCPP $CPPFLAGS'
 ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
+# Use tr1/unordered_map if available, else ext/hash_map
 ac_ext=cpp
 ac_cpp='$CXXCPP $CPPFLAGS'
 ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -11660,30 +11660,7 @@ fi
 
 done
 
-for ac_header in tr1/memory
-do :
-  ac_fn_cxx_check_header_mongrel "$LINENO" "tr1/memory" "ac_cv_header_tr1_memory" "$ac_includes_default"
-if test "x$ac_cv_header_tr1_memory" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_TR1_MEMORY 1
-_ACEOF
-
-fi
-
-done
-
-for ac_header in boost/shared_ptr.hpp
-do :
-  ac_fn_cxx_check_header_mongrel "$LINENO" "boost/shared_ptr.hpp" "ac_cv_header_boost_shared_ptr_hpp" "$ac_includes_default"
-if test "x$ac_cv_header_boost_shared_ptr_hpp" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_BOOST_SHARED_PTR_HPP 1
-_ACEOF
-
-fi
-
-done
-
+# Use boost::string_ref if available
 for ac_header in boost/utility/string_ref.hpp
 do :
   ac_fn_cxx_check_header_mongrel "$LINENO" "boost/utility/string_ref.hpp" "ac_cv_header_boost_utility_string_ref_hpp" "$ac_includes_default"

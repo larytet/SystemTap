@@ -508,11 +508,10 @@ AC_SUBST(DATE, "$date")
 # being compiled on 32-bit userspace but running against 64-bit kernels.
 # This is no longer necessary.
 
-# Use tr1/unordered_map if available
 AC_LANG_PUSH(C++)
+# Use tr1/unordered_map if available, else ext/hash_map
 AC_CHECK_HEADERS([tr1/unordered_map])
-AC_CHECK_HEADERS([tr1/memory])
-AC_CHECK_HEADERS([boost/shared_ptr.hpp])
+# Use boost::string_ref if available
 AC_CHECK_HEADERS([boost/utility/string_ref.hpp])
 AC_LANG_POP(C++)
 
