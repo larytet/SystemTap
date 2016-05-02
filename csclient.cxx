@@ -1147,10 +1147,7 @@ compile_server_client::package_request ()
   client_zipfile = client_tmpdir + ".zip";
   string cmd = "cd " + cmdstr_quoted(client_tmpdir) + " && zip -qr "
       + cmdstr_quoted(client_zipfile) + " *";
-  vector<string> sh_cmd;
-  sh_cmd.push_back("sh");
-  sh_cmd.push_back("-c");
-  sh_cmd.push_back(cmd);
+  vector<string> sh_cmd { "sh", "-c", cmd };
   int rc = stap_system (s.verbose, sh_cmd);
   return rc;
 }
@@ -1383,11 +1380,7 @@ compile_server_client::unpack_response ()
 {
   // Unzip the response package.
   server_tmpdir = s.tmpdir + "/server";
-  vector<string> cmd;
-  cmd.push_back("unzip");
-  cmd.push_back("-qd");
-  cmd.push_back(server_tmpdir);
-  cmd.push_back(server_zipfile);
+  vector<string> cmd { "unzip", "-qd", server_tmpdir, server_zipfile };
   int rc = stap_system (s.verbose, cmd);
   if (rc != 0)
     {
@@ -1457,20 +1450,12 @@ compile_server_client::unpack_response ()
   // localization.
   if (server_version < "1.6")
     {
-      cmd.clear();
-      cmd.push_back("sed");
-      cmd.push_back("-i");
-      cmd.push_back("/^Keeping temporary directory.*/ d");
-      cmd.push_back(server_tmpdir + "/stderr");
+      cmd = { "sed", "-i", "/^Keeping temporary directory.*/ d", server_tmpdir + "/stderr" };
       stap_system (s.verbose, cmd);
     }
 
   // Remove the output line due to the synthetic server-side -p4
-  cmd.clear();
-  cmd.push_back("sed");
-  cmd.push_back("-i");
-  cmd.push_back("/^.*\\.ko$/ d");
-  cmd.push_back(server_tmpdir + "/stdout");
+  cmd = { "sed", "-i", "/^.*\\.ko$/ d", server_tmpdir + "/stdout" };
   stap_system (s.verbose, cmd);
 
  done:
