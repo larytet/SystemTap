@@ -85,10 +85,7 @@ class direct : public remote {
       {
         args = make_run_command(*s);
         if (! staprun_r_arg.empty()) // PR13354
-          {
-            args.push_back ("-r");
-            args.push_back (staprun_r_arg);
-          }
+          args.insert(args.end(), { "-r", staprun_r_arg });
         pid_t pid = stap_spawn (s->verbose, args);
         if (pid <= 0)
           return 1;
@@ -481,10 +478,7 @@ class stapsh : public remote {
         // PR13354: identify our remote index/url
         if (strverscmp("1.7", remote_version.c_str()) <= 0 && // -r supported?
             ! staprun_r_arg.empty())
-          {
-            cmd.push_back ("-r");
-            cmd.push_back (staprun_r_arg);
-          }
+          cmd.insert(cmd.end(), { "-r", staprun_r_arg });
 
         for (unsigned i = 1; i < cmd.size(); ++i)
           run << ' ' << qpencode(cmd[i]);
@@ -611,8 +605,7 @@ class direct_stapsh : public stapsh {
       : stapsh(s), child(0)
       {
         int in, out;
-        vector<string> cmd;
-        cmd.push_back(BINDIR "/stapsh");
+        vector<string> cmd { BINDIR "/stapsh" };
         if (s.perpass_verbose[4] > 1)
           cmd.push_back("-v");
         if (s.perpass_verbose[4] > 2)
@@ -781,26 +774,21 @@ class libvirt_stapsh : public stapsh {
           }
 
         int in, out;
-        vector<string> cmd;
 
         string stapvirt = BINDIR "/stapvirt";
         if (!file_exists(stapvirt))
           throw runtime_error(_("stapvirt missing"));
 
-        cmd.push_back(stapvirt);
+        vector<string> cmd { stapvirt };
 
         // carry verbosity into stapvirt
-        for (unsigned i = 1; i < s.perpass_verbose[4]; i++)
-          cmd.push_back("-v");
+        if (s.perpass_verbose[4] > 0)
+          cmd.insert(cmd.end(), s.perpass_verbose[4] - 1, "-v");
 
         if (!libvirt_uri.empty())
-          {
-            cmd.push_back("-c");
-            cmd.push_back(libvirt_uri);
-          }
+          cmd.insert(cmd.end(), { "-c", libvirt_uri });
 
-        cmd.push_back("connect");
-        cmd.push_back(domain);
+        cmd.insert(cmd.end(), { "connect", domain });
 
         // mask signals for stapvirt since it relies instead on stap or stapsh
         // closing its connection to know when to exit (otherwise, stapvirt
@@ -862,15 +850,9 @@ class ssh_remote : public stapsh {
       {
         int rc = 0;
         int in, out;
-        vector<string> cmd;
-        cmd.push_back("ssh");
-        cmd.push_back("-q");
-        cmd.push_back(host);
+        vector<string> cmd { "ssh", "-q", host };
         if (!port.empty())
-          {
-            cmd.push_back("-p");
-            cmd.push_back(port);
-          }
+          cmd.insert(cmd.end(), { "-p", port });
 
         // This is crafted so that we get a silent failure with status 127 if
         // the command is not found.  The combination of -P and $cmd ensures
@@ -962,6 +944,20 @@ class ssh_legacy_remote : public remote {
           }
       }
 
+    vector<string> ssh_command(initializer_list<string> ilist)
+      {
+        vector<string> cmd = ssh_args;
+        cmd.insert(cmd.end(), ilist);
+        return cmd;
+      }
+
+    int copy_to_remote(const string& local, const string& remote)
+      {
+        vector<string> cmd = scp_args;
+        cmd.insert(cmd.end(), { local, host + ":" + remote });
+        return stap_system(s->verbose, cmd);
+      }
+
     void open_control_master()
       {
         static unsigned index = 0;
@@ -971,31 +967,19 @@ class ssh_legacy_remote : public remote {
 
         ssh_control = s->tmpdir + "/ssh_remote_control_" + lex_cast(++index);
 
-        scp_args.clear();
-        scp_args.push_back("scp");
-        scp_args.push_back("-q");
-        scp_args.push_back("-o");
-        scp_args.push_back("ControlPath=" + ssh_control);
-
-        ssh_args = scp_args;
-        ssh_args[0] = "ssh";
-        ssh_args.push_back(host);
+        scp_args = { "scp", "-q", "-o", "ControlPath=" + ssh_control };
+        ssh_args = { "ssh", "-q", "-o", "ControlPath=" + ssh_control, host };
 
         if (!port.empty())
           {
-            scp_args.push_back("-P");
-            scp_args.push_back(port);
-            ssh_args.push_back("-p");
-            ssh_args.push_back(port);
+            scp_args.insert(scp_args.end(), { "-P", port });
+            ssh_args.insert(ssh_args.end(), { "-p", port });
           }
 
         // NB: ssh -f will stay in the foreground until authentication is
         // complete and the control socket is created, so we know it's ready to
         // go when stap_system returns.
-        vector<string> cmd = ssh_args;
-        cmd.push_back("-f");
-        cmd.push_back("-N");
-        cmd.push_back("-M");
+        auto cmd = ssh_command({ "-f", "-N", "-M" });
         int rc = stap_system(s->verbose, cmd);
         if (rc != 0)
           throw runtime_error(_F("failed to create an ssh control master for %s : rc= %d",
@@ -1011,9 +995,7 @@ class ssh_legacy_remote : public remote {
         if (ssh_control.empty())
           return;
 
-        vector<string> cmd = ssh_args;
-        cmd.push_back("-O");
-        cmd.push_back("exit");
+        auto cmd = ssh_command({ "-O", "exit" });
         int rc = stap_system(s->verbose, cmd, true, true);
         if (rc != 0)
           cerr << _F("failed to stop the ssh control master for %s : rc=%d",
@@ -1028,9 +1010,7 @@ class ssh_legacy_remote : public remote {
       {
         ostringstream out;
         vector<string> uname;
-        vector<string> cmd = ssh_args;
-        cmd.push_back("-t");
-        cmd.push_back("uname -rm");
+        auto cmd = ssh_command({ "-t", "uname -rm" });
         int rc = stap_system_read(s->verbose, cmd, out);
         if (rc == 0)
           tokenize(out.str(), uname, " \t\r\n");
@@ -1052,9 +1032,7 @@ class ssh_legacy_remote : public remote {
         {
           ostringstream out;
           vector<string> vout;
-          vector<string> cmd = ssh_args;
-          cmd.push_back("-t");
-          cmd.push_back("mktemp -d -t stapXXXXXX");
+          auto cmd = ssh_command({ "-t", "mktemp -d -t stapXXXXXX" });
           rc = stap_system_read(s->verbose, cmd, out);
           if (rc == 0)
             tokenize(out.str(), vout, "\r\n");
@@ -1071,10 +1049,7 @@ class ssh_legacy_remote : public remote {
         // Transfer the module.
         if (rc == 0)
           {
-            vector<string> cmd = scp_args;
-            cmd.push_back(localmodule);
-            cmd.push_back(host + ":" + tmpmodule);
-            rc = stap_system(s->verbose, cmd);
+            rc = copy_to_remote(localmodule, tmpmodule);
             if (rc != 0)
               cerr << _F("failed to copy the module to %s : rc=%d",
                          host.c_str(), rc) << endl;
@@ -1083,10 +1058,7 @@ class ssh_legacy_remote : public remote {
         // Transfer the module signature.
         if (rc == 0 && file_exists(localmodule + ".sgn"))
           {
-            vector<string> cmd = scp_args;
-            cmd.push_back(localmodule + ".sgn");
-            cmd.push_back(host + ":" + tmpmodule + ".sgn");
-            rc = stap_system(s->verbose, cmd);
+            rc = copy_to_remote(localmodule + ".sgn", tmpmodule + ".sgn");
             if (rc != 0)
               cerr << _F("failed to copy the module signature to %s : rc=%d",
                          host.c_str(), rc) << endl;
@@ -1100,14 +1072,12 @@ class ssh_legacy_remote : public remote {
 
         // Run the module on the remote.
         if (rc == 0) {
-          vector<string> cmd = ssh_args;
-          cmd.push_back("-t");
           // We don't know the actual version, but all <=1.3 are approx equal.
           vector<string> staprun_cmd = make_run_command(*s, tmpdir, "1.3");
           staprun_cmd[0] = "staprun"; // NB: The remote decides its own path
           // NB: PR13354: we assume legacy installations don't have
           // staprun -r support, so we ignore staprun_r_arg.
-          cmd.push_back(cmdstr_join(staprun_cmd));
+          auto cmd = ssh_command({ "-t", cmdstr_join(staprun_cmd) });
           pid_t pid = stap_spawn(s->verbose, cmd);
           if (pid > 0)
             child = pid;
@@ -1136,9 +1106,7 @@ class ssh_legacy_remote : public remote {
           {
             // Remove the tempdir.
             // XXX need to make sure this runs even with e.g. CTRL-C exits
-            vector<string> cmd = ssh_args;
-            cmd.push_back("-t");
-            cmd.push_back("rm -r " + cmdstr_quoted(tmpdir));
+            auto cmd = ssh_command({ "-t", "rm -r " + cmdstr_quoted(tmpdir) });
             int rc2 = stap_system(s->verbose, cmd);
             if (rc2 != 0)
               cerr << _F("failed to delete the tempdir on %s : rc=%d",
