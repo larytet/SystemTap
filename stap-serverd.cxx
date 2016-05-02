@@ -1497,16 +1497,17 @@ mok_sign_file (std::string &mok_fingerprint,
 	       const std::string &name,
 	       std::string stapstderr)
 {
-  vector<string> cmd;
   int rc;
   string mok_directory = mok_path + "/" + mok_fingerprint;
 
-  cmd.clear();
-  cmd.push_back (kernel_build_tree + "/scripts/sign-file");
-  cmd.push_back ("sha512");
-  cmd.push_back (mok_directory + MOK_PRIVATE_CERT_FILE);
-  cmd.push_back (mok_directory + MOK_PUBLIC_CERT_FILE);
-  cmd.push_back (name);
+  vector<string> cmd
+    {
+      kernel_build_tree + "/scripts/sign-file",
+      "sha512",
+      mok_directory + MOK_PRIVATE_CERT_FILE,
+      mok_directory + MOK_PUBLIC_CERT_FILE,
+      name
+    };
 
   rc = stap_system (0, cmd);
   if (rc != 0) 
@@ -1527,22 +1528,14 @@ mok_sign_file (std::string &mok_fingerprint,
 static void
 filter_response_file (const string &file_name, const string &responseDirName)
 {
-  vector<string> cmd;
-
   // Filter the server's home directory name
-  cmd.clear();
-  cmd.push_back ("sed");
-  cmd.push_back ("-i");
-  cmd.push_back (string ("s,") + get_home_directory () + ",<server>,g");
-  cmd.push_back (file_name);
+  string swap = string ("s,") + get_home_directory () + ",<server>,g";
+  vector<string> cmd { "sed", "-i", swap, file_name };
   (void) stap_system (0, cmd);
 
   // Filter the server's response directory name
-  cmd.clear();
-  cmd.push_back ("sed");
-  cmd.push_back ("-i");
-  cmd.push_back (string ("s,") + responseDirName + ",<server>,g");
-  cmd.push_back (file_name);
+  swap = string ("s,") + responseDirName + ",<server>,g";
+  cmd = { "sed", "-i", swap, file_name };
   (void) stap_system (0, cmd);
 }
 
@@ -1649,24 +1642,16 @@ generate_mok(string &mok_fingerprint)
   // Actually generate key using openssl.
   public_cert_path = tmpdir + string (MOK_PUBLIC_CERT_FILE);
   private_cert_path = tmpdir + string (MOK_PRIVATE_CERT_FILE);
-  cmd.push_back ("openssl");
-  cmd.push_back ("req");
-  cmd.push_back ("-new");
-  cmd.push_back ("-nodes");
-  cmd.push_back ("-utf8");
-  cmd.push_back ("-sha256");
-  cmd.push_back ("-days");
-  cmd.push_back ("36500");
-  cmd.push_back ("-batch");
-  cmd.push_back ("-x509");
-  cmd.push_back ("-config");
-  cmd.push_back (config_path);
-  cmd.push_back ("-outform");
-  cmd.push_back ("DER");
-  cmd.push_back ("-out");
-  cmd.push_back (public_cert_path);
-  cmd.push_back ("-keyout");
-  cmd.push_back (private_cert_path);
+
+  cmd =
+    {
+      "openssl", "req", "-new", "-nodes", "-utf8",
+      "-sha256", "-days", "36500", "-batch", "-x509",
+      "-config", config_path,
+      "-outform", "DER",
+      "-out", public_cert_path,
+      "-keyout", private_cert_path
+    };
   rc = stap_system (0, cmd);
   if (rc != 0) 
     {
@@ -1695,10 +1680,7 @@ generate_mok(string &mok_fingerprint)
 
 cleanup:
   // Remove the temporary directory.
-  cmd.clear ();
-  cmd.push_back ("rm");
-  cmd.push_back ("-rf");
-  cmd.push_back (tmpdir);
+  cmd = { "rm", "-rf", tmpdir };
   rc = stap_system (0, cmd);
   if (rc != 0)
     server_error (_("Error in tmpdir cleanup"));
@@ -2098,14 +2080,10 @@ spawn_and_wait (const vector<string> &argv, int *spawnrc,
 int
 check_uncompressed_request_size (const char * zip_file)
 {
-  vector<string> args;
   ostringstream result;
 
   // Generate the command to heck the uncompressed size
-  args.push_back("unzip");
-  args.push_back("-Zt");
-  args.push_back(zip_file);
-
+  vector<string> args { "unzip", "-Zt", zip_file };
   int rc = stap_system_read (0, args, result);
   if (rc != 0)
     {
@@ -2269,11 +2247,7 @@ handle_connection (void *arg)
 
   /* Unzip the request. */
   secStatus = SECFailure;
-  argv.push_back ("unzip");
-  argv.push_back ("-q");
-  argv.push_back ("-d");
-  argv.push_back (requestDirName);
-  argv.push_back (requestFileName);
+  argv = { "unzip", "-q", "-d", requestDirName, requestFileName };
   rc = stap_system (0, argv);
   if (rc != 0)
     {
@@ -2288,12 +2262,7 @@ handle_connection (void *arg)
 
   /* Zip the response. */
   int ziprc;
-  argv.clear ();
-  argv.push_back ("zip");
-  argv.push_back ("-q");
-  argv.push_back ("-r");
-  argv.push_back (responseFileName);
-  argv.push_back (".");
+  argv = { "zip", "-q", "-r", responseFileName, "." };
   rc = spawn_and_wait (argv, &ziprc, NULL, NULL, NULL, responseDirName);
   if (rc != PR_SUCCESS || ziprc != 0)
     {
@@ -2318,10 +2287,7 @@ cleanup:
 	log (_F("Keeping temporary directory %s", tmpdir));
       else
 	{
-	  argv.clear ();
-	  argv.push_back ("rm");
-	  argv.push_back ("-r");
-	  argv.push_back (tmpdir);
+	  argv = { "rm", "-r", tmpdir };
 	  rc = stap_system (0, argv);
 	  if (rc != 0)
 	    server_error (_("Error in tmpdir cleanup"));
