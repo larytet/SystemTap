@@ -29,6 +29,13 @@ extern "C" {
 #include <poll.h>
 }
 
+// Sanity check C++11 support.  We're only requiring GCC 4.4's level of
+// functionality, so trust either __cplusplus or the GNUC macros.
+#if !(__cplusplus >= 201103L || \
+  (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)))
+#error "C++11 support is required!"
+#endif
+
 // NB: GCC didn't add C++11 final/override until 4.7, but until then it also
 // only had __cplusplus=1 regardless of -std (GCC PR1773).  So checking new
 // __cplusplus is probably good enough here; otherwise we should autoconf it.
