@@ -92,35 +92,35 @@ run_make_cmd(systemtap_session& s, vector<string>& make_cmd,
 static vector<string>
 make_any_make_cmd(systemtap_session& s, const string& dir, const string& target)
 {
-  vector<string> make_cmd;
+  string newpath("PATH=/usr/bin:/bin");
+  const char *oldpath = getenv("PATH");
+  if (oldpath != NULL)
+    {
+      newpath += ':';
+      newpath += oldpath;
+    }
 
-  // PR14168: sanitize environment variables for kbuild invocation
-  make_cmd.push_back("env");
-  make_cmd.push_back("-uARCH");
-  make_cmd.push_back("-uKBUILD_EXTMOD");
-  make_cmd.push_back("-uCROSS_COMPILE");
-  make_cmd.push_back("-uKBUILD_IMAGE");
-  make_cmd.push_back("-uKCONFIG_CONFIG");
-  make_cmd.push_back("-uINSTALL_PATH");
-  string newpath = string("PATH=/usr/bin:/bin:") + (getenv("PATH") ?: "");
-  make_cmd.push_back(newpath.c_str());
+  vector<string> make_cmd
+    {
+      // PR14168: sanitize environment variables for kbuild invocation
+      "env", "-uARCH", "-uKBUILD_EXTMOD", "-uCROSS_COMPILE", "-uKBUILD_IMAGE",
+      "-uKCONFIG_CONFIG", "-uINSTALL_PATH", newpath,
 
-  make_cmd.push_back("make");
-  make_cmd.push_back("-C");
-  make_cmd.push_back(s.kernel_build_tree);
-  make_cmd.push_back("M=" + dir); // need make-quoting?
-  make_cmd.push_back(target);
+      "make", "-C", s.kernel_build_tree,
+      "M=" + dir, // need make-quoting?
+      target,
+
+      // PR13847: suppress debuginfo creation by default
+      "CONFIG_DEBUG_INFO=",
+
+      // RHBZ1321628: suppress stack validation; expected to be temporary
+      "CONFIG_STACK_VALIDATION=",
+    };
 
   // Add architecture, except for old powerpc (RHBZ669082)
   if (s.architecture != "powerpc" ||
       (strverscmp (s.kernel_base_release.c_str(), "2.6.15") >= 0))
     make_cmd.push_back("ARCH=" + s.architecture); // need make-quoting?
-
-  // PR13847: suppress debuginfo creation by default
-  make_cmd.insert(make_cmd.end(), "CONFIG_DEBUG_INFO=");
-
-  // RHBZ1321628: suppress stack validation; expected to be temporary
-  make_cmd.insert(make_cmd.end(), "CONFIG_STACK_VALIDATION=");
 
   // Add any custom kbuild flags
   make_cmd.insert(make_cmd.end(), s.kbuildflags.begin(), s.kbuildflags.end());
@@ -213,13 +213,13 @@ compile_dyninst (systemtap_session& s)
 {
   const string module = s.tmpdir + "/" + s.module_filename();
 
-  vector<string> cmd;
-  cmd.push_back("gcc");
-  cmd.push_back("--std=gnu99");
-  cmd.push_back("-Wall");
-  cmd.push_back(WERROR);
-  cmd.push_back("-Wno-unused");
-  cmd.push_back("-Wno-strict-aliasing");
+  vector<string> cmd
+    {
+      "gcc", "--std=gnu99", s.translated_source, "-o", module,
+      "-fvisibility=hidden", "-O2", "-I" + s.runtime_path, "-D__DYNINST__",
+      "-Wall", WERROR, "-Wno-unused", "-Wno-strict-aliasing",
+      "-pthread", "-lrt", "-fPIC", "-shared",
+    };
 
   // BZ855981/948279.  Since dyninst/runtime.h includes __sync_* calls,
   // the compiler may generate different code for it depending on -march.
@@ -229,24 +229,11 @@ compile_dyninst (systemtap_session& s)
   if (s.architecture == "i386")
     cmd.push_back("-march=i586");
 
-  cmd.push_back("-fvisibility=hidden");
-  cmd.push_back("-O2");
-  cmd.push_back("-I" + s.runtime_path);
-  cmd.push_back("-D__DYNINST__");
   for (size_t i = 0; i < s.c_macros.size(); ++i)
     cmd.push_back("-D" + s.c_macros[i]);
-  cmd.push_back(s.translated_source);
-  cmd.push_back("-pthread");
-  cmd.push_back("-lrt");
-  cmd.push_back("-fPIC");
-  cmd.push_back("-shared");
-  cmd.push_back("-o");
-  cmd.push_back(module);
+
   if (s.verbose > 3)
-    {
-      cmd.push_back("-ftime-report");
-      cmd.push_back("-Q");
-    }
+    cmd.insert(cmd.end(), { "-ftime-report", "-Q" });
 
   // Add any custom kbuild flags
   cmd.insert(cmd.end(), s.kbuildflags.begin(), s.kbuildflags.end());
@@ -723,40 +710,28 @@ vector<string>
 make_dyninst_run_command (systemtap_session& s, const string& remotedir,
 			  const string&)
 {
-  vector<string> cmd;
-  cmd.push_back(getenv("SYSTEMTAP_STAPDYN") ?: BINDIR "/stapdyn");
+  vector<string> cmd { getenv("SYSTEMTAP_STAPDYN") ?: BINDIR "/stapdyn" };
 
   // use slightly less verbosity
-  for (unsigned i=1; i<s.verbose; i++)
-    cmd.push_back("-v");
+  if (s.verbose > 0)
+    cmd.insert(cmd.end(), s.verbose - 1, "-v");
+
   if (s.suppress_warnings)
     cmd.push_back("-w");
 
   if (!s.cmd.empty())
-    {
-      cmd.push_back("-c");
-      cmd.push_back(s.cmd);
-    }
+    cmd.insert(cmd.end(), { "-c", s.cmd });
 
   if (s.target_pid)
-    {
-      cmd.push_back("-x");
-      cmd.push_back(lex_cast(s.target_pid));
-    }
+    cmd.insert(cmd.end(), { "-x", lex_cast(s.target_pid) });
 
   if (!s.output_file.empty())
-    {
-      cmd.push_back("-o");
-      cmd.push_back(s.output_file);
-    }
+    cmd.insert(cmd.end(), { "-o", s.output_file });
 
   if (s.color_mode != s.color_auto)
     {
-      cmd.push_back("-C");
-      if (s.color_mode == s.color_always)
-        cmd.push_back("always");
-      else
-        cmd.push_back("never");
+      auto mode = s.color_mode == s.color_always ? "always" : "never";
+      cmd.insert(cmd.end(), { "-C", mode });
     }
 
   cmd.push_back((remotedir.empty() ? s.tmpdir : remotedir)
@@ -776,44 +751,29 @@ make_run_command (systemtap_session& s, const string& remotedir,
     return make_dyninst_run_command(s, remotedir, version);
 
   // for now, just spawn staprun
-  vector<string> staprun_cmd;
-  staprun_cmd.push_back(getenv("SYSTEMTAP_STAPRUN") ?: BINDIR "/staprun");
+  vector<string> cmd { getenv("SYSTEMTAP_STAPRUN") ?: BINDIR "/staprun" };
 
   // use slightly less verbosity
-  for (unsigned i=1; i<s.verbose; i++)
-    staprun_cmd.push_back("-v");
+  if (s.verbose > 0)
+    cmd.insert(cmd.end(), s.verbose - 1, "-v");
+
   if (s.suppress_warnings)
-    staprun_cmd.push_back("-w");
+    cmd.push_back("-w");
 
   if (!s.output_file.empty())
-    {
-      staprun_cmd.push_back("-o");
-      staprun_cmd.push_back(s.output_file);
-    }
+    cmd.insert(cmd.end(), { "-o", s.output_file });
 
   if (!s.cmd.empty())
-    {
-      staprun_cmd.push_back("-c");
-      staprun_cmd.push_back(s.cmd);
-    }
+    cmd.insert(cmd.end(), { "-c", s.cmd });
 
   if (s.target_pid)
-    {
-      staprun_cmd.push_back("-t");
-      staprun_cmd.push_back(lex_cast(s.target_pid));
-    }
+    cmd.insert(cmd.end(), { "-t", lex_cast(s.target_pid) });
 
   if (s.target_namespaces_pid)
-    {
-      staprun_cmd.push_back("-N");
-      staprun_cmd.push_back(lex_cast(s.target_namespaces_pid));
-    }
+    cmd.insert(cmd.end(), { "-N", lex_cast(s.target_namespaces_pid) });
 
   if (s.buffer_size)
-    {
-      staprun_cmd.push_back("-b");
-      staprun_cmd.push_back(lex_cast(s.buffer_size));
-    }
+    cmd.insert(cmd.end(), { "-b", lex_cast(s.buffer_size) });
 
   if (s.need_uprobes && !kernel_built_uprobes(s))
     {
@@ -826,47 +786,37 @@ make_run_command (systemtap_session& s, const string& remotedir,
           else
             opt_u.append(remotedir + "/" + basename(s.uprobes_path.c_str()));
         }
-      staprun_cmd.push_back(opt_u);
+      cmd.push_back(opt_u);
     }
 
   if (s.load_only)
-    staprun_cmd.push_back(s.output_file.empty() ? "-L" : "-D");
+    cmd.push_back(s.output_file.empty() ? "-L" : "-D");
 
   // Note that if this system requires signed modules, we can't rename
   // it after it has been signed.
   if (!s.modname_given && (strverscmp("1.6", version.c_str()) <= 0)
       && s.mok_fingerprints.empty())
-    staprun_cmd.push_back("-R");
+    cmd.push_back("-R");
 
   if (!s.size_option.empty())
-    {
-      staprun_cmd.push_back("-S");
-      staprun_cmd.push_back(s.size_option);
-    }
+    cmd.insert(cmd.end(), { "-S", s.size_option });
 
   if (s.color_mode != s.color_auto)
     {
-      staprun_cmd.push_back("-C");
-      if (s.color_mode == s.color_always)
-        staprun_cmd.push_back("always");
-      else
-        staprun_cmd.push_back("never");
+      auto mode = s.color_mode == s.color_always ? "always" : "never";
+      cmd.insert(cmd.end(), { "-C", mode });
     }
 
   if (s.monitor)
-    {
-      staprun_cmd.push_back("-M");
-      staprun_cmd.push_back(lex_cast(s.monitor_interval));
-    }
+    cmd.insert(cmd.end(), { "-M", lex_cast(s.monitor_interval) });
 
-  staprun_cmd.push_back((remotedir.empty() ? s.tmpdir : remotedir)
+  cmd.push_back((remotedir.empty() ? s.tmpdir : remotedir)
                         + "/" + s.module_filename());
 
   // add module arguments
-  staprun_cmd.insert(staprun_cmd.end(),
-                     s.globalopts.begin(), s.globalopts.end());
+  cmd.insert(cmd.end(), s.globalopts.begin(), s.globalopts.end());
 
-  return staprun_cmd;
+  return cmd;
 }
 
 
@@ -1019,20 +969,14 @@ make_typequery_umod(systemtap_session& s, const vector<string>& headers, string&
   // cwd in this case will be the cwd of stap itself though, which may be
   // trickier to deal with.  It might be better to "cd `dirname $script`"
   // first...
-  vector<string> cmd;
-  cmd.push_back("gcc");
-  cmd.push_back("-shared");
-  cmd.push_back("-g");
-  cmd.push_back("-fno-eliminate-unused-debug-types");
-  cmd.push_back("-xc");
-  cmd.push_back("/dev/null");
-  cmd.push_back("-o");
-  cmd.push_back(name);
-  for (size_t i = 0; i < headers.size(); ++i)
+  vector<string> cmd
     {
-      cmd.push_back("-include");
-      cmd.push_back(headers[i]);
-    }
+      "gcc", "-shared", "-g", "-fno-eliminate-unused-debug-types",
+      "-xc", "/dev/null", "-o", name,
+    };
+  for (size_t i = 0; i < headers.size(); ++i)
+    cmd.insert(cmd.end(), { "-include", headers[i] });
+
   bool quiet = (s.verbose < 4);
   int rc = stap_system (s.verbose, cmd, quiet, quiet);
   if (rc)
