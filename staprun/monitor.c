@@ -13,7 +13,6 @@
 #define MAX_COLS 256
 #define MAX_DATA 262144 /* XXX: pass procfs.read().maxsize(NNN) from stap */
 #define MAX_HISTORY 8192
-#define MAX_LINELENGTH 4096
 
 #define MIN(X,Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X,Y) (((X) > (Y)) ? (X) : (Y))
@@ -23,8 +22,6 @@
 typedef struct History_Queue
 {
   char *lines[MAX_HISTORY]; /* each malloc/strdup'd(). */
-  char linebuf[MAX_LINELENGTH]; /* beyond this length, we cut up lines */
-  int linebuf_ptr; /* index into linebuf[] where next line piece should be read */
   int oldest;
   int newest;
   int count;
@@ -50,6 +47,7 @@ static enum state
 } monitor_state;
 
 static History_Queue h_queue;
+static pthread_mutex_t mutex;
 static char probe[MAX_INDEX_LEN];
 static WINDOW *status = NULL;
 static WINDOW *output = NULL;
@@ -275,6 +273,7 @@ void monitor_winch(__attribute__((unused)) int signum)
 
 void monitor_setup(void)
 {
+  pthread_mutex_init(&mutex, NULL);
   probe[0] = '\0';
   start_time = time(NULL);
   initscr();
@@ -290,6 +289,7 @@ void monitor_setup(void)
 
 void monitor_cleanup(void)
 {
+  pthread_mutex_destroy(&mutex);
   monitor_end = 1;
   endwin();
 }
@@ -312,8 +312,10 @@ void monitor_render(void)
 
   /* Render previously recorded output */
   wclear(output);
+  pthread_mutex_lock(&mutex);
   for (i = 0; i < h_queue.count-output_scroll; i++)
     wprintw(output, "%s", h_queue.lines[(h_queue.oldest+i) % MAX_HISTORY]);
+  pthread_mutex_unlock(&mutex);
   update_panels();
   doupdate();
 
@@ -496,8 +498,10 @@ void monitor_render(void)
   (void) discard; /* Unused */
 }
 
+/* Called in staprun/relay.c */
 void monitor_remember_output_line(const char* buf, const size_t bytes)
 {
+  pthread_mutex_lock(&mutex);
   free (h_queue.lines[h_queue.newest]);
   h_queue.lines[h_queue.newest] = strndup(buf, bytes);
   h_queue.newest = (h_queue.newest+1) % MAX_HISTORY;
@@ -506,6 +510,7 @@ void monitor_remember_output_line(const char* buf, const size_t bytes)
     h_queue.count++; /* and h_queue.oldest stays at 0 */
   else
     h_queue.oldest = (h_queue.oldest+1) % MAX_HISTORY;
+  pthread_mutex_unlock(&mutex);
 }
 
 void monitor_exited(void)
@@ -521,39 +526,6 @@ void monitor_input(void)
   int max_rows;
   int cur_y;
   int discard;
-
-  /* NB: monitor_pfd[0] is the read side, O_NONBLOCK, of the pipe
-     that collects/serializes all the per-cpu outputs.  We can't
-     use stdio calls. */
-
-  /* Collect normal systemtap output */
-  while (monitor_set)
-    {
-      ssize_t bytes = read(monitor_pfd[0],
-                           h_queue.linebuf + h_queue.linebuf_ptr,
-                           MAX_LINELENGTH - h_queue.linebuf_ptr);
-      if (bytes <= 0)
-        break;
-
-      /* Start scanning the linebuf[] for lines - \n.
-         Plop each one found into the h_queue.lines[] ring. */
-      char *p = h_queue.linebuf; /* scan position */
-      char *p_end = h_queue.linebuf + h_queue.linebuf_ptr + bytes; /* one past last byte */
-      char *line = p;
-      while (p < p_end)
-        {
-          if (*p == '\n') /* got a line */
-            {
-              monitor_remember_output_line(line, (p-line)+1); /* strlen, including \n */
-              line = p+1;
-            }
-          p ++;
-        }
-
-      /* Flush remaining output */
-      monitor_remember_output_line(line, (p_end - line));
-      h_queue.linebuf_ptr = 0;
-    }
 
   getmaxyx(output, max_rows, discard);
   getyx(status, cur_y, discard);

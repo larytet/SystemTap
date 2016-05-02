@@ -80,11 +80,12 @@ static struct context * _stp_runtime_entryfn_get_context(void)
 
 static inline void _stp_runtime_entryfn_put_context(struct context *c)
 {
-	if (c && c == _stp_runtime_get_context()) {
-		atomic_dec(&c->busy);
+	if (c) {
+		if (c == _stp_runtime_get_context())
+			atomic_dec(&c->busy);
+		/* else, warn about bad state? */
 		preempt_enable_no_resched();
 	}
-	/* else, warn about bad state? */
 	return;
 }
 
