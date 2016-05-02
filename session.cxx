@@ -2410,11 +2410,7 @@ systemtap_session::remove_tmp_dir()
       stap_sigmasker masked;
 
       // Remove the temporary directory.
-      vector<string> cleanupcmd;
-      cleanupcmd.push_back("rm");
-      cleanupcmd.push_back("-rf");
-      cleanupcmd.push_back(tmpdir);
-
+      vector<string> cleanupcmd { "rm", "-rf", tmpdir };
       (void) stap_system(verbose, cleanupcmd);
       if (verbose>1)
         clog << _F("Removed temporary directory \"%s\"", tmpdir.c_str()) << endl;
@@ -2563,7 +2559,6 @@ systemtap_session::modules_must_be_signed()
 void
 systemtap_session::get_mok_info()
 {
-  vector<string> cmd;
   int rc;
   stringstream out;
 
@@ -2573,8 +2568,7 @@ systemtap_session::get_mok_info()
   // dependency. However, we'd need to copy/duplicate efilib.c from
   // mokutil source to be able to decipher the efi data.
 
-  cmd.push_back("mokutil");
-  cmd.push_back("--list-enrolled");
+  vector<string> cmd { "mokutil", "--list-enrolled" };
   rc = stap_system_read(verbose, cmd, out);
   if (rc != 0)
     // If we're here, we know the client requires module signing, but
