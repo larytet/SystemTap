@@ -1325,28 +1325,23 @@ dwflpp::iterate_over_libraries<void>(void (*callback)(void*, const char*),
                module_name.c_str(), strerror(errno)) << endl;
   else
     {
-      while (1) // this parsing loop borrowed from add_unwindsym_ldd
+      while (1)
         {
           char linebuf[256];
-          char *soname = 0;
-          char *shlib = 0;
+          char soname[256];
+          char shlib[256];
           unsigned long int addr = 0;
 
           char *line = fgets (linebuf, 256, fp);
           if (line == 0) break; // EOF or error
 
-#if __GLIBC__ >2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 7)
-#define MS_FMT "%ms"
-#else
-#define MS_FMT "%as"
-#endif
           // Try soname => shlib (0xaddr)
-          int nf = sscanf (line, MS_FMT " => " MS_FMT " (0x%lx)",
-              &soname, &shlib, &addr);
+          int nf = sscanf (line, "%255s => %255s (0x%lx)",
+              soname, shlib, &addr);
           if (nf != 3 || shlib[0] != '/')
             {
               // Try shlib (0xaddr)
-              nf = sscanf (line, " " MS_FMT " (0x%lx)", &shlib, &addr);
+              nf = sscanf (line, " %255s (0x%lx)", shlib, &addr);
               if (nf != 2 || shlib[0] != '/')
                 continue; // fewer than expected fields, or bad shlib.
             }
@@ -1364,9 +1359,6 @@ dwflpp::iterate_over_libraries<void>(void (*callback)(void*, const char*),
                 }
               added.insert (shlib);
             }
-
-          free (soname);
-          free (shlib);
         }
       if ((fclose(fp) || stap_waitpid(sess.verbose, child)))
          sess.print_warning("failed to read libraries from " + module_name + ": " + strerror(errno));
