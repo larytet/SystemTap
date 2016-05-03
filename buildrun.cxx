@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
+#include <thread>
 
 extern "C" {
 #include <signal.h>
@@ -64,7 +65,7 @@ run_make_cmd(systemtap_session& s, vector<string>& make_cmd,
     }
 
   // Exploit SMP parallelism, if available.
-  long smp = sysconf(_SC_NPROCESSORS_ONLN);
+  long smp = thread::hardware_concurrency();
   if (smp <= 0) smp = 1;
   // PR16276: but only if we're not running severely nproc-rlimited
   struct rlimit rlim;

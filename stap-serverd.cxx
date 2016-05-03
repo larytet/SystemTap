@@ -27,6 +27,7 @@
 #include <climits>
 #include <iostream>
 #include <map>
+#include <thread>
 
 extern "C" {
 #include <unistd.h>
@@ -985,7 +986,7 @@ initialize (int argc, char **argv) {
   // Initial values.
   use_db_password = false;
   port = 0;
-  max_threads = sysconf( _SC_NPROCESSORS_ONLN ); // Default to number of processors
+  max_threads = thread::hardware_concurrency(); // Default to number of processors
   max_uncompressed_req_size = 50000; // 50 KB: default max uncompressed request size
   max_compressed_req_size = 5000; // 5 KB: default max compressed request size
   keep_temp = false;

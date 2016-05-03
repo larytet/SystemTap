@@ -37,6 +37,7 @@
 #include "stap-probe.h"
 
 #include <cstdlib>
+#include <thread>
 
 extern "C" {
 #include <glob.h>
@@ -303,15 +304,13 @@ setup_signals (sighandler_t handler)
 }
 
 
-static void*
-sdt_benchmark_thread(void* p)
+static void
+sdt_benchmark_thread(unsigned long i)
 {
-  unsigned long i = *(unsigned long*)p;
   PROBE(stap, benchmark__thread__start);
   while (i--)
     PROBE1(stap, benchmark, i);
   PROBE(stap, benchmark__thread__end);
-  return NULL;
 }
 
 
@@ -332,13 +331,13 @@ run_sdt_benchmark(systemtap_session& s)
   gettimeofday (&tv_before, NULL);
 
   PROBE(stap, benchmark__start);
-
-  pthread_t pthreads[threads];
-  for (unsigned long i = 0; i < threads; ++i)
-    pthread_create(&pthreads[i], NULL, sdt_benchmark_thread, &loops);
-  for (unsigned long i = 0; i < threads; ++i)
-    pthread_join(pthreads[i], NULL);
-
+    {
+      vector<thread> handles;
+      for (unsigned long i = 0; i < threads; ++i)
+        handles.push_back(thread(sdt_benchmark_thread, loops));
+      for (unsigned long i = 0; i < threads; ++i)
+        handles[i].join();
+    }
   PROBE(stap, benchmark__end);
 
   times (& tms_after);

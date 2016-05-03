@@ -28,6 +28,7 @@
 
 #include <cerrno>
 #include <cstdlib>
+#include <thread>
 
 extern "C" {
 #include <getopt.h>
@@ -1414,7 +1415,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
         case LONG_OPT_BENCHMARK_SDT:
           // XXX This option is secret, not supported, subject to change at our whim
-          benchmark_sdt_threads = sysconf(_SC_NPROCESSORS_ONLN);
+          benchmark_sdt_threads = thread::hardware_concurrency();
           break;
 
         case LONG_OPT_BENCHMARK_SDT_LOOPS:
