@@ -795,13 +795,14 @@ function task_exe_file:long(task:long)
 		STAP_ERROR ("invalid task struct pointer");
 	}
 
+	// We'd like to call get_task_mm()/mmput() here, but they can
+	// sleep. So, let's hope incrementing the task's usage (by
+	// calling get_task_struct) is enough to keep the mm around.
 	get_task_struct(task);
-	mm = get_task_mm(task);
-	put_task_struct(task);
-	if (mm) {
+	mm = task->mm;
+	if (mm)
 		exe_file = stap_find_exe_file(mm);
-		mmput(mm);
-	}
+	put_task_struct(task);
 
 	if (exe_file) {
 		STAP_RETURN((unsigned long)exe_file);
