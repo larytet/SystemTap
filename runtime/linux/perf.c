@@ -253,7 +253,7 @@ long _stp_perf_read (int ncpu, unsigned i)
     }
   stp = & stap_perf_probes[i]; 
     
-  if (stp == NULL || stp->e.t.per_thread_event == NULL)
+  if (stp == NULL || stp->system_wide || stp->e.t.per_thread_event == NULL)
     {
       _stp_error ("_stp_perf_read - probe '%s' is not supported by this kernel",
 #ifdef STP_NEED_PROBE_NAME
