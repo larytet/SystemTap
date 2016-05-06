@@ -88,7 +88,7 @@ dwarf_decl_line_integrate (Dwarf_Die *die, int *linep)
 
 
 static bool
-dwarf_type_name(Dwarf_Die *type_die, ostream& o)
+dwarf_type_name(Dwarf_Die *type_die, ostream& o, Dwarf_Die& subroutine)
 {
   // if we've gotten down to a basic type, then we're done
   bool done = true;
@@ -121,6 +121,14 @@ dwarf_type_name(Dwarf_Die *type_die, ostream& o)
       done = false;
       break;
 
+    case DW_TAG_subroutine_type:
+      // Subroutine types (function pointers) are a weird case.  The modifiers
+      // we've recursed so far need to go in the middle, with the return type
+      // on the left and parameter types on the right.  We'll back out now to
+      // get those modifiers, getting the return and parameters separately.
+      subroutine = *type_die;
+      return true;
+
     // unknown tag
     default:
       return false;
@@ -152,7 +160,7 @@ dwarf_type_name(Dwarf_Die *type_die, ostream& o)
 
   // if it can't be named, just call it "void"
   if (subtype_die == NULL ||
-      !dwarf_type_name(subtype_die, o))
+      !dwarf_type_name(subtype_die, o, subroutine))
     o << "void";
 
   switch (dwarf_tag(type_die))
@@ -191,21 +199,99 @@ dwarf_type_name(Dwarf_Die *type_die, ostream& o)
 }
 
 
+static bool
+dwarf_subroutine_name(Dwarf_Die *subroutine, ostream& o, const string& modifier)
+{
+  // First add the return value.
+  Dwarf_Die ret_type;
+  string ret_string;
+  if (dwarf_attr_die (subroutine, DW_AT_type, &ret_type) == NULL)
+    o << "void";
+  else if (dwarf_type_name (&ret_type, ret_string))
+    o << ret_string;
+  else
+    return false;
+
+  // Now the subroutine modifiers.
+  o << " (" << modifier << ")";
+
+  // Then write each parameter.
+  o << " (";
+  bool first = true;
+  Dwarf_Die child;
+  if (dwarf_child (subroutine, &child) == 0)
+    do
+      {
+        auto tag = dwarf_tag (&child);
+        if (tag == DW_TAG_unspecified_parameters
+            || tag == DW_TAG_formal_parameter)
+          {
+            if (first)
+              first = false;
+            else
+              o << ", ";
+
+            if (tag == DW_TAG_unspecified_parameters)
+              o << "...";
+            else if (tag == DW_TAG_formal_parameter)
+              {
+                Dwarf_Die param_type;
+                string param_string;
+                if (dwarf_attr_die (&child, DW_AT_type, &param_type) == NULL)
+                  o << "void";
+                else if (dwarf_type_name (&param_type, param_string))
+                  o << param_string;
+                else
+                  return false;
+              }
+          }
+      }
+    while (dwarf_siblingof (&child, &child) == 0);
+  if (first)
+    o << "void";
+  o << ")";
+
+  return true;
+}
+
+
+bool
+dwarf_type_decl(Dwarf_Die *type_die, const string& var_name, string& decl)
+{
+  ostringstream o;
+  Dwarf_Die subroutine = { 0, 0, 0, 0 };
+  if (!dwarf_type_name (type_die, o, subroutine))
+    return false;
+
+  if (!var_name.empty())
+    o << " " << var_name;
+
+  if (subroutine.addr != 0)
+    {
+      ostringstream subo;
+      if (!dwarf_subroutine_name (&subroutine, subo, o.str()))
+        return false;
+      decl = subo.str();
+    }
+  else
+    decl = o.str();
+
+  return true;
+}
+
+
 bool
 dwarf_type_name(Dwarf_Die *type_die, string& type_name)
 {
-  ostringstream o;
-  bool ret = dwarf_type_name(type_die, o);
-  type_name = o.str();
-  return ret;
+  return dwarf_type_decl(type_die, "", type_name);
 }
 
 
 string
 dwarf_type_name(Dwarf_Die *type_die)
 {
-  ostringstream o;
-  return dwarf_type_name(type_die, o) ? o.str() : "<unknown>";
+  string o;
+  return dwarf_type_name (type_die, o) ? o : "<unknown>";
 }
 
 

@@ -10131,10 +10131,10 @@ hwbkpt_builder::build(systemtap_session & sess,
 
 struct tracepoint_arg
 {
-  string name, c_type, typecast;
+  string name, c_type, c_decl, typecast;
   bool usable, used, isptr;
   Dwarf_Die type_die;
-  tracepoint_arg(): usable(false), used(false), isptr(false), type_die() {}
+  tracepoint_arg(const string& tracepoint_name, Dwarf_Die *arg);
 };
 
 struct tracepoint_derived_probe: public derived_probe
@@ -10514,6 +10514,26 @@ resolve_tracepoint_arg_type(tracepoint_arg& arg)
 }
 
 
+tracepoint_arg::tracepoint_arg(const string& tracepoint_name, Dwarf_Die *arg)
+: usable(false), used(false), isptr(false), type_die()
+{
+  name = dwarf_diename(arg) ?: "";
+
+  // read the type of this parameter
+  if (!dwarf_attr_die (arg, DW_AT_type, &type_die)
+      || !dwarf_type_name(&type_die, c_type))
+    throw SEMANTIC_ERROR (_F("cannot get type of parameter '%s' of tracepoint '%s'",
+                             name.c_str(), tracepoint_name.c_str()));
+
+  // build the C declaration
+  if (!dwarf_type_decl(&type_die, "__tracepoint_arg_" + name, c_decl))
+    throw SEMANTIC_ERROR (_F("cannot get declaration of parameter '%s' of tracepoint '%s'",
+                             name.c_str(), tracepoint_name.c_str()));
+
+  usable = resolve_tracepoint_arg_type(*this);
+}
+
+
 void
 tracepoint_derived_probe::build_args(dwflpp&, Dwarf_Die& func_die)
 {
@@ -10523,21 +10543,14 @@ tracepoint_derived_probe::build_args(dwflpp&, Dwarf_Die& func_die)
       if (dwarf_tag(&arg) == DW_TAG_formal_parameter)
         {
           // build a tracepoint_arg for this parameter
-          tracepoint_arg tparg;
-          tparg.name = dwarf_diename(&arg) ?: "";
-
-          // read the type of this parameter
-          if (!dwarf_attr_die (&arg, DW_AT_type, &tparg.type_die)
-              || !dwarf_type_name(&tparg.type_die, tparg.c_type))
-            throw SEMANTIC_ERROR (_F("cannot get type of parameter '%s' of tracepoint '%s'",
-                                     tparg.name.c_str(), tracepoint_name.c_str()));
-
-          tparg.usable = resolve_tracepoint_arg_type(tparg);
-          args.push_back(tparg);
+          args.emplace_back(tracepoint_name, &arg);
           if (sess.verbose > 4)
-            clog << _F("found parameter for tracepoint '%s': type:'%s' name:'%s' %s",
-                       tracepoint_name.c_str(), tparg.c_type.c_str(), tparg.name.c_str(),
-                       tparg.usable ? "ok" : "unavailable") << endl;
+            {
+              auto& tparg = args.back();
+              clog << _F("found parameter for tracepoint '%s': type:'%s' name:'%s' decl:'%s' %s",
+                         tracepoint_name.c_str(), tparg.c_type.c_str(), tparg.name.c_str(),
+                         tparg.c_decl.c_str(), tparg.usable ? "ok" : "unavailable") << endl;
+            }
         }
     while (dwarf_siblingof(&arg, &arg) == 0);
 }
@@ -10952,10 +10965,7 @@ tracepoint_derived_probe_group::emit_module_decls (systemtap_session& s)
           tpop->newline() << "static STP_TRACE_ENTER(" << enter_fn;
           s.op->indent(2);
           for (unsigned j = 0; j < p->args.size(); ++j)
-            {
-              tpop->newline() << ", " << p->args[j].c_type
-                              << " __tracepoint_arg_" << p->args[j].name;
-            }
+            tpop->newline() << ", " << p->args[j].c_decl;
           tpop->newline() << ")";
           s.op->indent(-2);
         }
