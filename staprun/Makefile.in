@@ -141,7 +141,10 @@ am_stapio_OBJECTS = stapio.$(OBJEXT) mainloop.$(OBJEXT) \
 	common.$(OBJEXT) ctl.$(OBJEXT) relay.$(OBJEXT) \
 	relay_old.$(OBJEXT) monitor.$(OBJEXT)
 stapio_OBJECTS = $(am_stapio_OBJECTS)
-stapio_DEPENDENCIES = libstrfloctime.a
+am__DEPENDENCIES_1 =
+@HAVE_MONITOR_LIBS_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1) \
+@HAVE_MONITOR_LIBS_TRUE@	$(am__DEPENDENCIES_1)
+stapio_DEPENDENCIES = libstrfloctime.a $(am__DEPENDENCIES_2)
 am__dirstamp = $(am__leading_dot)dirstamp
 @HAVE_NSS_TRUE@am__objects_1 = staprun-modverify.$(OBJEXT) \
 @HAVE_NSS_TRUE@	../staprun-nsscommon.$(OBJEXT)
@@ -150,10 +153,9 @@ am_staprun_OBJECTS = staprun-staprun.$(OBJEXT) \
 	staprun-common.$(OBJEXT) ../staprun-privilege.$(OBJEXT) \
 	../staprun-util.$(OBJEXT) $(am__objects_1)
 staprun_OBJECTS = $(am_staprun_OBJECTS)
-am__DEPENDENCIES_1 =
-@HAVE_NSS_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
+@HAVE_NSS_TRUE@am__DEPENDENCIES_3 = $(am__DEPENDENCIES_1)
 staprun_DEPENDENCIES = libstrfloctime.a $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_2)
+	$(am__DEPENDENCIES_3)
 staprun_LINK = $(CXXLD) $(staprun_CXXFLAGS) $(CXXFLAGS) \
 	$(staprun_LDFLAGS) $(LDFLAGS) -o $@
 am_stapsh_OBJECTS = stapsh-stapsh.$(OBJEXT)
@@ -434,8 +436,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = subdir-objects
-AM_CFLAGS = -Wall -Wextra -Werror -Wunused -W -Wformat=2 @PIECFLAGS@ \
-	$(am__append_7)
+AM_CFLAGS = -Wall -Wextra -Werror -Wunused -W -Wformat=2 @PIECFLAGS@
 AM_CXXFLAGS = -Wall -Wextra -Werror -Wunused -W -Wformat=2 \
 	@PIECXXFLAGS@ $(am__empty)
 AM_CPPFLAGS = -D_GNU_SOURCE -I$(srcdir)/../includes \
@@ -458,7 +459,7 @@ staprun_CPPFLAGS = $(AM_CPPFLAGS) $(am__append_1)
 staprun_LDADD = libstrfloctime.a $(staprun_LIBS) $(am__append_6)
 staprun_LDFLAGS = $(AM_LDFLAGS) $(am__append_2)
 stapio_SOURCES = stapio.c mainloop.c common.c ctl.c relay.c relay_old.c monitor.c
-stapio_LDADD = libstrfloctime.a -lpthread
+stapio_LDADD = libstrfloctime.a -lpthread $(am__append_7)
 man_MANS = staprun.8
 stap_merge_SOURCES = stap_merge.c
 stap_merge_CFLAGS = $(AM_CFLAGS)
