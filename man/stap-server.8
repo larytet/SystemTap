@@ -133,11 +133,12 @@ The default architecture is the architecture of the host.
 
 .TP
 \fB\-r\fR \fIkernel\-release\fR
-This option specifies the target kernel release of the server and is
-analogous to the \fB\-r\fR option of \fIstap\fR. See the
+This option specifies a target kernel release of the server and is
+analogous to the \fB\-r\fR option of \fIstap\fR.  See the
 .IR stap (1)
 manual page for more details.
 The default release is that of the currently running kernel.
+A server can handle multiple releases by specifying multiple \fB\-r\fR flags.
 
 .TP
 \fB\-I\fR \fIpath\fR
@@ -165,12 +166,8 @@ manual page for more details.
 
 .TP
 \fB\-i\fR
-This option is a shortcut which specifies one server for each kernel
-release installed in \fI/lib/modules/\fR. Previous
-\fB\-I\fR, \fB\-R\fR, \fB\-B\fR and \fB\-u\fR options will be
-applied to each server, however previous \fB\-a\fR options will be ignored and
-the default architecture will be used.
-
+This option is a shortcut which specifies a server that handles every
+release installed in \fI/lib/modules/\fR.
 .TP
 \fB\-n\fR \fInickname\fR
 This option allows the specification of a server configuration by nickname.
@@ -323,7 +320,7 @@ architecture of the host will be used.
 
 .TP
 .B RELEASE
-Specifies the kernel release for this server
+Specifies a kernel release for this server
 and corresponds to the
 \fB\-r\fR option (see \fIOPTIONS\fR). If \fBRELEASE\fR is not set, the
 release
@@ -484,7 +481,7 @@ To start the configured servers, or the default server, if none are configured:
 .PP
 .B \& $ [ service ] stap\-server start
 .PP
-To start a server for each kernel installed in /lib/modules:
+To start a server that handles all kernel versions installed in /lib/modules:
 .PP
 .B \& $ [ service ] stap\-server start \-i
 .PP

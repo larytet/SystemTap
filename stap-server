@@ -58,13 +58,13 @@ echo_usage () {
   echo $"Options:"
   echo $"	-c configfile	 		: specify additional global configuration file."
   echo $"	-a arch			 	: specify the target architecture."
-  echo $"	-r release		 	: specify the kernel release."
+  echo $"	-r release		 	: specify a kernel release."
   echo $"	-I path			 	: augment the search path for tapsets."
   echo $"	-R path		 		: specify the location of the systemtap runtime."
   echo $"	-B options	 		: specify 'make' options for building systemtap modules."
   echo $"	-D name[=value]			: add a macro definition for building systemtap modules."
   echo $"	-u username 			: specify the user who will run the server(s)."
-  echo $"	-i 				: specify a server for each installed kernel release."
+  echo $"	-i 				: specify a server that handles all installed kernel releases."
   echo $"	-n nickname 			: specify a server configuration by nickname."
   echo $"	-p pid	 			: specify a server or server configuration by process id."
   echo $"	-P			 	: use a password for the server's NSS certificate database."
@@ -111,10 +111,8 @@ echo_usage () {
   echo $""
   echo $"For other options, each new instance overrides the previous setting."
   echo $""
-  echo $"The -i option is a shortcut which specifies one server for each kernel"
-  echo $"release installed in /lib/modules/. Previous -D, -I, -R, -B and -u"
-  echo $"options will be applied to each server, however previous -a options"
-  echo $"are ignored and the default architecture is used." 
+  echo $"The -i option is a shortcut which specifies a server that handles every"
+  echo $"release installed in /lib/modules/."
   echo $""
   echo $"The -n option allows the specification of a server configuration by"
   echo $"nickname. When -n is specified, a currently running server with the"
@@ -200,7 +198,6 @@ do_success () { # message
 #------------------------------------------------------------------
 parse_args () { # arguments
   local rc=0
-  i_specified=0
   while [ -n "$1" ]; do
     case "$1" in
       -k | -P)
@@ -208,12 +205,10 @@ parse_args () { # arguments
         shift 1
         ;;
       -a)
-	process_i
 	SERVER_CMDS+=("ARCH=\"`quote_for_cmd "$2"`\"")
         shift 1
 	;;
       -B)
-	process_i
 	SERVER_CMDS+=("BUILD+=(\"`quote_for_cmd "$2"`\")")
         shift 1
 	;;
@@ -222,45 +217,35 @@ parse_args () { # arguments
         shift 1
         ;;
       -i)
-	# Delay processing of -i in case a distributed option like --log is specified which could
-	# apply to each server referenced by -i. We will process it just before handling other
-	# options which describe a new server (e.g. -r).
-	i_specified=$(($i_specified + 1))
+        process_i
 	;;
       -D)
-	process_i
 	SERVER_CMDS+=("DEFINE+=(\"`quote_for_cmd "$2"`\")")
         shift 1
 	;;
       -I)
-	process_i
 	SERVER_CMDS+=("INCLUDE+=(\"`quote_for_cmd "$2"`\")")
         shift 1
 	;;
       -n)
-	process_i
 	process_n "$2"
         shift 1
 	;;
       -p)
-	process_i
 	process_p "$2"
 	test $? = 0 || rc=1
         shift 1
 	;;
       -r)
-	process_i
 	process_r "$2"
 	test $? = 0 || rc=1
         shift 1
 	;;
       -R)
-	process_i
 	SERVER_CMDS+=("RUNTIME=\"`quote_for_cmd "$2"`\"")
         shift 1
 	;;
       -u)
-	process_i
 	SERVER_CMDS+=("USER=\"`quote_for_cmd "$2"`\"")
         shift 1
 	;;
@@ -296,9 +281,6 @@ parse_args () { # arguments
     esac
     shift 1
   done
-
-  # Process any lingering -i
-  process_i
 
   # Add options from any lists and an EXEC command to the end if any server options were specified
   if test -n "$SERVER_CMDS"; then
@@ -362,17 +344,9 @@ add_distributed_options () {
 process_i () {
   cd /lib/modules
   local release
-  while test $i_specified -gt 0; do
-      for release in `ls`; do
-	  if test -n "$SERVER_CMDS"; then
-	      add_distributed_options
-	      SERVER_CMDS+=("EXEC")
-	  fi
-	  process_r $release
-      done
-      i_specified=$(($i_specified - 1))
+  for release in `ls`; do
+    process_r $release
   done
-
   return 0
 }
 
@@ -432,12 +406,12 @@ process_r () {
 	    echo "Missing $version_file_name"
 	    return 1
 	fi
-	SERVER_CMDS+=("RELEASE=\"`quote_for_cmd "$1"`\"") # pass the path as-is
+	SERVER_CMDS+=("RELEASE+=(\"`quote_for_cmd "$1"`\")") # pass the path as-is
 	return 0
     fi
 
     # kernel release specified directly
-    SERVER_CMDS+=("RELEASE=\"`quote_for_cmd "$1"`\"")
+    SERVER_CMDS+=("RELEASE+=(\"`quote_for_cmd "$1"`\")")
     return 0
 }
 
@@ -464,7 +438,10 @@ get_arch () {
 add_server_commands () {
     # Add commands based on the current state to SERVER_CMDS
     SERVER_CMDS+=("ARCH=\"`quote_for_cmd "$ARCH"`\"")
-    SERVER_CMDS+=("RELEASE=\"`quote_for_cmd "$RELEASE"`\"")
+    SERVER_CMDS+=("RELEASE=()")
+    for r in "${RELEASE[@]}"; do
+	SERVER_CMDS+=("RELEASE+=(\"`quote_for_cmd "$r"`\")")
+    done
     SERVER_CMDS+=("RUNTIME=\"`quote_for_cmd "$RUNTIME"`\"")
     SERVER_CMDS+=("DEFINE=()")
     for d in "${DEFINE[@]}"; do
@@ -491,7 +468,9 @@ add_server_commands () {
 echo_server_options () {
     # Echo the current state.
     echo -n "-a \"`quote_for_cmd "$ARCH"`\""
-    echo -n " -r \"`quote_for_cmd "$RELEASE"`\""
+    for r in "${RELEASE[@]}"; do
+	echo -n " -r \"`quote_for_cmd "$r"`\""
+    done
     test -n "$RUNTIME" && echo -n " -R \"`quote_for_cmd "$RUNTIME"`\""
     for d in "${DEFINE[@]}"; do
 	echo -n " -D \"`quote_for_cmd "$d"`\""
@@ -532,7 +511,7 @@ prepare_log_dir () {
 
 init_server_opts () {
   ARCH=`get_arch`
-  RELEASE=`get_release`
+  unset RELEASE
   unset DEFINE
   unset BUILD
   unset INCLUDE
@@ -607,7 +586,7 @@ interpret_server_config () {
 
     # Save the results locally first, in case there is an error.
     local local_ARCH=
-    local local_RELEASE=
+    local local_RELEASE=()
     local local_DEFINE=()
     local local_BUILD=()
     local local_INCLUDE=()
@@ -629,7 +608,15 @@ interpret_server_config () {
               local_ARCH="${input:5}"
 	      ;;
 	    RELEASE=*)
-              local_RELEASE="${input:8}"
+	      if [ -z "${input:8}" -o "${input:8}" = "()" ]; then
+		  local_RELEASE=()
+	      else
+		  local_RELEASE=("${input:8}")
+	      fi
+	      ;;
+	    RELEASE+=*)
+	      test -z "${input:9}" -o "${input:9}" = "()" || \
+	          local_RELEASE+=("${input:9}")
 	      ;;
 	    DEFINE=*)
 	      if [ -z "${input:7}" -o "${input:7}" = "()" ]; then
@@ -705,7 +692,7 @@ interpret_server_config () {
     # Now set the results globally. All variables are expected to be set, even
     # if to nothing.
     ARCH="$local_ARCH"
-    RELEASE="$local_RELEASE"
+    RELEASE=("${local_RELEASE[@]}")
     DEFINE=("${local_DEFINE[@]}")
     BUILD=("${local_BUILD[@]}")
     INCLUDE=("${local_INCLUDE[@]}")
@@ -739,7 +726,7 @@ load_server_config () {
       local INCLUDE=()
       local RUNTIME=
       local USER=
-      local RELEASE=
+      local RELEASE=()
       local LOG=
       local PORT=
       local SSL=
@@ -749,7 +736,7 @@ load_server_config () {
       interpret_server_config "$f" || continue
       # Other options default to empty. These ones don't.
       [ -z "$ARCH" ]     && ARCH=`get_arch`
-      [ -z "$RELEASE" ]  && RELEASE=`get_release`
+      [ -z "$RELEASE" ]  && RELEASE+=(`get_release`)
       [ -z "$USER" ]     && USER=$STAP_USER
       [ -z "$USER" ]     && USER=`id -un`
       [ -z "$LOG" ]      && LOG="$LOG_FILE"
@@ -770,7 +757,7 @@ get_server_pid_by_config () {
     # Need to save the config, since the process of checking the running
     # servers alters it.
     local target_ARCH="$ARCH"
-    local target_RELEASE="$RELEASE"
+    local target_RELEASE=("${RELEASE[@]}")
     local target_RUNTIME="$RUNTIME"
     local target_INCLUDE=("${INCLUDE[@]}")
     local target_BUILD=("${BUILD[@]}")
@@ -808,7 +795,7 @@ get_server_pid_by_config () {
     done
 
     ARCH="$target_ARCH"
-    RELEASE="$target_RELEASE"
+    RELEASE=("${target_RELEASE[@]}")
     RUNTIME="$target_RUNTIME"
     INCLUDE=("${target_INCLUDE[@]}")
     BUILD=("${target_BUILD[@]}")
@@ -880,7 +867,10 @@ start_server () {
     fi
 
     # Construct the server start command.
-    local server_cmd="$STAP_START_SERVER -r \"`quote_for_cmd "$RELEASE"`\" -a \"`quote_for_cmd "$ARCH"`\" $OPT_OTHER"
+    local server_cmd="$STAP_START_SERVER -a \"`quote_for_cmd "$ARCH"`\" $OPT_OTHER"
+    for r in "${RELEASE[@]}"; do
+        server_cmd="$server_cmd -r \"`quote_for_cmd "$r"`\""
+    done
     for b in "${BUILD[@]}"; do
 	server_cmd="$server_cmd -B \"`quote_for_cmd "$b"`\""
     done
@@ -931,7 +921,9 @@ start_server () {
     done
     echo "NICKNAME=$NICKNAME" >> "$server_status_file"
     echo "RUNTIME=$RUNTIME" >> "$server_status_file"
-    echo "RELEASE=$RELEASE" >> "$server_status_file"
+    for r in "${RELEASE[@]}"; do
+        echo "RELEASE+=$r" >> "$server_status_file"
+    done
     echo "LOG=$LOG" >> "$server_status_file"
     echo "PORT=$PORT" >> "$server_status_file"
     echo "SSL=$SSL" >> "$server_status_file"

@@ -109,8 +109,7 @@ static size_t max_uncompressed_req_size;
 static size_t max_compressed_req_size;
 static string cert_db_path;
 static string stap_options;
-static string uname_r;
-static string kernel_build_tree;
+static map<string,string> kernel_build_tree; // Kernel version -> build tree
 static string arch;
 static string cert_serial_number;
 static string B_options;
@@ -183,16 +182,9 @@ static void
 process_r (const string &arg)
 {
   if (arg[0] == '/') // fully specified path
-    {
-      kernel_build_tree = arg;
-      uname_r = kernel_release_from_build_tree (arg);
-    }
+    kernel_build_tree.insert({kernel_release_from_build_tree(arg), arg});
   else
-    {
-      kernel_build_tree = "/lib/modules/" + arg + "/build";
-      uname_r = arg;
-    }
-  stap_options += " -r " + arg; // Pass the argument to stap directly.
+    kernel_build_tree.insert({arg, "/lib/modules/" + arg + "/build" });
 }
 
 static void
@@ -633,11 +625,11 @@ create_services (AvahiClient *c)
   if (! avahi_group)
     {
       if (! (avahi_group = avahi_entry_group_new (c, entry_group_callback, NULL)))
-	{
-	  server_error (_F("avahi_entry_group_new () failed: %s",
-			   avahi_strerror (avahi_client_errno (c))));
-	  return;
-	}
+        {
+          server_error (_F("avahi_entry_group_new () failed: %s",
+          avahi_strerror (avahi_client_errno (c))));
+          return;
+        }
     }
   else
     avahi_entry_group_reset(avahi_group);
@@ -645,89 +637,94 @@ create_services (AvahiClient *c)
   // Contruct the information needed for our service.
   log (_F("Adding Avahi service '%s'", avahi_service_name));
 
-  // Create the txt tags that will be registered with our service.
-  string sysinfo = "sysinfo=" + uname_r + " " + arch;
-  string certinfo = "certinfo=" + cert_serial_number;
-  string version = string ("version=") + CURRENT_CS_PROTOCOL_VERSION;;
-  string optinfo = "optinfo=";
-  string separator;
-  // These option strings already have a leading space.
-  if (! R_option.empty ())
-    {
-      optinfo += R_option.substr(1);
-      separator = " ";
-    }
-  if (! B_options.empty ())
-    {
-      optinfo += separator + B_options.substr(1);
-      separator = " ";
-    }
-  if (! D_options.empty ())
-    {
-      optinfo += separator + D_options.substr(1);
-      separator = " ";
-    }
-  if (! I_options.empty ())
-    optinfo += separator + I_options.substr(1);
-
-  // Create an avahi string list with the info we have so far.
-  vector<string> mok_fingerprints;
-  AvahiStringList *strlst = avahi_string_list_new(sysinfo.c_str (),
-						  optinfo.c_str (),
-						  version.c_str (),
-						  certinfo.c_str (), NULL);
-  if (strlst == NULL)
-    {
-      server_error (_("Failed to allocate string list"));
-      goto fail;
-    }
-
-  // Add server MOK info, if available.
-  get_server_mok_fingerprints (mok_fingerprints, true, false);
-  if (! mok_fingerprints.empty())
-    {
-      vector<string>::const_iterator it;
-      for (it = mok_fingerprints.begin(); it != mok_fingerprints.end(); it++)
-        {
-	  string tmp = "mok_info=" + *it;
-	  strlst = avahi_string_list_add(strlst, tmp.c_str ());
-	  if (strlst == NULL)
-	    {
-	      server_error (_("Failed to add a string to the list"));
-	      goto fail;
-	    }
-	}
-    }
-
-  // We will now add our service to the entry group.
-  // Loop until no collisions.
+  AvahiStringList *strlst;
   int ret;
-  for (;;) {
-    ret = avahi_entry_group_add_service_strlst (avahi_group,
-						AVAHI_IF_UNSPEC,
-						AVAHI_PROTO_UNSPEC,
-						(AvahiPublishFlags)0,
-						avahi_service_name,
-						avahi_service_tag,
-						NULL, NULL, port, strlst);
-    if (ret == AVAHI_OK)
-      break; // success!
+  for (auto it = kernel_build_tree.cbegin(); it != kernel_build_tree.cend(); ++it)
+    {
+      // Create the txt tags that will be registered with our service.
+      string sysinfo = "sysinfo=" + it->first + " "+ arch;
+      string certinfo = "certinfo=" + cert_serial_number;
+      string version = string ("version=") + CURRENT_CS_PROTOCOL_VERSION;;
+      string optinfo = "optinfo=";
+      string separator;
+      // These option strings already have a leading space.
+      if (! R_option.empty ())
+        {
+          optinfo += R_option.substr(1);
+          separator = " ";
+        }
+      if (! B_options.empty ())
+        {
+          optinfo += separator + B_options.substr(1);
+          separator = " ";
+        }
+      if (! D_options.empty ())
+        {
+          optinfo += separator + D_options.substr(1);
+          separator = " ";
+        }
+      if (! I_options.empty ())
+        optinfo += separator + I_options.substr(1);
 
-    if (ret == AVAHI_ERR_COLLISION)
-      {
-	// A service name collision with a local service happened.
-	// Pick a new name.
-	if (rename_service () < 0) {
-	  // Too many collisions. Message already issued.
-	  goto fail;
-	}
-	continue; // try again.
+      // Create an avahi string list with the info we have so far.
+      vector<string> mok_fingerprints;
+      strlst = avahi_string_list_new(sysinfo.c_str (),
+                                     optinfo.c_str (),
+                                     version.c_str (),
+                                     certinfo.c_str (), NULL);
+      if (strlst == NULL)
+        {
+          server_error (_("Failed to allocate string list"));
+          goto fail;
+        }
+
+      // Add server MOK info, if available.
+      get_server_mok_fingerprints (mok_fingerprints, true, false);
+      if (! mok_fingerprints.empty())
+        {
+          for (auto it = mok_fingerprints.cbegin(); it != mok_fingerprints.cend(); it++)
+            {
+              string tmp = "mok_info=" + *it;
+              strlst = avahi_string_list_add(strlst, tmp.c_str ());
+              if (strlst == NULL)
+                {
+                  server_error (_("Failed to add a string to the list"));
+                  goto fail;
+                }
+            }
+        }
+
+      // We will now add our service to the entry group.
+      // Loop until no collisions.
+      for (;;) {
+        ret = avahi_entry_group_add_service_strlst (avahi_group,
+                                                    AVAHI_IF_UNSPEC,
+                                                    AVAHI_PROTO_UNSPEC,
+                                                    (AvahiPublishFlags)0,
+                                                    avahi_service_name,
+                                                    avahi_service_tag,
+                                                    NULL, NULL, port, strlst);
+        if (ret == AVAHI_OK)
+          break; // success!
+
+        if (ret == AVAHI_ERR_COLLISION)
+          {
+            // A service name collision with a local service happened.
+            // Pick a new name.
+            if (rename_service () < 0) {
+              // Too many collisions. Message already issued.
+              goto fail;
+            }
+            continue; // try again.
+          }
+
+          server_error (_F("Failed to add %s service: %s",
+              avahi_service_tag, avahi_strerror (ret)));
+          goto fail;
       }
 
-      server_error (_F("Failed to add %s service: %s",
-		       avahi_service_tag, avahi_strerror (ret)));
-      goto fail;
-  }
+      avahi_string_list_free(strlst);
+    }
 
   // Tell the server to register the service.
   if ((ret = avahi_entry_group_commit (avahi_group)) < 0)
@@ -735,8 +732,6 @@ create_services (AvahiClient *c)
       server_error (_F("Failed to commit avahi entry group: %s", avahi_strerror (ret)));
       goto fail;
     }
-
-  avahi_string_list_free(strlst);
   return;
 
  fail:
@@ -992,8 +987,7 @@ initialize (int argc, char **argv) {
   keep_temp = false;
   struct utsname utsname;
   uname (& utsname);
-  uname_r = utsname.release;
-  kernel_build_tree = "/lib/modules/" + uname_r + "/build";
+  kernel_build_tree.insert({utsname.release, "/lib/modules/" + string(utsname.release) + "/build"});
   arch = normalize_machine (utsname.machine);
 
   // Parse the arguments. This also starts the server log, if any, and should be done before
@@ -1726,6 +1720,29 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
   // The name of the translator executable.
   stapargv.push_back ((char *)(getenv ("SYSTEMTAP_STAP") ?: STAP_PREFIX "/bin/stap"));
 
+  // Fetch the target kernel version from request and pass flag to stap
+  string kernel_version;
+  filename = requestDirName + "/sysinfo";
+  ifstream versionfile(filename.c_str());
+  if (versionfile >> kernel_version >> kernel_version) // Skip sysinfo: label
+    {
+      if (kernel_build_tree.find(kernel_version) != kernel_build_tree.end())
+        {
+          stapargv.push_back("-r" + kernel_version);
+        }
+      else
+        {
+          log(_F("Target kernel version %s is not supported by this server",
+              kernel_version.c_str()));
+          return;
+        }
+    }
+  else
+    {
+      server_error(_("Unable to read sysinfo"));
+      return;
+    }
+
   /* Transcribe stap_options.  We use plain wordexp(3), since these
      options are coming from the local trusted user, so malicious
      content is not a concern. */
@@ -1883,7 +1900,7 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 	      // If we signing the module failed, change the staprc to
 	      // 1, so that the client won't try to run the resulting
 	      // module, which wouldn't work.
-	      if (! mok_sign_file (mok_fingerprint, kernel_build_tree,
+	      if (! mok_sign_file (mok_fingerprint, kernel_build_tree[kernel_version],
 				   globber.gl_pathv[0], stapstderr))
 		staprc = 1;
 	    }
@@ -1978,7 +1995,7 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
       // requires signed modules. The error will have been generated
       // above on the systemtap module itself.
       if (! mok_fingerprint.empty ())
-	mok_sign_file (mok_fingerprint, kernel_build_tree, uprobes_response,
+	mok_sign_file (mok_fingerprint, kernel_build_tree[kernel_version], uprobes_response,
 		       stapstderr);
     }
 
