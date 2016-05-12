@@ -1443,6 +1443,8 @@ semantic_pass_conditions (systemtap_session & sess)
   // and collect var usage
   for (unsigned i = 0; i < sess.probes.size(); ++i)
     {
+      if (pending_interrupts) return 1;
+
       derived_probe* p = sess.probes[i];
       expression* e = p->sole_location()->condition;
 
@@ -1476,6 +1478,8 @@ semantic_pass_conditions (systemtap_session & sess)
   // do a second pass to collect affected probes
   for (unsigned i = 0; i < sess.probes.size(); ++i)
     {
+      if (pending_interrupts) return 1;
+
       derived_probe *p = sess.probes[i];
 
       // for each variable this probe modifies...
