@@ -106,6 +106,19 @@ probe begin {
 }
 global start_ms
 
+
+function reportline(tid, name, countstr) {
+  // fine-grained control over the column layout here
+  printf("%-22s %-15s %s\n", tid, countstr, name)
+}
+
+function reportline2(tid, name, count, elapsed_ms) {
+  reportline(tid, name,
+             sprintf("%d (%d.%02d)", count,
+                     (count * 100000 / elapsed_ms)/100,
+                     (count * 100000 / elapsed_ms)%100))
+}
+
 function report () {
   elapsed_ms = gettimeofday_ms() - start_ms
   if (elapsed_ms < 0) elapsed_ms=1
@@ -113,33 +126,20 @@ function report () {
          (cumulative ? "Cumulative" : "Period"),
          elapsed_ms, @count(totalc), @count(filteredc))
 
-  printf("%-24s %-38s %s\n", "TID", "EVENT", "COUNT (RATE Hz)")
-  printf("%-24s %-38s %s\n", "---", "-----", "---------------")
+  reportline("TID", "EVENT", "COUNT (Hz)")
+  reportline("---", "-----", "----------")
   if (sort == "count")
     foreach([tid, name] in c- limit lines)
-      printf("%-24s %-38s %d (%d.%02d)\n", tid, name,
-           @count(c[tid, name]),
-           (@count(c[tid,name])*100000/elapsed_ms)/100,
-           (@count(c[tid,name])*100000/elapsed_ms)%100)
+      reportline2(tid, name, @count(c[tid,name]), elapsed_ms)
   else if (sort == "tid")
     foreach([tid+, name] in c limit lines)
-      printf("%-24s %-38s %d (%d.%02d)\n", tid, name,
-           @count(c[tid, name]),
-           (@count(c[tid,name])*100000/elapsed_ms)/100,
-           (@count(c[tid,name])*100000/elapsed_ms)%100)
+      reportline2(tid, name, @count(c[tid,name]), elapsed_ms)
   else if (sort == "event")
     foreach([tid, name+] in c limit lines)
-      printf("%-24s %-38s %d (%d.%02d)\n", tid, name,
-           @count(c[tid, name]),
-           (@count(c[tid,name])*100000/elapsed_ms)/100,
-           (@count(c[tid,name])*100000/elapsed_ms)%100)
+      reportline2(tid, name, @count(c[tid,name]), elapsed_ms)
   else # unsorted
     foreach([tid, name] in c limit lines)
-      printf("%-24s %-38s %d (%d.%02d)\n", tid, name,
-           @count(c[tid, name]),
-           (@count(c[tid,name])*100000/elapsed_ms)/100,
-           (@count(c[tid,name])*100000/elapsed_ms)%100)
-
+      reportline2(tid, name, @count(c[tid,name]), elapsed_ms)
 }
 
 probe end {
