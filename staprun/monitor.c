@@ -480,6 +480,8 @@ void monitor_render(void)
           wprintw(status, "%.*s", max_cols-cur_x-1, json_object_get_string(field));
           wprintw(status, "\n");
         }
+      mvwprintw(status, max_rows-1, 0,
+                "press h for help\n");
     }
   else /* ! jso */
     {
