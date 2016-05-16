@@ -637,7 +637,7 @@ create_services (AvahiClient *c)
   // Contruct the information needed for our service.
   log (_F("Adding Avahi service '%s'", avahi_service_name));
 
-  AvahiStringList *strlst;
+  AvahiStringList *strlst = NULL;
   int ret;
   for (auto it = kernel_build_tree.cbegin(); it != kernel_build_tree.cend(); ++it)
     {
@@ -724,6 +724,7 @@ create_services (AvahiClient *c)
       }
 
       avahi_string_list_free(strlst);
+      strlst = NULL;
     }
 
   // Tell the server to register the service.
