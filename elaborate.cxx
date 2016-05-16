@@ -2023,8 +2023,6 @@ void add_global_var_display (systemtap_session& s)
 
 static void monitor_mode_read(systemtap_session& s)
 {
-  if (!s.monitor) return;
-
   stringstream code;
 
   unsigned long rough_max_json_size = 100 +
@@ -2042,27 +2040,32 @@ static void monitor_mode_read(systemtap_session& s)
   code << "$value .= sprintf(\"\\\"module_name\\\": \\\"%s\\\",\\n\", module_name())" << endl;
 
   code << "$value .= sprintf(\"\\\"globals\\\": {\\n\")" << endl;
-  for (vector<vardecl*>::const_iterator it = s.globals.begin();
-      it != s.globals.end(); ++it)
+  for (auto it = s.globals.cbegin(); it != s.globals.cend(); ++it)
     {
       if ((*it)->synthetic) continue;
 
-      if (it != s.globals.begin())
+      if (it != s.globals.cbegin())
         code << "$value .= sprintf(\",\\n\")" << endl;
 
       code << "$value .= sprintf(\"\\\"%s\\\":\", \"" << (*it)->unmangled_name << "\")" << endl;
       if ((*it)->arity == 0)
-        code << "$value .= string_quoted(sprint(" << (*it)->name << "))" << endl;
+        {
+          if ((*it)->type == pe_stats)
+            code << "$value .= sprintf(\"\\\"%d(count)\\\"\", @count(" << (*it)->name << "))" << endl;
+          else if ((*it)->type == pe_string)
+            code << "$value .= string_quoted(sprintf(\"\\\"%s\\\"\"," << (*it)->name << "))" << endl;
+          else
+            code << "$value .= string_quoted(sprint(" << (*it)->name << "))" << endl;
+        }
       else if ((*it)->arity > 0)
         code << "$value .= sprintf(\"\\\"[%d]\\\"\", " << (*it)->maxsize << ")" << endl;
     }
   code << "$value .= sprintf(\"\\n},\\n\")" << endl;
 
   code << "$value .= sprintf(\"\\\"probe_list\\\": [\\n\")" << endl;
-  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
-      it != s.probes.end(); ++it)
+  for (auto it = s.probes.cbegin(); it != s.probes.cend(); ++it)
     {
-      if (it != s.probes.begin())
+      if (it != s.probes.cbegin())
         code << "$value .= sprintf(\",\\n\")" << endl;
 
       istringstream probe_point((*it)->sole_location()->str());
@@ -2101,10 +2104,7 @@ static void monitor_mode_read(systemtap_session& s)
 
 static void monitor_mode_write(systemtap_session& s)
 {
-  if (!s.monitor) return;
-
-  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
-      it != s.probes.end()-1; ++it) // Skip monitor read probe
+  for (auto it = s.probes.cbegin(); it != s.probes.cend()-1; ++it) // Skip monitor read probe
     {
       vardecl* v = new vardecl;
       v->unmangled_name = v->name = "__monitor_" + lex_cast(it-s.probes.begin()) + "_enabled";
@@ -2142,8 +2142,7 @@ static void monitor_mode_write(systemtap_session& s)
   code << "probe procfs(\"monitor_control\").write {" << endl;
 
   code << "if ($value == \"clear\") {";
-  for (vector<vardecl*>::const_iterator it = s.globals.begin();
-      it != s.globals.end(); ++it)
+  for (auto it = s.globals.cbegin(); it != s.globals.cend(); ++it)
     {
       vardecl* v = *it;
 
@@ -2171,15 +2170,13 @@ static void monitor_mode_write(systemtap_session& s)
     }
 
   code << "} else if ($value == \"resume\") {" << endl;
-  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
-      it != s.probes.end()-1; ++it)
+  for (auto it = s.probes.cbegin(); it != s.probes.cend()-1; ++it)
     {
       code << "  __monitor_" << it-s.probes.begin() << "_enabled" << " = 1" << endl;
     }
 
   code << "} else if ($value == \"pause\") {" << endl;
-  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
-      it != s.probes.end()-1; ++it)
+  for (auto it = s.probes.cbegin(); it != s.probes.cend()-1; ++it)
     {
       code << "  __monitor_" << it-s.probes.begin() << "_enabled" << " = 0" << endl;
     }
@@ -2187,8 +2184,7 @@ static void monitor_mode_write(systemtap_session& s)
   code << "  exit()" << endl;
   code << "}";
 
-  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
-      it != s.probes.end()-1; ++it)
+  for (auto it = s.probes.cbegin(); it != s.probes.cend()-1; ++it)
     {
       code << "  if ($value == \"" << it-s.probes.begin() << "\")"
            << "  __monitor_" << it-s.probes.begin() << "_enabled" << " ^= 1" << endl;
@@ -2292,6 +2288,9 @@ static void monitor_mode_init(systemtap_session& s)
   sym.current_function = 0;
   sym.current_probe = dp;
   dp->body->visit (&sym);
+
+  // Resolve types for variables in the new procfs probes
+  semantic_pass_types(s);
 }
 
 int
@@ -2309,12 +2308,12 @@ semantic_pass (systemtap_session& s)
       register_standard_tapsets(s);
 
       if (rc == 0) rc = semantic_pass_symbols (s);
-      if (rc == 0) monitor_mode_init (s);
       if (rc == 0) rc = semantic_pass_conditions (s);
       if (rc == 0) rc = semantic_pass_optimize1 (s);
       if (rc == 0) rc = semantic_pass_types (s);
       if (rc == 0) rc = gen_dfa_table(s);
       if (rc == 0) add_global_var_display (s);
+      if (rc == 0) monitor_mode_init (s);
       if (rc == 0) rc = semantic_pass_optimize2 (s);
       if (rc == 0) rc = semantic_pass_vars (s);
       if (rc == 0) rc = semantic_pass_stats (s);
