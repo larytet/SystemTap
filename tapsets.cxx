@@ -9602,6 +9602,26 @@ public:
 };
 
 
+string
+suggest_kernel_functions(const systemtap_session& session, interned_string function)
+{
+  const set<interned_string>& kernel_functions = session.kernel_functions;
+  if (function.empty() || kernel_functions.empty())
+    return "";
+
+  // PR18577: There isn't any point in generating a suggestion list if
+  // we're not going to display it.
+  if ((session.dump_mode == systemtap_session::dump_matched_probes
+       || session.dump_mode == systemtap_session::dump_matched_probes_vars)
+      && session.verbose < 2)
+    return "";
+
+  if (session.verbose > 2)
+    clog << "suggesting " << kernel_functions.size() << " kernel functions" << endl;
+
+  return levenshtein_suggest(function, kernel_functions, 5); // print top 5 only
+}
+
 void
 kprobe_builder::build(systemtap_session & sess,
 		      probe * base,
@@ -9686,6 +9706,16 @@ kprobe_builder::build(systemtap_session & sess,
                     matches.push_back(*it);
                 }
             }
+
+	  if (matches.empty())
+	    {
+	      string sugs = suggest_kernel_functions(sess, function_string_val);
+	      if (!sugs.empty())
+		throw SEMANTIC_ERROR (_NF("no match (similar function: %s)",
+					  "no match (similar functions: %s)",
+					  sugs.find(',') == string::npos,
+					  sugs.c_str()));
+	    }
 
 	  for (vector<interned_string>::const_iterator it = matches.begin();
 	       it != matches.end(); it++)
