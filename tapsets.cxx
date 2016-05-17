@@ -465,8 +465,6 @@ symbol_table
   multimap<Dwarf_Addr, func_info*> map_by_addr;
   unordered_map<interned_string, Dwarf_Addr> globals;
   unordered_map<interned_string, Dwarf_Addr> locals;
-  typedef multimap<Dwarf_Addr, func_info*>::iterator iterator_t;
-  typedef pair<iterator_t, iterator_t> range_t;
   // Section describing function descriptors.
   // Set to SHN_UNDEF if there is no such section.
   GElf_Word opd_section;
@@ -626,7 +624,6 @@ struct generic_kprobe_derived_probe_group: public derived_probe_group
 {
 private:
   unordered_multimap<interned_string,generic_kprobe_derived_probe*> probes_by_module;
-  typedef unordered_multimap<interned_string,generic_kprobe_derived_probe*>::iterator p_b_m_iterator;
 
 public:
   generic_kprobe_derived_probe_group() {}
@@ -1158,8 +1155,7 @@ dwarf_query::query_module_symtab()
       assert(spec_type == function_alone);
       if (dw.name_has_wildcard(function_str_val))
         {
-          symbol_table::iterator_t iter;
-          for (iter = sym_table->map_by_addr.begin();
+          for (auto iter = sym_table->map_by_addr.begin();
                iter != sym_table->map_by_addr.end();
                ++iter)
             {
@@ -1173,8 +1169,8 @@ dwarf_query::query_module_symtab()
         }
       else
         {
-          set<func_info*> fis = sym_table->lookup_symbol(function_str_val);
-          for (set<func_info*>::iterator it=fis.begin(); it!=fis.end(); ++it)
+          const auto& fis = sym_table->lookup_symbol(function_str_val);
+          for (auto it=fis.begin(); it!=fis.end(); ++it)
             {
               fi = *it;
               if (fi && null_die(&fi->die))
@@ -1272,8 +1268,8 @@ dwarf_query::parse_function_spec(const string & spec)
                     lineno_type = ENUMERATED;
                     vector<string> sub_specs;
                     tokenize(spec.substr(line_pos + 1), sub_specs, ",");
-                    vector<string>::const_iterator line_spec;
-                    for (line_spec = sub_specs.begin(); line_spec != sub_specs.end(); ++line_spec)
+                    for (auto line_spec = sub_specs.cbegin();
+                         line_spec != sub_specs.cend(); ++line_spec)
                       {
                         vector<string> ranges;
                         tokenize(*line_spec, ranges, "-");
@@ -1336,10 +1332,10 @@ dwarf_query::parse_function_spec(const string & spec)
 
             case ENUMERATED:
               {
-                vector<int>::const_iterator linenos_it;
-                for (linenos_it = linenos.begin(); linenos_it != linenos.end(); ++linenos_it)
+                for (auto linenos_it = linenos.cbegin();
+                     linenos_it != linenos.cend(); ++linenos_it)
                   {
-                    vector<int>::const_iterator range_it(linenos_it);
+                    auto range_it = linenos_it;
                     while ((range_it+1) != linenos.end() && *range_it + 1 == *(range_it+1))
                         ++range_it;
                     if (linenos_it == range_it)
@@ -1512,8 +1508,7 @@ dwarf_query::mount_well_formed_probe_point()
     module = path_remove_sysroot(sess, module);
 
   vector<probe_point::component*> comps;
-  vector<probe_point::component*>::iterator it;
-  for (it  = base_loc->components.begin();
+  for (auto it = base_loc->components.begin();
        it != base_loc->components.end(); ++it)
     {
       if ((*it)->functor == TOK_PROCESS || (*it)->functor == TOK_MODULE)
@@ -1553,8 +1548,7 @@ dwarf_query::replace_probe_point_component_arg(interned_string functor,
   // only allow these operations if we're editing the well-formed loc
   assert(!previous_bases.empty());
 
-  vector<probe_point::component*>::iterator it;
-  for (it  = base_loc->components.begin();
+  for (auto it = base_loc->components.begin();
        it != base_loc->components.end(); ++it)
     if ((*it)->functor == functor)
       *it = new probe_point::component(new_functor,
@@ -1577,8 +1571,7 @@ dwarf_query::replace_probe_point_component_arg(interned_string functor,
   // only allow these operations if we're editing the well-formed loc
   assert(!previous_bases.empty());
 
-  vector<probe_point::component*>::iterator it;
-  for (it  = base_loc->components.begin();
+  for (auto it = base_loc->components.begin();
        it != base_loc->components.end(); ++it)
     if ((*it)->functor == functor)
       *it = new probe_point::component(new_functor,
@@ -1599,8 +1592,7 @@ dwarf_query::remove_probe_point_component(interned_string functor)
   assert(!previous_bases.empty());
 
   vector<probe_point::component*> new_comps;
-  vector<probe_point::component*>::iterator it;
-  for (it  = base_loc->components.begin();
+  for (auto it = base_loc->components.begin();
        it != base_loc->components.end(); ++it)
     if ((*it)->functor != functor)
       new_comps.push_back(*it);
@@ -1680,13 +1672,11 @@ base_func_info_map_t
 dwarf_query::filtered_all(void)
 {
   base_func_info_map_t r;
-  func_info_map_t::const_iterator f;
-  for (f  = filtered_functions.begin();
-       f != filtered_functions.end(); ++f)
+  for (auto f = filtered_functions.cbegin();
+       f != filtered_functions.cend(); ++f)
     r.push_back(*f);
-  inline_instance_map_t::const_iterator i;
-  for (i  = filtered_inlines.begin();
-       i != filtered_inlines.end(); ++i)
+  for (auto i = filtered_inlines.cbegin();
+       i != filtered_inlines.cend(); ++i)
     r.push_back(*i);
   return r;
 }
@@ -2040,9 +2030,8 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
   assert (q->has_statement_str || q->has_function_str);
   assert (q->spec_type == function_file_and_line);
 
-  base_func_info_map_t bfis = q->filtered_all();
-  base_func_info_map_t::iterator i;
-  for (i = bfis.begin(); i != bfis.end(); ++i)
+  auto bfis = q->filtered_all();
+  for (auto i = bfis.begin(); i != bfis.end(); ++i)
     {
       if (q->dw.die_has_pc (i->die, addr))
         {
@@ -2220,8 +2209,8 @@ query_dwarf_func (Dwarf_Die * func, dwarf_query * q)
               const string& linkage_name = dwarf_linkage_name(&func.die)
                 ?: dwarf_diename(&func.die) ?: (string)func.name;
 
-              set<func_info *> fis = q->dw.mod_info->sym_table->lookup_symbol(linkage_name);
-              for (set<func_info*>::iterator it=fis.begin(); it!=fis.end() ; ++it)
+              const auto& fis = q->dw.mod_info->sym_table->lookup_symbol(linkage_name);
+              for (auto it=fis.begin(); it!=fis.end() ; ++it)
                 {
                   func.entrypc = (*it)->entrypc;
                   if (is_filtered_func_exists(q->filtered_functions, &func))
@@ -2303,9 +2292,8 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
           enum lineno_t lineno_type = WILDCARD;
           if (q->spec_type == function_file_and_line)
             lineno_type = q->lineno_type;
-          base_func_info_map_t bfis = q->filtered_all();
-          base_func_info_map_t::iterator i;
-          for (i = bfis.begin(); i != bfis.end(); ++i)
+          auto bfis = q->filtered_all();
+          for (auto i = bfis.begin(); i != bfis.end(); ++i)
             q->dw.iterate_over_labels (&i->die, q->label_val, *i, q->linenos,
                                        lineno_type, q, query_label);
         }
@@ -2319,9 +2307,8 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
           // in query_callee because we only want the filtering to apply to the
           // first level, not to callees that are recursed into if
           // callees_num_val > 1.
-          base_func_info_map_t bfis = q->filtered_all();
-          base_func_info_map_t::iterator i;
-          for (i = bfis.begin(); i != bfis.end(); ++i)
+          auto bfis = q->filtered_all();
+          for (auto i = bfis.begin(); i != bfis.end(); ++i)
             {
               if (q->spec_type != function_alone &&
                   q->filtered_srcfiles.count(i->decl_file) == 0)
@@ -2345,11 +2332,10 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
                                    ".statement() probe, not .function()"),
                                    q->base_probe->tok);
 
-          base_func_info_map_t bfis = q->filtered_all();
+          auto bfis = q->filtered_all();
 
-          set<string>::const_iterator srcfile;
-          for (srcfile  = q->filtered_srcfiles.begin();
-               srcfile != q->filtered_srcfiles.end(); ++srcfile)
+          for (auto srcfile = q->filtered_srcfiles.cbegin();
+               srcfile != q->filtered_srcfiles.cend(); ++srcfile)
             q->dw.iterate_over_srcfile_lines(srcfile->c_str(), q->linenos,
                                              q->lineno_type, bfis,
                                              query_srcfile_line,
@@ -2358,14 +2344,14 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
       else
         {
           // Otherwise, simply probe all resolved functions.
-          for (func_info_map_t::iterator i = q->filtered_functions.begin();
+          for (auto i = q->filtered_functions.begin();
                i != q->filtered_functions.end(); ++i)
             query_func_info (i->entrypc, *i, q);
 
           // And all inline instances (if we're not excluding inlines with ".call")
           if (! q->has_call)
-            for (inline_instance_map_t::iterator i
-                   = q->filtered_inlines.begin(); i != q->filtered_inlines.end(); ++i)
+            for (auto i = q->filtered_inlines.begin();
+                 i != q->filtered_inlines.end(); ++i)
               query_inline_instance_info (*i, q);
         }
       return DWARF_CB_OK;
@@ -2399,9 +2385,8 @@ dwarf_query::query_module_functions ()
       vector<Dwarf_Die> cus;
       Dwarf_Die cu_mem;
 
-      base_func_info_map_t bfis = filtered_all();
-      base_func_info_map_t::iterator i;
-      for (i = bfis.begin(); i != bfis.end(); ++i)
+      auto bfis = filtered_all();
+      for (auto i = bfis.begin(); i != bfis.end(); ++i)
         if (dwarf_diecu(&i->die, &cu_mem, NULL, NULL) &&
             used_cus.insert(cu_mem.addr).second)
           cus.push_back(cu_mem);
@@ -2411,7 +2396,7 @@ dwarf_query::query_module_functions ()
       inline_dupes.clear();
 
       // Run the query again on the individual CUs
-      for (vector<Dwarf_Die>::iterator i = cus.begin(); i != cus.end(); ++i){
+      for (auto i = cus.begin(); i != cus.end(); ++i){
         rc = query_cu(&*i, this);
 	if (rc != DWARF_CB_OK)
 	  {
@@ -2645,9 +2630,8 @@ build_library_probe(dwflpp& dw,
   // Create new probe point for the matching library. This is what will be
   // shown in listing mode. Also replace the process(str) with the real
   // absolute path rather than keeping what the user typed in.
-  vector<probe_point::component*>::iterator it;
-  for (it = specific_loc->components.begin();
-      it != specific_loc->components.end(); ++it)
+  for (auto it = specific_loc->components.begin();
+       it != specific_loc->components.end(); ++it)
     if ((*it)->functor == TOK_PROCESS)
       derived_comps.push_back(new probe_point::component(TOK_PROCESS,
           new literal_string(path_remove_sysroot(dw.sess, dw.module_name))));
@@ -2735,9 +2719,8 @@ query_one_plt (const char *entry, long addr, dwflpp & dw,
       if (dw.sess.verbose > 2)
         clog << _F("plt entry=%s\n", entry);
 
-      vector<probe_point::component*>::iterator it;
-      for (it = specific_loc->components.begin();
-          it != specific_loc->components.end(); ++it)
+      for (auto it = specific_loc->components.begin();
+           it != specific_loc->components.end(); ++it)
         if ((*it)->functor == TOK_PROCESS)
           {
             // Replace with fully resolved path
@@ -2899,9 +2882,8 @@ var_expanding_visitor::rewrite_lvalue(const token* tok, interned_string& eop,
         {
 	  // Build up a list of supported operators.
 	  string ops;
-	  std::set<string>::iterator i;
           int valid_ops_size = 0;
-	  for (i = valid_ops.begin(); i != valid_ops.end(); i++)
+	  for (auto i = valid_ops.begin(); i != valid_ops.end(); i++)
           {
 	    ops += " " + *i + ",";
             valid_ops_size++;
@@ -3751,7 +3733,7 @@ dwarf_var_expanding_visitor::visit_target_symbol_saved_return (target_symbol* e)
   // Check and make sure we haven't already seen this target
   // variable in this return probe.  If we have, just return our
   // last replacement.
-  unordered_map<string, expression *>::iterator i = return_ts_map.find(ts_name);
+  auto i = return_ts_map.find(ts_name);
   if (i != return_ts_map.end())
     {
       provide (i->second);
@@ -4422,11 +4404,9 @@ dwarf_var_expanding_visitor::visit_perf_op (perf_op *e)
   add_block->tok = e->tok;
 
   systemtap_session &s = this->q.sess;
-  std::vector<std::pair<std::string,std::string> >::iterator it;
   // Find the associated perf.counter probe
-  for (it=s.perf_counters.begin();
-       it != s.perf_counters.end();
-       it++)
+  auto it = s.perf_counters.begin();
+  for (; it != s.perf_counters.end(); it++)
     if ((*it).first == e_lit_val)
       {
 	// if perf .process("name") omitted, then set it to this process name
@@ -4592,7 +4572,7 @@ void dwarf_cast_expanding_visitor::filter_special_modules(string& module)
       (module[0] == '<' || startswith(module, "kernel<")))
     {
       string header = module;
-      map<string,string>::const_iterator it = compiled_headers.find(header);
+      auto it = compiled_headers.find(header);
       if (it != compiled_headers.end())
         {
           module = it->second;
@@ -5120,13 +5100,11 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
       // Propagate perf.counters so we can emit later
       this->perf_counter_refs = v.perf_counter_refs;
       // Emit local var used to save the perf counter read value
-      std::set<string>::iterator pcii;
-      for (pcii = v.perf_counter_refs.begin();
+      for (auto pcii = v.perf_counter_refs.begin();
 	   pcii != v.perf_counter_refs.end(); pcii++)
 	{
-	  std::vector<std::pair<std::string,std::string> >::iterator it;
 	  // Find the associated perf counter probe
-	  for (it=q.sess.perf_counters.begin() ;
+	  for (auto it = q.sess.perf_counters.begin();
 	       it != q.sess.perf_counters.end();
 	       it++)
 	    if ((*it).first == (*pcii))
@@ -5654,15 +5632,13 @@ dwarf_derived_probe::register_patterns(systemtap_session& s)
 void
 dwarf_derived_probe::emit_probe_local_init(systemtap_session& s, translator_output * o)
 {
-  std::set<string>::iterator pcii;
-  for (pcii = perf_counter_refs.begin();
+  for (auto pcii = perf_counter_refs.begin();
        pcii != perf_counter_refs.end();
        pcii++)
     {
-      std::vector<std::pair<std::string,std::string> >::iterator it;
       // Find the associated perf.counter probe
       unsigned i = 0;
-      for (it=s.perf_counters.begin() ;
+      for (auto it = s.perf_counters.begin();
 	   it != s.perf_counters.end();
 	   it++, i++)
 	if ((*it).first == (*pcii))
@@ -5713,7 +5689,7 @@ generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   size_t module_name_max = 0, section_name_max = 0;
   size_t module_name_tot = 0, section_name_tot = 0;
   size_t all_name_cnt = probes_by_module.size(); // for average
-  for (p_b_m_iterator it = probes_by_module.begin(); it != probes_by_module.end(); it++)
+  for (auto it = probes_by_module.begin(); it != probes_by_module.end(); it++)
     {
       generic_kprobe_derived_probe* p = it->second;
 #define DOIT(var,expr) do {                             \
@@ -5773,7 +5749,7 @@ generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->indent(1);
 
   size_t stap_kprobe_idx = 0;
-  for (p_b_m_iterator it = probes_by_module.begin(); it != probes_by_module.end(); it++)
+  for (auto it = probes_by_module.begin(); it != probes_by_module.end(); it++)
     {
       generic_kprobe_derived_probe* p = it->second;
       s.op->newline() << "{";
@@ -6245,8 +6221,7 @@ sdt_uprobe_var_expanding_visitor::build_dwarf_registers ()
   // Build regex pieces out of the known dwarf_regs.  We keep two separate
   // lists: ones with the % prefix (and thus unambigiuous even despite PR11821),
   // and ones with no prefix (and thus only usable in unambiguous contexts).
-  map<string,pair<unsigned,int> >::const_iterator ri;
-  for (ri = dwarf_regs.begin(); ri != dwarf_regs.end(); ri++)
+  for (auto ri = dwarf_regs.cbegin(); ri != dwarf_regs.cend(); ri++)
     {
       string regname = ri->first;
       assert (regname != "");
@@ -6446,7 +6421,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_register (target_symbol *e,
   if (!regexp_match(asmarg, regexp, matches))
     {
       string regname = matches[1];
-      map<string,pair<unsigned,int> >::iterator ri = dwarf_regs.find (regname);
+      auto ri = dwarf_regs.find (regname);
       if (ri != dwarf_regs.end()) // known register
         {
           embedded_expr *get_arg1 = new embedded_expr;
@@ -7464,8 +7439,7 @@ sdt_query::convert_location ()
 
   vector<probe_point::component*> derived_comps;
 
-  vector<probe_point::component*>::iterator it;
-  for (it = specific_loc->components.begin();
+  for (auto it = specific_loc->components.begin();
        it != specific_loc->components.end(); ++it)
     if ((*it)->functor == TOK_PROCESS)
       {
@@ -7567,18 +7541,17 @@ suggest_marks(systemtap_session& sess,
     return "";
 
   set<string> marks;
-  const map<string, module_info*> &cache = sess.module_cache->cache;
+  const auto &cache = sess.module_cache->cache;
   bool dash_suggestions = (mark.find("-") != string::npos);
 
-  for (set<string>::iterator itmod = modules.begin();
+  for (auto itmod = modules.begin();
        itmod != modules.end(); ++itmod)
     {
-      map<string, module_info*>::const_iterator itcache;
-      if ((itcache = cache.find(*itmod)) != cache.end())
+      auto itcache = cache.find(*itmod);
+      if (itcache != cache.end())
         {
-          set<pair<string,string> >::const_iterator itmarks;
-          for (itmarks = itcache->second->marks.begin();
-               itmarks != itcache->second->marks.end(); ++itmarks)
+          for (auto itmarks = itcache->second->marks.cbegin();
+               itmarks != itcache->second->marks.cend(); ++itmarks)
             {
               if (provider.empty()
                   // simulating dw.function_name_matches_pattern()
@@ -7606,8 +7579,8 @@ suggest_marks(systemtap_session& sess,
     {
       clog << "suggesting " << marks.size() << " marks "
            << "from modules:" << endl;
-      for (set<string>::iterator itmod = modules.begin();
-          itmod != modules.end(); ++itmod)
+      for (auto itmod = modules.begin();
+           itmod != modules.end(); ++itmod)
         clog << *itmod << endl;
     }
 
@@ -7633,13 +7606,13 @@ suggest_plt_functions(systemtap_session& sess,
     return "";
 
   set<interned_string> funcs;
-  const map<string, module_info*> &cache = sess.module_cache->cache;
+  const auto &cache = sess.module_cache->cache;
 
-  for (set<string>::iterator itmod = modules.begin();
+  for (auto itmod = modules.begin();
        itmod != modules.end(); ++itmod)
     {
-      map<string, module_info*>::const_iterator itcache;
-      if ((itcache = cache.find(*itmod)) != cache.end())
+      auto itcache = cache.find(*itmod);
+      if (itcache != cache.end())
         funcs.insert(itcache->second->plt_funcs.begin(),
                      itcache->second->plt_funcs.end());
     }
@@ -7648,8 +7621,8 @@ suggest_plt_functions(systemtap_session& sess,
     {
       clog << "suggesting " << funcs.size() << " plt functions "
            << "from modules:" << endl;
-      for (set<string>::iterator itmod = modules.begin();
-          itmod != modules.end(); ++itmod)
+      for (auto itmod = modules.begin();
+           itmod != modules.end(); ++itmod)
         clog << *itmod << endl;
     }
 
@@ -7681,16 +7654,16 @@ suggest_dwarf_functions(systemtap_session& sess,
 
   // We must first aggregate all the functions from the cache
   set<interned_string> funcs;
-  const map<string, module_info*> &cache = sess.module_cache->cache;
+  const auto &cache = sess.module_cache->cache;
 
-  for (set<string>::iterator itmod = modules.begin();
-      itmod != modules.end(); ++itmod)
+  for (auto itmod = modules.begin();
+       itmod != modules.end(); ++itmod)
     {
       module_info *module;
 
       // retrieve module_info from cache
-      map<string, module_info*>::const_iterator itcache;
-      if ((itcache = cache.find(*itmod)) != cache.end())
+      auto itcache = cache.find(*itmod);
+      if (itcache != cache.end())
         module = itcache->second;
       else // module not found
         continue;
@@ -7702,8 +7675,8 @@ suggest_dwarf_functions(systemtap_session& sess,
       // add all function symbols in cache
       if (module->symtab_status != info_present || module->sym_table == NULL)
         continue;
-      unordered_multimap<interned_string, func_info*>& modfuncs = module->sym_table->map_by_name;
-      for (unordered_multimap<interned_string, func_info*>::const_iterator itfuncs = modfuncs.begin();
+      const auto& modfuncs = module->sym_table->map_by_name;
+      for (auto itfuncs = modfuncs.begin();
            itfuncs != modfuncs.end(); ++itfuncs)
         funcs.insert(itfuncs->first);
     }
@@ -7712,8 +7685,8 @@ suggest_dwarf_functions(systemtap_session& sess,
     {
       clog << "suggesting " << funcs.size() << " dwarf functions "
            << "from modules:" << endl;
-      for (set<string>::iterator itmod = modules.begin();
-          itmod != modules.end(); ++itmod)
+      for (auto itmod = modules.begin();
+           itmod != modules.end(); ++itmod)
         clog << *itmod << endl;
     }
 
@@ -7784,9 +7757,8 @@ resolve_library_by_path(base_query & q,
       if (contains_glob_chars (lib))
         {
           // Evaluate glob here, and call derive_probes recursively with each match.
-          set<string> globs = glob_executable (lib);
-          for (set<string>::const_iterator it = globs.begin();
-               it != globs.end(); ++it)
+          const auto& globs = glob_executable (lib);
+          for (auto it = globs.begin(); it != globs.end(); ++it)
             {
               assert_no_interrupts();
 
@@ -7973,10 +7945,9 @@ dwarf_builder::build(systemtap_session & sess,
           assert (lit);
 
           // Evaluate glob here, and call derive_probes recursively with each match.
-          set<string> globs = glob_executable (module_name);
+          const auto& globs = glob_executable (module_name);
           unsigned results_pre = finished_results.size();
-          for (set<string>::const_iterator it = globs.begin();
-               it != globs.end(); ++it)
+          for (auto it = globs.begin(); it != globs.end(); ++it)
             {
               assert_no_interrupts();
 
@@ -8282,7 +8253,7 @@ dwarf_builder::build(systemtap_session & sess,
       if ((results_pre == results_post) && (! sess.suppress_warnings)) // no matches; issue warning
         {
           string quicklist;
-          for (set<interned_string>::iterator it = q.inlined_non_returnable.begin();
+          for (auto it = q.inlined_non_returnable.begin();
                it != q.inlined_non_returnable.end();
                it++)
             {
@@ -8304,7 +8275,7 @@ dwarf_builder::build(systemtap_session & sess,
                             "skipped .return probe of %u inlined functions", i_n_r, i_n_r) << endl;
       if ((sess.verbose > 3) || (sess.verbose > 2 && results_pre == results_post)) // issue details with high verbosity
         {
-          for (set<interned_string>::iterator it = q.inlined_non_returnable.begin();
+          for (auto it = q.inlined_non_returnable.begin();
                it != q.inlined_non_returnable.end();
                it++)
             clog << (*it) << " ";
@@ -8377,8 +8348,8 @@ symbol_table::add_symbol(interned_string name, bool weak, bool descriptor,
 	name.remove_prefix(1);
 
       // Make sure we don't create duplicate func_info's
-      range_t er = map_by_addr.equal_range(addr);
-      for (iterator_t it = er.first; it != er.second; ++it)
+      auto er = map_by_addr.equal_range(addr);
+      for (auto it = er.first; it != er.second; ++it)
         if (it->second->name == name)
 	  return;
     }
@@ -8520,7 +8491,7 @@ symbol_table::get_from_elf()
 func_info *
 symbol_table::get_func_containing_address(Dwarf_Addr addr)
 {
-  iterator_t iter = map_by_addr.upper_bound(addr);
+  auto iter = map_by_addr.upper_bound(addr);
   if (iter == map_by_addr.begin())
     return NULL;
   else
@@ -8530,7 +8501,7 @@ symbol_table::get_func_containing_address(Dwarf_Addr addr)
 func_info *
 symbol_table::get_first_func()
 {
-  iterator_t iter = map_by_addr.begin();
+  auto iter = map_by_addr.begin();
   return (iter)->second;
 }
 
@@ -8540,10 +8511,8 @@ set <func_info*>
 symbol_table::lookup_symbol(interned_string name)
 {
   set<func_info*> fis;
-  pair <unordered_multimap<interned_string, func_info*>::iterator,
-        unordered_multimap<interned_string, func_info*>::iterator> ret;
-  ret = map_by_name.equal_range(name);
-  for (unordered_multimap<interned_string, func_info*>::iterator it = ret.first; it != ret.second; ++it)
+  auto ret = map_by_name.equal_range(name);
+  for (auto it = ret.first; it != ret.second; ++it)
     if (! it->second->descriptor)
       fis.insert(it->second);
   return fis;
@@ -8557,7 +8526,7 @@ symbol_table::lookup_symbol_address(interned_string name)
   set <Dwarf_Addr> addrs;
   set <func_info*> fis = lookup_symbol(name);
 
-  for (set<func_info*>::iterator it=fis.begin(); it!=fis.end(); ++it)
+  for (auto it=fis.begin(); it!=fis.end(); ++it)
     addrs.insert((*it)->addr);
 
   return addrs;
@@ -8583,8 +8552,8 @@ symbol_table::purge_syscall_stubs()
     cerr << _("Multiple 'sys_ni_syscall' symbols found.\n");
   Dwarf_Addr stub_addr = * addrs.begin();
 
-  range_t purge_range = map_by_addr.equal_range(stub_addr);
-  for (iterator_t iter = purge_range.first;
+  auto purge_range = map_by_addr.equal_range(stub_addr);
+  for (auto iter = purge_range.first;
        iter != purge_range.second;
        )
     {
@@ -8641,7 +8610,7 @@ module_info::update_symtab(cu_function_cache_t *funcs)
 
   cu_function_cache_t new_funcs;
 
-  for (cu_function_cache_t::iterator func = funcs->begin();
+  for (auto func = funcs->begin();
        func != funcs->end(); func++)
     {
       // optimization: inlines will never be in the symbol table
@@ -8661,12 +8630,11 @@ module_info::update_symtab(cu_function_cache_t *funcs)
       if (fis.empty())
         continue;
 
-      for (set<func_info*>::iterator fi = fis.begin(); fi!=fis.end(); ++fi)
+      for (auto fi = fis.begin(); fi!=fis.end(); ++fi)
         {
           // iterate over all functions at the same address
-          symbol_table::range_t er = sym_table->map_by_addr.equal_range((*fi)->addr);
-
-          for (symbol_table::iterator_t it = er.first; it != er.second; ++it)
+          auto er = sym_table->map_by_addr.equal_range((*fi)->addr);
+          for (auto it = er.first; it != er.second; ++it)
             {
               // update this function with the dwarf die
               it->second->die = func->second;
@@ -8917,15 +8885,13 @@ uprobe_derived_probe_group::emit_module_utrace_decls (systemtap_session& s)
       // List of perf counters used by each probe
       // This list is an index into struct stap_perf_probe,
       uprobe_derived_probe *p = probes[pci];
-      std::set<string>::iterator pcii;
       s.op->newline() << "long perf_counters_" + lex_cast(pci) + "[] = {";
-      for (pcii = p->perf_counter_refs.begin();
+      for (auto pcii = p->perf_counter_refs.begin();
 	   pcii != p->perf_counter_refs.end(); pcii++)
 	{
-          std::vector<std::pair<std::string,std::string> >::iterator it;
 	  unsigned i = 0;
 	  // Find the associated perf.counter probe
-	  for (it=s.perf_counters.begin() ;
+	  for (auto it = s.perf_counters.begin();
 	       it != s.perf_counters.end(); it++, i++)
 	    if ((*it).first == (*pcii))
 	      break;
@@ -9216,15 +9182,13 @@ uprobe_derived_probe_group::emit_module_inode_decls (systemtap_session& s)
       // List of perf counters used by each probe
       // This list is an index into struct stap_perf_probe,
       uprobe_derived_probe *p = probes[pci];
-      std::set<string>::iterator pcii;
       s.op->newline() << "long perf_counters_" + lex_cast(pci) + "[] = {";
-      for (pcii = p->perf_counter_refs.begin();
+      for (auto pcii = p->perf_counter_refs.begin();
 	   pcii != p->perf_counter_refs.end(); pcii++)
 	{
-          vector<std::pair<string,string> >:: iterator it;
 	  unsigned i = 0;
 	  // Find the associated perf.counter probe
-	  for (it=s.perf_counters.begin() ;
+	  for (auto it = s.perf_counters.begin();
 	       it != s.perf_counters.end(); it++, i++)
 	    if ((*it).first == (*pcii))
 	      break;
@@ -9698,8 +9662,8 @@ kprobe_builder::build(systemtap_session & sess,
           else // Search function name list for matching names
             {
               const string& val = function_string_val;
-              for (set<interned_string>::const_iterator it = sess.kernel_functions.begin();
-                   it != sess.kernel_functions.end(); it++)
+              for (auto it = sess.kernel_functions.cbegin();
+                   it != sess.kernel_functions.cend(); it++)
                 {
                   // fnmatch returns zero for matching.
                   if (fnmatch(val.c_str(), it->to_string().c_str(), 0) == 0)
@@ -9717,8 +9681,7 @@ kprobe_builder::build(systemtap_session & sess,
 					  sugs.c_str()));
 	    }
 
-	  for (vector<interned_string>::const_iterator it = matches.begin();
-	       it != matches.end(); it++)
+	  for (auto it = matches.cbegin(); it != matches.cend(); it++)
 	    {
               derived_probe *dp
                 = new kprobe_derived_probe (sess, finished_results, base,
@@ -10123,8 +10086,7 @@ hwbkpt_builder::build(systemtap_session & sess,
   well_formed_loc->well_formed = true;
 
   vector<probe_point::component*> well_formed_comps;
-  vector<probe_point::component*>::iterator it;
-  for (it = location->components.begin();
+  for (auto it = location->components.begin();
       it != location->components.end(); ++it)
     if ((*it)->functor == TOK_HWBKPT && has_addr)
       well_formed_comps.push_back(new probe_point::component(TOK_HWBKPT,
