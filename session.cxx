@@ -179,6 +179,7 @@ systemtap_session::systemtap_session ():
     && strcmp(getenv("TERM") ?: "notdumb", "dumb"); // on auto
   interactive_mode = false;
   pass_1a_complete = false;
+  timeout = 0;
 
   // PR12443: put compiled-in / -I paths in front, to be preferred during 
   // tapset duplicate-file elimination
@@ -362,6 +363,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   color_mode = other.color_mode;
   interactive_mode = other.interactive_mode;
   pass_1a_complete = other.pass_1a_complete;
+  timeout = other.timeout;
 
   include_path = other.include_path;
   runtime_path = other.runtime_path;
@@ -945,6 +947,16 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  server_args.push_back (string ("-") + (char)grc + optarg);
 	  size_option = string (optarg);
 	  break;
+
+        case 'T':
+          assert(optarg);
+          timeout = (int) 1000*strtod(optarg, &num_endptr); // convert to ms
+          if (*num_endptr != '\0' || timeout < 1)
+            {
+              cerr << _("Invalid timeout interval.") << endl;
+              return 1;
+            }
+          break;
 
 	case 'q':
           if (client_options) { cerr << _F("ERROR: %s invalid with %s", "-q", "--client-options") << endl; return 1; } 

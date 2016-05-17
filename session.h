@@ -219,6 +219,7 @@ public:
   bool tmpdir_opt_set;
   bool monitor;
   int monitor_interval;
+  int timeout; // in ms
 
   enum
    { dump_none,               // no dumping requested

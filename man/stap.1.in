@@ -361,6 +361,9 @@ output files exceed
 .B N
 , systemtap removes the oldest output file. You can omit the second argument.
 .TP
+.BI \-T " TIMEOUT"
+Exit the script after TIMEOUT seconds.
+.TP
 .B \-\-skip\-badvars
 Ignore unresolvable or run-time-inaccessible context variables and
 substitute with 0, without errors.

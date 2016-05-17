@@ -1,5 +1,8 @@
 * What's new in version 3.1, PRERELEASE
 
+- New -T option allows the script to be terminated after a specified number
+  of seconds. This is a shortcut for adding the probe, timer {exit()}.
+
 - New installcheck-parallel testsuite feature allows running the tests in
   parallel in order to save time.  See testsuite/README for details.
 

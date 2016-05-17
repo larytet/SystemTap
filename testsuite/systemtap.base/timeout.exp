@@ -1,0 +1,11 @@
+set test "timeout option"
+if {![installtest_p]} {untested $test; return}
+
+set success 0
+verbose -log "Running stap -T 1 -e \'probe end {println(\"terminated\")}\'"
+spawn stap -T 1 -e "probe end {println(\"terminated\")}"
+expect {
+  -timeout 20
+  -re "terminated" {incr success}
+}
+if {$success == 1} {pass $test} {fail $test}

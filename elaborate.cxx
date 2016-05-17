@@ -2293,6 +2293,30 @@ static void monitor_mode_init(systemtap_session& s)
   semantic_pass_types(s);
 }
 
+static void setup_timeout(systemtap_session& s)
+{
+  if (!s.timeout) return;
+
+  stringstream code;
+  code <<  "probe timer.ms(" << s.timeout << ") {exit()}";
+  probe* p = parse_synthetic_probe(s, code, 0);
+  if (!p)
+    throw SEMANTIC_ERROR (_("can't create timer probe"), 0);
+
+  vector<derived_probe*> dps;
+  derive_probes (s, p, dps);
+
+  derived_probe* dp = dps[0];
+  s.probes.push_back (dp);
+  dp->join_group (s);
+
+  // Repopulate symbol info
+  symresolution_info sym (s);
+  sym.current_function = 0;
+  sym.current_probe = dp;
+  dp->body->visit (&sym);
+}
+
 int
 semantic_pass (systemtap_session& s)
 {
@@ -2307,6 +2331,7 @@ semantic_pass (systemtap_session& s)
       s.register_library_aliases();
       register_standard_tapsets(s);
 
+      if (rc == 0) setup_timeout(s);
       if (rc == 0) rc = semantic_pass_symbols (s);
       if (rc == 0) rc = semantic_pass_conditions (s);
       if (rc == 0) rc = semantic_pass_optimize1 (s);
