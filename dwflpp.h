@@ -63,9 +63,6 @@ typedef std::unordered_map<void*, cu_type_cache_t*> mod_cu_type_cache_t;
 
 // function -> die
 typedef std::unordered_multimap<interned_string, Dwarf_Die> cu_function_cache_t;
-typedef std::pair<cu_function_cache_t::iterator,
-                  cu_function_cache_t::iterator>
-        cu_function_cache_range_t;
 
 // cu die -> (function -> die)
 typedef std::unordered_map<void*, cu_function_cache_t*> mod_cu_function_cache_t;

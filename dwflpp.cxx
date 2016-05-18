@@ -125,8 +125,7 @@ dwflpp::~dwflpp()
   delete_map(global_alias_cache);
   delete_map(cu_die_parent_cache);
 
-  cu_lines_cache_t::iterator i;
-  for (i = cu_lines_cache.begin(); i != cu_lines_cache.end(); ++i)
+  for (auto i = cu_lines_cache.begin(); i != cu_lines_cache.end(); ++i)
     delete_map(*i->second);
   delete_map(cu_lines_cache);
 
@@ -403,7 +402,7 @@ dwflpp::setup_user(const vector<string>& modules, bool debuginfo_needed)
   if (! sess.module_cache)
     sess.module_cache = new module_cache ();
 
-  vector<string>::const_iterator it = modules.begin();
+  auto it = modules.begin();
   dwfl = setup_dwfl_user(it, modules.end(), debuginfo_needed, sess);
   if (debuginfo_needed && it != modules.end())
     DWFL_ASSERT (string(_F("missing process %s %s debuginfo",
@@ -487,7 +486,7 @@ dwflpp::iterate_over_cus<void>(int (*callback)(Dwarf_Die*, void*),
       module_tus_read.insert(dw);
     }
 
-  for (vector<Dwarf_Die>::iterator i = v->begin(); i != v->end(); ++i)
+  for (auto i = v->begin(); i != v->end(); ++i)
     {
       int rc = (*callback)(&*i, data);
       assert_no_interrupts();
@@ -598,7 +597,7 @@ dwflpp::iterate_over_inline_instances<void>(int (*callback)(Dwarf_Die*, void*),
   if (!v)
     return;
 
-  for (vector<Dwarf_Die>::iterator i = v->begin(); i != v->end(); ++i)
+  for (auto i = v->begin(); i != v->end(); ++i)
     {
       int rc = (*callback)(&*i, data);
       assert_no_interrupts();
@@ -683,7 +682,7 @@ dwflpp::getscopes_die(Dwarf_Die* die)
 
   vector<Dwarf_Die> scopes;
   Dwarf_Die *scope = die;
-  cu_die_parent_cache_t::iterator it;
+  auto it = parents->end();
   do
     {
       scopes.push_back(*scope);
@@ -715,7 +714,7 @@ dwflpp::getscopes(Dwarf_Die* die)
 
   Dwarf_Die origin;
   Dwarf_Die *scope = die;
-  cu_die_parent_cache_t::iterator it;
+  auto it = parents->end();
   do
     {
       scopes.push_back(*scope);
@@ -791,7 +790,7 @@ dwflpp::get_parent_scope(Dwarf_Die* die)
     die = &specification;
 
   cu_die_parent_cache_t *parents = get_die_parents();
-  cu_die_parent_cache_t::iterator it = parents->find(die->addr);
+  auto it = parents->find(die->addr);
   while (it != parents->end())
     {
       Dwarf_Die* scope = &it->second;
@@ -908,7 +907,7 @@ Dwarf_Die *
 dwflpp::declaration_resolve_other_cus(const string& name)
 {
   iterate_over_cus(global_alias_caching_callback_cus, this, true);
-  for (mod_cu_type_cache_t::iterator i = global_alias_cache.begin();
+  for (auto i = global_alias_cache.begin();
          i != global_alias_cache.end(); ++i)
     {
       cu_type_cache_t *v = (*i).second;
@@ -1000,11 +999,10 @@ dwflpp::iterate_over_functions<void>(int (*callback)(Dwarf_Die*, void*),
       mod_info->update_symtab(v);
     }
 
-  cu_function_cache_t::iterator it;
-  cu_function_cache_range_t range = v->equal_range(function);
+  auto range = v->equal_range(function);
   if (range.first != range.second)
     {
-      for (it = range.first; it != range.second; ++it)
+      for (auto it = range.first; it != range.second; ++it)
         {
           Dwarf_Die& die = it->second;
           if (sess.verbose > 4)
@@ -1021,7 +1019,7 @@ dwflpp::iterate_over_functions<void>(int (*callback)(Dwarf_Die*, void*),
       // attribute, so we read that to match against the user's function
       // pattern.  Note that this isn't perfect, as not all will have that
       // attribute (notably ctors and dtors), but we do what we can...
-      for (it = v->begin(); it != v->end(); ++it)
+      for (auto it = v->begin(); it != v->end(); ++it)
         {
           if (pending_interrupts) return DWARF_CB_ABORT;
           Dwarf_Die& die = it->second;
@@ -1040,7 +1038,7 @@ dwflpp::iterate_over_functions<void>(int (*callback)(Dwarf_Die*, void*),
     }
   else if (name_has_wildcard (function))
     {
-      for (it = v->begin(); it != v->end(); ++it)
+      for (auto it = v->begin(); it != v->end(); ++it)
         {
           if (pending_interrupts) return DWARF_CB_ABORT;
           const string& func_name = it->first;
@@ -1087,11 +1085,10 @@ dwflpp::iterate_single_function<void>(int (*callback)(Dwarf_Die*, void*),
       mod_info->update_symtab(v);
     }
 
-  cu_function_cache_t::iterator it;
-  cu_function_cache_range_t range = v->equal_range(function);
+  auto range = v->equal_range(function);
   if (range.first != range.second)
     {
-      for (it = range.first; it != range.second; ++it)
+      for (auto it = range.first; it != range.second; ++it)
         {
           Dwarf_Die cu_mem;
           Dwarf_Die& die = it->second;
@@ -1364,11 +1361,9 @@ dwflpp::iterate_over_libraries<void>(void (*callback)(void*, const char*),
          sess.print_warning("failed to read libraries from " + module_name + ": " + strerror(errno));
     }
 
-  for (std::set<std::string>::iterator it = added.begin();
-      it != added.end();
-      it++)
+  for (auto it = added.begin(); it != added.end(); it++)
     {
-      string modname = *it;
+      const string& modname = *it;
       (callback) (data, modname.c_str());
     }
 }
@@ -1584,8 +1579,7 @@ dwflpp::get_cu_lines_sorted_by_lineno(const char *srcfile)
       if (sess.verbose > 3)
         {
           clog << _F("found the following lines for %s:", srcfile) << endl;
-          lines_t::iterator i;
-          for (i  = lines->begin(); i != lines->end(); ++i)
+          for (auto i  = lines->begin(); i != lines->end(); ++i)
             cout << DWARF_LINENO(*i) << " = " << hex
                  << DWARF_LINEADDR(*i) << dec << endl;
         }
@@ -1624,8 +1618,7 @@ static lines_t
 collect_lines_in_die(lines_range_t range, Dwarf_Die *die)
 {
   lines_t lines_in_die;
-  for (lines_t::iterator line  = range.first;
-                         line != range.second; ++line)
+  for (auto line = range.first; line != range.second; ++line)
     if (dwarf_haspc(die, DWARF_LINEADDR(*line)))
       lines_in_die.push_back(*line);
   return lines_in_die;
@@ -1670,8 +1663,7 @@ dwflpp::collect_all_lines(char const * srcfile,
 {
   // This is where we handle WILDCARD lineno types.
   lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
-  for (base_func_info_map_t::iterator func  = funcs.begin();
-                                      func != funcs.end(); ++func)
+  for (auto func = funcs.begin(); func != funcs.end(); ++func)
     add_matching_lines_in_func(cu, cu_lines, *func, matching_lines);
 }
 
@@ -1712,8 +1704,7 @@ dwflpp::collect_lines_for_single_lineno(char const * srcfile,
    * confident from what lineno we adjust.
    */
   lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
-  for (base_func_info_map_t::iterator func  = funcs.begin();
-                                      func != funcs.end(); ++func)
+  for (auto func = funcs.begin(); func != funcs.end(); ++func)
     add_matching_line_in_die(cu_lines, matching_lines, &func->die,
                              is_relative ? lineno + func->decl_line
                                          : lineno);
@@ -1727,8 +1718,7 @@ functions_have_lineno(base_func_info_map_t& funcs,
   if (lineno_range.first == lineno_range.second)
     return false; // no LRs at this lineno
 
-  for (base_func_info_map_t::iterator func  = funcs.begin();
-                                      func != funcs.end(); ++func)
+  for (auto func = funcs.begin(); func != funcs.end(); ++func)
     if (!collect_lines_in_die(lineno_range, &func->die).empty())
       return true;
 
@@ -1815,8 +1805,7 @@ get_funcs_in_srcfile(base_func_info_map_t& funcs,
                      const char * srcfile)
 {
   base_func_info_map_t matching_funcs;
-  for (base_func_info_map_t::iterator func  = funcs.begin();
-                                      func != funcs.end(); ++func)
+  for (auto func = funcs.begin(); func != funcs.end(); ++func)
     if (func->decl_file == string(srcfile))
       matching_funcs.push_back(*func);
   return matching_funcs;
@@ -1872,15 +1861,14 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
   else if (lineno_type == ENUMERATED)
     {
       set<int> collected_linenos;
-      for (vector<int>::const_iterator it  = linenos.begin();
-                                       it != linenos.end(); it++)
+      for (auto it = linenos.begin(); it != linenos.end(); it++)
         {
           // have we already collected this lineno?
           if (collected_linenos.find(*it) != collected_linenos.end())
             continue;
 
           // remember end iterator so we can tell if things were found later
-          lines_t::const_iterator itend = matching_lines.end();
+          auto itend = matching_lines.end();
 
           collect_lines_for_single_lineno(srcfile, *it, false, /* is_relative */
                                           current_funcs, matching_lines);
@@ -1927,8 +1915,8 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
   if (!matching_lines.empty())
     {
       set<Dwarf_Addr> probed_addrs;
-      for (lines_t::iterator line  = matching_lines.begin();
-                             line != matching_lines.end(); ++line)
+      for (auto line = matching_lines.begin();
+           line != matching_lines.end(); ++line)
         {
           int lineno = DWARF_LINENO(*line);
           Dwarf_Addr addr = DWARF_LINEADDR(*line);
@@ -2358,7 +2346,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
       consider_decl_line = true;
   }
 
-  for(func_info_map_t::iterator it = funcs.begin(); it != funcs.end(); it++)
+  for(auto it = funcs.begin(); it != funcs.end(); it++)
     {
 #if 0 /* someday */
       Dwarf_Addr* bkpts = 0;
@@ -2375,11 +2363,10 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
       unsigned entrypc_srcline_idx = 0;
       Dwarf_Line *entrypc_srcline = NULL;
       {
-        vector<Dwarf_Addr>::const_iterator it_addr =
-          lower_bound(addrs.begin(), addrs.end(), entrypc);
-        if (it_addr != addrs.end() && *it_addr == entrypc)
+        auto it_addr = lower_bound(addrs.cbegin(), addrs.cend(), entrypc);
+        if (it_addr != addrs.cend() && *it_addr == entrypc)
           {
-            entrypc_srcline_idx = it_addr - addrs.begin();
+            entrypc_srcline_idx = it_addr - addrs.cbegin();
             entrypc_srcline = dwarf_onesrcline(lines, entrypc_srcline_idx);
           }
       }
