@@ -159,6 +159,7 @@ struct typeresolution_info: public visitor
   void visit_autocast_op (autocast_op* e);
   void visit_atvar_op (atvar_op* e);
   void visit_defined_op (defined_op* e);
+  void visit_const_op (const_op* e);
   void visit_entry_op (entry_op* e);
   void visit_perf_op (perf_op* e);
 };

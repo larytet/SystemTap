@@ -1,0 +1,26 @@
+# simple test for the @const operator added per PR19926
+
+set test "const_op"
+
+set ::result_string {x0y}
+stap_run2 $srcdir/$subdir/$test.stp -g
+
+set ::result_string {x1y}
+stap_run2 $srcdir/$subdir/$test.stp -g --skip-badvars
+
+# non-guru shouldn't be allowed to use @const (right at pass 1)
+set cmd [concat stap -p1 $srcdir/$subdir/$test.stp]
+set tst 0
+eval spawn $cmd
+expect {
+    -re {^parse error: using @const operator not permitted; need stap -g\r\n}
+        {incr tst}
+    -re {^[^\n\r]+\r\n}
+        {exp_continue}
+}
+if {$tst == 1} {
+    pass "$test (non-guru)"
+} else {
+    fail "$test (non-guru)"
+}
+

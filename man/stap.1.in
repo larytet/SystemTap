@@ -1031,6 +1031,16 @@ and user scripts. Optionally, within the .stpm files, a public macro
 definition can be surrounded by a preprocessor conditional as described
 above.
 
+.SS CONSTANTS
+Tapsets or guru-mode user scripts can access header file constant tokens,
+typically macros, using built-in @const() operator.  The respective header
+file inclusion is possible either via the tapset library, or using a
+top-level guru mode embedded-C construct.  This results in appropriate
+embedded C pragma comments setting.
+.SAMPLE
+@const("STP_SKIP_BADVARS")
+.ESAMPLE
+
 .SS VARIABLES
 Identifiers for variables and functions are an alphanumeric sequence,
 and may include \fB_\fR and \fB$\fR characters.  They may not start with a

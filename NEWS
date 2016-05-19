@@ -1,5 +1,8 @@
 * What's new in version 3.1, PRERELEASE
 
+- Translator now accepts new @const() operator for convenient expressing
+  constants in tapset code, or guru-mode scripts. See stap(1) for details.
+
 - New -T option allows the script to be terminated after a specified number
   of seconds. This is a shortcut for adding the probe, timer {exit()}.
 

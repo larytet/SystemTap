@@ -387,6 +387,13 @@ struct defined_op: public expression
   void visit (visitor* u);
 };
 
+struct const_op: public expression
+{
+  /*expression *operand;*/
+  interned_string constant;
+  void print (std::ostream& o) const;
+  void visit (visitor* u);
+};
 
 struct entry_op: public expression
 {
@@ -910,6 +917,7 @@ struct visitor
   virtual void visit_autocast_op (autocast_op* e) = 0;
   virtual void visit_atvar_op (atvar_op* e) = 0;
   virtual void visit_defined_op (defined_op* e) = 0;
+  virtual void visit_const_op (const_op* e) = 0;
   virtual void visit_entry_op (entry_op* e) = 0;
   virtual void visit_perf_op (perf_op* e) = 0;
 };
@@ -959,6 +967,7 @@ struct nop_visitor: public visitor
   virtual void visit_autocast_op (autocast_op*) {};
   virtual void visit_atvar_op (atvar_op*) {};
   virtual void visit_defined_op (defined_op*) {};
+  virtual void visit_const_op (const_op*) {};
   virtual void visit_entry_op (entry_op*) {};
   virtual void visit_perf_op (perf_op*) {};
 };
@@ -1008,6 +1017,7 @@ struct traversing_visitor: public visitor
   void visit_autocast_op (autocast_op* e);
   void visit_atvar_op (atvar_op* e);
   void visit_defined_op (defined_op* e);
+  void visit_const_op (const_op* e);
   void visit_entry_op (entry_op* e);
   void visit_perf_op (perf_op* e);
 };
@@ -1044,6 +1054,7 @@ struct expression_visitor: public traversing_visitor
   void visit_autocast_op (autocast_op* e);
   void visit_atvar_op (atvar_op* e);
   void visit_defined_op (defined_op* e);
+  void visit_const_op (const_op* e);
   void visit_entry_op (entry_op* e);
   void visit_perf_op (perf_op* e);
 };
@@ -1104,6 +1115,7 @@ struct varuse_collecting_visitor: public functioncall_traversing_visitor
   void visit_autocast_op (autocast_op* e);
   void visit_atvar_op (atvar_op *e);
   void visit_defined_op (defined_op* e);
+  void visit_const_op (const_op* e);
   void visit_entry_op (entry_op* e);
   void visit_perf_op (perf_op* e);
   bool side_effect_free ();
@@ -1161,6 +1173,7 @@ struct throwing_visitor: public visitor
   void visit_autocast_op (autocast_op* e);
   void visit_atvar_op (atvar_op* e);
   void visit_defined_op (defined_op* e);
+  void visit_const_op (const_op* e);
   void visit_entry_op (entry_op* e);
   void visit_perf_op (perf_op* e);
 };
@@ -1241,6 +1254,7 @@ struct update_visitor: public visitor
   virtual void visit_autocast_op (autocast_op* e);
   virtual void visit_atvar_op (atvar_op* e);
   virtual void visit_defined_op (defined_op* e);
+  virtual void visit_const_op (const_op* e);
   virtual void visit_entry_op (entry_op* e);
   virtual void visit_perf_op (perf_op* e);
 
@@ -1301,6 +1315,7 @@ struct deep_copy_visitor: public update_visitor
   virtual void visit_autocast_op (autocast_op* e);
   virtual void visit_atvar_op (atvar_op* e);
   virtual void visit_defined_op (defined_op* e);
+  virtual void visit_const_op (const_op* e);
   virtual void visit_entry_op (entry_op* e);
   virtual void visit_perf_op (perf_op* e);
 };

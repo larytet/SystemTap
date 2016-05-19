@@ -203,6 +203,7 @@ private: // nonterminals
   atvar_op *parse_atvar_op ();
   expression* parse_entry_op (const token* t);
   expression* parse_defined_op (const token* t);
+  expression* parse_const_op (const token* t);
   expression* parse_perf_op (const token* t);
   expression* parse_expression ();
   expression* parse_assignment ();
@@ -1411,6 +1412,8 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s, bool cc):
       // proposed macro names without building a string with that prefix.
       atwords.insert("cast");
       atwords.insert("defined");
+      if (has_version("3.1"))
+        atwords.insert("const");
       atwords.insert("entry");
       atwords.insert("perf");
       atwords.insert("var");
@@ -3753,6 +3756,9 @@ expression* parser::parse_symbol ()
       if (name == "@defined")
         return parse_defined_op (t);
 
+      if (name == "@const")
+        return parse_const_op (t);
+
       if (name == "@entry")
         return parse_entry_op (t);
 
@@ -4059,6 +4065,24 @@ expression* parser::parse_defined_op (const token* t)
   dop->operand = parse_expression ();
   expect_op(")");
   return dop;
+}
+
+
+// Parse a @const().  Given head token has already been consumed.
+expression* parser::parse_const_op (const token* t)
+{
+  if (! privileged)
+    throw PARSE_ERROR (_("using @const operator not permitted; need stap -g"),
+                       false /* don't skip tokens for parse resumption */);
+
+  const_op* cop = new const_op;
+  cop->tok = t;
+  expect_op("(");
+  expect_unknown(tok_string, cop->constant);
+  if(cop->constant.empty())
+    throw PARSE_ERROR (_("expected non-empty string"));
+  expect_op(")");
+  return cop;
 }
 
 

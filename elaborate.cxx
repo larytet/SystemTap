@@ -3549,6 +3549,7 @@ struct void_statement_reducer: public update_visitor
   void visit_cast_op (cast_op* e);
   void visit_autocast_op (autocast_op* e);
   void visit_defined_op (defined_op* e);
+  void visit_const_op (const_op* e);
 
   // these are a bit hairy to grok due to the intricacies of indexables and
   // stats, so I'm chickening out and skipping them...
@@ -3934,7 +3935,20 @@ void_statement_reducer::visit_defined_op (defined_op* e)
   provide (e);
 }
 
+void
+void_statement_reducer::visit_const_op (const_op* e)
+{
+  // When the result of a @const operation isn't needed, just elide
+  // it entirely.  Its operand $expression must already be
+  // side-effect-free.
 
+  if (session.verbose>2)
+    clog << _("Eliding unused constant ") << *e->tok << endl;
+
+  relaxed_p = false;
+  e = 0;
+  provide (e);
+}
 
 void semantic_pass_opt5 (systemtap_session& s, bool& relaxed_p)
 {
@@ -3983,6 +3997,7 @@ struct const_folder: public update_visitor
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
   void visit_defined_op (defined_op* e);
+  void visit_const_op (const_op* e);
   void visit_target_symbol (target_symbol* e);
 };
 
@@ -4488,6 +4503,18 @@ const_folder::visit_defined_op (defined_op* e)
   literal_number* n = new literal_number (0);
   n->tok = e->tok;
   n->visit (this);
+}
+
+void
+const_folder::visit_const_op (const_op* e)
+{
+  if (is_active_lvalue(e))
+    throw SEMANTIC_ERROR(_("the @const operator can't act as an l-value"), e->tok);
+
+  embedded_expr *eexpr1 = new embedded_expr;
+  eexpr1->tok = e->tok;
+  eexpr1->code = string("/* pure */ /* unprivileged */ /* stable */ " + (string)e->constant);
+  eexpr1->visit (this);
 }
 
 void
@@ -5243,6 +5270,7 @@ struct initial_typeresolution_info : public typeresolution_info
   void visit_target_symbol (target_symbol*) {}
   void visit_atvar_op (atvar_op*) {}
   void visit_defined_op (defined_op*) {}
+  void visit_const_op (const_op*) {}
   void visit_entry_op (entry_op*) {}
   void visit_cast_op (cast_op*) {}
 };
@@ -5948,6 +5976,13 @@ void
 typeresolution_info::visit_defined_op (defined_op* e)
 {
   throw SEMANTIC_ERROR(_("unexpected @defined"), e->tok);
+}
+
+
+void
+typeresolution_info::visit_const_op (const_op* e)
+{
+  throw SEMANTIC_ERROR(_("unexpected @const"), e->tok);
 }
 
 
