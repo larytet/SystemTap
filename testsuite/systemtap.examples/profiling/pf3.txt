@@ -1,4 +1,4 @@
-# stap pf3.stp -c "sleep 6" --all-modules --ldd
+# stap pf3.stp -T 6 --all-modules --ldd
 
 --- 831 samples recorded:
 k:kernel:native_safe_halt     	   818

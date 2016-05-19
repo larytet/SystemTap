@@ -8,4 +8,4 @@ usage: ./accept2close-nd.stp [min_ms]
 arg_1: Minimum lifespan threshold, in milliseconds. This is an optional argument that can be used to focus on outliers.
 test_support: stap -p4 accept2close-nd.stp
 test_check: stap -p4 accept2close-nd.stp
-test_installcheck: stap accept2close-nd.stp -c "sleep 1"
+test_installcheck: stap accept2close-nd.stp -T 1

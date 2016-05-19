@@ -90,7 +90,7 @@ was running at the time.
 As mentioned in the description, the script can be focused on a certain process
 with -c/-x.
 
-$ stap cycle_thief.stp -c "sleep 10"
+$ stap cycle_thief.stp -T 10
 
 task 29018 migrated: 2
 

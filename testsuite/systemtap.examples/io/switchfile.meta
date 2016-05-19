@@ -8,4 +8,4 @@ output: file
 scope: system-wide
 description: Every second print a log message and switch log files every 5 seconds.
 test_check: stap -p4 switchfile.stp
-test_installcheck: stap -o /tmp/switchfile.stp.out switchfile.stp -c "sleep 8"
+test_installcheck: stap -o /tmp/switchfile.stp.out switchfile.stp -T 8

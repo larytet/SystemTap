@@ -5,7 +5,7 @@ fntimes.stp - Show Functions Taking Longer Than Usual
   interval) is then compared to the historical maximum.  If it exceeds
   a certain threshold (250%), a message is printed.
 
-$ stap fntimes.stp 'kernel.function("sys_*")' -c "sleep 7"
+$ stap fntimes.stp 'kernel.function("sys_*")' -T 7
 
 function SyS_ioctl well over maximum time (32 vs 12)
 function SyS_open well over maximum time (2832 vs 188)

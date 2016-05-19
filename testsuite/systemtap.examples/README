@@ -97,7 +97,7 @@ examples.  Discussions take place on the
               'sh -c COMMAND'. (e.g. stap -p4 iotime.stp)
   test_installcheck: How to check that the example runs.  Run by
                      'sh -c COMMAND'.
-                     (e.g. stap iotime.stp -c "sleep 1")
+                     (e.g. stap iotime.stp -T 1)
 @ usage: A sample invocation of the script, if more informative than
          the test_* ones.
 @        As an alternative, a SAMPLE.txt file beside the .meta/.stp

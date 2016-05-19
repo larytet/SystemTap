@@ -2,7 +2,7 @@ SYSTEMTAP EXAMPLES INDEX
 (see also keyword-index.txt)
 
 
-For systemtap version 3.0.
+For systemtap version 3.1.
 
 general/alias_suffixes.stp - Count I/O Syscalls using Alias Suffixes
 keywords: io statistics
@@ -15,7 +15,7 @@ keywords: io statistics
   count of times that each syscall was invoked and a histogram showing
   the distributions of times.
 
-  # stap alias_suffixes.stp -c "sleep 1"
+  # stap alias_suffixes.stp -T 1
 
 
 general/ansi_colors.stp - Color Table for ansi_set_color()
@@ -78,7 +78,7 @@ keywords: function statistics
   the function was called and a histogram showing the distributions of
   times.
 
-  # stap func_time_stats.stp 'syscall.nanosleep' -c "sleep 1"
+  # stap func_time_stats.stp 'syscall.nanosleep' -T 1
 
 
 general/graphs.stp - Graphing Disk and CPU Utilization with gnuplot
@@ -88,7 +88,7 @@ keywords: monitoring
   of data which, when piped directly into gnuplot, draws historical
   curves for each.
 
-  # stap graphs.stp -c "sleep 1"
+  # stap graphs.stp -T 1
 
 
 general/helloworld.stp - SystemTap "Hello World" Program
@@ -116,7 +116,7 @@ keywords: simple guru
   changing keycodes at the kernel device driver level.	Annoy your
   friends!
 
-  # stap keyhack.stp -c 'sleep 5'
+  # stap -g keyhack.stp -c 'sleep 5'
 
 
 general/para-callgraph-verbose.stp - Callgraph Tracing with Verbose Arguments
@@ -172,7 +172,7 @@ keywords: regex
   given, demonstrate by filtering for files that end with an extension
   showing them to be an archive.
 
-  # stap regex.stp -c "sleep 1"
+  # stap regex.stp -T 1
 
 
 general/sizeof.stp - Print the Size of a C Type
@@ -196,7 +196,7 @@ keywords: time
   time records the time that the process is actually active in kernel-
   and user-space.
 
-  # stap stopwatches.stp -c "sleep 1"
+  # stap stopwatches.stp -T 1
 
 
 general/varwatch.stp - Watch a Variable Changing Value in a Thread
@@ -208,7 +208,7 @@ keywords: _best monitoring
   the event is traced.
 
   # stap -w varwatch.stp 'kernel.statement("do_sys_open@fs/open.c:*")' \
-  '$$vars' -c "sleep 1"
+  '$$vars' -T 1
 
 
 general/watchdog.stp - Watchdog Timer for Arbitrary Events
@@ -224,7 +224,7 @@ keywords: watchdog backtrace
   operation occurs.
 
   # stap watchdog.stp 'syscall.nanosleep' 'syscall.nanosleep.return' 1000 \
-  -c "sleep 1"
+  -T 1
 
 
 general/whythefail.stp - Why did the function fail?
@@ -244,7 +244,7 @@ keywords: interrupt
   The interrupts-by-dev.stp script profiles interrupts received by each
   device per 100 ms.
 
-  # stap interrupts-by-dev.stp -c "sleep 1"
+  # stap interrupts-by-dev.stp -T 1
 
 
 interrupt/scf.stp - Tally Backtraces for Inter-Processor Interrupt
@@ -256,7 +256,7 @@ keywords: interrupt backtrace
   identify the cause of the expensive IPI. On exit the script prints
   the tallies in descending frequency.
 
-  # stap scf.stp -c "sleep 1"
+  # stap scf.stp -T 1
 
 
 io/deviceseeks.stp - Histograms of Seek Behavior for Each Device
@@ -265,7 +265,7 @@ keywords: disk
   The deviceseeks.stp script generates a histogram showing the
   frequency of different sized seeks (in sectors) on each device.
 
-  # stap deviceseeks.stp -c "sleep 1"
+  # stap deviceseeks.stp -T 1
 
 
 io/disktop.stp - Summarize Disk Read/Write Traffic
@@ -274,7 +274,7 @@ keywords: disk
   Get the status of reading/writing disk every 5 seconds, output top
   ten entries during that period.
 
-  # stap disktop.stp -c "sleep 1"
+  # stap disktop.stp -T 1
 
 
 io/eatmydata.stp - disable fsync
@@ -294,7 +294,7 @@ keywords: disk filesystem
   indications of ENOSPC, and reports these to the system logger and the
   systemtap console.
 
-  # stap enospc.stp -c "sleep 1"
+  # stap enospc.stp -T 1
 
 
 io/inodewatch.stp - Monitoring Reads and Writes to a File
@@ -304,7 +304,7 @@ keywords: io
   time a read or write occurs to the specified inode on the specified
   major/minor device.
 
-  # stap inodewatch.stp 0x08 0x01 100 -c "sleep 1"
+  # stap inodewatch.stp 0x08 0x01 100 -T 1
 
 
 io/inodewatch2.stp - Monitoring Attribute Changes to a File
@@ -314,7 +314,7 @@ keywords: io
   and attributes each time the attributes are changed on the specified
   inode on the specified major/minor device.
 
-  # stap inodewatch2.stp 0x08 0x01 100 -c "sleep 1"
+  # stap inodewatch2.stp 0x08 0x01 100 -T 1
 
 
 io/io_submit.stp - Tally Reschedule Reason During AIO io_submit Call
@@ -324,7 +324,7 @@ keywords: io backtrace
   traceback in a histogram. When the script exits prints out a sorted
   list from most common to least common backtrace.
 
-  # stap io_submit.stp -c "sleep 1"
+  # stap io_submit.stp -T 1
 
 
 io/ioblktime.stp - Average Time Block IO Requests Spend in Queue 
@@ -339,7 +339,7 @@ keywords: io
   increased with "-DMAXMAPENTRIES=10000" option on the stap command
   line.
 
-  # stap ioblktime.stp -c "sleep 1"
+  # stap ioblktime.stp -T 1
 
 
 io/iodevstats.stp - List Executables Reading and Writing the Most Data by Device
@@ -353,7 +353,7 @@ keywords: io profiling
   and writes), the totals and averages for the number of bytes read and
   written.
 
-  # stap iodevstats.stp -c "sleep 1"
+  # stap iodevstats.stp -T 1
 
 
 io/iostat-scsi.stp - IO Statistics for SCSI Devices
@@ -363,7 +363,7 @@ keywords: io profiling scsi
   read and written on the machine's various SCSI devices. The script
   takes one argument which is the number of seconds between reports.
 
-  # stap -g iostat-scsi.stp 1 -c "sleep 1"
+  # stap -g iostat-scsi.stp 1 -T 1
 
 
 io/iostats.stp - List Executables Reading and Writing the Most Data
@@ -376,7 +376,7 @@ keywords: io profiling
   (opens, reads, and writes), the totals and averages for the number of
   bytes read and written.
 
-  # stap iostats.stp -c "sleep 1"
+  # stap iostats.stp -T 1
 
 
 io/iotime.stp - Trace Time Spent in Read and Write for Files 
@@ -394,7 +394,7 @@ keywords: profiling syscall io file
   name and the number of microseconds accumulated in the read and write
   syscalls.
 
-  # stap iotime.stp -c "sleep 1"
+  # stap iotime.stp -T 1
 
 
 io/iotop.stp - Periodically Print IO Activity by Process Name
@@ -403,7 +403,7 @@ keywords: io
   Every five seconds print out the top ten executables generating I/O
   traffic during that interval sorted in descending order.
 
-  # stap iotop.stp -c "sleep 1"
+  # stap iotop.stp -T 1
 
 
 io/mbrwatch.stp - Monitor Read/Write of the Boot Sector Area of Block Devices
@@ -426,7 +426,7 @@ keywords: io profiling
   output contains the executable name, the process number, and the
   total number of NFS functions called by the process.
 
-  # stap nfs_func_users.stp -c "sleep 1"
+  # stap nfs_func_users.stp -T 1
 
 
 io/slowvfs.stp - Trace slow vfs opens.
@@ -445,7 +445,7 @@ keywords: io
   Every second print a log message and switch log files every 5
   seconds.
 
-  # stap -o switchfile.stp.out switchfile.stp -c "sleep 8"
+  # stap -o /tmp/switchfile.stp.out switchfile.stp -T 8
 
 
 io/traceio.stp - Track Cumulative IO Activity by Process Name
@@ -454,7 +454,7 @@ keywords: io
   Every second print out the top ten executables sorted in descending
   order based on cumulative I/O traffic observed.
 
-  # stap traceio.stp -c "sleep 1"
+  # stap traceio.stp -T 1
 
 
 io/traceio2.stp - Watch IO Activity on a Particular Device
@@ -463,7 +463,7 @@ keywords: io
   Print out the executable name and process number as reads and writes
   to the specified device occur.
 
-  # stap traceio2.stp 0x0801 -c "sleep 1"
+  # stap traceio2.stp 0x0801 -T 1
 
 
 io/ttyspy.stp - Monitor TTY Typing
@@ -473,7 +473,7 @@ keywords: io tty monitoring guru
   activity on the system, printing a scrolling record of recent
   keystrokes, on a per-tty basis.
 
-  # stap --skip-badvars -g ttyspy.stp -c "sleep 1"
+  # stap --skip-badvars -g ttyspy.stp -T 1
 
 
 locks/bkl.stp - Tracing Contention on Big Kernel Lock
@@ -492,7 +492,7 @@ keywords: locking
   amount of time the BKL was held. If backtraces are enabled, a
   backtrace will be printed as well.
 
-  # stap bkl.stp -c "sleep 1" 1
+  # stap bkl.stp -T 1 1
 
 
 locks/bkl_stats.stp - Per Process Statistics on Big Kernel Lock Use
@@ -508,7 +508,7 @@ keywords: locking
   time waited. The second table lists has similar information for the
   time spent in holding the lock for each of the processes.
 
-  # stap bkl_stats.stp -c "sleep 1"
+  # stap bkl_stats.stp -T 1
 
 
 lwtools/accept2close-nd.stp - Show socket lifespan, from accept() to close() (non-debuginfo)
@@ -518,7 +518,7 @@ keywords: network socket
   provides details on the lifespan of these passive connections,
   showing the distribution as a histogram.
 
-  # stap accept2close-nd.stp -c "sleep 1"
+  # stap accept2close-nd.stp -T 1
 
 
 lwtools/biolatency-nd.stp - Measure block I/O latency distribution (non-debuginfo)
@@ -540,7 +540,7 @@ keywords: io
   I/O. The output includes the name of the process or thread that was
   on-CPU when the I/O request was inserted on the issue queue.
 
-  # stap bitesize-nd.stp -c "sleep 1"
+  # stap bitesize-nd.stp -T 1
 
 
 lwtools/execsnoop-nd.stp - Trace process exec() with command line argument details (non-debuginfo)
@@ -552,7 +552,7 @@ keywords: io
   that only fork(). It will also show every exec(), including those if
   a process re-execs.
 
-  # stap execsnoop-nd.stp -c "sleep 1"
+  # stap execsnoop-nd.stp -T 1
 
 
 lwtools/fslatency-nd.stp - Measure the distribution of file system synchronous read and write latency (non-debuginfo)
@@ -576,7 +576,7 @@ keywords: io filesystem
   workloads use these functions. Tracing their time provides one view
   of suffered file system latency.
 
-  # stap fsslower-nd.stp -c "sleep 1"
+  # stap fsslower-nd.stp -T 1
 
 
 lwtools/killsnoop-nd.stp - Trace kill() signals showing process and signal details (non-debuginfo)
@@ -585,7 +585,7 @@ keywords: io
   This traces signals system-wide, including those sent by the kill(1)
   command, and shows various details.
 
-  # stap killsnoop-nd.stp -c "sleep 1"
+  # stap killsnoop-nd.stp -T 1
 
 
 lwtools/opensnoop-nd.stp - Trace open() syscalls showing filenames (non-debuginfo)
@@ -594,7 +594,7 @@ keywords: io
   This traces the open() syscall system-wide, to show which files are
   being opened, and by who.
 
-  # stap opensnoop-nd.stp -c "sleep 1"
+  # stap opensnoop-nd.stp -T 1
 
 
 lwtools/rwtime-nd.stp - Summarize read() and write() syscall latency (non-debuginfo)
@@ -603,7 +603,7 @@ keywords: io
   This traces read() and write() syscalls, producing a histogram
   summary of their durations (aka latencies).
 
-  # stap rwtime-nd.stp -c "sleep 1"
+  # stap rwtime-nd.stp -T 1
 
 
 lwtools/syscallbypid-nd.stp - Count syscalls with process details (non-debuginfo)
@@ -612,7 +612,7 @@ keywords: io
   This traces syscalls system-wide, and produces a summary report
   showing their counts by process ID, process name, and syscall types.
 
-  # stap syscallbypid-nd.stp -c "sleep 1"
+  # stap syscallbypid-nd.stp -T 1
 
 
 memory/glibc-malloc.stp - Overview glibc malloc internal operations
@@ -632,7 +632,7 @@ keywords: memory watchpoint
   be run as root to allow access to the breakpoint hardware.
 
   # stap --all-modules hw_watch_addr.stp 0x`grep "vm_dirty_ratio" \
-  /proc/kallsyms | awk '{print $1}'` -c "sleep 5"
+  /proc/kallsyms | awk '{print $1}'` -T 5
 
 
 memory/hw_watch_sym.stp - Watch a Kernel Symbol Using Breakpoint Hardware
@@ -643,7 +643,7 @@ keywords: memory watchpoint
   accessed. This script needs to be run as root to allow access to the
   breakpoint hardware.
 
-  # stap --all-modules hw_watch_sym.stp vm_dirty_ratio -c "sleep 5"
+  # stap --all-modules hw_watch_sym.stp vm_dirty_ratio -T 5
 
 
 memory/kmalloc-top - Show Paths to Kernel Malloc Invocations
@@ -681,7 +681,7 @@ keywords: memory
   script is active.  It's useful in debugging leaks in the anonymous
   regions of a process.
 
-  # stap mmanonpage.stp -c "sleep 1"
+  # stap mmanonpage.stp -T 1
 
 
 memory/mmfilepage.stp - Track Virtual Memory System Actions on File Backed Pages
@@ -695,7 +695,7 @@ keywords: memory
   script is useful in debugging leaks in the mapped file regions of a
   process.
 
-  # stap mmfilepage.stp -c "sleep 1"
+  # stap mmfilepage.stp -T 1
 
 
 memory/mmreclaim.stp - Track Virtual Memory System Page Reclamation
@@ -706,7 +706,7 @@ keywords: memory
   occurred while the script was running. It's useful in debugging
   performance problems that occur due to page reclamation.
 
-  # stap mmreclaim.stp -c "sleep 1"
+  # stap mmreclaim.stp -T 1
 
 
 memory/mmwriteback.stp - Track Virtual Memory System Writing to Disk
@@ -718,7 +718,7 @@ keywords: memory
   running.  It's useful in determining where writes are coming from on
   a supposedly idle system that is experiencing unexpected IO.
 
-  # stap mmwriteback.stp -c "sleep 1"
+  # stap mmwriteback.stp -T 1
 
 
 memory/numa_faults.stp - Summarize Process Misses across NUMA Nodes
@@ -731,7 +731,7 @@ keywords: memory numa
   for determining whether the program has good locality (page faults
   limited to a single node) on a NUMA computer.
 
-  # stap numa_faults.stp -c "sleep 1"
+  # stap numa_faults.stp -T 1
 
 
 memory/overcommit.stp - Log Failed Process Memory Allocation Due to Overcommit Limits
@@ -741,7 +741,7 @@ keywords: memory limits
   a memory allocation request from a process because of
   /proc/sys/vm/overcommit* limits.
 
-  # stap overcommit.stp -c "sleep 1"
+  # stap overcommit.stp -T 1
 
 
 memory/pfaults.stp - Generate Log of Major and Minor Page Faults
@@ -755,7 +755,7 @@ keywords: memory
   and the elapsed time for page fault. This log can be examined to
   determine where the page faults are occurring.
 
-  # stap pfaults.stp -c "sleep 1"
+  # stap pfaults.stp -T 1
 
 
 memory/vm.tracepoints.stp - Collect Slab Allocation Statistics
@@ -767,7 +767,7 @@ keywords: memory statistics
   helps to correlate kernel-space memory consumption owing to
   user-space processes.
 
-  # stap vm.tracepoints.stp -c "sleep 10"
+  # stap vm.tracepoints.stp -T 10
 
 
 network/autofs4.stp - Watch autofs4 Operations
@@ -776,7 +776,7 @@ keywords: network nfs
   Trace key autofs4 operations such as mounting or unmounting remote
   filesystems.
 
-  # stap autofs4.stp -c "sleep 1"
+  # stap autofs4.stp -T 1
 
 
 network/connect_stat.stp - Show Process Ancestry for IP Connections
@@ -786,7 +786,7 @@ keywords: network socket process
   process name/uid/gid) whenever it attempts an outgoing socket
   connection to a given IP address.
 
-  # stap connect_stat.stp 127.0.0.1 -c "sleep 1"
+  # stap connect_stat.stp 127.0.0.1 -T 1
 
 
 network/dropwatch.stp - Watch Where Socket Buffers Are Freed in the Kernel
@@ -795,7 +795,7 @@ keywords: network tracepoint socket
   Every five seconds the dropwatch.stp script lists the number of
   socket buffers freed at locations in the kernel.
 
-  # stap dropwatch.stp -c "sleep 1"
+  # stap dropwatch.stp -T 1
 
 
 network/net_xmit_json.stp - Tracks time between packet queue and transmit.
@@ -804,7 +804,7 @@ keywords: network statistics json
   This script tracks time between packet queue and transmit. The
   information is provided to userspace via procfs in JSON format.
 
-  # stap net_xmit_json.stp -c "sleep 1"
+  # stap net_xmit_json.stp -T 1
 
 
 network/netdev.stp - Trace Activity on Network Devices
@@ -813,7 +813,7 @@ keywords: network traffic
   The netdev.stp script traces configuration and transmit/receive
   activity on network devices.
 
-  # stap netdev.stp -c "sleep 1"
+  # stap netdev.stp -T 1
 
 
 network/netfilter_drop.stp - System-Wide Network Packet Dropping Tool
@@ -825,7 +825,7 @@ keywords: network packets guru
   be specified with a positive integer. A value of 0 indicates that
   packets should be dropped until the user manually exits.
 
-  # stap -g netfilter_drop.stp TCP 1 -c "sleep 2"
+  # stap -g netfilter_drop.stp TCP 1 -T 2
 
 
 network/netfilter_summary.stp - System-Wide Count of Network Packets by IPs
@@ -838,7 +838,7 @@ keywords: _best network traffic
   greatest to least number of packets seen among the source/destination
   pairs.
 
-  # stap netfilter_summary.stp -c "sleep 1"
+  # stap netfilter_summary.stp -T 1
 
 
 network/netfilter_summary_json.stp - System-Wide Count of Network Packets by IPs
@@ -849,7 +849,7 @@ keywords: _best network traffic json
   along source IP address / destination IP address pair encountered,
   and the total number of bytes sent among the pair.
 
-  # stap netfilter_summary_json.stp -c "sleep 1"
+  # stap netfilter_summary_json.stp -T 1
 
 
 network/nettop.stp - Periodic Listing of Processes Using Network Interfaces
@@ -860,7 +860,7 @@ keywords: network traffic
   and the amount of data sent/received by the process during that
   interval.
 
-  # stap nettop.stp -c "sleep 1"
+  # stap nettop.stp -T 1
 
 
 network/nfsd-recent.stp - Keep track of NFS server statistics
@@ -871,7 +871,7 @@ keywords: nfs statistics
   It's a way of finding out which nfs clients might be considered still
   connected.
 
-  # stap nfsd-recent.stp -c "sleep 1"
+  # stap nfsd-recent.stp -T 1
 
 
 network/nfsd_unlink.stp - Find Which Client Is Removing NFS Files on Server
@@ -881,7 +881,7 @@ keywords: nfs disk
   time time a file is being removed or unlinked by the nfsd. This
   script is run on the nfs server.
 
-  # stap nfsd_unlink.stp -c "sleep 1"
+  # stap nfsd_unlink.stp -T 1
 
 
 network/nfsdtop.stp - Keep track of NFS server statistics
@@ -889,7 +889,7 @@ keywords: nfs statistics
 
   The nfsdtop.stp script gathers and displays NFS lookups,
 
-  # stap nfsdtop.stp -c "sleep 1"
+  # stap nfsdtop.stp -T 1
 
 
 network/sk_stream_wait_memory.stp - Track Start and Stop of Processes Due to Network Buffer Space
@@ -900,7 +900,7 @@ keywords: network tcp process
   similar entry is printed each time a process continues because there
   is room in the buffer.
 
-  # stap sk_stream_wait_memory.stp -c "sleep 1"
+  # stap sk_stream_wait_memory.stp -T 1
 
 
 network/socket-trace.stp - Trace Functions Called in Network Socket Code
@@ -913,7 +913,7 @@ keywords: network socket
   "<-" indicates function entry and function exit, respectively. The
   last element of the line is the function name.
 
-  # stap socket-trace.stp -c "sleep 1"
+  # stap socket-trace.stp -T 1
 
 
 network/socktop - Periodically Summarize Socket Activity on the System
@@ -934,7 +934,7 @@ keywords: network traffic
   the STP protocol ID, version ID, flags, root and bridge MAC
   addresses, and various times.
 
-  # stap stp_dump.stp -c "sleep 5"
+  # stap stp_dump.stp -T 5
 
 
 network/tcp_connections.stp - Track Creation of Incoming TCP Connections
@@ -946,7 +946,7 @@ keywords: network tcp socket
   the command, the port the connection is on, and the IP address of the
   originator of the request.
 
-  # stap tcp_connections.stp -c "sleep 1"
+  # stap tcp_connections.stp -T 1
 
 
 network/tcp_init_cwnd.stp - Increase Initial TCP Congestion Window to 10
@@ -957,7 +957,7 @@ keywords: network tcp socket guru
   improve latency for web server type workloads.  The script prints a
   count of cwnd value changes when it is stopped.
 
-  # stap -g tcp_init_cwnd.stp -c "sleep 1"
+  # stap -g tcp_init_cwnd.stp -T 1
 
 
 network/tcp_trace.stp - TCP Connection Tracing Utility
@@ -977,7 +977,7 @@ keywords: network traffic
   received. Each line includes the source and destination IP addresses,
   the source and destination ports, and flags.
 
-  # stap tcpdumplike.stp -c "sleep 1"
+  # stap tcpdumplike.stp -T 1
 
 
 network/tcpipstat.stp - Display Network Statistics for Individual TCP Sockets
@@ -1025,7 +1025,7 @@ keywords: scheduler
   kernel functions that triggered the running of the task on the
   processor.
 
-  # stap chng_cpu.stp -c "sleep 1" bash
+  # stap chng_cpu.stp -T 1 bash
 
 
 process/cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task
@@ -1040,7 +1040,7 @@ keywords: _best process scheduler time tracepoint interrupt
   the task is off the processor, and the interrupts that occurred while
   the task was running.
 
-  # stap cycle_thief.stp -c "sleep 1"
+  # stap cycle_thief.stp -T 1
 
 
 process/errsnoop.stp - Tabulate System Call Errors
@@ -1052,7 +1052,7 @@ keywords: process syscall
   optional argument gives a screen height (number of lines in the
   report, default 20).
 
-  # stap errsnoop.stp 1 10 -c "sleep 1"
+  # stap errsnoop.stp 1 10 -T 1
 
 
 process/forktracker.stp - Trace Creation of Processes
@@ -1062,7 +1062,7 @@ keywords: process scheduler
   each fork and exec operation on the machine. This can be useful to
   determine what process is creating a flurry of short-lived processes.
 
-  # stap forktracker.stp -c "sleep 1"
+  # stap forktracker.stp -T 1
 
 
 process/futexes.stp - System-Wide Futex Contention
@@ -1073,7 +1073,7 @@ keywords: syscall locking futex
   each contention on the futex are printed from lowest pid number to
   highest.
 
-  # stap futexes.stp -c "sleep 1"
+  # stap futexes.stp -T 1
 
 
 process/futexes2.stp - System-Wide Shared Futex Contention
@@ -1084,7 +1084,7 @@ keywords: syscall locking futex
   each contention on the futex are printed from lowest pid number to
   highest.
 
-  # stap futexes2.stp -c "sleep 1"
+  # stap futexes2.stp -T 1
 
 
 process/ltrace.stp - uprobes-based ltrace
@@ -1107,7 +1107,7 @@ keywords: scheduler
   and the process taking the task. Note that the task may or may not be
   executing at the time of the migration.
 
-  # stap migrate.stp -c "sleep 1" bash
+  # stap migrate.stp -T 1 bash
 
 
 process/mutex-contention.stp - pthread mutex contention analysis
@@ -1119,7 +1119,7 @@ keywords: locking
   with -DMAXMAPENTRIES=NNNN for some large NNNN, if the arrays overflow
   due to heavy activity.
 
-  # stap mutex-contention.stp -c "sleep 1"
+  # stap mutex-contention.stp -T 1
 
 
 process/noptrace.stp - Disable ptrace from Hierarchies of Processes
@@ -1159,7 +1159,7 @@ keywords: process monitoring syscall tracepoint
   are also printed out (e.g. for exec(), the file being exec'ed). This
   script does not require debuginfo.
 
-  # stap procmod_watcher.stp -c "sleep 1"
+  # stap procmod_watcher.stp -T 1
 
 
 process/proctop.stp - Periodically Print Process Information With History
@@ -1171,7 +1171,7 @@ keywords: process scheduler _best
   running. The script contains configuration options listed in the
   script source.
 
-  # stap proctop.stp -c "sleep 1"
+  # stap proctop.stp -T 1
 
 
 process/psig.stp - Print Process File Descriptors
@@ -1191,7 +1191,7 @@ keywords: process backtrace
   contains a substring that matches the script's command-line argument,
   it prints out that process and all of its ancestors.
 
-  # stap pstrace_exec.stp -c "sleep 1" bash
+  # stap pstrace_exec.stp -T 1 bash
 
 
 process/pstree.stp - Generates a process diagram in DOT form.
@@ -1201,7 +1201,7 @@ keywords: process diagram
   instance, it may be useful on a 'make' command to see all the
   processes that are started.
 
-  # stap pstree.stp -c "sleep 1"
+  # stap pstree.stp -T 1
 
 
 process/rlimit_nofile.stp - Trace processes running out of file descriptors 
@@ -1210,7 +1210,7 @@ keywords: limits
   This script watches processes being scheduled and which try to
   allocate a file descriptor without luck.
 
-  # stap rlimit_nofile.stp -c "sleep 1"
+  # stap rlimit_nofile.stp -T 1
 
 
 process/schedtimes.stp - Track Time Processes Spend in Various States Using Tracepoints
@@ -1223,7 +1223,7 @@ keywords: process scheduler time tracepoint
   this script can be used with the '-c' or '-x' options to focus on a
   specific PID and its children.
 
-  # stap schedtimes.stp -c "sleep 1"
+  # stap schedtimes.stp -T 1
 
 
 process/semop-watch.stp - Watch semop(2)/semtimedop(2) operations
@@ -1239,7 +1239,7 @@ keywords: signals
 
   Print signal counts by process ID in descending order.
 
-  # stap sig_by_pid.stp -c "sleep 1"
+  # stap sig_by_pid.stp -T 1
 
 
 process/sig_by_proc.stp -  Signal Counts by Process Name
@@ -1247,7 +1247,7 @@ keywords: signals
 
   Print signal counts by process name in descending order.
 
-  # stap sig_by_proc.stp -c "sleep 1"
+  # stap sig_by_proc.stp -T 1
 
 
 process/sigkill.stp - Track SIGKILL Signals
@@ -1258,7 +1258,7 @@ keywords: signals
   destination executable and process ID, the executable name and user
   ID that sents the signal.
 
-  # stap sigkill.stp -c "sleep 1"
+  # stap sigkill.stp -T 1
 
 
 process/sigmon.stp - Track a Particular Signal to a Specific Process
@@ -1270,7 +1270,7 @@ keywords: signals
   signal, the PID and executable name of the process receiving the
   signal, and the signal number and name.
 
-  # stap sigmon.stp -c "sleep 1" SIGKILL
+  # stap sigmon.stp -T 1 SIGKILL
 
 
 process/sleepingBeauties.stp - Generate Backtraces of Threads Waiting for IO Operations
@@ -1281,7 +1281,7 @@ keywords: io scheduler backtrace
   thread spends over 10ms, its name and backtrace is printed, and later
   so is the total delay.
 
-  # stap sleepingBeauties.stp -c "sleep 1"
+  # stap sleepingBeauties.stp -T 1
 
 
 process/sleeptime.stp - Trace Time Spent in Nanosleep Syscalls
@@ -1293,7 +1293,7 @@ keywords: syscall nanosleep
   parentheses, the "nanosleep:" key, and the duration of the sleep in
   microseconds.
 
-  # stap sleeptime.stp -c "sleep 1"
+  # stap sleeptime.stp -T 1
 
 
 process/spawn_seeker.stp - Track Creation of Processes by process and execname
@@ -1308,7 +1308,7 @@ keywords: process scheduler
   children processes.  For more detailed examination of task creation
   consider using forktracker.stp.
 
-  # stap spawn_seeker.stp -c "sleep 1"
+  # stap spawn_seeker.stp -T 1
 
 
 process/strace.stp - Trace system calls
@@ -1318,7 +1318,7 @@ keywords: _best process syscall
   processes or hierarchies (via -c/-x), or the entire system (without
   -c/-x).  A few output configuration parameters may be set with -G.
 
-  # stap strace.stp -c "sleep 1"
+  # stap strace.stp -T 1
 
 
 process/syscalls_by_pid.stp - System-Wide Count of Syscalls by PID
@@ -1328,7 +1328,7 @@ keywords: syscall
   prints a list showing the number of systemcalls executed by each PID
   ordered from greatest to least number of syscalls.
 
-  # stap syscalls_by_pid.stp -c "sleep 1"
+  # stap syscalls_by_pid.stp -T 1
 
 
 process/syscalls_by_proc.stp - System-Wide Count of Syscalls by Executable
@@ -1338,7 +1338,7 @@ keywords: syscall
   prints a list showing the number of systemcalls executed by each
   executable ordered from greatest to least number of syscalls.
 
-  # stap syscalls_by_proc.stp -c "sleep 1"
+  # stap syscalls_by_proc.stp -T 1
 
 
 process/syscalltimes - System-Wide Syscall Statistics with Filtering
@@ -1357,7 +1357,7 @@ keywords: _best process syscall
   of all threads on the system, along with a textual
   recent-syscall-history for each
 
-  # stap thread-business.stp -c "sleep 10"
+  # stap thread-business.stp -T 10
 
 
 process/threadstacks.stp - Override default new-pthread stack sizes
@@ -1368,7 +1368,7 @@ keywords: thread guru
   related glibc variable __default_stacksize is updated.  Moot for
   glibc versions that support $LIBC_PTHREAD_DEFAULT_STACKSIZE_NP.
 
-  # stap -g threadstacks.stp -Gsize=65536 -c "sleep 1" -d `which stap`
+  # stap -g threadstacks.stp -Gsize=65536 -T 1 -d `which stap`
 
 
 process/wait4time.stp - Trace Time Spent in wait4 Syscalls
@@ -1380,7 +1380,7 @@ keywords: syscall process
   "wait4:" key, the duration of the wait and the PID that the wait4 was
   waiting for. If the waited for PID is not specified , it is "-1".
 
-  # stap wait4time.stp -c "sleep 1"
+  # stap wait4time.stp -T 1
 
 
 profiling/errno.stp - Show Which Processes and System Calls Return Errors Most Frequently
@@ -1389,7 +1389,7 @@ keywords: profiling
   On exit the errno.stp script provides a sorted list showing which
   combination of PID, system call, and error occur most frequently.
 
-  # stap errno.stp -c "sleep 1"
+  # stap errno.stp -T 1
 
 
 profiling/fileline-profile.stp - Profile Kernel/User Functions
@@ -1403,7 +1403,7 @@ keywords: profiling
   symbol name in the output, specify guru mode (-g) and add
   symbolname="yes" to the stap command.
 
-  # stap fileline-profile.stp -c "sleep 6" --all-modules --ldd
+  # stap fileline-profile.stp -T 6 --all-modules --ldd
 
 
 profiling/fntimes.stp - Show Functions Taking Longer Than Usual
@@ -1414,7 +1414,7 @@ keywords: _best profiling
   interval) is then compared to the historical maximum.  If it exceeds
   a certain threshold (250%), a message is printed.
 
-  # stap fntimes.stp 'kernel.function("sys_*")' -c "sleep 7"
+  # stap fntimes.stp 'kernel.function("sys_*")' -T 7
 
 
 profiling/functioncallcount.stp - Count Times Functions Are Called
@@ -1426,7 +1426,7 @@ keywords: profiling function
   will print a sorted list from most frequently to least frequently
   called function.
 
-  # stap -w functioncallcount.stp "*@mm/*.c" -c "sleep 1"
+  # stap -w functioncallcount.stp "*@mm/*.c" -T 1
 
 
 profiling/latencytap.stp - Show Reasons and Durations for Processes Sleeping
@@ -1441,7 +1441,7 @@ keywords: _best profiling
   sleeps caused by modules.  Optionally, this script can be used with
   the '-c' or '-x' options to focus on a specific PID.
 
-  # stap latencytap.stp --all-modules -c "sleep 1"
+  # stap latencytap.stp --all-modules -T 1
 
 
 profiling/linetimes.stp - Show Time Spent on Each Line of a Function
@@ -1453,7 +1453,7 @@ keywords: profiling _best
   function is called, a table with the average and maximum time each
   line takes, and control flow information when the script exits.
 
-  # stap linetimes.stp kernel sys_nanosleep -c "sleep 1"
+  # stap linetimes.stp kernel sys_nanosleep -T 1
 
 
 profiling/perf.stp - Show performance ratios using perf.counter to access performance counters
@@ -1478,7 +1478,7 @@ keywords: profiling
   with a numerical argument to indicate the interval in seconds between
   printing output.
 
-  # stap periodic.stp --all-modules -c "sleep 1"
+  # stap periodic.stp --all-modules -T 1
 
 
 profiling/pf2.stp - Profile Kernel Functions
@@ -1488,7 +1488,7 @@ keywords: profiling
   prints out a sorted list with the top ten kernel functions with
   samples.
 
-  # stap pf2.stp -c "sleep 1"
+  # stap pf2.stp -T 1
 
 
 profiling/pf3.stp - Profile Kernel/User Functions
@@ -1499,7 +1499,7 @@ keywords: profiling
   functions with samples.  Use any of --ldd, --all-modules, -d MODULE,
   -d /PATH/TO/EXEC to add more symbolic info.
 
-  # stap pf3.stp -c "sleep 6" --all-modules --ldd
+  # stap pf3.stp -T 6 --all-modules --ldd
 
 
 profiling/pf4.stp - Profile Kernel/User Backtraces
@@ -1510,7 +1510,7 @@ keywords: _best profiling backtrace
   backtraces (on a per-cpu basis).  Use any of --ldd, --all-modules, -d
   MODULE, -d /PATH/TO/EXEC to add more symbolic info.
 
-  # stap pf4.stp -c "sleep 6" --all-modules --ldd
+  # stap pf4.stp -T 6 --all-modules --ldd
 
 
 profiling/sched_switch.stp - Display the Task Switches Happening in the Scheduler
@@ -1524,7 +1524,7 @@ keywords: profiling function
   can be used to understand which tasks schedule out the current
   process being traced, and when it gets scheduled in again.
 
-  # stap  sched_switch.stp -c "sleep 1"
+  # stap  sched_switch.stp -T 1
 
 
 profiling/thread-times.stp - Profile Kernel Functions
@@ -1535,7 +1535,7 @@ keywords: _best profiling
   occupying the CPUs, broken down as a percentage of user and kernel
   time.
 
-  # stap thread-times.stp -c "sleep 1"
+  # stap thread-times.stp -T 1
 
 
 profiling/timeout.stp - Show Processes Doing Polling Operations
@@ -1549,7 +1549,7 @@ keywords: profiling
   action occurred. The script updates the screen once a second with the
   top twenty processes.
 
-  # stap timeout.stp -c "sleep 1"
+  # stap timeout.stp -T 1
 
 
 profiling/topsys.stp - Show Processes Doing Polling Operations
@@ -1559,7 +1559,7 @@ keywords: profiling
   previous 5 seconds. The output is sorted from most frequent to least
   frequent.
 
-  # stap topsys.stp -c "sleep 1"
+  # stap topsys.stp -T 1
 
 
 security-band-aids/cve-2008-0600.stp - cve-2008-0600 security band-aid
@@ -1668,7 +1668,7 @@ keywords: _best virtualization kvm
   parameter you can explicitly state the kvm type with a "-G kvm=intel"
   or "-G kvm=amd" on the command line.
 
-  # stap kvm_service_time.stp -c "sleep 1"
+  # stap kvm_service_time.stp -T 1
 
 
 virtualization/qemu_count.stp - Tally the Number of User-Space QEMU Events
@@ -1679,7 +1679,7 @@ keywords: virtualization qemu kvm
   prints a list of the number of times each user-space qemu probepoint
   is encountered.
 
-  # stap qemu_count.stp -c "sleep 1"
+  # stap qemu_count.stp -T 1
 
 
 virtualization/qemu_io.stp - Tally the Number of User-Space QEMU IO on Each IO Port
@@ -1690,6 +1690,6 @@ keywords: virtualization qemu kvm io
   operation. When the script exits, it prints a count of the number of
   times each IO port read and written.
 
-  # stap qemu_io.stp -c "sleep 1"
+  # stap qemu_io.stp -T 1
 
 

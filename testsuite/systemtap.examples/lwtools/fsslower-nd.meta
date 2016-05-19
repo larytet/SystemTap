@@ -8,4 +8,4 @@ usage: ./fsslower-nd.stp [min_ms]
 arg_1: Minimum millisecond threshold
 test_support: stap -p4 fsslower-nd.stp
 test_check: stap -p4 fsslower-nd.stp
-test_installcheck: stap fsslower-nd.stp -c "sleep 1"
+test_installcheck: stap fsslower-nd.stp -T 1

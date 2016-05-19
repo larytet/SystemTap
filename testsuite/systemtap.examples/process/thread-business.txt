@@ -4,7 +4,7 @@ thread-business.stp - monitor syscall history
   of all threads on the system, along with a textual
   recent-syscall-history for each
 
-$ stap thread-business.stp -c "sleep 5"
+$ stap thread-business.stp -T 5
 
         execname    tid count recent syscalls                                   
 
@@ -20,7 +20,7 @@ The output when the system is not doing anything interesting.
 
 Rerunning the script while SystemTap was being built.
 
-$ stap thread-business.stp -c "sleep 5"
+$ stap thread-business.stp -T 5
 
         execname    tid count recent syscalls                                   
 

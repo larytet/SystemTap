@@ -13,10 +13,10 @@ kvm_service_time.stp - Time Statistics on KVM Exit Reasons
   parameter you can explicitly state the kvm type with a "-G kvm=intel"
   or "-G kvm=amd" on the command line.
 
-  # stap kvm_service_time.stp -c "sleep 1"
+  # stap kvm_service_time.stp -T 1
 
 
-$ stap kvm_service_time.stp -c "sleep 10"
+$ stap kvm_service_time.stp -T 10
 
 # Intel exit reasons are EXIT_REASON_* in linux/arch/x86/include/asm/vmx.h
 # reason: count sum(us) min(us) avg(us) max(us)

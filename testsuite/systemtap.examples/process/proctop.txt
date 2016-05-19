@@ -7,7 +7,7 @@ Description:
   script contains configuration options listed in the script source.
 
 
-$ stap proctop.stp -c "sleep 12"
+$ stap proctop.stp -T 12
 
 5 seconds: showing 25 out of 54 tasks
      PID              Process      State      VirtMem       RSSMem      ShrdMem         CPU Time        User Time
@@ -75,7 +75,7 @@ A configuration that might be useful would be to sort by the state to see a
 short list of the processes that have stopped while the script was running.
 
 
-$ stap proctop.stp -c "sleep 12" -G show=5 -G sort=state -G sortby=decrease
+$ stap proctop.stp -T 12 -G show=5 -G sort=state -G sortby=decrease
 
 5 seconds: showing 5 out of 61 tasks
      PID              Process      State      VirtMem       RSSMem      ShrdMem         CPU Time        User Time

@@ -7,4 +7,4 @@ scope: system-wide
 usage: ./opensnoop-nd.stp
 test_support: stap -p4 opensnoop-nd.stp
 test_check: stap -p4 opensnoop-nd.stp
-test_installcheck: stap opensnoop-nd.stp -c "sleep 1"
+test_installcheck: stap opensnoop-nd.stp -T 1

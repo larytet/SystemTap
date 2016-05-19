@@ -5,7 +5,7 @@ thread-times.stp - Profile Kernel Functions
   occupying the CPUs, broken down as a percentage of user and kernel
   time.
 
-$ stap thread-times.stp -c "sleep 5"
+$ stap thread-times.stp -T 5
 
             comm   tid   %user %kernel (of 8004 ticks)
       eu-readelf 22304  49.86%   0.09%

@@ -11,4 +11,4 @@ scope: system-wide
 description: The mmreclaim.stp script uses the virtual memory tracepoints available in some kernels to track page reclaim activity that occurred while the script was running. It's useful in debugging performance problems that occur due to page reclamation.
 test_support: stap -l 'kernel.trace("mm_*reclaim*")'
 test_check: stap -p4 mmreclaim.stp
-test_installcheck: stap mmreclaim.stp -c "sleep 1"
+test_installcheck: stap mmreclaim.stp -T 1

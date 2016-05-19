@@ -7,4 +7,4 @@ scope: system-wide
 usage: ./execsnoop-nd.stp
 test_support: stap -p4 execsnoop-nd.stp
 test_check: stap -p4 execsnoop-nd.stp
-test_installcheck: stap execsnoop-nd.stp -c "sleep 1"
+test_installcheck: stap execsnoop-nd.stp -T 1

@@ -1,4 +1,4 @@
-# stap iostats.stp -c "sleep 1"
+# stap iostats.stp -T 1
 
 starting probe
 

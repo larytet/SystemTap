@@ -1,4 +1,4 @@
-# stap iodevstats.stp -c "sleep 1"
+# stap iodevstats.stp -T 1
 
 starting probe
 

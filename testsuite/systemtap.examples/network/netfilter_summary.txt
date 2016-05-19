@@ -7,7 +7,7 @@ netfilter_summary.stp - System-Wide Count of Network Packets by IPs
   greatest to least number of packets seen among the source/destination
   pairs.
 
-$ stap netfilter_summary.stp -c "sleep 10"
+$ stap netfilter_summary.stp -T 10
 
 Collecting data... Type Ctrl-C to exit and display results.
 205.251.249.28 -->    10.15.16.105 : 122 packets, 259403 total bytes
@@ -29,7 +29,7 @@ The output above was from when the system was doing nothing interesting.
 
 Rerunning the script opening numerous tabs to google.com.
 
-$ stap netfilter_summary.stp -c "sleep 10"
+$ stap netfilter_summary.stp -T 10
 
 Collecting data... Type Ctrl-C to exit and display results.
  173.194.37.87 -->    10.15.16.105 : 547 packets, 700864 total bytes
