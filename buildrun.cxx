@@ -105,7 +105,7 @@ make_any_make_cmd(systemtap_session& s, const string& dir, const string& target)
     {
       // PR14168: sanitize environment variables for kbuild invocation
       "env", "-uARCH", "-uKBUILD_EXTMOD", "-uCROSS_COMPILE", "-uKBUILD_IMAGE",
-      "-uKCONFIG_CONFIG", "-uINSTALL_PATH", newpath,
+      "-uKCONFIG_CONFIG", "-uINSTALL_PATH", "-uLD_LIBRARY_PATH", newpath,
 
       "make", "-C", s.kernel_build_tree,
       "M=" + dir, // need make-quoting?
