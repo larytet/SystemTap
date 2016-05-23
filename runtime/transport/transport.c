@@ -490,19 +490,27 @@ err0:
 
 static inline void _stp_lock_inode(struct inode *inode)
 {
+#ifdef STAPCONF_INODE_RWSEM
+	inode_lock(inode);
+#else
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
 	mutex_lock(&inode->i_mutex);
 #else
 	down(&inode->i_sem);
 #endif
+#endif
 }
 
 static inline void _stp_unlock_inode(struct inode *inode)
 {
+#ifdef STAPCONF_INODE_RWSEM
+	inode_unlock(inode);
+#else
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
 	mutex_unlock(&inode->i_mutex);
 #else
 	up(&inode->i_sem);
+#endif
 #endif
 }
 
