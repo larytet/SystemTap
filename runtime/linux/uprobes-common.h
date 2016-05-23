@@ -26,10 +26,13 @@ struct stap_uprobe_spec {
   unsigned return_p:1;
   unsigned long address;
   unsigned long sdt_sem_offset;
+
   // List of perf counters used by each probe
   // This list is an index into struct stap_perf_probe,
   long perf_counters_dim;
   long *perf_counters;
+  void (*perf_read_handler)(long *values);
+
   const struct stap_probe * const probe;
  };
 

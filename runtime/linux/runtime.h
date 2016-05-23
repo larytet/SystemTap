@@ -225,6 +225,13 @@ static void *kallsyms___lock_task_sighand;
 #include "task_finder_stubs.c"
 #endif
 
+#ifdef _HAVE_PERF_
+/* Now that we've got the task_finder included (one way or another),
+ * we can include the perf stuff (if needed). */
+#include <linux/perf_event.h>
+#include "linux/perf.h"
+#endif
+
 #include "sym.c"
 #ifdef STP_PERFMON
 #include "perf.c"

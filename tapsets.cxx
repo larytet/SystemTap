@@ -91,7 +91,10 @@ common_probe_init (derived_probe* p)
 void
 common_probe_entryfn_prologue (systemtap_session& s,
 			       string statestr, string probe,
-			       string probe_type, bool overload_processing)
+			       string probe_type, bool overload_processing,
+			       void (*declaration_callback)(systemtap_session& s, void *data),
+			       void (*pre_context_callback)(systemtap_session& s, void *data),
+			       void *callback_data)
 {
   if (s.runtime_usermode_p())
     {
@@ -117,6 +120,8 @@ common_probe_entryfn_prologue (systemtap_session& s,
   s.op->newline() << "#ifdef STP_TIMING";
   s.op->newline() << "Stat stat = probe_timing(" << probe << "->index);";
   s.op->newline() << "#endif";
+  if (declaration_callback)
+    declaration_callback(s, callback_data);
   if (overload_processing && !s.runtime_usermode_p())
     s.op->newline() << "#if defined(STP_TIMING) || defined(STP_OVERLOAD)";
   else
@@ -132,6 +137,8 @@ common_probe_entryfn_prologue (systemtap_session& s,
   s.op->newline() << "#endif";
 
   s.op->newline() << "#if !INTERRUPTIBLE";
+  if (pre_context_callback)
+    pre_context_callback(s, callback_data);
   s.op->newline() << "local_irq_save (flags);";
   s.op->newline() << "#endif";
 
@@ -155,6 +162,12 @@ common_probe_entryfn_prologue (systemtap_session& s,
   s.op->newline(1) << "goto probe_epilogue;";
   s.op->indent(-1);
 
+  if (pre_context_callback)
+    {
+      s.op->newline() << "#if INTERRUPTIBLE";
+      pre_context_callback(s, callback_data);
+      s.op->newline() << "#endif";
+    }
   s.op->newline() << "c = _stp_runtime_entryfn_get_context();";
   s.op->newline() << "if (!c) {";
   s.op->newline(1) << "#if !INTERRUPTIBLE";
@@ -616,6 +629,7 @@ struct uprobe_derived_probe: public dwarf_derived_probe
   void print_dupe_stamp(ostream& o) { print_dupe_stamp_unprivileged_process_owner (o); }
   void getargs(std::list<std::string> &arg_set) const;
   void saveargs(int nargs);
+  void emit_perf_read_handler(systemtap_session& s, unsigned i);
 private:
   list<string> args;
 };
@@ -5632,23 +5646,41 @@ dwarf_derived_probe::register_patterns(systemtap_session& s)
 void
 dwarf_derived_probe::emit_probe_local_init(systemtap_session& s, translator_output * o)
 {
-  for (auto pcii = perf_counter_refs.begin();
-       pcii != perf_counter_refs.end();
-       pcii++)
+  if (perf_counter_refs.size())
     {
-      // Find the associated perf.counter probe
-      unsigned i = 0;
-      for (auto it = s.perf_counters.begin();
-	   it != s.perf_counters.end();
-	   it++, i++)
-	if ((*it).first == (*pcii))
-          {
-            // place the perf counter read so it precedes stp_lock_probe
-            o->newline() << "l->l___perf_read_" + (*it).first
-              + " = (((int64_t) (_stp_perf_read(smp_processor_id(),"
-              + lex_cast(i) + "))));";
-            break;
-          }
+      o->newline() << "{";
+      o->indent(1);
+      unsigned ref_idx = 0;
+      for (auto pcii = perf_counter_refs.begin();
+	   pcii != perf_counter_refs.end();
+	   pcii++)
+        {
+	  // Find the associated perf.counter probe
+	  unsigned i = 0;
+
+	  for (auto it=s.perf_counters.begin() ;
+	       it != s.perf_counters.end();
+	       it++, i++)
+	    {
+	      if ((*it).first == (*pcii))
+	        {
+		  // copy the perf counter values over
+		  //
+		  // NB: We'd like to simplify here. Right now we read
+		  // the perf counters into "values", then copy that
+		  // into the locals. We should be able to remove the
+		  // locals, but the 'symbol' class isn't designed to
+		  // point to the context structure itself, but the
+		  // locals inside the context structure.
+		  o->newline() << "l->l___perf_read_" + (*it).first
+		    + " = (int64_t)c->perf_read_values["
+		    + lex_cast(ref_idx) + "];";
+		  ref_idx++;
+		  break;
+		}
+	    }
+	}
+      o->newline(-1) << "}";
     }
 
   if (access_vars)
@@ -8688,6 +8720,10 @@ private:
   void emit_module_dyninst_init (systemtap_session& s);
   void emit_module_dyninst_exit (systemtap_session& s);
 
+  // Perf support
+  unsigned max_perf_counters;
+  void emit_module_perf_read_handlers (systemtap_session& s);
+
 public:
   void emit_module_decls (systemtap_session& s);
   void emit_module_init (systemtap_session& s);
@@ -8750,6 +8786,42 @@ uprobe_derived_probe::emit_privilege_assertion (translator_output* o)
 }
 
 
+void
+uprobe_derived_probe::emit_perf_read_handler (systemtap_session &s,
+					      unsigned idx)
+{
+  if (perf_counter_refs.size())
+    {
+      unsigned ref_idx = 0;
+      s.op->newline() << "static void stap_perf_read_handler_" << idx
+		      << "(long *values) {";
+      s.op->indent(1);
+
+      for (auto pcii = perf_counter_refs.begin();
+	   pcii != perf_counter_refs.end();
+	   pcii++)
+        {
+	  // Find the associated perf.counter probe
+	  unsigned i = 0;
+	  for (auto it=s.perf_counters.begin() ;
+	       it != s.perf_counters.end();
+	       it++, i++)
+	    {
+	      if ((*it).first == (*pcii))
+	        {
+		  s.op->newline() << "values[" << ref_idx
+				  << "] = _stp_perf_read(smp_processor_id(),"
+				  << i << ");";
+		  ref_idx++;
+		  break;
+		}
+	    }
+	}
+      s.op->newline() << "return;";
+      s.op->newline(-1) << "}";
+    }
+}
+
 struct uprobe_builder: public derived_probe_builder
 {
   uprobe_builder() {}
@@ -8800,6 +8872,58 @@ uprobe_derived_probe_group::emit_module_maxuprobes (systemtap_session& s)
 
 
 void
+uprobe_derived_probe_group::emit_module_perf_read_handlers (systemtap_session& s)
+{
+  // If we're using perf counters, output the handler function(s)
+  // before the actual uprobe probe handler function.
+  for (unsigned i=0; i<probes.size(); i++)
+    {
+      uprobe_derived_probe *p = probes[i];
+      p->emit_perf_read_handler(s, i);
+    }
+}
+
+
+void
+udpg_entryfn_prologue_declaration_callback (systemtap_session& s, void* data)
+{
+  unsigned nvalues = (unsigned)(unsigned long)data;
+  if (nvalues > 0)
+    {
+      // Note that only gurus can exceed the maximum number of perf
+      // values used in 1 probe. Since we store the perf values on
+      // the stack, we can't have too many.
+      if (!s.guru_mode && nvalues > 16)
+	throw SEMANTIC_ERROR(_F("Too many simultaneous uses of perf values (%d is greater than 16)",
+				nvalues));
+      s.op->newline() << "long perf_read_values[" << nvalues << "];";
+    }
+}
+
+
+void
+udpg_entryfn_prologue_pre_context_callback (systemtap_session& s, void* data)
+{
+  unsigned nvalues = (unsigned)(unsigned long)data;
+  if (nvalues == 0 || s.runtime_usermode_p())
+    return;
+
+  if (kernel_supports_inode_uprobes (s))
+    {
+      s.op->newline() << "if (sup->perf_read_handler)";
+      s.op->newline(1) << "sup->perf_read_handler(perf_read_values);";
+      s.op->indent(-1);
+    }
+  else
+    {
+      s.op->newline() << "if (sups->perf_read_handler)";
+      s.op->newline(1) << "sups->perf_read_handler(perf_read_values);";
+      s.op->indent(-1);
+    }
+}
+
+
+void
 uprobe_derived_probe_group::emit_module_utrace_decls (systemtap_session& s)
 {
   if (probes.empty()) return;
@@ -8816,6 +8940,7 @@ uprobe_derived_probe_group::emit_module_utrace_decls (systemtap_session& s)
   s.op->newline() << "#endif";
 
   emit_module_maxuprobes (s);
+  emit_module_perf_read_handlers(s);
 
   // Forward decls
   s.op->newline() << "#include \"linux/uprobes-common.h\"";
@@ -8918,11 +9043,15 @@ uprobe_derived_probe_group::emit_module_utrace_decls (systemtap_session& s)
         s.op->line() << " .sdt_sem_offset=(unsigned long)0x"
                      << hex << p->sdt_semaphore_addr << dec << "ULL,";
 
-      // XXX: don't bother emit if array is empty
-      s.op->line() << " .perf_counters_dim=ARRAY_SIZE(perf_counters_" << lex_cast(i) << "),";
-      // List of perf counters used by a probe from above
-      s.op->line() << " .perf_counters=perf_counters_" + lex_cast(i) + ",";
-
+      // Don't bother emit if array is empty.
+      if (p->perf_counter_refs.size())
+        {
+	  s.op->line() << " .perf_counters_dim=ARRAY_SIZE(perf_counters_" << lex_cast(i) << "),";
+	  // List of perf counters used by a probe from above
+	  s.op->line() << " .perf_counters=perf_counters_" + lex_cast(i) + ",";
+	  s.op->line() << " .perf_read_handler=&stap_perf_read_handler_"
+	      + lex_cast(i) + ",";
+	}
       if (p->has_return)
         s.op->line() << " .return_p=1,";
       s.op->line() << " },";
@@ -8935,7 +9064,10 @@ uprobe_derived_probe_group::emit_module_utrace_decls (systemtap_session& s)
   s.op->newline(1) << "struct stap_uprobe *sup = container_of(inst, struct stap_uprobe, up);";
   s.op->newline() << "const struct stap_uprobe_spec *sups = &stap_uprobe_specs [sup->spec_index];";
   common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "sups->probe",
-				 "stp_probe_type_uprobe");
+				 "stp_probe_type_uprobe", true,
+				 udpg_entryfn_prologue_declaration_callback,
+				 udpg_entryfn_prologue_pre_context_callback,
+				 (void *)(unsigned long)max_perf_counters);
   s.op->newline() << "if (sup->spec_index < 0 || "
                   << "sup->spec_index >= " << probes.size() << ") {";
   s.op->newline(1) << "_stp_error (\"bad spec_index %d (max " << probes.size()
@@ -8944,6 +9076,10 @@ uprobe_derived_probe_group::emit_module_utrace_decls (systemtap_session& s)
   s.op->newline(-1) << "}";
   s.op->newline() << "c->uregs = regs;";
   s.op->newline() << "c->user_mode_p = 1;";
+
+  // assign values to something in context
+  if (s.perf_counters.size())
+    s.op->newline() << "c->perf_read_values = perf_read_values;";
 
   // Make it look like the IP is set as it would in the actual user
   // task when calling real probe handler. Reset IP regs on return, so
@@ -9110,6 +9246,7 @@ uprobe_derived_probe_group::emit_module_inode_decls (systemtap_session& s)
   s.op->newline() << "/* ---- inode uprobes ---- */";
   emit_module_maxuprobes (s);
   s.op->newline() << "#include \"linux/uprobes-inode.c\"";
+  emit_module_perf_read_handlers(s);
 
   // Write the probe handler.
   s.op->newline() << "static int stapiu_probe_handler "
@@ -9119,10 +9256,18 @@ uprobe_derived_probe_group::emit_module_inode_decls (systemtap_session& s)
   // Since we're sharing the entry function, we have to dynamically choose the probe_type
   string probe_type = "(sup->return_p ? stp_probe_type_uretprobe : stp_probe_type_uprobe)";
   common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "sup->probe",
-                                 probe_type);
+                                 probe_type, true,
+				 udpg_entryfn_prologue_declaration_callback,
+				 udpg_entryfn_prologue_pre_context_callback,
+				 (void *)(unsigned long)max_perf_counters);
 
   s.op->newline() << "c->uregs = regs;";
   s.op->newline() << "c->user_mode_p = 1;";
+
+  // assign values to something in context
+  if (s.perf_counters.size())
+    s.op->newline() << "c->perf_read_values = perf_read_values;";
+
   // NB: IP is already set by stapiu_probe_prehandler in uprobes-inode.c
   s.op->newline() << "(*sup->probe->ph) (c);";
 
@@ -9212,10 +9357,17 @@ uprobe_derived_probe_group::emit_module_inode_decls (systemtap_session& s)
       if (p->sdt_semaphore_addr)
         s.op->line() << " .sdt_sem_offset=(loff_t)0x"
                      << hex << p->sdt_semaphore_addr << dec << "ULL,";
-      // XXX: don't bother emit if array is empty
-      s.op->line() << " .perf_counters_dim=ARRAY_SIZE(perf_counters_" << lex_cast(i) << "),";
-      // List of perf counters used by a probe from above
-      s.op->line() << " .perf_counters=perf_counters_" + lex_cast(i) + ",";
+
+      // Don't bother emit if array is empty.
+      if (p->perf_counter_refs.size())
+        {
+	  s.op->line() << " .perf_counters_dim=ARRAY_SIZE(perf_counters_" << lex_cast(i) << "),";
+	  // List of perf counters used by a probe from above
+	  s.op->line() << " .perf_counters=perf_counters_" + lex_cast(i) + ",";
+	  s.op->line() << " .perf_read_handler=&stap_perf_read_handler_"
+	      + lex_cast(i) + ",";
+	}
+
       s.op->line() << " .probe=" << common_probe_init (p) << ",";
       s.op->line() << " },";
     }
@@ -9338,6 +9490,15 @@ uprobe_derived_probe_group::emit_module_dyninst_exit (systemtap_session& s)
 void
 uprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
 {
+   // Here we need to figure out the max number of perf counters used
+   // per probe.
+  for (unsigned i=0; i<probes.size(); i++)
+    {
+      uprobe_derived_probe *p = probes[i];
+      if (max_perf_counters < p->perf_counter_refs.size())
+	max_perf_counters = p->perf_counter_refs.size();
+    }
+
   if (s.runtime_usermode_p())
     emit_module_dyninst_decls (s);
   else if (kernel_supports_inode_uprobes (s))

@@ -11,15 +11,15 @@ STAP=$1
 
 declare -A perfresult
 for i in "first" "second"; do
-perfresult[$i]=$($STAP -g -c "/usr/bin/cat $0 >/dev/null" -e '
+perfresult[$i]=$($STAP -g -c "/bin/cat $0 >/dev/null" -e '
 global insn
 
 %( @1 == "first" %?
-probe perf.hw.instructions.process("/usr/bin/cat").counter("find_insns") {}
-probe perf.hw.cpu_cycles.process("/usr/bin/cat").counter("find_cycles") {}
+probe perf.hw.instructions.process("/bin/cat").counter("find_insns") {}
+probe perf.hw.cpu_cycles.process("/bin/cat").counter("find_cycles") {}
 %:
-probe perf.hw.cpu_cycles.process("/usr/bin/cat").counter("find_cycles") {}
-probe perf.hw.instructions.process("/usr/bin/cat").counter("find_insns") {}
+probe perf.hw.cpu_cycles.process("/bin/cat").counter("find_cycles") {}
+probe perf.hw.instructions.process("/bin/cat").counter("find_insns") {}
 %)
 
 function poly (val) %{ /* unprivileged */
@@ -36,14 +36,14 @@ function poly (val) %{ /* unprivileged */
   STAP_RETURN(0);
   %}
 
-probe process("/usr/bin/cat").function("main")
+probe process("/bin/cat").function("main")
 {
   insn["find_insns"] = @perf("find_insns")
   insn["find_cycles"] = @perf("find_cycles")
 }
 
 # in lieu of .return
-probe process("/usr/bin/cat").function("main").return
+probe process("/bin/cat").function("main").return
 {
   insn["find_cycles"] = (@perf("find_cycles") - insn["find_cycles"])
   insn["find_insns"] =  (@perf("find_insns") - insn["find_insns"])

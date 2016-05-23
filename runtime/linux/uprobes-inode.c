@@ -103,6 +103,8 @@ struct stapiu_consumer {
 	// This list is an index into struct stap_perf_probe,
 	long perf_counters_dim;
 	long *perf_counters;
+	void (*perf_read_handler)(long *values);
+
 	const struct stap_probe * const probe;
 };
 

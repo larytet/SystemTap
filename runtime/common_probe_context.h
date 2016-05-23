@@ -170,3 +170,8 @@ struct unwind_cache uwcache_kernel;
 struct unwind_context uwcontext_user;
 struct unwind_context uwcontext_kernel;
 #endif
+
+/* Only used when perf dervied probes have been defined. */
+#ifdef _HAVE_PERF_
+long *perf_read_values;
+#endif
