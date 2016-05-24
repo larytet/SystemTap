@@ -1,0 +1,11 @@
+#! stap -p1
+function f(x:string, y:long, y:long) {
+  return x;
+}
+
+probe begin {
+  c = "abc"
+  println(f(c, 3,3))
+  exit()
+}
+

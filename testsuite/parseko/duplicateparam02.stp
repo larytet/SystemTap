@@ -1,0 +1,11 @@
+#! stap -p1
+function f(x, x) {
+  return x;
+}
+
+probe begin {
+  c = "abc"
+  println(f(c, 3))
+  exit()
+}
+
