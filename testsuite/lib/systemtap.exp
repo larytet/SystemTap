@@ -316,6 +316,22 @@ proc setup_systemtap_environment {} {
     return 1
 }
 
+proc shutdown_server {} {
+    global server_pid
+    if { $server_pid != 0 } then {
+	verbose -log "Stopping the systemtap server with PID==$server_pid"
+	catch {exec stap-stop-server $server_pid}
+	set server_pid 0
+    }
+
+    foreach module [glob -nocomplain [pwd]/stap_*.ko] {
+	exec /bin/rm -f $module
+    }
+    foreach sig [glob -nocomplain [pwd]/stap_*.ko.sgn] {
+	exec /bin/rm -f $sig
+    }
+}
+
 # Set up the environment so that tests will be performed using the systemtap
 # client and server.
 proc setup_server { args } {
@@ -428,22 +444,10 @@ proc start_server { options } {
     return 1
 }
 
-proc shutdown_server {} {
-    global server_pid
-    if { $server_pid != 0 } then {
-	verbose -log "Stopping the systemtap server with PID==$server_pid"
-	catch {exec stap-stop-server $server_pid}
-	set server_pid 0
-    }
-
-    foreach module [glob -nocomplain [pwd]/stap_*.ko] {
-	exec /bin/rm -f $module
-    }
-    foreach sig [glob -nocomplain [pwd]/stap_*.ko.sgn] {
-	exec /bin/rm -f $sig
-    }
+proc cleanup {} {
+    # Stop the stap server, if we started it.
+    shutdown_server
 }
-
 
 proc normalize_arch { arch } {
     if {$arch == "ppc64"} then {return "powerpc"}
@@ -623,12 +627,6 @@ proc systemtap_finish {args} {
 }
 
 proc systemtap_version {} {}
-
-proc cleanup {} {
-    # Stop the stap server, if we started it.
-    shutdown_server
-}
-
 
 proc stap_run_batch {filename args} {
     verbose -log "starting $filename $args"
