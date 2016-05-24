@@ -2383,11 +2383,20 @@ parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
 	throw PARSE_ERROR (_("expected identifier"));
       vardecl* vd = new vardecl;
       vd->unmangled_name = vd->name = t->content;
+
+      for (auto it = fd->formal_args.begin() ; it != fd->formal_args.end(); ++it)
+	{
+	  string param = vd->unmangled_name;
+	  if ((*it)->unmangled_name == param)
+	    throw PARSE_ERROR(_("duplicate parameter names"));
+	}
+
       vd->tok = t;
       fd->formal_args.push_back (vd);
       fd->systemtap_v_conditional = systemtap_v_seen;
 
       t = next ();
+
       if (t->type == tok_operator && t->content == ":")
 	{
 	  swallow ();
@@ -2404,7 +2413,7 @@ parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
 	{
 	  swallow ();
 	  break;
-	}
+	}      
       if (t->type == tok_operator && t->content == ",")
 	{
 	  swallow ();
