@@ -3907,6 +3907,8 @@ expression* parser::parse_symbol ()
 	      // Consume any subsequent arguments.
 	      while (min_args || !peek_op (")"))
 		{
+                  // ')' is not possible here but we want to output a nicer
+                  // parser error message.
 		  if (consumed_arg)
 		    (void) expect_op_any({",", ")"});
 		  expression *e = parse_expression ();
