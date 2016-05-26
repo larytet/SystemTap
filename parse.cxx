@@ -3984,7 +3984,7 @@ expression* parser::parse_symbol ()
           interned_string op = expect_op_any({"]", ","});
           if (op == "]")
             break;
-          else if (",")
+          else if (op == ",")
             continue;
         }
 
