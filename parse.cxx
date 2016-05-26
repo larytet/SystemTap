@@ -150,6 +150,7 @@ private:
 
   // convenience forms, these also swallow the token
   void expect_op (string const & expected);
+  interned_string expect_op_any (vector<string> expected);
   void expect_kw (string const & expected);
   void expect_number (int64_t & expected);
   void expect_ident_or_keyword (interned_string & target);
@@ -1269,6 +1270,30 @@ parser::expect_op (string const & expected)
   expect_known (tok_operator, expected);
 }
 
+interned_string
+parser::expect_op_any (vector<string> expected)
+{
+  const token *t = next();
+  interned_string found;
+  string msg;
+  bool err = true;
+  for (auto it = expected.cbegin(); it != expected.cend(); ++it)
+    {
+      if (t && t->type == tok_operator && t->content == *it)
+        {
+          err = false;
+          found = t->content;
+          break;
+        }
+      if (it != expected.cbegin())
+        msg.append(" ");
+      msg.append(*it);
+    }
+  if (err)
+    throw PARSE_ERROR (_F("expected one of '%s'", msg.c_str()));
+  swallow (); // We are done with it, content was copied.
+  return found;
+}
 
 void
 parser::expect_kw (string const & expected)
@@ -3839,9 +3864,8 @@ expression* parser::parse_symbol ()
 		  fmt->args.push_back(ai);
 
 		  // Consume any subsequent arguments.
-		  while (!peek_op (")"))
+		  while (expect_op_any ({",", ")"}) != ")")
 		    {
-		      expect_op(",");
 		      expression *e = parse_expression ();
 		      fmt->args.push_back(e);
 		    }
@@ -3884,15 +3908,15 @@ expression* parser::parse_symbol ()
 	      while (min_args || !peek_op (")"))
 		{
 		  if (consumed_arg)
-		    expect_op(",");
+		    (void) expect_op_any({",", ")"});
 		  expression *e = parse_expression ();
 		  fmt->args.push_back(e);
 		  consumed_arg = true;
 		  if (min_args)
 		    --min_args;
 		}
+              expect_op(")");
 	    }
-	  expect_op(")");
 	  return fmt;
 	}
 
@@ -3911,18 +3935,11 @@ expression* parser::parse_symbol ()
 	  while (1)
 	    {
 	      f->args.push_back (parse_expression ());
-	      if (peek_op (")"))
-		{
-		  swallow ();
-		  break;
-		}
-	      else if (peek_op (","))
-		{
-		  swallow ();
-		  continue;
-		}
-	      else
-		throw PARSE_ERROR (_("expected ',' or ')'"));
+              interned_string op = expect_op_any({")", ","});
+              if (op == ")")
+                break;
+              else if (op == ",")
+                continue;
 	    }
 	  return f;
 	}
@@ -3962,18 +3979,11 @@ expression* parser::parse_symbol ()
             }
           else
             ai->indexes.push_back (parse_expression ());
-          if (peek_op ("]"))
-            {
-	      swallow ();
-	      break;
-	    }
-          else if (peek_op (","))
-	    {
-	      swallow ();
-	      continue;
-	    }
-          else
-            throw PARSE_ERROR (_("expected ',' or ']'"));
+          interned_string op = expect_op_any({"]", ","});
+          if (op == "]")
+            break;
+          else if (",")
+            continue;
         }
 
       return ai;
