@@ -8173,9 +8173,9 @@ dwarf_builder::build(systemtap_session & sess,
 	  string library = find_executable (user_lib, sess.sysroot,
 					    sess.sysenv, "LD_LIBRARY_PATH");
 	  if (is_fully_resolved(library, "", sess.sysenv, "LD_LIBRARY_PATH"))
-	    {
-	      module_name = library;
-	    }
+	    module_name = library;
+	  else
+	    module_name = user_path; // canonicalize it
 	}
       else
         module_name = user_path; // canonicalize it

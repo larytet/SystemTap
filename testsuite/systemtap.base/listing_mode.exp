@@ -920,30 +920,30 @@ if {$exepath != ""} {
       testing_probe {process.library(string).function(string).callee(string)}
 
       stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callee(\"libbar\")" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)"
+	"re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"\[^\"\]*$sopath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)"
 
       testing_probe {process.library(string).function(string).callee(string).call}
 
       stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callee(\"libbar\").call" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)\\\.call"
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"\[^\"\]*$sopath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)\\\.call"
 
       testing_probe {process.library(string).function(string).callee(string).return}
 
       stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callee(\"libbar\").return" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)\\\.return"
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"\[^\"\]*$sopath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)\\\.return"
 
       testing_probe {process.library(string).function(string).callees}
 
       stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callees" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)"
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"\[^\"\]*$sopath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)"
 
       testing_probe {process.library(string).function(string).callees(number)}
 
       stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callees(1)" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)"
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"\[^\"\]*$sopath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)"
 
       stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callees(2)" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"lib(foo|bar)@\[^:\]+:(55|48)\"\\\)\\\.callee\\\(\"(libbar|libinln)@\[^:\]+:(48|43)\"\\\)" {2}
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"\[^\"\]*$sopath\"\\\)\\\.function\\\(\"lib(foo|bar)@\[^:\]+:(55|48)\"\\\)\\\.callee\\\(\"(libbar|libinln)@\[^:\]+:(48|43)\"\\\)" {2}
    }
 
    testing_probe {process.library(string).function(string).exported}
