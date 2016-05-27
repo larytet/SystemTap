@@ -3862,8 +3862,11 @@ expression* parser::parse_symbol ()
 		  fmt->args.push_back(ai);
 
 		  // Consume any subsequent arguments.
-		  while (expect_op_any ({",", ")"}) != ")")
+		  while (!peek_op(")"))
 		    {
+		      // ')' is not possible here but we want to output a nicer
+		      // parser error message.
+		      (void) expect_op_any ({",", ")"});
 		      expression *e = parse_expression ();
 		      fmt->args.push_back(e);
 		    }
@@ -3915,8 +3918,8 @@ expression* parser::parse_symbol ()
 		  if (min_args)
 		    --min_args;
 		}
-              expect_op(")");
 	    }
+	  expect_op(")");
 	  return fmt;
 	}
 
