@@ -57,7 +57,7 @@ probe nd_syscall.accept = __nd_syscall.accept ?,
 probe __nd_syscall.accept = kprobe.function("sys_accept").call
 {
 	asmlinkage()
-	@__syscall_gate(%{ __NR_accept %})
+	@__syscall_gate(@const("__NR_accept"))
 	sockfd = int_arg(1)
 	addr_uaddr = pointer_arg(2)
 	addrlen_uaddr = pointer_arg(3)
@@ -65,7 +65,7 @@ probe __nd_syscall.accept = kprobe.function("sys_accept").call
 probe __nd_syscall.socketcall.accept = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_ACCEPT %}) next;
+	if (int_arg(1) != @const("SYS_ACCEPT")) next;
 	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
 	sockfd = __int32(user_ulong(&(__args)[0]))
 	addr_uaddr = user_ulong(&(__args)[1])
@@ -75,7 +75,7 @@ probe __nd_syscall.compat_socketcall.accept =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_ACCEPT %}) next;
+	if (int_arg(1) != @const("SYS_ACCEPT")) next;
 	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
 	sockfd = user_int(&(__args)[0])
 	addr_uaddr = user_uint32(&(__args)[1])
@@ -89,13 +89,13 @@ probe nd_syscall.accept.return = __nd_syscall.accept.return ?,
 }
 probe __nd_syscall.accept.return = kprobe.function("sys_accept").return ?
 {
-	@__syscall_gate(%{ __NR_accept %})
+	@__syscall_gate(@const("__NR_accept"))
 }
 probe __nd_syscall.socketcall.accept.return =
 	kprobe.function("sys_socketcall").return ?,
 	kprobe.function("compat_sys_socketcall").return ?
 {
-	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_ACCEPT %}) next;
+	if (@entry(__asmlinkage_int_arg(1)) != @const("SYS_ACCEPT")) next;
 }
 
 # accept4 ____________________________________________________
@@ -117,7 +117,7 @@ probe __nd_syscall.accept4 = kprobe.function("sys_accept4").call
 	asmlinkage()
 	// On all tested platforms, there wasn't a different syscall
 	// number for the compat version of accept4().
-	@__syscall_nr_gate(%{ __NR_accept4 %})
+	@__syscall_nr_gate(@const("__NR_accept4"))
 	sockfd = int_arg(1)
 	addr_uaddr = pointer_arg(2)
 	addrlen_uaddr = pointer_arg(3)
@@ -126,7 +126,7 @@ probe __nd_syscall.accept4 = kprobe.function("sys_accept4").call
 probe __nd_syscall.socketcall.accept4 = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_ACCEPT4 %}) next;
+	if (int_arg(1) != @const("SYS_ACCEPT4")) next;
 	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
 	sockfd = __int32(user_ulong(&(__args)[0]))
 	addr_uaddr = user_ulong(&(__args)[1])
@@ -137,7 +137,7 @@ probe __nd_syscall.compat_socketcall.accept4 =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_ACCEPT4 %}) next;
+	if (int_arg(1) != @const("SYS_ACCEPT4")) next;
 	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
 	sockfd = user_int(&(__args)[0])
 	addr_uaddr = user_uint32(&(__args)[1])
@@ -152,13 +152,13 @@ probe nd_syscall.accept4.return = __nd_syscall.accept4.return ?,
 }
 probe __nd_syscall.accept4.return = kprobe.function("sys_accept4").return ?
 {
-	@__syscall_nr_gate(%{ __NR_accept4 %})
+	@__syscall_nr_gate(@const("__NR_accept4"))
 }
 probe __nd_syscall.socketcall.accept4.return =
 	kprobe.function("sys_socketcall").return ?,
 	kprobe.function("compat_sys_socketcall").return ?
 {
-	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_ACCEPT4 %}) next;
+	if (@entry(__asmlinkage_int_arg(1)) != @const("SYS_ACCEPT4")) next;
 }
 
 # access _____________________________________________________
@@ -302,7 +302,7 @@ probe nd_syscall.bind = __nd_syscall.bind ?, __nd_syscall.socketcall.bind ?,
 }
 probe __nd_syscall.bind = kprobe.function("sys_bind") ?
 {
-	@__syscall_gate(%{ __NR_bind %})
+	@__syscall_gate(@const("__NR_bind"))
 	asmlinkage()
 	sockfd = int_arg(1)
 	my_addr_uaddr = pointer_arg(2)
@@ -311,7 +311,7 @@ probe __nd_syscall.bind = kprobe.function("sys_bind") ?
 probe __nd_syscall.socketcall.bind = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_BIND %}) next;
+	if (int_arg(1) != @const("SYS_BIND")) next;
 	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
 	sockfd = __int32(user_ulong(&(__args)[0]))
 	my_addr_uaddr = user_ulong(&(__args)[1])
@@ -321,7 +321,7 @@ probe __nd_syscall.compat_socketcall.bind =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_BIND %}) next;
+	if (int_arg(1) != @const("SYS_BIND")) next;
 	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
 	sockfd = user_int(&(__args)[0])
 	my_addr_uaddr = user_uint32(&(__args)[1])
@@ -335,13 +335,13 @@ probe nd_syscall.bind.return = __nd_syscall.bind.return ?,
 }
 probe __nd_syscall.bind.return = kprobe.function("sys_bind").return ?
 {
-	@__syscall_gate(%{ __NR_bind %})
+	@__syscall_gate(@const("__NR_bind"))
 }
 probe __nd_syscall.socketcall.bind.return =
 	kprobe.function("sys_socketcall").return ?,
 	kprobe.function("compat_sys_socketcall").return ?
 {
-	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_BIND %}) next;
+	if (@entry(__asmlinkage_int_arg(1)) != @const("SYS_BIND")) next;
 }
 
 # bpf ________________________________________________________
@@ -471,10 +471,10 @@ probe nd_syscall.chown = kprobe.function("sys_chown") ?
 {
 	// Avoid chown16() calling chown().
 %( arch == "x86_64" %?
-	@__syscall_compat_gate(%{ __NR_chown %}, %{ __NR_ia32_chown32 %})
+	@__syscall_compat_gate(@const("__NR_chown"), @const("__NR_ia32_chown32"))
 %)
 %( arch == "i386" %?
-	@__syscall_gate(%{ __NR_chown32 %})
+	@__syscall_gate(@const("__NR_chown32"))
 %)
 	name = "chown"
 	asmlinkage()
@@ -486,10 +486,10 @@ probe nd_syscall.chown = kprobe.function("sys_chown") ?
 probe nd_syscall.chown.return = kprobe.function("sys_chown").return ?
 {
 %( arch == "x86_64" %?
-	@__syscall_compat_gate(%{ __NR_chown %}, %{ __NR_ia32_chown32 %})
+	@__syscall_compat_gate(@const("__NR_chown"), @const("__NR_ia32_chown32"))
 %)
 %( arch == "i386" %?
-	@__syscall_gate(%{ __NR_chown32 %})
+	@__syscall_gate(@const("__NR_chown32"))
 %)
 	name = "chown"
 	retstr = returnstr(1)
@@ -587,7 +587,7 @@ probe nd_syscall.clock_getres = kprobe.function("compat_clock_getres") ?,
 }
 probe __nd_syscall.clock_getres = kprobe.function("sys_clock_getres")
 {
-	@__syscall_gate(%{ __NR_clock_getres %})
+	@__syscall_gate(@const("__NR_clock_getres"))
 }
 probe nd_syscall.clock_getres.return =
 	kprobe.function("compat_clock_getres").return ?,
@@ -600,7 +600,7 @@ probe nd_syscall.clock_getres.return =
 probe __nd_syscall.clock_getres.return =
 	kprobe.function("sys_clock_getres").return
 {
-	@__syscall_gate(%{ __NR_clock_getres %})
+	@__syscall_gate(@const("__NR_clock_getres"))
 }
 
 # clock_gettime ______________________________________________
@@ -618,7 +618,7 @@ probe nd_syscall.clock_gettime = __nd_syscall.clock_gettime,
 }
 probe __nd_syscall.clock_gettime = kprobe.function("sys_clock_gettime").call
 {
-	@__syscall_gate(%{ __NR_clock_gettime %})
+	@__syscall_gate(@const("__NR_clock_gettime"))
 }
 probe nd_syscall.clock_gettime.return = __nd_syscall.clock_gettime.return, 
 	kprobe.function("compat_sys_clock_gettime").return ?
@@ -629,7 +629,7 @@ probe nd_syscall.clock_gettime.return = __nd_syscall.clock_gettime.return,
 probe __nd_syscall.clock_gettime.return =
 	kprobe.function("sys_clock_gettime").return
 {
-	@__syscall_gate(%{ __NR_clock_gettime %})
+	@__syscall_gate(@const("__NR_clock_gettime"))
 }
 
 # clock_nanosleep ____________________________________________
@@ -640,7 +640,7 @@ probe __nd_syscall.clock_gettime.return =
 #
 probe nd_syscall.clock_nanosleep = kprobe.function("sys_clock_nanosleep").call
 {
-	@__syscall_gate(%{ __NR_clock_nanosleep %})
+	@__syscall_gate(@const("__NR_clock_nanosleep"))
 	name = "clock_nanosleep"
 	asmlinkage()
 	clk_id = int_arg(1)
@@ -658,7 +658,7 @@ probe nd_syscall.clock_nanosleep = kprobe.function("sys_clock_nanosleep").call
 probe nd_syscall.clock_nanosleep.return =
 	kprobe.function("sys_clock_nanosleep").return ?
 {
-	@__syscall_gate(%{ __NR_clock_nanosleep %})
+	@__syscall_gate(@const("__NR_clock_nanosleep"))
 	name = "clock_nanosleep"
 	retstr = returnstr(1)
 }
@@ -709,7 +709,7 @@ probe nd_syscall.clock_settime = __nd_syscall.clock_settime,
 }
 probe __nd_syscall.clock_settime = kprobe.function("sys_clock_settime").call
 {
-	@__syscall_gate(%{ __NR_clock_settime %})
+	@__syscall_gate(@const("__NR_clock_settime"))
 	asmlinkage()
 	clk_id = int_arg(1)
 	clk_id_str = _get_wc_str(clk_id)
@@ -734,7 +734,7 @@ probe nd_syscall.clock_settime.return = __nd_syscall.clock_settime.return,
 probe __nd_syscall.clock_settime.return =
 	kprobe.function("sys_clock_settime").return
 {
-	@__syscall_gate(%{ __NR_clock_settime %})
+	@__syscall_gate(@const("__NR_clock_settime"))
 	retstr = returnstr(1)
 }
 probe __nd_syscall.compat_clock_settime.return =
@@ -775,10 +775,10 @@ probe nd_syscall.clone = kprobe.function("_do_fork").call !,
 	kprobe.function("do_fork").call
 {
 %( arch != "ia64" %?
-	@__syscall_compat_gate(%{ __NR_clone %}, %{ __NR_compat_clone %})
+	@__syscall_compat_gate(@const("__NR_clone"), @const("__NR_compat_clone"))
 	name = "clone"
 %:
-	@__syscall_gate2(%{ __NR_clone %}, %{ __NR_clone2 %})
+	@__syscall_gate2(@const("__NR_clone"), @const("__NR_clone2"))
 	// This is a bit gross. We're depending on @__syscall_gate2()
 	// to set '__nr' for us. If its implementation changes, this will
 	// need to change.
@@ -821,10 +821,10 @@ probe nd_syscall.clone.return = kprobe.function("_do_fork").return !,
 	kprobe.function("do_fork").return
 {
 %( arch != "ia64" %?
-	@__syscall_compat_gate(%{ __NR_clone %}, %{ __NR_compat_clone %})
+	@__syscall_compat_gate(@const("__NR_clone"), @const("__NR_compat_clone"))
 	name = "clone"
 %:
-	@__syscall_gate2(%{ __NR_clone %}, %{ __NR_clone2 %})
+	@__syscall_gate2(@const("__NR_clone"), @const("__NR_clone2"))
 	// This is a bit gross. We're depending on @__syscall_gate2()
 	// to set '__nr' for us. If its implementation changes, this will
 	// need to change.
@@ -840,7 +840,7 @@ probe nd_syscall.clone.return = kprobe.function("_do_fork").return !,
 # long sys_close(unsigned int fd)
 probe nd_syscall.close = kprobe.function("sys_close") ?
 {
-	@__syscall_compat_gate(%{ __NR_close %}, %{ __NR_compat_close %})
+	@__syscall_compat_gate(@const("__NR_close"), @const("__NR_compat_close"))
 	name = "close"
 	asmlinkage()
 	fd = int_arg(1)
@@ -848,7 +848,7 @@ probe nd_syscall.close = kprobe.function("sys_close") ?
 }
 probe nd_syscall.close.return = kprobe.function("sys_close").return ?
 {
-	@__syscall_compat_gate(%{ __NR_close %}, %{ __NR_compat_close %})
+	@__syscall_compat_gate(@const("__NR_close"), @const("__NR_compat_close"))
 	name = "close"
 	retstr = returnstr(1)
 }
@@ -865,7 +865,7 @@ probe nd_syscall.connect = __nd_syscall.connect ?,
 }
 probe __nd_syscall.connect = kprobe.function("sys_connect") ?
 {
-	@__syscall_gate(%{ __NR_connect %})
+	@__syscall_gate(@const("__NR_connect"))
 	asmlinkage()
 	sockfd = int_arg(1)
 	serv_addr_uaddr = pointer_arg(2)
@@ -874,7 +874,7 @@ probe __nd_syscall.connect = kprobe.function("sys_connect") ?
 probe __nd_syscall.socketcall.connect = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_CONNECT %}) next;
+	if (int_arg(1) != @const("SYS_CONNECT")) next;
 	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
 	sockfd = __int32(user_ulong(&(__args)[0]))
 	serv_addr_uaddr = user_ulong(&(__args)[1])
@@ -884,7 +884,7 @@ probe __nd_syscall.compat_socketcall.connect =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_CONNECT %}) next;
+	if (int_arg(1) != @const("SYS_CONNECT")) next;
 	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
 	sockfd = user_int(&(__args)[0])
 	serv_addr_uaddr = user_uint32(&(__args)[1])
@@ -898,13 +898,13 @@ probe nd_syscall.connect.return = __nd_syscall.connect.return ?,
 }
 probe __nd_syscall.connect.return = kprobe.function("sys_connect").return ?
 {
-	@__syscall_gate(%{ __NR_connect %})
+	@__syscall_gate(@const("__NR_connect"))
 }
 probe __nd_syscall.socketcall.connect.return =
 	kprobe.function("sys_socketcall").return ?,
 	kprobe.function("compat_sys_socketcall").return ?
 {
-	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_CONNECT %}) next;
+	if (@entry(__asmlinkage_int_arg(1)) != @const("SYS_CONNECT")) next;
 }
 
 # copy_file_range ___________________________________________
@@ -1008,7 +1008,7 @@ probe nd_syscall.dup2.return = kprobe.function("sys_dup2").return
 # SYSCALL_DEFINE3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags)
 probe nd_syscall.dup3 = kprobe.function("sys_dup3") ?
 {
-	@__syscall_compat_gate(%{ __NR_dup3 %}, %{ __NR_compat_dup3 %})
+	@__syscall_compat_gate(@const("__NR_dup3"), @const("__NR_compat_dup3"))
 	name = "dup3";
 	asmlinkage()
 	oldfd = int_arg(1)
@@ -1018,7 +1018,7 @@ probe nd_syscall.dup3 = kprobe.function("sys_dup3") ?
 }
 probe nd_syscall.dup3.return = kprobe.function("sys_dup3").return ?
 {
-	@__syscall_compat_gate(%{ __NR_dup3 %}, %{ __NR_compat_dup3 %})
+	@__syscall_compat_gate(@const("__NR_dup3"), @const("__NR_compat_dup3"))
 	name = "dup3"
 	retstr = returnstr(1)
 }
@@ -1137,8 +1137,8 @@ probe nd_syscall.epoll_pwait.return =
 probe nd_syscall.epoll_wait = kprobe.function("compat_sys_epoll_wait") ?,
                               kprobe.function("sys_epoll_wait") ?
 {
-	@__syscall_compat_gate(%{ __NR_epoll_wait %},
-			       %{ __NR_compat_epoll_wait %})
+	@__syscall_compat_gate(@const("__NR_epoll_wait"),
+			       @const("__NR_compat_epoll_wait"))
 	name = "epoll_wait"
 	asmlinkage()
 	epfd = int_arg(1)
@@ -1150,8 +1150,8 @@ probe nd_syscall.epoll_wait = kprobe.function("compat_sys_epoll_wait") ?,
 probe nd_syscall.epoll_wait.return = kprobe.function("compat_sys_epoll_wait").return ?,
                                      kprobe.function("sys_epoll_wait").return ?
 {
-	@__syscall_compat_gate(%{ __NR_epoll_wait %},
-			       %{ __NR_compat_epoll_wait %})
+	@__syscall_compat_gate(@const("__NR_epoll_wait"),
+			       @const("__NR_compat_epoll_wait"))
 	name = "epoll_wait"
 	retstr = returnstr(1)
 }
@@ -1164,7 +1164,7 @@ probe nd_syscall.eventfd = __nd_syscall.eventfd2 ?, __nd_syscall.eventfd ?
 }
 probe __nd_syscall.eventfd2 = kprobe.function("sys_eventfd2")
 {
-	@__syscall_compat_gate(%{ __NR_eventfd2 %}, %{ __NR_compat_eventfd2 %})
+	@__syscall_compat_gate(@const("__NR_eventfd2"), @const("__NR_compat_eventfd2"))
 	name = "eventfd2"
 	asmlinkage()
 	count = uint_arg(1)
@@ -1188,7 +1188,7 @@ probe nd_syscall.eventfd.return = __nd_syscall.eventfd2.return ?,
 }
 probe __nd_syscall.eventfd2.return = kprobe.function("sys_eventfd2").return
 {
-	@__syscall_compat_gate(%{ __NR_eventfd2 %}, %{ __NR_compat_eventfd2 %})
+	@__syscall_compat_gate(@const("__NR_eventfd2"), @const("__NR_compat_eventfd2"))
 	name = "eventfd2"
 }
 probe __nd_syscall.eventfd.return = kprobe.function("sys_eventfd").return
@@ -1340,8 +1340,8 @@ probe nd_syscall.exit_group = kprobe.function("sys_exit_group").call ?
 # long sys_faccessat(int dfd, const char __user *filename, int mode)
 probe nd_syscall.faccessat = kprobe.function("sys_faccessat") ?
 {
-	@__syscall_compat_gate(%{ __NR_faccessat %},
-			       %{ __NR_compat_faccessat %})
+	@__syscall_compat_gate(@const("__NR_faccessat"),
+			       @const("__NR_compat_faccessat"))
 	name = "faccessat"
 	asmlinkage()
 	dirfd = int_arg(1)
@@ -1353,8 +1353,8 @@ probe nd_syscall.faccessat = kprobe.function("sys_faccessat") ?
 }
 probe nd_syscall.faccessat.return = kprobe.function("sys_faccessat").return ?
 {
-	@__syscall_compat_gate(%{ __NR_faccessat %},
-			       %{ __NR_compat_faccessat %})
+	@__syscall_compat_gate(@const("__NR_faccessat"),
+			       @const("__NR_compat_faccessat"))
 	name = "faccessat"
 	retstr = returnstr(1)
 }
@@ -1400,7 +1400,7 @@ probe nd_syscall.fadvise64_64 = kprobe.function("sys_fadvise64_64") ?
 %( arch != "s390" && arch != "ia64" && arch != "arm" && arch != "arm64" %?
 	# s390x/ia64/arm/arm64 has sys_fadvise64_64() mapped to
         # __NR_fadvise64 (instead of __NR_fadvise64_64)
-	@__syscall_gate(%{ __NR_fadvise64_64 %})
+	@__syscall_gate(@const("__NR_fadvise64_64"))
 %)
 	name = "fadvise64"
 	fd = int_arg(1)
@@ -1431,7 +1431,7 @@ probe nd_syscall.fadvise64_64.return =
 {
 	@__syscall_gate_compat_simple
 %( arch != "s390" && arch != "ia64" && arch != "arm" && arch != "arm64" %?
-	@__syscall_gate(%{ __NR_fadvise64_64 %})
+	@__syscall_gate(@const("__NR_fadvise64_64"))
 %)
 	name = "fadvise64"
 	retstr = returnstr(1)
@@ -1590,8 +1590,8 @@ probe nd_syscall.fchmod.return = kprobe.function("sys_fchmod").return ?
 #	mode_t mode)
 probe nd_syscall.fchmodat = kprobe.function("sys_fchmodat") ?
 {
-	@__syscall_compat_gate(%{ __NR_fchmodat %},
-			       %{ __NR_compat_fchmodat %})
+	@__syscall_compat_gate(@const("__NR_fchmodat"),
+			       @const("__NR_compat_fchmodat"))
 	name = "fchmodat"
 	asmlinkage()
 	dirfd = int_arg(1)
@@ -1602,8 +1602,8 @@ probe nd_syscall.fchmodat = kprobe.function("sys_fchmodat") ?
 }
 probe nd_syscall.fchmodat.return = kprobe.function("sys_fchmodat").return ?
 {
-	@__syscall_compat_gate(%{ __NR_fchmodat %},
-			       %{ __NR_compat_fchmodat %})
+	@__syscall_compat_gate(@const("__NR_fchmodat"),
+			       @const("__NR_compat_fchmodat"))
 	name = "fchmodat"
 	retstr = returnstr(1)
 }
@@ -1614,10 +1614,10 @@ probe nd_syscall.fchown = kprobe.function("sys_fchown") ?
 {
 	// Avoid fchown16() calling fchown().
 %( arch == "x86_64" %?
-	@__syscall_compat_gate(%{ __NR_fchown %}, %{ __NR_ia32_fchown32 %})
+	@__syscall_compat_gate(@const("__NR_fchown"), @const("__NR_ia32_fchown32"))
 %)
 %( arch == "i386" %?
-	@__syscall_gate(%{ __NR_fchown32 %})
+	@__syscall_gate(@const("__NR_fchown32"))
 %)
 	name = "fchown"
 	asmlinkage()
@@ -1629,10 +1629,10 @@ probe nd_syscall.fchown = kprobe.function("sys_fchown") ?
 probe nd_syscall.fchown.return = kprobe.function("sys_fchown").return ?
 {
 %( arch == "x86_64" %?
-	@__syscall_compat_gate(%{ __NR_fchown %}, %{ __NR_ia32_fchown32 %})
+	@__syscall_compat_gate(@const("__NR_fchown"), @const("__NR_ia32_fchown32"))
 %)
 %( arch == "i386" %?
-	@__syscall_gate(%{ __NR_fchown32 %})
+	@__syscall_gate(@const("__NR_fchown32"))
 %)
 	name = "fchown"
 	retstr = returnstr(1)
@@ -1661,8 +1661,8 @@ probe nd_syscall.fchown16.return = kprobe.function("sys_fchown16").return ?
 #	uid_t user, gid_t group, int flag)
 probe nd_syscall.fchownat = kprobe.function("sys_fchownat") ?
 {
-	@__syscall_compat_gate(%{ __NR_fchownat %},
-			       %{ __NR_compat_fchownat %})
+	@__syscall_compat_gate(@const("__NR_fchownat"),
+			       @const("__NR_compat_fchownat"))
 	name = "fchownat"
 	asmlinkage()
 	dirfd = int_arg(1)
@@ -1677,8 +1677,8 @@ probe nd_syscall.fchownat = kprobe.function("sys_fchownat") ?
 }
 probe nd_syscall.fchownat.return = kprobe.function("sys_fchownat").return ?
 {
-	@__syscall_compat_gate(%{ __NR_fchownat %},
-			       %{ __NR_compat_fchownat %})
+	@__syscall_compat_gate(@const("__NR_fchownat"),
+			       @const("__NR_compat_fchownat"))
 	name = "fchownat"
 	retstr = returnstr(1)
 }
@@ -2025,8 +2025,8 @@ probe nd_syscall.ftruncate = __nd_syscall.ftruncate,
 }
 probe __nd_syscall.ftruncate = kprobe.function("sys_ftruncate").call
 {
-	@__syscall_compat_gate(%{ __NR_ftruncate %},
-	                       %{ __NR_compat_ftruncate %})
+	@__syscall_compat_gate(@const("__NR_ftruncate"),
+	                       @const("__NR_compat_ftruncate"))
 }
 
 probe nd_syscall.ftruncate.return = __nd_syscall.ftruncate.return,
@@ -2037,8 +2037,8 @@ probe nd_syscall.ftruncate.return = __nd_syscall.ftruncate.return,
 }
 probe __nd_syscall.ftruncate.return = kprobe.function("sys_ftruncate").return
 {
-	@__syscall_compat_gate(%{ __NR_ftruncate %},
-	                       %{ __NR_compat_ftruncate %})
+	@__syscall_compat_gate(@const("__NR_ftruncate"),
+	                       @const("__NR_compat_ftruncate"))
 }
 
 # ftruncate64 ________________________________________________
@@ -2114,7 +2114,7 @@ probe nd_syscall.compat_futex.return =
 probe nd_syscall.futimesat = kprobe.function("sys_futimesat") ?
 {
 	asmlinkage()
-	@__syscall_gate(%{ __NR_futimesat %})
+	@__syscall_gate(@const("__NR_futimesat"))
 	name = "futimesat"
 	dirfd = int_arg(1)
 	dirfd_str = _dfd_str(dirfd)
@@ -2128,7 +2128,7 @@ probe nd_syscall.futimesat = kprobe.function("sys_futimesat") ?
 probe nd_syscall.compat_futimesat = kprobe.function("compat_sys_futimesat") ?
 {
 	asmlinkage()
-	@__compat_syscall_gate(%{ __NR_compat_futimesat %})
+	@__compat_syscall_gate(@const("__NR_compat_futimesat"))
 	name = "futimesat"
 	dirfd = int_arg(1)
 	dirfd_str = _dfd_str(dirfd)
@@ -2141,13 +2141,13 @@ probe nd_syscall.compat_futimesat = kprobe.function("compat_sys_futimesat") ?
 }
 probe nd_syscall.futimesat.return = kprobe.function("sys_futimesat").return ?
 {
-	@__syscall_gate(%{ __NR_futimesat %})
+	@__syscall_gate(@const("__NR_futimesat"))
 	name = "futimesat"
 	retstr = returnstr(1)
 }
 probe nd_syscall.compat_futimesat.return = kprobe.function("compat_sys_futimesat").return ?
 {
-	@__compat_syscall_gate(%{ __NR_compat_futimesat %})
+	@__compat_syscall_gate(@const("__NR_compat_futimesat"))
 	name = "futimesat"
 	retstr = returnstr(1)
 }
@@ -2400,7 +2400,7 @@ probe nd_syscall.getpeername = __nd_syscall.getpeername ?,
 }
 probe __nd_syscall.getpeername = kprobe.function("sys_getpeername") ?
 {
-	@__syscall_gate(%{ __NR_getpeername %})
+	@__syscall_gate(@const("__NR_getpeername"))
 	asmlinkage()
 	s = int_arg(1)
 	name_uaddr = pointer_arg(2)
@@ -2410,7 +2410,7 @@ probe __nd_syscall.socketcall.getpeername =
 	kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_GETPEERNAME %}) next;
+	if (int_arg(1) != @const("SYS_GETPEERNAME")) next;
 	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
 	s = __int32(user_ulong(&(__args)[0]))
 	name_uaddr = user_ulong(&(__args)[1])
@@ -2420,7 +2420,7 @@ probe __nd_syscall.compat_socketcall.getpeername =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_GETPEERNAME %}) next;
+	if (int_arg(1) != @const("SYS_GETPEERNAME")) next;
 	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
 	s = user_int(&(__args)[0])
 	name_uaddr = user_uint32(&(__args)[1])
@@ -2436,20 +2436,20 @@ probe nd_syscall.getpeername.return =
 probe __nd_syscall.getpeername.return =
 	kprobe.function("sys_getpeername").return ?
 {
-	@__syscall_gate(%{ __NR_getpeername %})
+	@__syscall_gate(@const("__NR_getpeername"))
 }
 probe __nd_syscall.socketcall.getpeername.return =
 	kprobe.function("sys_socketcall").return ?,
 	kprobe.function("compat_sys_socketcall").return ?
 {
-	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_GETPEERNAME %}) next;
+	if (@entry(__asmlinkage_int_arg(1)) != @const("SYS_GETPEERNAME")) next;
 }
 
 # getpgid ____________________________________________________
 # long sys_getpgid(pid_t pid)
 probe nd_syscall.getpgid = kprobe.function("sys_getpgid") ?
 {
-	@__syscall_compat_gate(%{ __NR_getpgid %}, %{ __NR_compat_getpgid %})
+	@__syscall_compat_gate(@const("__NR_getpgid"), @const("__NR_compat_getpgid"))
 	name = "getpgid"
 	asmlinkage()
 	pid = int_arg(1)
@@ -2457,7 +2457,7 @@ probe nd_syscall.getpgid = kprobe.function("sys_getpgid") ?
 }
 probe nd_syscall.getpgid.return = kprobe.function("sys_getpgid").return ?
 {
-	@__syscall_compat_gate(%{ __NR_getpgid %}, %{ __NR_compat_getpgid %})
+	@__syscall_compat_gate(@const("__NR_getpgid"), @const("__NR_compat_getpgid"))
 	name = "getpgid"
 	retstr = returnstr(1)
 }
@@ -2661,7 +2661,7 @@ probe nd_syscall.getrusage = __nd_syscall.getrusage,
 }
 probe __nd_syscall.getrusage = kprobe.function("sys_getrusage").call
 {
-	@__syscall_gate(%{ __NR_getrusage %})
+	@__syscall_gate(@const("__NR_getrusage"))
 }
 probe nd_syscall.getrusage.return = __nd_syscall.getrusage.return,
 	kprobe.function("compat_sys_getrusage").return ?
@@ -2671,7 +2671,7 @@ probe nd_syscall.getrusage.return = __nd_syscall.getrusage.return,
 }
 probe __nd_syscall.getrusage.return = kprobe.function("sys_getrusage").return
 {
-	@__syscall_gate(%{ __NR_getrusage %})
+	@__syscall_gate(@const("__NR_getrusage"))
 }
 
 # getsid _____________________________________________________
@@ -2702,7 +2702,7 @@ probe nd_syscall.getsockname = __nd_syscall.getsockname ?,
 }
 probe __nd_syscall.getsockname = kprobe.function("sys_getsockname") ?
 {
-	@__syscall_gate(%{ __NR_getsockname %})
+	@__syscall_gate(@const("__NR_getsockname"))
 	asmlinkage()
 	s = int_arg(1)
 	name_uaddr = pointer_arg(2)
@@ -2712,7 +2712,7 @@ probe __nd_syscall.socketcall.getsockname =
 	kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_GETSOCKNAME %}) next;
+	if (int_arg(1) != @const("SYS_GETSOCKNAME")) next;
 	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
 	s = __int32(user_ulong(&(__args)[0]))
 	name_uaddr = user_ulong(&(__args)[1])
@@ -2722,7 +2722,7 @@ probe __nd_syscall.compat_socketcall.getsockname =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_GETSOCKNAME %}) next;
+	if (int_arg(1) != @const("SYS_GETSOCKNAME")) next;
 	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
 	s = user_int(&(__args)[0])
 	name_uaddr = user_uint32(&(__args)[1])
@@ -2738,13 +2738,13 @@ probe nd_syscall.getsockname.return =
 probe __nd_syscall.getsockname.return =
 	kprobe.function("sys_getsockname").return ?
 {
-	@__syscall_gate(%{ __NR_getsockname %})
+	@__syscall_gate(@const("__NR_getsockname"))
 }
 probe __nd_syscall.socketcall.getsockname.return =
 	kprobe.function("sys_socketcall").return ?,
 	kprobe.function("compat_sys_socketcall").return ?
 {
-	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_GETSOCKNAME %}) next;
+	if (@entry(__asmlinkage_int_arg(1)) != @const("SYS_GETSOCKNAME")) next;
 }
 
 # getsockopt _________________________________________________
@@ -2767,7 +2767,7 @@ probe nd_syscall.getsockopt = __nd_syscall.getsockopt ?,
 probe __nd_syscall.getsockopt = kprobe.function("sys_getsockopt") ?
 {
 	asmlinkage()
-	@__syscall_gate(%{ __NR_getsockopt %})
+	@__syscall_gate(@const("__NR_getsockopt"))
 	fd = int_arg(1)
 	level = int_arg(2)
 	optname = int_arg(3)
@@ -2778,7 +2778,7 @@ probe __nd_syscall.socketcall.getsockopt =
 	kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_GETSOCKOPT %}) next;
+	if (int_arg(1) != @const("SYS_GETSOCKOPT")) next;
 	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
 	fd = __int32(user_ulong(&(__args)[0]))
 	level = __int32(user_ulong(&(__args)[1]))
@@ -2790,7 +2790,7 @@ probe __nd_syscall.compat_socketcall.getsockopt =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_GETSOCKOPT %}) next;
+	if (int_arg(1) != @const("SYS_GETSOCKOPT")) next;
 	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
 	fd = user_int(&(__args)[0])
 	level = user_int(&(__args)[1])
@@ -2807,13 +2807,13 @@ probe nd_syscall.getsockopt.return = __nd_syscall.getsockopt.return ?,
 probe __nd_syscall.getsockopt.return =
 	kprobe.function("sys_getsockopt").return ?
 {
-	@__syscall_gate(%{ __NR_getsockopt %})
+	@__syscall_gate(@const("__NR_getsockopt"))
 }
 probe __nd_syscall.socketcall.getsockopt.return =
 	kprobe.function("sys_socketcall").return ?,
 	kprobe.function("compat_sys_socketcall").return ?
 {
-	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_GETSOCKOPT %}) next;
+	if (@entry(__asmlinkage_int_arg(1)) != @const("SYS_GETSOCKOPT")) next;
 }
 
 # gettid _____________________________________________________
@@ -2954,8 +2954,8 @@ probe nd_syscall.inotify_init = __nd_syscall.inotify_init1 ?,
 }
 probe __nd_syscall.inotify_init1 = kprobe.function("sys_inotify_init1")
 {
-	@__syscall_compat_gate(%{ __NR_inotify_init1 %},
-			       %{ __NR_compat_inotify_init1 %})
+	@__syscall_compat_gate(@const("__NR_inotify_init1"),
+			       @const("__NR_compat_inotify_init1"))
 	asmlinkage()
 	name = "inotify_init1"
 	flags = int_arg(1)
@@ -2974,8 +2974,8 @@ probe nd_syscall.inotify_init.return = __nd_syscall.inotify_init1.return ?,
 probe __nd_syscall.inotify_init1.return =
 	kprobe.function("sys_inotify_init1").return
 {
-	@__syscall_compat_gate(%{ __NR_inotify_init1 %},
-			       %{ __NR_compat_inotify_init1 %})
+	@__syscall_compat_gate(@const("__NR_inotify_init1"),
+			       @const("__NR_compat_inotify_init1"))
 	name = "inotify_init1"
 	retstr = returnstr(1)
 }
@@ -3039,7 +3039,7 @@ probe nd_syscall.ioctl = __nd_syscall.ioctl,
 }
 probe __nd_syscall.ioctl = kprobe.function("sys_ioctl")
 {
-	@__syscall_gate(%{ __NR_ioctl %})
+	@__syscall_gate(@const("__NR_ioctl"))
 }
 probe nd_syscall.ioctl.return = 
 	__nd_syscall.ioctl.return,
@@ -3050,7 +3050,7 @@ probe nd_syscall.ioctl.return =
 }
 probe __nd_syscall.ioctl.return = kprobe.function("sys_ioctl").return
 {
-	@__syscall_gate(%{ __NR_ioctl %})
+	@__syscall_gate(@const("__NR_ioctl"))
 }
 
 # io_destroy _________________________________________________
@@ -3145,7 +3145,7 @@ probe nd_syscall.io_setup = __nd_syscall.io_setup,
 }
 probe __nd_syscall.io_setup = kprobe.function("sys_io_setup") ?
 {
-	@__syscall_gate(%{ __NR_io_setup %})
+	@__syscall_gate(@const("__NR_io_setup"))
 }
 probe nd_syscall.io_setup.return = __nd_syscall.io_setup.return,
 	kprobe.function("compat_sys_io_setup").return ?
@@ -3155,7 +3155,7 @@ probe nd_syscall.io_setup.return = __nd_syscall.io_setup.return,
 }
 probe __nd_syscall.io_setup.return = kprobe.function("sys_io_setup").return ?
 {
-	@__syscall_gate(%{ __NR_io_setup %})
+	@__syscall_gate(@const("__NR_io_setup"))
 }
 
 # io_submit __________________________________________________
@@ -3174,7 +3174,7 @@ probe nd_syscall.io_submit = __nd_syscall.io_submit,
 }
 probe __nd_syscall.io_submit = kprobe.function("sys_io_submit") ?
 {
-	@__syscall_gate(%{ __NR_io_submit %})
+	@__syscall_gate(@const("__NR_io_submit"))
 }
 probe nd_syscall.io_submit.return = __nd_syscall.io_submit.return,
 	kprobe.function("compat_sys_io_submit").return ?
@@ -3184,7 +3184,7 @@ probe nd_syscall.io_submit.return = __nd_syscall.io_submit.return,
 }
 probe __nd_syscall.io_submit.return = kprobe.function("sys_io_submit").return ?
 {
-	@__syscall_gate(%{ __NR_io_submit %})
+	@__syscall_gate(@const("__NR_io_submit"))
 }
 
 # ioprio_get _________________________________________________
@@ -3357,10 +3357,10 @@ probe nd_syscall.lchown = kprobe.function("sys_lchown") ?
 {
 	// Avoid lchown16() calling lchown().
 %( arch == "x86_64" %?
-	@__syscall_compat_gate(%{ __NR_lchown %}, %{ __NR_ia32_lchown32 %})
+	@__syscall_compat_gate(@const("__NR_lchown"), @const("__NR_ia32_lchown32"))
 %)
 %( arch == "i386" %?
-	@__syscall_gate(%{ __NR_lchown32 %})
+	@__syscall_gate(@const("__NR_lchown32"))
 %)
 	name = "lchown"
 	asmlinkage()
@@ -3372,10 +3372,10 @@ probe nd_syscall.lchown = kprobe.function("sys_lchown") ?
 probe nd_syscall.lchown.return = kprobe.function("sys_lchown").return ?
 {
 %( arch == "x86_64" %?
-	@__syscall_compat_gate(%{ __NR_lchown %}, %{ __NR_ia32_lchown32 %})
+	@__syscall_compat_gate(@const("__NR_lchown"), @const("__NR_ia32_lchown32"))
 %)
 %( arch == "i386" %?
-	@__syscall_gate(%{ __NR_lchown32 %})
+	@__syscall_gate(@const("__NR_lchown32"))
 %)
 	name = "lchown"
 	retstr = returnstr(1)
@@ -3452,7 +3452,7 @@ probe nd_syscall.link.return = kprobe.function("sys_link").return ?
 #	int newdfd, const char __user *newname, int flags)
 probe nd_syscall.linkat = kprobe.function("sys_linkat") ?
 {
-	@__syscall_compat_gate(%{ __NR_linkat %}, %{ __NR_compat_linkat %})
+	@__syscall_compat_gate(@const("__NR_linkat"), @const("__NR_compat_linkat"))
 	name = "linkat"
 	asmlinkage()
 	olddirfd = int_arg(1)
@@ -3470,7 +3470,7 @@ probe nd_syscall.linkat = kprobe.function("sys_linkat") ?
 }
 probe nd_syscall.linkat.return = kprobe.function("sys_linkat").return ?
 {
-	@__syscall_compat_gate(%{ __NR_linkat %}, %{ __NR_compat_linkat %})
+	@__syscall_compat_gate(@const("__NR_linkat"), @const("__NR_compat_linkat"))
 	name = "linkat"
 	retstr = returnstr(1)
 }
@@ -3486,7 +3486,7 @@ probe nd_syscall.listen = __nd_syscall.listen ?,
 }
 probe __nd_syscall.listen = kprobe.function("sys_listen") ?
 {
-	@__syscall_gate(%{ __NR_listen %})
+	@__syscall_gate(@const("__NR_listen"))
 	asmlinkage()
 	sockfd = int_arg(1)
 	backlog = int_arg(2)
@@ -3494,7 +3494,7 @@ probe __nd_syscall.listen = kprobe.function("sys_listen") ?
 probe __nd_syscall.socketcall.listen = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_LISTEN %}) next;
+	if (int_arg(1) != @const("SYS_LISTEN")) next;
 	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
 	sockfd = __int32(user_ulong(&(__args)[0]))
 	backlog = __int32(user_ulong(&(__args)[1]))
@@ -3503,7 +3503,7 @@ probe __nd_syscall.compat_socketcall.listen =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
-	if (int_arg(1) != %{ SYS_LISTEN %}) next;
+	if (int_arg(1) != @const("SYS_LISTEN")) next;
 	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
 	sockfd = user_int(&(__args)[0])
 	backlog = user_int(&(__args)[1])
@@ -3516,13 +3516,13 @@ probe nd_syscall.listen.return = __nd_syscall.listen.return ?,
 }
 probe __nd_syscall.listen.return = kprobe.function("sys_listen").return ?
 {
-	@__syscall_gate(%{ __NR_listen %})
+	@__syscall_gate(@const("__NR_listen"))
 }
 probe __nd_syscall.socketcall.listen.return =
 	kprobe.function("sys_socketcall").return ?,
 	kprobe.function("compat_sys_socketcall").return ?
 {
-	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_LISTEN %}) next;
+	if (@entry(__asmlinkage_int_arg(1)) != @const("SYS_LISTEN")) next;
 }
 
 # listxattr __________________________________________________
@@ -3908,7 +3908,7 @@ probe nd_syscall.mkdir.return = kprobe.function("sys_mkdir").return ?
 # long sys_mkdirat(int dfd, const char __user *pathname, int mode)
 probe nd_syscall.mkdirat = kprobe.function("sys_mkdirat") ?
 {
-	@__syscall_compat_gate(%{ __NR_mkdirat %}, %{ __NR_compat_mkdirat %})
+	@__syscall_compat_gate(@const("__NR_mkdirat"), @const("__NR_compat_mkdirat"))
 	name = "mkdirat"
 	asmlinkage()
 	dirfd = int_arg(1)
@@ -3920,7 +3920,7 @@ probe nd_syscall.mkdirat = kprobe.function("sys_mkdirat") ?
 }
 probe nd_syscall.mkdirat.return = kprobe.function("sys_mkdirat").return ?
 {
-	@__syscall_compat_gate(%{ __NR_mkdirat %}, %{ __NR_compat_mkdirat %})
+	@__syscall_compat_gate(@const("__NR_mkdirat"), @const("__NR_compat_mkdirat"))
 	name = "mkdirat"
 	retstr = returnstr(1)
 }
@@ -3949,7 +3949,7 @@ probe nd_syscall.mknod.return = kprobe.function("sys_mknod").return ?
 #	int mode, unsigned dev)
 probe nd_syscall.mknodat = kprobe.function("sys_mknodat") ?
 {
-	@__syscall_compat_gate(%{ __NR_mknodat %}, %{ __NR_compat_mknodat %})
+	@__syscall_compat_gate(@const("__NR_mknodat"), @const("__NR_compat_mknodat"))
 	name = "mknodat"
 	asmlinkage()
 	dirfd = int_arg(1)
@@ -3963,7 +3963,7 @@ probe nd_syscall.mknodat = kprobe.function("sys_mknodat") ?
 }
 probe nd_syscall.mknodat.return = kprobe.function("sys_mknodat").return ?
 {
-	@__syscall_compat_gate(%{ __NR_mknodat %}, %{ __NR_compat_mknodat %})
+	@__syscall_compat_gate(@const("__NR_mknodat"), @const("__NR_compat_mknodat"))
 	name = "mknodat"
 	retstr = returnstr(1)
 }
@@ -4071,7 +4071,7 @@ probe nd_syscall.move_pages = __nd_syscall.move_pages ?,
 }
 probe __nd_syscall.move_pages = kprobe.function("sys_move_pages")
 {
-	@__syscall_gate(%{ __NR_move_pages %})
+	@__syscall_gate(@const("__NR_move_pages"))
 }
 probe nd_syscall.move_pages.return = __nd_syscall.move_pages.return ?,
                                      kprobe.function("compat_sys_move_pages").return ?
@@ -4081,7 +4081,7 @@ probe nd_syscall.move_pages.return = __nd_syscall.move_pages.return ?,
 }
 probe __nd_syscall.move_pages.return = kprobe.function("sys_move_pages").return
 {
-	@__syscall_gate(%{ __NR_move_pages %})
+	@__syscall_gate(@const("__NR_move_pages"))
 }
 
 # mount ______________________________________________________
@@ -4191,7 +4191,7 @@ probe nd_syscall.mq_getsetattr =
 }
 probe __nd_syscall.mq_getsetattr = kprobe.function("sys_mq_getsetattr")
 {
-        @__syscall_gate(%{ __NR_mq_getsetattr %})
+        @__syscall_gate(@const("__NR_mq_getsetattr"))
 }
 probe nd_syscall.mq_getsetattr.return =
         __nd_syscall.mq_getsetattr.return ?,
@@ -4202,7 +4202,7 @@ probe nd_syscall.mq_getsetattr.return =
 }
 probe __nd_syscall.mq_getsetattr.return = kprobe.function("sys_mq_getsetattr").return
 {
-        @__syscall_gate(%{ __NR_mq_getsetattr %})
+        @__syscall_gate(@const("__NR_mq_getsetattr"))
 }
 
 # mq_notify __________________________________________________
@@ -4221,7 +4221,7 @@ probe nd_syscall.mq_notify =
 }
 probe __nd_syscall.mq_notify = kprobe.function("sys_mq_notify")
 {
-        @__syscall_gate(%{ __NR_mq_notify %})
+        @__syscall_gate(@const("__NR_mq_notify"))
 }
 probe nd_syscall.mq_notify.return =
         __nd_syscall.mq_notify.return ?,
@@ -4232,7 +4232,7 @@ probe nd_syscall.mq_notify.return =
 }
 probe __nd_syscall.mq_notify.return = kprobe.function("sys_mq_notify").return
 {
-        @__syscall_gate(%{ __NR_mq_notify %})
+        @__syscall_gate(@const("__NR_mq_notify"))
 }
 
 # mq_open ____________________________________________________
@@ -4263,7 +4263,7 @@ probe nd_syscall.mq_open = __nd_syscall.mq_open,
 probe __nd_syscall.mq_open = kprobe.function("sys_mq_open")
 {
 	asmlinkage()
-        @__syscall_gate(%{ __NR_mq_open %})
+        @__syscall_gate(@const("__NR_mq_open"))
 %( CONFIG_64BIT == "y" %?
         mode = uint_arg(3)
 %:
@@ -4284,7 +4284,7 @@ probe nd_syscall.mq_open.return =
 }
 probe __nd_syscall.mq_open.return = kprobe.function("sys_mq_open").return
 {
-        @__syscall_gate(%{ __NR_mq_open %})
+        @__syscall_gate(@const("__NR_mq_open"))
 }
 
 # mq_timedreceive ____________________________________________
@@ -4319,7 +4319,7 @@ probe __nd_syscall.compat_mq_timedreceive = kprobe.function("compat_sys_mq_timed
 probe __nd_syscall.mq_timedreceive = kprobe.function("sys_mq_timedreceive")
 {
 	asmlinkage()
-        @__syscall_gate(%{ __NR_mq_timedreceive %})
+        @__syscall_gate(@const("__NR_mq_timedreceive"))
 %( CONFIG_64BIT == "y" %?
 	msg_len = ulong_arg(3)
 %:
@@ -4335,7 +4335,7 @@ probe nd_syscall.mq_timedreceive.return =
 }
 probe __nd_syscall.mq_timedreceive.return = kprobe.function("sys_mq_timedreceive").return
 {
-        @__syscall_gate(%{ __NR_mq_timedreceive %})
+        @__syscall_gate(@const("__NR_mq_timedreceive"))
 }
 
 # mq_timedsend _______________________________________________
@@ -4370,7 +4370,7 @@ probe __nd_syscall.compat_mq_timedsend = kprobe.function("compat_sys_mq_timedsen
 probe __nd_syscall.mq_timedsend = kprobe.function("sys_mq_timedsend")
 {
 	asmlinkage()
-        @__syscall_gate(%{ __NR_mq_timedsend %})
+        @__syscall_gate(@const("__NR_mq_timedsend"))
 %( CONFIG_64BIT == "y" %?
 	msg_len = ulong_arg(3)
 %:
@@ -4386,7 +4386,7 @@ probe nd_syscall.mq_timedsend.return =
 }
 probe __nd_syscall.mq_timedsend.return = kprobe.function("sys_mq_timedsend").return
 {
-        @__syscall_gate(%{ __NR_mq_timedsend %})
+        @__syscall_gate(@const("__NR_mq_timedsend"))
 }
 
 # mq_unlink __________________________________________________
@@ -4438,7 +4438,7 @@ probe nd_syscall.mremap.return = kprobe.function("ia64_mremap").return ?,
 #
 probe nd_syscall.msgctl = kprobe.function("sys_msgctl") ?
 {
-	@__syscall_gate2(%{ __NR_msgctl %}, %{ __NR_ipc %})
+	@__syscall_gate2(@const("__NR_msgctl"), @const("__NR_ipc"))
 	name = "msgctl"
 	asmlinkage()
 	msqid = int_arg(1)
@@ -4449,7 +4449,7 @@ probe nd_syscall.msgctl = kprobe.function("sys_msgctl") ?
 }
 probe nd_syscall.msgctl.return = kprobe.function("sys_msgctl").return ?
 {
-	@__syscall_gate2(%{ __NR_msgctl %}, %{ __NR_ipc %})
+	@__syscall_gate2(@const("__NR_msgctl"), @const("__NR_ipc"))
 	name = "msgctl"
 	retstr = returnstr(1)
 }
@@ -4479,7 +4479,7 @@ probe __nd_syscall.compat_msgctl = kprobe.function("compat_sys_msgctl") ?
 probe __nd_syscall.compat_ipc.msgctl = kprobe.function("compat_sys_ipc") ?
 {
 	asmlinkage()
-	if ((uint_arg(1) & 0xffff) != %{ MSGCTL %}) next;
+	if ((uint_arg(1) & 0xffff) != @const("MSGCTL")) next;
 	msqid = int_arg(2)
 	cmd = int_arg(3)
 	buf_uaddr = pointer_arg(5)
@@ -4494,7 +4494,7 @@ probe nd_syscall.compat_sys_msgctl.return =
 probe __nd_syscall.compat_ipc.msgctl.return =
 	kprobe.function("compat_sys_ipc").return ?
 {
-	if ((@entry(__asmlinkage_int_arg(1)) & 0xffff) != %{ MSGCTL %}) next;
+	if ((@entry(__asmlinkage_int_arg(1)) & 0xffff) != @const("MSGCTL")) next;
 }
 
 # msgget _____________________________________________________
@@ -4584,7 +4584,7 @@ probe __nd_syscall.compat_msgrcv = kprobe.function("compat_sys_msgrcv") ?
 probe __nd_syscall.compat_ipc.msgrcv = kprobe.function("compat_sys_ipc") ?
 {
 	asmlinkage()
-	if ((uint_arg(1) & 0xffff) != %{ MSGRCV %}) next;
+	if ((uint_arg(1) & 0xffff) != @const("MSGRCV")) next;
 	msqid = int_arg(2)
 	msgsz = uint_arg(3)
 	msgflg = int_arg(4)
@@ -4606,7 +4606,7 @@ probe nd_syscall.compat_sys_msgrcv.return =
 probe __nd_syscall.compat_ipc.msgrcv.return =
 	kprobe.function("compat_sys_ipc").return ?
 {
-	if ((@entry(__asmlinkage_int_arg(1)) & 0xffff) != %{ MSGRCV %}) next;
+	if ((@entry(__asmlinkage_int_arg(1)) & 0xffff) != @const("MSGRCV")) next;
 }
 
 # msgsnd _____________________________________________________
@@ -4653,7 +4653,7 @@ probe __nd_syscall.compat_msgsnd = kprobe.function("compat_sys_msgsnd") ?
 probe __nd_syscall.compat_ipc.msgsnd = kprobe.function("compat_sys_ipc") ?
 {
 	asmlinkage()
-	if ((uint_arg(1) & 0xffff) != %{ MSGSND %}) next;
+	if ((uint_arg(1) & 0xffff) != @const("MSGSND")) next;
 	msqid = int_arg(2)
 	msgsz = uint_arg(3)
 	msgflg = int_arg(4)
@@ -4669,7 +4669,7 @@ probe nd_syscall.compat_sys_msgsnd.return =
 probe __nd_syscall.compat_ipc.msgsnd.return =
 	kprobe.function("compat_sys_ipc").return ?
 {
-	if ((@entry(__asmlinkage_int_arg(1)) & 0xffff) != %{ MSGSND %}) next;
+	if ((@entry(__asmlinkage_int_arg(1)) & 0xffff) != @const("MSGSND")) next;
 }
 
 # msync ______________________________________________________

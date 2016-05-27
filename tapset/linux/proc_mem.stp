@@ -62,14 +62,14 @@ enum {
 %}
 
 @__private30 function _MM_FILEPAGES:long()
-%{ /* pure */ /* stable */ /* unprivileged */
-  STAP_RETVALUE = MM_FILEPAGES;
-%}
+{
+	return @const("MM_FILEPAGES")
+}
 
 @__private30 function _MM_ANONPAGES:long()
-%{ /* pure */ /* stable */ /* unprivileged */
-  STAP_RETVALUE = MM_ANONPAGES;
-%}
+{
+	return @const("MM_ANONPAGES")
+}
 
 @__private30 function _stp_get_mm_counter:long(mm_ptr:long, member:long)
 {
@@ -391,9 +391,9 @@ function proc_mem_data_pid:long (pid:long)
  * sfunction mem_page_size - Number of bytes in a page for this architecture
  */
 function mem_page_size:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-   STAP_RETVALUE = PAGE_SIZE;
-%}
+{
+	return @const("PAGE_SIZE")
+}
 
 // Return a 5 character wide string " x.yyp", " xx.yp", " xxxp", "xxxxp".
 @__private30 function _stp_number_to_string_postfix:string (x:long, y:long, p:string)

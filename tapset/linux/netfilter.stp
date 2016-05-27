@@ -109,8 +109,8 @@
         pf = @pf_name
 
         /* XXX not relevant for netfilter.arp & netfilter.bridge probes */
-        ipproto_tcp = %{ /* pure */ IPPROTO_TCP %}
-        ipproto_udp = %{ /* pure */ IPPROTO_UDP %}
+        ipproto_tcp = @const("IPPROTO_TCP")
+        ipproto_udp = @const("IPPROTO_UDP")
 
         /* from include/linux/netfilter.h: */
         nf_drop = 0
@@ -137,9 +137,9 @@
 
 @define netfilter_ip4_setup %(
         iphdr = __get_skb_iphdr($skb)
-        family = %{ /* pure */ AF_INET %}
-        saddr = format_ipaddr(__ip_skb_saddr(iphdr), %{ /* pure */ AF_INET %})
-        daddr = format_ipaddr(__ip_skb_daddr(iphdr), %{ /* pure */ AF_INET %})
+        family = @const("AF_INET")
+        saddr = format_ipaddr(__ip_skb_saddr(iphdr), @const("AF_INET"))
+        daddr = format_ipaddr(__ip_skb_daddr(iphdr), @const("AF_INET"))
         protocol = __ip_skb_proto(iphdr)
 
         length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
@@ -166,9 +166,9 @@
 
 @define netfilter_ip6_setup %(
         iphdr = &@cast(__get_skb_iphdr($skb), "ipv6hdr", "kernel<linux/ipv6.h>")
-        family = %{ /* pure */ AF_INET6 %}
-        saddr = format_ipaddr(&iphdr->saddr, %{ /* pure */ AF_INET6 %})
-        daddr = format_ipaddr(&iphdr->daddr, %{ /* pure */ AF_INET6 %})
+        family = @const("AF_INET6")
+        saddr = format_ipaddr(&iphdr->saddr, @const("AF_INET6"))
+        daddr = format_ipaddr(&iphdr->daddr, @const("AF_INET6"))
         protocol = __ip6_skb_proto($skb)
 
         length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
@@ -445,7 +445,7 @@ probe netfilter.ipv6.post_routing
 @define netfilter_arp_setup %(
 # XXX: include functionality to parse ARP packet contents
         arphdr = & @cast(__get_skb_arphdr($skb), "struct arphdr", "kernel<linux/if_arp.h>")
-        family = %{ /* pure */ NF_ARP %} // from linux/netfilter_arp.h
+        family = @const("NF_ARP") // from linux/netfilter_arp.h
         ar_hrd = ntohs(arphdr->ar_hrd)
         ar_pro = ntohs(arphdr->ar_pro)
         ar_hln = arphdr->ar_hln
@@ -456,9 +456,9 @@ probe netfilter.ipv6.post_routing
         if (ar_hrd == 0x001 && ar_pro == 0x800) {
            /* additional info available for most common (Ethernet+IP) case: */
            ar_sha = __mac_addr_to_string(ar_data)
-           ar_sip = format_ipaddr(kernel_int(ar_data + 6), %{ /* pure */ AF_INET %})
+           ar_sip = format_ipaddr(kernel_int(ar_data + 6), @const("AF_INET"))
            ar_tha = __mac_addr_to_string(ar_data + 10)
-           ar_tip =  format_ipaddr(kernel_int(ar_data + 16), %{ /* pure */ AF_INET %})
+           ar_tip =  format_ipaddr(kernel_int(ar_data + 16), @const("AF_INET"))
         }
         /* XXX support for additional cases? */
 
@@ -565,7 +565,7 @@ probe netfilter.arp.forward = netfilter.hook("NF_ARP_FORWARD").pf("NFPROTO_ARP")
 @define netfilter_bridge_setup %(
         llcpdu = &@cast(__get_skb_llc($skb), "struct llc_pdu_un", "kernel<net/llc_pdu.h>")
         brhdr = __get_skb_brhdr($skb)
-        llcproto_stp = %{ /* pure */ LLC_SAP_BSPAN %} // from linux/llc.h
+        llcproto_stp = @const("LLC_SAP_BSPAN") // from linux/llc.h
 
         if (llcpdu->dsap == llcproto_stp && llcpdu->ssap == llcproto_stp) {
             protocol = llcproto_stp

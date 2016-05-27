@@ -1,7 +1,7 @@
 // Return MAXSTRINGLEN
 @define MAXSTRINGLEN
 %(
-	%{ /* pure */ /* unprivileged */ MAXSTRINGLEN %}
+	@const("MAXSTRINGLEN")
 %)
 
 @define __compat_task

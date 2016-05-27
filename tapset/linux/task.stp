@@ -36,7 +36,7 @@ function task_current:long () {
 
 @__private30 function _task_rlimit_cur:long (task:long, nd_limit:long)
 {
-    if (nd_limit < 0 || nd_limit >= %{ /* pure */ RLIM_NLIMITS %}) {
+    if (nd_limit < 0 || nd_limit >= @const("RLIM_NLIMITS")) {
         return -1;
     }
     sig = @task(task)->signal;
@@ -63,63 +63,63 @@ function task_rlimit:long (task:long, lim_str:string)
 
 function task_rlimit_cpu:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_CPU %} );
+    return _task_rlimit_cur(task, @const("RLIMIT_CPU") );
 }
 
 function task_rlimit_fsize:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_FSIZE %});
+    return _task_rlimit_cur(task, @const("RLIMIT_FSIZE"));
 }
 
 function task_rlimit_data:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_DATA %});
+    return _task_rlimit_cur(task, @const("RLIMIT_DATA"));
 }
 
 function task_rlimit_stack:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_STACK %});
+    return _task_rlimit_cur(task, @const("RLIMIT_STACK"));
 }
 
 function task_rlimit_core:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_CORE %});
+    return _task_rlimit_cur(task, @const("RLIMIT_CORE"));
 }
 
 function task_rlimit_rss:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_RSS %});
+    return _task_rlimit_cur(task, @const("RLIMIT_RSS"));
 }
 
 function task_rlimit_nproc:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_NPROC %});
+    return _task_rlimit_cur(task, @const("RLIMIT_NPROC"));
 }
 
 function task_rlimit_nofile:long(task:long)
 {
-    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_NOFILE %});
+    return _task_rlimit_cur(task, @const("RLIMIT_NOFILE"));
 }
 
 function task_rlimit_memlock:long(task:long)
 {
-    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_MEMLOCK %});
+    return _task_rlimit_cur(task, @const("RLIMIT_MEMLOCK"));
 }
 
 function task_rlimit_as:long(task:long)
 {
-    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_AS %});
+    return _task_rlimit_cur(task, @const("RLIMIT_AS"));
 }
 
 function task_rlimit_locks:long(task:long)
 {
-    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_LOCKS %});
+    return _task_rlimit_cur(task, @const("RLIMIT_LOCKS"));
 }
 
 function task_rlimit_sigpending:long(task:long)
 {
     %( kernel_v >= "2.6.8" %?
-        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_SIGPENDING %});
+        return _task_rlimit_cur(task, @const("RLIMIT_SIGPENDING"));
     %:
         return -1
     %)
@@ -128,7 +128,7 @@ function task_rlimit_sigpending:long(task:long)
 function task_rlimit_msgqueue:long(task:long)
 {
     %( kernel_v >= "2.6.8" %?
-        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_MSGQUEUE %});
+        return _task_rlimit_cur(task, @const("RLIMIT_MSGQUEUE"));
     %:
         return -1
     %)
@@ -137,7 +137,7 @@ function task_rlimit_msgqueue:long(task:long)
 function task_rlimit_nice:long(task:long)
 {
     %( kernel_v >= "2.6.12" %?
-        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_NICE %});
+        return _task_rlimit_cur(task, @const("RLIMIT_NICE"));
     %:
         return -1
     %)
@@ -146,7 +146,7 @@ function task_rlimit_nice:long(task:long)
 function task_rlimit_rtprio:long(task:long)
 {
     %( kernel_v >= "2.6.12" %?
-        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_RTPRIO %});
+        return _task_rlimit_cur(task, @const("RLIMIT_RTPRIO"));
     %:
         return -1
     %)
@@ -155,7 +155,7 @@ function task_rlimit_rtprio:long(task:long)
 function task_rlimit_rttime:long(task:long)
 {
     %( kernel_v >= "2.6.25" %?
-        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_RTTIME %});
+        return _task_rlimit_cur(task, @const("RLIMIT_RTTIME"));
     %:
         return -1
     %)

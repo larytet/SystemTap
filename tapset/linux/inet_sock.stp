@@ -37,6 +37,6 @@ function inet_get_ip_source:string(sock:long)
 // Turns a daddr as found in an inet_sock into a dotted ip string.
 function daddr_to_string:string(daddr:long)
 {
-    return format_ipaddr(daddr, %{ /* pure */ /* unprivileged */ AF_INET %})
+    return format_ipaddr(daddr, @const("AF_INET"))
 }
 %)

@@ -49,9 +49,9 @@
  * does it include any time of the children of this task.
  */
 function task_utime:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-  STAP_RETVALUE = current->utime;
-%}
+{
+	return @const("current->utime")
+}
 
 /**
  * sfunction task_utime - User time of the task
@@ -90,9 +90,9 @@ function task_utime_tid:long(tid:long)
  * does it include any time of the children of this task.
  */
 function task_stime:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-  STAP_RETVALUE = current->stime;
-%}
+{
+	return @const("current->stime")
+}
 
 /**
  * sfunction task_stime - System time of the task

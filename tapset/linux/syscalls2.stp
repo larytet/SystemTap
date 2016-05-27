@@ -176,10 +176,10 @@ probe syscall.open_by_handle_at.return =
 #
 probe syscall.open = __syscall.compat_open ?, __syscall.open
 {
-	@__syscall_compat_gate(%{ __NR_open %}, %{ __NR_compat_open %})
+	@__syscall_compat_gate(@const("__NR_open"), @const("__NR_compat_open"))
 	name = "open"
 	flags = __int32($flags)
-	if ($flags & %{ /* pure */ O_CREAT %})
+	if ($flags & @const("O_CREAT"))
 		argstr = sprintf("%s, %s, %#o", filename,
 				 _sys_open_flag_str(__int32($flags)), mode)
 	else
@@ -203,7 +203,7 @@ probe syscall.open.return = kernel.function("compat_sys_open").return ?,
                             kernel.function("sys32_open").return ?,
                             kernel.function("sys_open").return ?
 {
-	@__syscall_compat_gate(%{ __NR_open %}, %{ __NR_compat_open %})
+	@__syscall_compat_gate(@const("__NR_open"), @const("__NR_compat_open"))
 	name = "open"
 	retstr = return_str(1, $return)
 }
@@ -221,7 +221,7 @@ probe syscall.openat = kernel.function("compat_sys_openat").call ?,
 	filename = user_string_quoted(@__pointer($filename))
 	flags = $flags
 	mode = __uint32($mode)
-	if ($flags & %{ /* pure */ O_CREAT %})
+	if ($flags & @const("O_CREAT"))
 		argstr = sprintf("%s, %s, %s, %#o", _dfd_str(__int32($dfd)),
 				 filename,
 				 _sys_open_flag_str($flags), __uint32($mode))
@@ -393,7 +393,7 @@ probe syscall.pipe = __syscall.pipe2 ?, __syscall.ia64_pipe ?, __syscall.pipe
 }
 probe __syscall.pipe2 = kernel.function("sys_pipe2").call ?
 {
-	@__syscall_compat_gate(%{ __NR_pipe2 %}, %{ __NR_compat_pipe2 %})
+	@__syscall_compat_gate(@const("__NR_pipe2"), @const("__NR_compat_pipe2"))
 	name = "pipe2"
 	flags = __int32($flags)
 	flag_str = _sys_pipe2_flag_str(flags);
@@ -467,7 +467,7 @@ probe syscall.pipe.return = __syscall.pipe2.return ?,
 }
 probe __syscall.pipe2.return = kernel.function("sys_pipe2").return ?
 {
-	@__syscall_compat_gate(%{ __NR_pipe2 %}, %{ __NR_compat_pipe2 %})
+	@__syscall_compat_gate(@const("__NR_pipe2"), @const("__NR_compat_pipe2"))
 	name = "pipe2"
 	fildes_uaddr = $fildes
 	if (fildes_uaddr == 0) {
@@ -628,7 +628,7 @@ probe syscall.pread =
 probe __syscall.pread = kernel.function("sys_pread64").call
 {
 %( arch == "s390" %?
-	@__syscall_gate(%{ __NR_pread64 %})
+	@__syscall_gate(@const("__NR_pread64"))
 %)
 	offset = $pos
 }
@@ -651,7 +651,7 @@ probe syscall.pread.return =
 probe __syscall.pread.return = kernel.function("sys_pread64").return
 {
 %( arch == "s390" %?
-	@__syscall_gate(%{ __NR_pread64 %})
+	@__syscall_gate(@const("__NR_pread64"))
 %)
 }
 
@@ -674,10 +674,10 @@ probe __syscall.preadv = kernel.function("sys_preadv")
 	fd = __int32($fd)
 	vector_uaddr = $vec
 	count = __int32($vlen)
-	offset = ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + __ulong($pos_l)
+	offset = ($pos_h << @const("BITS_PER_LONG")) + __ulong($pos_l)
 	argstr = sprintf("%d, %p, %d, 0x%x", __int32($fd), $vec,
 			 __int32($vlen),
-			 (($pos_h << %{ /* pure */ BITS_PER_LONG %})
+			 (($pos_h << @const("BITS_PER_LONG"))
 			  + __ulong($pos_l)))
 }
 probe __syscall.compat_preadv = kernel.function("compat_sys_preadv")
@@ -715,12 +715,12 @@ probe __syscall.preadv2 = kernel.function("sys_preadv2").call ?
 	fd = __int32($fd)
 	vector_uaddr = $vec
 	count = __int32($vlen)
-	offset = ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + __ulong($pos_l)
+	offset = ($pos_h << @const("BITS_PER_LONG")) + __ulong($pos_l)
 	flags = $flags
 	flags_str = _preadv2_flags_str(flags)
 	argstr = sprintf("%d, %p, %d, 0x%x, %s", __int32($fd), $vec,
 			 __int32($vlen),
-			 (($pos_h << %{ /* pure */ BITS_PER_LONG %})
+			 (($pos_h << @const("BITS_PER_LONG"))
 			  + __ulong($pos_l)),
 			 flags_str)
 }
@@ -870,7 +870,7 @@ probe syscall.compat_pselect6.return = kernel.function("compat_sys_pselect6").re
 #
 probe syscall.pselect7 = kernel.function("sys_pselect7").call ?
 {
-	@__syscall_gate(%{ __NR_pselect7 %})
+	@__syscall_gate(@const("__NR_pselect7"))
 	name = "pselect7"
 	argstr = sprintf("%d, %p, %p, %p, %s, %p, %d", __int32($n), $inp,
 			 $outp, $exp, _struct_timespec_u($tsp, 1),
@@ -878,7 +878,7 @@ probe syscall.pselect7 = kernel.function("sys_pselect7").call ?
 }
 probe syscall.pselect7.return = kernel.function("sys_pselect7").return ?
 {
-	@__syscall_gate(%{ __NR_pselect7 %})
+	@__syscall_gate(@const("__NR_pselect7"))
 	name = "pselect7"
 	retstr = return_str(1, $return)
 }
@@ -893,7 +893,7 @@ probe
 %) =
 		kernel.function("compat_sys_pselect7").call ?
 {
-	@__compat_syscall_gate(%{ __NR_compat_pselect7 %})
+	@__compat_syscall_gate(@const("__NR_compat_pselect7"))
 	name = "pselect7"
 	argstr = sprintf("%d, %p, %p, %p, %s, %p, %d", __int32($n), $inp,
 			 $outp, $exp, _struct_compat_timespec_u($tsp, 1),
@@ -901,7 +901,7 @@ probe
 }
 probe syscall.compat_pselect7.return = kernel.function("compat_sys_pselect7").return ?
 {
-	@__compat_syscall_gate(%{ __NR_compat_pselect7 %})
+	@__compat_syscall_gate(@const("__NR_compat_pselect7"))
 	name = "pselect7"
 	retstr = return_str(1, $return)
 }
@@ -943,7 +943,7 @@ probe syscall.ptrace.return = kernel.function("sys_ptrace").return ?,
 probe syscall.pwrite = kernel.function("sys_pwrite64").call
 {
 %( arch == "s390" %?
-	@__syscall_gate(%{ __NR_pwrite64 %})
+	@__syscall_gate(@const("__NR_pwrite64"))
 %)
 	name = "pwrite"
 	fd = __int32($fd)
@@ -957,7 +957,7 @@ probe syscall.pwrite = kernel.function("sys_pwrite64").call
 probe syscall.pwrite.return = kernel.function("sys_pwrite64").return
 {
 %( arch == "s390" %?
-	@__syscall_gate(%{ __NR_pwrite64 %})
+	@__syscall_gate(@const("__NR_pwrite64"))
 %)
 	name = "pwrite"
 	retstr = return_str(1, $return)
@@ -998,10 +998,10 @@ probe __syscall.pwritev = kernel.function("sys_pwritev").call
 	fd = __int32($fd)
 	vector_uaddr = $vec
 	count = __int32($vlen)
-	offset = ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + __ulong($pos_l)
+	offset = ($pos_h << @const("BITS_PER_LONG")) + __ulong($pos_l)
 	argstr = sprintf("%d, %p, %d, 0x%x", __int32($fd), $vec,
 			 __int32($vlen),
-			 (($pos_h << %{ /* pure */ BITS_PER_LONG %})
+			 (($pos_h << @const("BITS_PER_LONG"))
 			  + __ulong($pos_l)))
 }
 probe __syscall.compat_pwritev = kernel.function("compat_sys_pwritev").call
@@ -1038,12 +1038,12 @@ probe __syscall.pwritev2 = kernel.function("sys_pwritev2").call ?
 	fd = __int32($fd)
 	vector_uaddr = $vec
 	count = __int32($vlen)
-	offset = ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + __ulong($pos_l)
+	offset = ($pos_h << @const("BITS_PER_LONG")) + __ulong($pos_l)
 	flags = $flags
 	flags_str = _preadv2_flags_str(flags)
 	argstr = sprintf("%d, %p, %d, 0x%x, %s", __int32($fd), $vec,
 			 __int32($vlen),
-			 (($pos_h << %{ /* pure */ BITS_PER_LONG %})
+			 (($pos_h << @const("BITS_PER_LONG"))
 			  + __ulong($pos_l)),
 			 flags_str)
 }
@@ -1125,7 +1125,7 @@ probe syscall.read =
 probe __syscall.read = kernel.function("sys_read").call
 {
 %( arch == "s390" %?
-	@__syscall_gate(%{ __NR_read %})
+	@__syscall_gate(@const("__NR_read"))
 %)
 }
 probe syscall.read.return =
@@ -1141,7 +1141,7 @@ probe syscall.read.return =
 probe __syscall.read.return = kernel.function("sys_read").return
 {
 %( arch == "s390" %?
-	@__syscall_gate(%{ __NR_read %})
+	@__syscall_gate(@const("__NR_read"))
 %)
 }
 
@@ -1227,8 +1227,8 @@ probe syscall.readlink.return = kernel.function("sys_readlink").return
 #
 probe syscall.readlinkat = kernel.function("sys_readlinkat").call ?
 {
-	@__syscall_compat_gate(%{ __NR_readlinkat %},
-			       %{ __NR_compat_readlinkat %})
+	@__syscall_compat_gate(@const("__NR_readlinkat"),
+			       @const("__NR_compat_readlinkat"))
 	name = "readlinkat"
 	dfd = __int32($dfd)
 	dfd_str = _dfd_str(__int32($dfd))
@@ -1242,8 +1242,8 @@ probe syscall.readlinkat = kernel.function("sys_readlinkat").call ?
 
 probe syscall.readlinkat.return = kernel.function("sys_readlinkat").return ?
 {
-	@__syscall_compat_gate(%{ __NR_readlinkat %},
-			       %{ __NR_compat_readlinkat %})
+	@__syscall_compat_gate(@const("__NR_readlinkat"),
+			       @const("__NR_compat_readlinkat"))
 	name = "readlinkat"
 	retstr = return_str(1, $return)
 }
@@ -1320,7 +1320,7 @@ probe syscall.recv = __syscall.socketcall.recv ?,
 }
 probe __syscall.socketcall.recv = kernel.function("sys_socketcall").call ?
 {
-	if ($call != %{ SYS_RECV %}) next;
+	if ($call != @const("SYS_RECV")) next;
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	len = user_ulong(&@cast($args, "ulong")[2])
@@ -1329,7 +1329,7 @@ probe __syscall.socketcall.recv = kernel.function("sys_socketcall").call ?
 probe __syscall.compat_socketcall.recv =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != %{ SYS_RECV %}) next;
+	if ($call != @const("SYS_RECV")) next;
 	s = user_int(&@cast($args, "unsigned int")[0])
 	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
 	len = user_uint32(&@cast($args, "unsigned int")[2])
@@ -1337,7 +1337,7 @@ probe __syscall.compat_socketcall.recv =
 }
 probe __syscall.recv = kernel.function("sys_recv").call ?
 {
-	@__syscall_gate(%{ __NR_recv %})
+	@__syscall_gate(@const("__NR_recv"))
 	s = __int32($fd)
 	buf_uaddr = $ubuf
 	len = __ulong($size)
@@ -1353,11 +1353,11 @@ probe __syscall.socketcall.recv.return =
 	kernel.function("sys_socketcall").return ?, 
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != %{ SYS_RECV %}) next;
+	if ($call != @const("SYS_RECV")) next;
 }
 probe __syscall.recv.return = kernel.function("sys_recv").return ?
 {
-	@__syscall_gate(%{ __NR_recv %})
+	@__syscall_gate(@const("__NR_recv"))
 }
 
 # recvfrom ___________________________________________________
@@ -1383,7 +1383,7 @@ probe syscall.recvfrom = __syscall.socketcall.recvfrom ?,
 }
 probe __syscall.socketcall.recvfrom = kernel.function("sys_socketcall").call ?
 {
-	if ($call != %{ SYS_RECVFROM %}) next
+	if ($call != @const("SYS_RECVFROM")) next
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	len = user_ulong(&@cast($args, "ulong")[2])
@@ -1394,7 +1394,7 @@ probe __syscall.socketcall.recvfrom = kernel.function("sys_socketcall").call ?
 probe __syscall.compat_socketcall.recvfrom =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != %{ SYS_RECVFROM %}) next
+	if ($call != @const("SYS_RECVFROM")) next
 	s = user_int(&@cast($args, "unsigned int")[0])
 	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
 	len = user_uint32(&@cast($args, "unsigned int")[2])
@@ -1404,7 +1404,7 @@ probe __syscall.compat_socketcall.recvfrom =
 }
 probe __syscall.recvfrom = kernel.function("sys_recvfrom").call ?
 {
-	@__syscall_gate(%{ __NR_recvfrom %})
+	@__syscall_gate(@const("__NR_recvfrom"))
 	s = __int32($fd)
 	buf_uaddr = $ubuf
 	len = __ulong($size)
@@ -1421,11 +1421,11 @@ probe syscall.recvfrom.return = __syscall.socketcall.return ?,
 probe __syscall.socketcall.return = kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != %{ SYS_RECVFROM %}) next
+	if ($call != @const("SYS_RECVFROM")) next
 }
 probe __syscall.recvfrom.return = kernel.function("sys_recvfrom").return ?
 {
-	@__syscall_gate(%{ __NR_recvfrom %})
+	@__syscall_gate(@const("__NR_recvfrom"))
 }
 
 # recvmmsg ___________________________________________________
@@ -1499,14 +1499,14 @@ probe syscall.recvmsg = __syscall.recvmsg ?, __syscall.socketcall.recvmsg ?
 }
 probe __syscall.recvmsg = kernel.function("sys_recvmsg").call ?
 {
-	@__syscall_gate(%{ __NR_recvmsg %})
+	@__syscall_gate(@const("__NR_recvmsg"))
 	s = __int32($fd)
 	msg_uaddr = $msg
 	flags = __uint32($flags)
 }
 probe __syscall.socketcall.recvmsg = kernel.function("sys_socketcall").call ?
 {
-	if ($call != %{ SYS_RECVMSG %}) next;
+	if ($call != @const("SYS_RECVMSG")) next;
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	msg_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	flags = __uint32(user_ulong(&@cast($args, "ulong")[2]))
@@ -1520,12 +1520,12 @@ probe syscall.recvmsg.return = __syscall.recvmsg.return ?,
 }
 probe __syscall.recvmsg.return = kernel.function("sys_recvmsg").return ?
 {
-	@__syscall_gate(%{ __NR_recvmsg %})
+	@__syscall_gate(@const("__NR_recvmsg"))
 }
 probe __syscall.socketcall.recvmsg.return = 
 	kernel.function("sys_socketcall").return ?
 {
-	if ($call != %{ SYS_RECVMSG %}) next;
+	if ($call != @const("SYS_RECVMSG")) next;
 }
 
 # compat_sys_recvmsg ________________________________________
@@ -1546,7 +1546,7 @@ probe __syscall.socketcall.recvmsg.return =
 probe syscall.compat_sys_recvmsg =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != %{ SYS_RECVMSG %}) next;
+	if ($call != @const("SYS_RECVMSG")) next;
 	name = "recvmsg"
 	s = user_int(&@cast($args, "unsigned int")[0])
 	msg_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
@@ -1557,7 +1557,7 @@ probe syscall.compat_sys_recvmsg =
 probe syscall.compat_sys_recvmsg.return =
  	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != %{ SYS_RECVMSG %}) next;
+	if ($call != @const("SYS_RECVMSG")) next;
 	name = "recvmsg"
 	retstr = return_str(1, $return)
 }
@@ -1635,7 +1635,7 @@ probe syscall.rename.return = kernel.function("sys_rename").return
 #	int newdfd, const char __user *newname)
 probe syscall.renameat = kernel.function("sys_renameat").call ?
 {
-	@__syscall_compat_gate(%{ __NR_renameat %}, %{ __NR_compat_renameat %})
+	@__syscall_compat_gate(@const("__NR_renameat"), @const("__NR_compat_renameat"))
 	name = "renameat"
 	olddfd = __int32($olddfd)
 	olddfd_str = _dfd_str(__int32($olddfd))
@@ -1651,7 +1651,7 @@ probe syscall.renameat = kernel.function("sys_renameat").call ?
 }
 probe syscall.renameat.return = kernel.function("sys_renameat").return ?
 {
-	@__syscall_compat_gate(%{ __NR_renameat %}, %{ __NR_compat_renameat %})
+	@__syscall_compat_gate(@const("__NR_renameat"), @const("__NR_compat_renameat"))
 	name = "renameat"
 	retstr = return_str(1, $return)
 }
@@ -1663,8 +1663,8 @@ probe syscall.renameat.return = kernel.function("sys_renameat").return ?
 #		int, newdfd, const char __user *, newname, unsigned int, flags)
 probe syscall.renameat2 = kernel.function("sys_renameat2").call ?
 {
-	@__syscall_compat_gate(%{ __NR_renameat2 %},
-			       %{ __NR_compat_renameat2 %})
+	@__syscall_compat_gate(@const("__NR_renameat2"),
+			       @const("__NR_compat_renameat2"))
 	name = "renameat2"
 	olddfd = __int32($olddfd)
 	olddfd_str = _dfd_str(__int32($olddfd))
@@ -1683,8 +1683,8 @@ probe syscall.renameat2 = kernel.function("sys_renameat2").call ?
 }
 probe syscall.renameat2.return = kernel.function("sys_renameat2").return ?
 {
-	@__syscall_compat_gate(%{ __NR_renameat2 %},
-			       %{ __NR_compat_renameat2 %})
+	@__syscall_compat_gate(@const("__NR_renameat2"),
+			       @const("__NR_compat_renameat2"))
 	name = "renameat2"
 	retstr = return_str(1, $return)
 }
@@ -1818,7 +1818,7 @@ probe syscall.rt_sigpending = __syscall.rt_sigpending ?,
 }
 probe __syscall.rt_sigpending = kernel.function("sys_rt_sigpending").call ?
 {
-	@__syscall_gate(%{ __NR_rt_sigpending %})
+	@__syscall_gate(@const("__NR_rt_sigpending"))
 }
 probe syscall.rt_sigpending.return = __syscall.rt_sigpending.return ?,
                                      kernel.function("compat_sys_rt_sigpending").return !,
@@ -1830,7 +1830,7 @@ probe syscall.rt_sigpending.return = __syscall.rt_sigpending.return ?,
 probe __syscall.rt_sigpending.return =
 	kernel.function("sys_rt_sigpending").return ?
 {
-	@__syscall_gate(%{ __NR_rt_sigpending %})
+	@__syscall_gate(@const("__NR_rt_sigpending"))
 }
 
 # rt_sigprocmask _____________________________________________
@@ -1847,7 +1847,7 @@ probe syscall.rt_sigprocmask = kernel.function("sys_rt_sigprocmask").call ?
 %( arch != "x86_64" || kernel_v < "3.4" || CONFIG_COMPAT != "y" %?
 	// In kernels < 3.4, a 32-bit rt_sigprocmask call goes through
 	// sys32_rt_sigprocmask().
-	@__syscall_gate(%{ __NR_rt_sigprocmask %})
+	@__syscall_gate(@const("__NR_rt_sigprocmask"))
 %)
 	name = "rt_sigprocmask"
 	how = __int32($how)
@@ -1866,7 +1866,7 @@ probe syscall.rt_sigprocmask = kernel.function("sys_rt_sigprocmask").call ?
 	// On those kernels, a call to the 32-bit rt_sigprocmask goes
 	// straight to the 64-bit rt_sigprocmask function.
 %( arch == "x86_64" && kernel_v >= "3.4" && CONFIG_COMPAT == "y" %?
-	if (@__compat_task && _stp_syscall_nr() == %{ /* pure */ __NR_compat_rt_sigprocmask %}) {
+	if (@__compat_task && _stp_syscall_nr() == @const("__NR_compat_rt_sigprocmask")) {
 		oldset_uaddr = __uint32($oset)
 		argstr = sprintf("%s, %s, %p, %d", how_str,
 				 _stp_compat_sigset_u(set_uaddr), oldset_uaddr,
@@ -1884,7 +1884,7 @@ probe syscall.rt_sigprocmask.return =
 	kernel.function("sys_rt_sigprocmask").return ?
 {
 %( arch != "x86_64" || kernel_v < "3.4" || CONFIG_COMPAT != "y" %?
-	@__syscall_gate(%{ __NR_rt_sigprocmask %})
+	@__syscall_gate(@const("__NR_rt_sigprocmask"))
 %)
 	name = "rt_sigprocmask"
 	retstr = return_str(1, $return)
@@ -1930,7 +1930,7 @@ probe syscall.rt_sigqueueinfo =
 }
 probe __syscall.rt_sigqueueinfo = kernel.function("sys_rt_sigqueueinfo").call
 {
-	@__syscall_gate(%{ __NR_rt_sigqueueinfo %})
+	@__syscall_gate(@const("__NR_rt_sigqueueinfo"))
 }
 probe syscall.rt_sigqueueinfo.return =
 	__syscall.rt_sigqueueinfo.return ?,
@@ -1943,7 +1943,7 @@ probe syscall.rt_sigqueueinfo.return =
 probe __syscall.rt_sigqueueinfo.return =
 	kernel.function("sys_rt_sigqueueinfo").return
 {
-	@__syscall_gate(%{ __NR_rt_sigqueueinfo %})
+	@__syscall_gate(@const("__NR_rt_sigqueueinfo"))
 }
 
 # rt_sigreturn _______________________________________________
@@ -2193,7 +2193,7 @@ probe syscall.sched_rr_get_interval = __syscall.sched_rr_get_interval,
 probe __syscall.sched_rr_get_interval =
 	kernel.function("sys_sched_rr_get_interval").call
 {
-	@__syscall_gate(%{ __NR_sched_rr_get_interval %})
+	@__syscall_gate(@const("__NR_sched_rr_get_interval"))
 }
 probe syscall.sched_rr_get_interval.return =
 	__syscall.sched_rr_get_interval.return,
@@ -2206,7 +2206,7 @@ probe syscall.sched_rr_get_interval.return =
 probe __syscall.sched_rr_get_interval.return =
 	kernel.function("sys_sched_rr_get_interval").return
 {
-	@__syscall_gate(%{ __NR_sched_rr_get_interval %})
+	@__syscall_gate(@const("__NR_sched_rr_get_interval"))
 }
 
 # sched_setattr ______________________________________________
@@ -2411,7 +2411,7 @@ probe syscall.compat_sys_semctl = __syscall.compat_semctl ?,
 }
 probe __syscall.compat_semctl = kernel.function("compat_sys_semctl").call ?
 {
-	@__compat_syscall_gate_negative(%{ __NR_ipc %})
+	@__compat_syscall_gate_negative(@const("__NR_ipc"))
 	semid = __int32(@choose_defined($semid, $first))
 	semnum = __int32(@choose_defined($semnum, $second))
 	cmd = __int32(@choose_defined($cmd, $third))
@@ -2420,7 +2420,7 @@ probe __syscall.compat_semctl = kernel.function("compat_sys_semctl").call ?
 probe __syscall.compat_ipc.semctl = kernel.function("compat_sys_ipc").call ?,
 	kernel.function("sys32_ipc").call ?
 {
-	if ($call != %{ SEMCTL %}) next;
+	if ($call != @const("SEMCTL")) next;
 	semid = __int32($first)
 	semnum = __int32($second)
 	cmd = __int32($third)
@@ -2435,13 +2435,13 @@ probe syscall.compat_sys_semctl.return = __syscall.compat_semctl.return ?,
 probe __syscall.compat_semctl.return =
 	kernel.function("compat_sys_semctl").return ?
 {
-	@__compat_syscall_gate_negative(%{ __NR_ipc %})
+	@__compat_syscall_gate_negative(@const("__NR_ipc"))
 }
 probe __syscall.compat_ipc.semctl.return =
 	kernel.function("compat_sys_ipc").return ?,
 	kernel.function("sys32_ipc").return ?
 {
-	if ($call != %{ SEMCTL %}) next;
+	if ($call != @const("SEMCTL")) next;
 }
 
 # semget _____________________________________________________
@@ -2487,7 +2487,7 @@ probe __syscall.semop = kernel.function("sys_semop").call ?
 probe __syscall.compat_semop = kernel.function("compat_sys_ipc").call ?,
         kernel.function("sys32_ipc").call ?
 {
-        if ($call != %{ SEMOP %}) next;
+        if ($call != @const("SEMOP")) next;
         semid = __int32($first)
 %( systemtap_v < "2.3" %?
 	tsops_uaddr = $ptr
@@ -2505,7 +2505,7 @@ probe __syscall.compat_semop.return =
 	kernel.function("compat_sys_ipc").return ?,
 	kernel.function("sys32_ipc").return ?
 {
-	if ($call != %{ SEMOP %}) next;
+	if ($call != @const("SEMOP")) next;
 }
 
 # semtimedop _________________________________________________
@@ -2547,7 +2547,7 @@ probe syscall.compat_sys_semtimedop = __syscall.compat_semtimedop ?,
 probe __syscall.compat_semtimedop =
 	kernel.function("compat_sys_semtimedop").call ?
 {
-	@__compat_syscall_gate_negative(%{ __NR_ipc %})
+	@__compat_syscall_gate_negative(@const("__NR_ipc"))
 	semid = __int32($semid)
 	sops_uaddr = $tsems
 	nsops = __uint32($nsops)
@@ -2557,7 +2557,7 @@ probe __syscall.compat_ipc.semtimedop =
 	kernel.function("compat_sys_ipc").call ?,
         kernel.function("sys32_ipc").call ?
 {
-        if ($call != %{ SEMTIMEDOP %}) next;
+        if ($call != @const("SEMTIMEDOP")) next;
         semid = __int32($first)
         sops_uaddr = $ptr
         nsops = __uint32($second)
@@ -2573,13 +2573,13 @@ probe syscall.compat_sys_semtimedop.return =
 probe __syscall.compat_sys_semtimedop.return =
 	kernel.function("compat_sys_semtimedop").return ?
 {
-	@__compat_syscall_gate_negative(%{ __NR_ipc %})
+	@__compat_syscall_gate_negative(@const("__NR_ipc"))
 }
 probe __syscall.compat_ipc.semtimedop.return =
 	kernel.function("compat_sys_ipc").return ?,
 	kernel.function("sys32_ipc").return ?
 {
-	if ($call != %{ SEMTIMEDOP %}) next;
+	if ($call != @const("SEMTIMEDOP")) next;
 }
 
 # send _______________________________________________________
@@ -2598,7 +2598,7 @@ probe syscall.send = __syscall.send ?, __syscall.socketcall.send ?,
 }
 probe __syscall.send = kernel.function("sys_send").call ?
 {
-	@__syscall_gate(%{ __NR_send %})
+	@__syscall_gate(@const("__NR_send"))
 	s = __int32($fd)
 	buf_uaddr = $buff
 	len = __ulong($len)
@@ -2606,7 +2606,7 @@ probe __syscall.send = kernel.function("sys_send").call ?
 }
 probe __syscall.socketcall.send = kernel.function("sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SEND %}) next;
+	if ($call != @const("SYS_SEND")) next;
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	len = user_ulong(&@cast($args, "ulong")[2])
@@ -2615,7 +2615,7 @@ probe __syscall.socketcall.send = kernel.function("sys_socketcall").call ?
 probe __syscall.compat_socketcall.send =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SEND %}) next;
+	if ($call != @const("SYS_SEND")) next;
 	s = user_int(&@cast($args, "unsigned int")[0])
 	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
 	len = user_uint32(&@cast($args, "unsigned int")[2])
@@ -2629,13 +2629,13 @@ probe syscall.send.return = __syscall.send.return ?,
 }
 probe __syscall.send.return = kernel.function("sys_send").return ?
 {
-	@__syscall_gate(%{ __NR_send %})
+	@__syscall_gate(@const("__NR_send"))
 }
 probe __syscall.socketcall.send.return = 
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != %{ SYS_SEND %}) next;
+	if ($call != @const("SYS_SEND")) next;
 }
 
 # sendfile ___________________________________________________
@@ -2666,7 +2666,7 @@ probe syscall.sendfile = __syscall.sendfile ?,
 probe __syscall.sendfile = kernel.function("sys_sendfile").call ?,
 	kernel.function("sys_sendfile64").call ?
 {
-	@__syscall_gate2(%{ __NR_sendfile %}, %{ __NR_sendfile64 %})
+	@__syscall_gate2(@const("__NR_sendfile"), @const("__NR_sendfile64"))
 }
 probe syscall.sendfile.return = __syscall.sendfile.return ?,
 	kernel.function("compat_sys_sendfile").return ?,
@@ -2679,7 +2679,7 @@ probe syscall.sendfile.return = __syscall.sendfile.return ?,
 probe __syscall.sendfile.return = kernel.function("sys_sendfile").return ?,
 	kernel.function("sys_sendfile64").return ?
 {
-	@__syscall_gate2(%{ __NR_sendfile %}, %{ __NR_sendfile64 %})
+	@__syscall_gate2(@const("__NR_sendfile"), @const("__NR_sendfile64"))
 }
 
 # sendmsg ____________________________________________________
@@ -2700,14 +2700,14 @@ probe syscall.sendmsg = __syscall.sendmsg ?, __syscall.socketcall.sendmsg ?
 }
 probe __syscall.sendmsg = kernel.function("sys_sendmsg").call ?
 {
-	@__syscall_gate(%{ __NR_sendmsg %})
+	@__syscall_gate(@const("__NR_sendmsg"))
 	s = __int32($fd)
 	msg_uaddr = $msg
 	flags = __uint32($flags)
 }
 probe __syscall.socketcall.sendmsg = kernel.function("sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SENDMSG%}) next;
+	if ($call != @const("SYS_SENDMSG")) next;
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	msg_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	flags = __uint32(user_ulong(&@cast($args, "ulong")[2]))
@@ -2726,12 +2726,12 @@ probe syscall.sendmsg.return = __syscall.sendmsg.return ?,
 }
 probe __syscall.sendmsg.return = kernel.function("sys_sendmsg").return ?
 {
-	@__syscall_gate(%{ __NR_sendmsg %})
+	@__syscall_gate(@const("__NR_sendmsg"))
 }
 probe __syscall.socketcall.sendmsg.return = 
 	kernel.function("sys_socketcall").return ?
 {
-	if ($call != %{ SYS_SENDMSG %}) next;
+	if ($call != @const("SYS_SENDMSG")) next;
 }
 
 # compat_sys_sendmsg ________________________________________
@@ -2750,7 +2750,7 @@ probe __syscall.socketcall.sendmsg.return =
 probe syscall.compat_sys_sendmsg =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SENDMSG %}) next;
+	if ($call != @const("SYS_SENDMSG")) next;
 	name = "sendmsg"
 	s = user_int(&@cast($args, "unsigned int")[0])
 	msg_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
@@ -2761,7 +2761,7 @@ probe syscall.compat_sys_sendmsg =
 probe syscall.compat_sys_sendmsg.return =
  	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != %{ SYS_SENDMSG %}) next;
+	if ($call != @const("SYS_SENDMSG")) next;
 	name = "sendmsg"
 	retstr = return_str(1, $return)
 }
@@ -2795,7 +2795,7 @@ probe __syscall.sendmmsg = kernel.function("sys_sendmmsg").call ?
 probe __syscall.compat_socketcall.sendmmsg =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SENDMMSG %}) next
+	if ($call != @const("SYS_SENDMMSG")) next
 	s = user_int(&@cast($args, "unsigned int")[0])
 	mmsg_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
 	vlen = user_uint32(&@cast($args, "unsigned int")[2])
@@ -2804,7 +2804,7 @@ probe __syscall.compat_socketcall.sendmmsg =
 probe __syscall.compat_sendmmsg =
 	kernel.function("compat_sys_sendmmsg").call ?
 {
-	@__compat_syscall_gate(%{ __NR_compat_sendmmsg %})
+	@__compat_syscall_gate(@const("__NR_compat_sendmmsg"))
 	s = __int32($fd)
 	mmsg_uaddr = $mmsg
 	vlen = __uint32($vlen)
@@ -2829,12 +2829,12 @@ probe __syscall.sendmmsg.return = kernel.function("sys_sendmmsg").return ?
 probe __syscall.compat_socketcall.sendmmsg.return =
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != %{ SYS_SENDMMSG %}) next
+	if ($call != @const("SYS_SENDMMSG")) next
 }
 probe __syscall.compat_sendmmsg.return =
 	kernel.function("compat_sys_sendmmsg").return ?
 {
-	@__compat_syscall_gate(%{ __NR_compat_sendmmsg %})
+	@__compat_syscall_gate(@const("__NR_compat_sendmmsg"))
 }
 
 # sendto _____________________________________________________
@@ -2857,7 +2857,7 @@ probe syscall.sendto = __syscall.sendto ?, __syscall.socketcall.sendto ?,
 }
 probe __syscall.sendto = kernel.function("sys_sendto").call ?
 {
-	@__syscall_gate(%{ __NR_sendto %})
+	@__syscall_gate(@const("__NR_sendto"))
 	s = __int32($fd)
 	buf_uaddr = $buff
 	len = __ulong($len)
@@ -2867,7 +2867,7 @@ probe __syscall.sendto = kernel.function("sys_sendto").call ?
 }
 probe __syscall.socketcall.sendto = kernel.function("sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SENDTO %}) next;
+	if ($call != @const("SYS_SENDTO")) next;
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	len = user_ulong(&@cast($args, "ulong")[2])
@@ -2878,7 +2878,7 @@ probe __syscall.socketcall.sendto = kernel.function("sys_socketcall").call ?
 probe __syscall.compat_socketcall.sendto = 
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SENDTO %}) next;
+	if ($call != @const("SYS_SENDTO")) next;
 	s = user_int(&@cast($args, "unsigned int")[0])
 	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
 	len = user_uint32(&@cast($args, "unsigned int")[2])
@@ -2891,10 +2891,10 @@ probe syscall.sendto.return = kernel.function("sys_sendto").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
 	if (@defined($call)) {
-		if ($call != %{ SYS_SENDTO %}) next;
+		if ($call != @const("SYS_SENDTO")) next;
 	}
 	else {
-		@__syscall_gate(%{ __NR_sendto %})
+		@__syscall_gate(@const("__NR_sendto"))
 	}
 	name = "sendto"
 	retstr = return_str(1, $return)
@@ -3305,7 +3305,7 @@ probe syscall.setrlimit = __syscall.setrlimit ?,
 }
 probe __syscall.setrlimit = kernel.function("sys_setrlimit").call
 {
-	@__syscall_gate(%{ __NR_setrlimit %})
+	@__syscall_gate(@const("__NR_setrlimit"))
 }
 probe syscall.setrlimit.return = __syscall.setrlimit.return ?,
 	kernel.function("compat_sys_setrlimit").return ?
@@ -3315,7 +3315,7 @@ probe syscall.setrlimit.return = __syscall.setrlimit.return ?,
 }
 probe __syscall.setrlimit.return = kernel.function("sys_setrlimit").return
 {
-	@__syscall_gate(%{ __NR_setrlimit %})
+	@__syscall_gate(@const("__NR_setrlimit"))
 }
 
 # set_robust_list ____________________________________________
@@ -3383,7 +3383,7 @@ probe syscall.setsockopt = __syscall.setsockopt ?,
 }
 probe __syscall.setsockopt = kernel.function("sys_setsockopt").call ?
 {
-	@__syscall_gate(%{ __NR_setsockopt %})
+	@__syscall_gate(@const("__NR_setsockopt"))
 	fd = __int32($fd)
 	level = __int32($level)
 	optname = __int32($optname)
@@ -3392,7 +3392,7 @@ probe __syscall.setsockopt = kernel.function("sys_setsockopt").call ?
 }
 probe __syscall.socketcall.setsockopt = kernel.function("sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SETSOCKOPT %}) next;
+	if ($call != @const("SYS_SETSOCKOPT")) next;
 	fd = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	level = __int32(user_ulong(&@cast($args, "ulong")[1]))
 	optname = __int32(user_ulong(&@cast($args, "ulong")[2]))
@@ -3402,7 +3402,7 @@ probe __syscall.socketcall.setsockopt = kernel.function("sys_socketcall").call ?
 probe __syscall.compat_socketcall.setsockopt =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SETSOCKOPT %}) next;
+	if ($call != @const("SYS_SETSOCKOPT")) next;
 	fd = user_int(&@cast($args, "unsigned int")[0])
 	level = user_int(&@cast($args, "unsigned int")[1])
 	optname = user_int(&@cast($args, "unsigned int")[2])
@@ -3418,13 +3418,13 @@ probe syscall.setsockopt.return = __syscall.setsockopt.return ?,
 probe __syscall.setsockopt.return =
 	kernel.function("sys_setsockopt").return ?
 {
-	@__syscall_gate(%{ __NR_setsockopt %})
+	@__syscall_gate(@const("__NR_setsockopt"))
 }
 probe __syscall.socketcall.setsockopt.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != %{ SYS_SETSOCKOPT %}) next;
+	if ($call != @const("SYS_SETSOCKOPT")) next;
 }
 
 # set_tid_address ____________________________________________
@@ -3637,12 +3637,12 @@ probe syscall.compat_sys_shmctl = __syscall.compat_shmctl ?,
 }
 probe __syscall.compat_shmctl = kernel.function("compat_sys_shmctl").call ?
 {
-	@__compat_syscall_gate(%{ __NR_compat_shmctl %})
+	@__compat_syscall_gate(@const("__NR_compat_shmctl"))
 }
 probe __syscall.compat_ipc.shmctl = kernel.function("compat_sys_ipc").call ?,
 	kernel.function("sys32_ipc").call ?
 {
-	if ($call != %{ SHMCTL %}) next;
+	if ($call != @const("SHMCTL")) next;
 }
 
 probe syscall.compat_sys_shmctl.return =
@@ -3656,7 +3656,7 @@ probe __syscall.compat_ipc.shmctl.return =
 	kernel.function("compat_sys_ipc").return ?,
 	kernel.function("sys32_ipc").return ?
 {
-	if ($call != %{ SHMCTL %}) next;
+	if ($call != @const("SHMCTL")) next;
 }
 
 # shmdt ______________________________________________________
@@ -3710,20 +3710,20 @@ probe syscall.shutdown = __syscall.shutdown ?, __syscall.socketcall.shutdown ?,
 }
 probe __syscall.shutdown = kernel.function("sys_shutdown").call ?
 {
-	@__syscall_gate(%{ __NR_shutdown %})
+	@__syscall_gate(@const("__NR_shutdown"))
 	s = __int32($fd)
 	how = __int32($how)
 }
 probe __syscall.socketcall.shutdown = kernel.function("sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SHUTDOWN%}) next;
+	if ($call != @const("SYS_SHUTDOWN")) next;
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	how = __int32(user_ulong(&@cast($args, "ulong")[1]))
 }
 probe __syscall.compat_socketcall.shutdown =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SHUTDOWN %}) next;
+	if ($call != @const("SYS_SHUTDOWN")) next;
 	s = user_int(&@cast($args, "unsigned int")[0])
 	how = user_int(&@cast($args, "unsigned int")[1])
 }
@@ -3735,13 +3735,13 @@ probe syscall.shutdown.return = __syscall.shutdown.return ?,
 }
 probe __syscall.shutdown.return = kernel.function("sys_shutdown").return ?
 {
-	@__syscall_gate(%{ __NR_shutdown %})
+	@__syscall_gate(@const("__NR_shutdown"))
 }
 probe __syscall.socketcall.shutdown.return = 
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != %{ SYS_SHUTDOWN %}) next;
+	if ($call != @const("SYS_SHUTDOWN")) next;
 }
 
 # sigaction __________________________________________________
@@ -3857,11 +3857,11 @@ probe syscall.signalfd = __syscall.signalfd4 !, __syscall.signalfd ?
 }
 probe __syscall.signalfd4 = kernel.function("sys_signalfd4").call
 {
-	@__syscall_gate(%{ __NR_signalfd4 %})
+	@__syscall_gate(@const("__NR_signalfd4"))
 }
 probe __syscall.signalfd = kernel.function("sys_signalfd").call
 {
-	@__syscall_gate(%{ __NR_signalfd %})
+	@__syscall_gate(@const("__NR_signalfd"))
 }
 probe syscall.signalfd.return = __syscall.signalfd4.return !,
 				__syscall.signalfd.return ?
@@ -3870,13 +3870,13 @@ probe syscall.signalfd.return = __syscall.signalfd4.return !,
 }
 probe __syscall.signalfd4.return = kernel.function("sys_signalfd4").return
 {
-	@__syscall_gate(%{ __NR_signalfd4 %})
+	@__syscall_gate(@const("__NR_signalfd4"))
 	flags = __int32($flags)
 	name = (flags == 0) ? "signalfd" : "signalfd4"
 }
 probe __syscall.signalfd.return = kernel.function("sys_signalfd").return
 {
-	@__syscall_gate(%{ __NR_signalfd %})
+	@__syscall_gate(@const("__NR_signalfd"))
 	flags = 0
 	name = "signalfd"
 }
@@ -3946,7 +3946,7 @@ probe syscall.sigprocmask = __syscall.sigprocmask ?,
 }
 probe __syscall.sigprocmask = kernel.function("sys_sigprocmask").call ?
 {
-	@__syscall_gate(%{ __NR_sigprocmask %})
+	@__syscall_gate(@const("__NR_sigprocmask"))
 }
 probe syscall.sigprocmask.return = __syscall.sigprocmask.return ?,
 	kernel.function("compat_sys_sigprocmask").return ?
@@ -3957,7 +3957,7 @@ probe syscall.sigprocmask.return = __syscall.sigprocmask.return ?,
 probe __syscall.sigprocmask.return =
 	kernel.function("sys_sigprocmask").return ?
 {
-	@__syscall_gate(%{ __NR_sigprocmask %})
+	@__syscall_gate(@const("__NR_sigprocmask"))
 }
 
 # sigreturn __________________________________________________
@@ -4015,14 +4015,14 @@ probe syscall.socket = __syscall.socket ?, __syscall.socketcall.socket ?,
 }
 probe __syscall.socket = kernel.function("sys_socket").call ?
 {
-	@__syscall_gate(%{ __NR_socket %})
+	@__syscall_gate(@const("__NR_socket"))
 	family = __int32($family)
 	type = __int32($type)
 	protocol = __int32($protocol)
 }
 probe __syscall.socketcall.socket = kernel.function("sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SOCKET %}) next;
+	if ($call != @const("SYS_SOCKET")) next;
 	family = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	type = __int32(user_ulong(&@cast($args, "ulong")[1]))
 	protocol = __int32(user_ulong(&@cast($args, "ulong")[2]))
@@ -4030,7 +4030,7 @@ probe __syscall.socketcall.socket = kernel.function("sys_socketcall").call ?
 probe __syscall.compat_socketcall.socket =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SOCKET %}) next;
+	if ($call != @const("SYS_SOCKET")) next;
 	family = user_int(&@cast($args, "unsigned int")[0])
 	type = user_int(&@cast($args, "unsigned int")[1])
 	protocol = user_int(&@cast($args, "unsigned int")[2])
@@ -4043,13 +4043,13 @@ probe syscall.socket.return = __syscall.return ?,
 }
 probe __syscall.return = kernel.function("sys_socket").return ?
 {
-	@__syscall_gate(%{ __NR_socket %})
+	@__syscall_gate(@const("__NR_socket"))
 }
 probe __syscall.socketcall.socket.return = 
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != %{ SYS_SOCKET %}) next;
+	if ($call != @const("SYS_SOCKET")) next;
 }
 
 # socketcall _________________________________________________
@@ -4076,7 +4076,7 @@ probe syscall.socketpair = __syscall.socketpair ?,
 }
 probe __syscall.socketpair = kernel.function("sys_socketpair").call ?
 {
-	@__syscall_gate(%{ __NR_socketpair %})
+	@__syscall_gate(@const("__NR_socketpair"))
 	family = __int32($family)
 	type = __int32($type)
 	protocol = __int32($protocol)
@@ -4084,7 +4084,7 @@ probe __syscall.socketpair = kernel.function("sys_socketpair").call ?
 }
 probe __syscall.socketcall.socketpair = kernel.function("sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SOCKETPAIR %}) next;
+	if ($call != @const("SYS_SOCKETPAIR")) next;
 	family = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	type = __int32(user_ulong(&@cast($args, "ulong")[1]))
 	protocol = __int32(user_ulong(&@cast($args, "ulong")[2]))
@@ -4093,7 +4093,7 @@ probe __syscall.socketcall.socketpair = kernel.function("sys_socketcall").call ?
 probe __syscall.compat_socketcall.socketpair =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != %{ SYS_SOCKETPAIR %}) next;
+	if ($call != @const("SYS_SOCKETPAIR")) next;
 	family = user_int(&@cast($args, "unsigned int")[0])
 	type = user_int(&@cast($args, "unsigned int")[1])
 	protocol = user_int(&@cast($args, "unsigned int")[2])
@@ -4107,13 +4107,13 @@ probe syscall.socketpair.return = __syscall.socketpair.return ?,
 }
 probe __syscall.socketpair.return = kernel.function("sys_socketpair").return ?
 {
-	@__syscall_gate(%{ __NR_socketpair %})
+	@__syscall_gate(@const("__NR_socketpair"))
 }
 probe __syscall.socketcall.socketpair.return = 
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != %{ SYS_SOCKETPAIR %}) next;
+	if ($call != @const("SYS_SOCKETPAIR")) next;
 }
 
 # splice ___________________________________________________
@@ -4313,8 +4313,8 @@ probe syscall.symlink.return = kernel.function("sys_symlink").return
 #	const char __user *newname)
 probe syscall.symlinkat = kernel.function("sys_symlinkat").call ?
 {
-	@__syscall_compat_gate(%{ __NR_symlinkat %},
-			       %{ __NR_compat_symlinkat %})
+	@__syscall_compat_gate(@const("__NR_symlinkat"),
+			       @const("__NR_compat_symlinkat"))
 	name = "symlinkat"
 	oldname = $oldname
 	oldname_str = user_string_quoted($oldname)
@@ -4327,8 +4327,8 @@ probe syscall.symlinkat = kernel.function("sys_symlinkat").call ?
 }
 probe syscall.symlinkat.return = kernel.function("sys_symlinkat").return ?
 {
-	@__syscall_compat_gate(%{ __NR_symlinkat %},
-			       %{ __NR_compat_symlinkat %})
+	@__syscall_compat_gate(@const("__NR_symlinkat"),
+			       @const("__NR_compat_symlinkat"))
 	name = "symlinkat"
 	retstr = return_str(1, $return)
 }
@@ -4567,7 +4567,7 @@ probe syscall.timer_create = __syscall.timer_create,
 }
 probe __syscall.timer_create = kernel.function("sys_timer_create").call
 {
-	@__syscall_gate(%{ __NR_timer_create %})
+	@__syscall_gate(@const("__NR_timer_create"))
 }
 probe syscall.timer_create.return =
 	__syscall.timer_create.return,
@@ -4578,7 +4578,7 @@ probe syscall.timer_create.return =
 }
 probe __syscall.timer_create.return = kernel.function("sys_timer_create").return
 {
-	@__syscall_gate(%{ __NR_timer_create %})
+	@__syscall_gate(@const("__NR_timer_create"))
 }
 
 # timer_delete _______________________________________________
@@ -4630,7 +4630,7 @@ probe syscall.timer_gettime = __syscall.timer_gettime,
 }
 probe __syscall.timer_gettime = kernel.function("sys_timer_gettime").call
 {
-	@__syscall_gate(%{ __NR_timer_gettime %})
+	@__syscall_gate(@const("__NR_timer_gettime"))
 }
 probe syscall.timer_gettime.return =
         __syscall.timer_gettime.return,
@@ -4641,7 +4641,7 @@ probe syscall.timer_gettime.return =
 }
 probe __syscall.timer_gettime.return = kernel.function("sys_timer_gettime").return
 {
-	@__syscall_gate(%{ __NR_timer_gettime %})
+	@__syscall_gate(@const("__NR_timer_gettime"))
 }
 
 # timer_settime ______________________________________________
@@ -4674,7 +4674,7 @@ probe syscall.timer_settime = __syscall.timer_settime,
 }
 probe __syscall.timer_settime = kernel.function("sys_timer_settime").call
 {
-	@__syscall_gate(%{ __NR_timer_settime %})
+	@__syscall_gate(@const("__NR_timer_settime"))
 }
 probe syscall.timer_settime.return =
 	__syscall.timer_settime.return,
@@ -4686,7 +4686,7 @@ probe syscall.timer_settime.return =
 probe __syscall.timer_settime.return =
 	kernel.function("sys_timer_settime").return
 {
-	@__syscall_gate(%{ __NR_timer_settime %})
+	@__syscall_gate(@const("__NR_timer_settime"))
 }
 
 # timerfd ______________________________________________
@@ -4858,7 +4858,7 @@ probe syscall.truncate = __syscall.truncate ?, __syscall.truncate64 ?,
 }
 probe __syscall.truncate = kernel.function("sys_truncate").call ?
 {
-	@__syscall_compat_gate(%{ __NR_truncate %}, %{ __NR_compat_truncate %})
+	@__syscall_compat_gate(@const("__NR_truncate"), @const("__NR_compat_truncate"))
 	length = @__compat_long($length)
 }
 probe __syscall.truncate64 = kernel.function("sys_truncate64").call ?
@@ -4878,7 +4878,7 @@ probe syscall.truncate.return = __syscall.truncate.return ?,
 }
 probe __syscall.truncate.return = kernel.function("sys_truncate").return ?
 {
-	@__syscall_compat_gate(%{ __NR_truncate %}, %{ __NR_compat_truncate %})
+	@__syscall_compat_gate(@const("__NR_truncate"), @const("__NR_compat_truncate"))
 }
 
 # tux ________________________________________________________
@@ -4922,7 +4922,7 @@ probe syscall.umount = __syscall.umount, __syscall.oldumount ?
 }
 probe __syscall.umount = kernel.function("sys_umount").call
 {
-	@__syscall_compat_gate(%{ __NR_umount2 %}, %{ __NR_compat_umount2 %})
+	@__syscall_compat_gate(@const("__NR_umount2"), @const("__NR_compat_umount2"))
 	target = user_string_quoted($name)
 	flags = $flags
 	flags_str = _umountflags_str($flags)
@@ -4943,7 +4943,7 @@ probe syscall.umount.return = __syscall.umount.return,
 }
 probe __syscall.umount.return = kernel.function("sys_umount").return
 {
-	@__syscall_compat_gate(%{ __NR_umount2 %}, %{ __NR_compat_umount2 %})
+	@__syscall_compat_gate(@const("__NR_umount2"), @const("__NR_compat_umount2"))
 }
 
 # uname ______________________________________________________
@@ -5310,11 +5310,11 @@ probe syscall.wait4 = __syscall.wait4, __syscall.compat_wait4 ?
 }
 probe __syscall.wait4 = kernel.function("sys_wait4").call
 {
-	@__syscall_gate(%{ __NR_wait4 %})
+	@__syscall_gate(@const("__NR_wait4"))
 }
 probe __syscall.compat_wait4 = kernel.function("compat_sys_wait4").call ?
 {
-	@__compat_syscall_gate(%{ __NR_compat_wait4 %})
+	@__compat_syscall_gate(@const("__NR_compat_wait4"))
 }
 probe syscall.wait4.return = __syscall.wait4.return,
 	__syscall.compat_wait4.return ?
@@ -5332,12 +5332,12 @@ probe syscall.wait4.return = __syscall.wait4.return,
 }
 probe __syscall.wait4.return = kernel.function("sys_wait4").return
 {
-	@__syscall_gate(%{ __NR_wait4 %})
+	@__syscall_gate(@const("__NR_wait4"))
 }
 probe __syscall.compat_wait4.return =
 	kernel.function("compat_sys_wait4").return ?
 {
-	@__compat_syscall_gate(%{ __NR_compat_wait4 %})
+	@__compat_syscall_gate(@const("__NR_compat_wait4"))
 }
 
 # waitid _____________________________________________________
@@ -5430,7 +5430,7 @@ probe syscall.write =
 probe __syscall.write = kernel.function("sys_write").call
 {
 %( arch == "s390" %?
-	@__syscall_gate(%{ __NR_write %})
+	@__syscall_gate(@const("__NR_write"))
 %)
 }
 probe syscall.write.return =
@@ -5446,7 +5446,7 @@ probe syscall.write.return =
 probe __syscall.write.return = kernel.function("sys_write").return
 {
 %( arch == "s390" %?
-	@__syscall_gate(%{ __NR_write %})
+	@__syscall_gate(@const("__NR_write"))
 %)
 }
 

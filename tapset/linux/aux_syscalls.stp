@@ -500,44 +500,37 @@ typedef enum {
 
 function _struct_sockaddr_u_ip_addr:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len,
-				   %{ /* pure */ /* unprivileged */ SA_IP_ADDR %});
+    return _struct_sockaddr_u_impl(uaddr, len, @const("SA_IP_ADDR"));
 }
 
 function _struct_sockaddr_u_tcp_port:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len,
-				   %{ /* pure */ /* unprivileged */ SA_TCP_PORT %});
+    return _struct_sockaddr_u_impl(uaddr, len, @const("SA_TCP_PORT"));
 }
 
 @__private30 function _struct_sockaddr_u_ip_addr_tcp_port:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len,
-				   %{ /* pure */ /* unprivileged */ SA_IP_ADDR | SA_TCP_PORT %});
+    return _struct_sockaddr_u_impl(uaddr, len, @const("SA_IP_ADDR") | @const("SA_TCP_PORT"));
 }
 
 function _struct_sockaddr_u_sa_family:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len,
-				   %{ /* pure */ /* unprivileged */ SA_FAMILY %});
+    return _struct_sockaddr_u_impl(uaddr, len, @const("SA_FAMILY"));
 }
 
 function _struct_sockaddr_u_ipv6_flowinfo:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len,
-				   %{ /* pure */ /* unprivileged */ SA_IPV6_FLOWINFO %});
+    return _struct_sockaddr_u_impl(uaddr, len, @const("SA_IPV6_FLOWINFO"));
 }
 
 function _struct_sockaddr_u_ipv6_scope_id:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len,
-				   %{ /* pure */ /* unprivileged */ SA_IPV6_SCOPE_ID %});
+    return _struct_sockaddr_u_impl(uaddr, len, @const("SA_IPV6_SCOPE_ID"));
 }
 
 function _struct_sockaddr_u:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len,
-				   %{ /* pure */ /* unprivileged */ SA_PRETTY %});
+    return _struct_sockaddr_u_impl(uaddr, len, @const("SA_PRETTY"));
 }
 
 %{
@@ -1403,26 +1396,26 @@ function _access_mode_str:string(mode:long)
 /* `man 2 open` for more information */
 @__private30 function _sys_open_mode_str(f)
 {
-   if ((f & %{ /* pure */ /* unprivileged */ S_IRWXU %})
-       == %{ /* pure */ /* unprivileged */ S_IRWXU %}) bs="S_IRWXU|".bs
+   if ((f & @const("S_IRWXU"))
+       == @const("S_IRWXU")) bs="S_IRWXU|".bs
    else {
-        if (f & %{ /* pure */ /* unprivileged */ S_IRUSR %}) bs="S_IRUSR|" . bs
-        if (f & %{ /* pure */ /* unprivileged */ S_IWUSR %}) bs="S_IWUSR|" . bs
-        if (f & %{ /* pure */ /* unprivileged */ S_IXUSR %}) bs="S_IXUSR|" . bs
+        if (f & @const("S_IRUSR")) bs="S_IRUSR|" . bs
+        if (f & @const("S_IWUSR")) bs="S_IWUSR|" . bs
+        if (f & @const("S_IXUSR")) bs="S_IXUSR|" . bs
    }
-   if ((f & %{ /* pure */ /* unprivileged */ S_IRWXG %})
-       == %{ /* pure */ /* unprivileged */ S_IRWXG %}) bs="S_IRWXG|" . bs
+   if ((f & @const("S_IRWXG"))
+       == @const("S_IRWXG")) bs="S_IRWXG|" . bs
    else {
-        if (f & %{ /* pure */ /* unprivileged */ S_IRGRP %}) bs="S_IRGRP|" . bs
-        if (f & %{ /* pure */ /* unprivileged */ S_IWGRP %}) bs="S_IWGRP|" . bs
-        if (f & %{ /* pure */ /* unprivileged */ S_IXGRP %}) bs="S_IXGRP|" . bs
+        if (f & @const("S_IRGRP")) bs="S_IRGRP|" . bs
+        if (f & @const("S_IWGRP")) bs="S_IWGRP|" . bs
+        if (f & @const("S_IXGRP")) bs="S_IXGRP|" . bs
    }
-   if ((f & %{ /* pure */ /* unprivileged */ S_IRWXO %})
-       == %{ /* pure */ /* unprivileged */ S_IRWXO %}) bs="S_IRWXO|" . bs
+   if ((f & @const("S_IRWXO"))
+       == @const("S_IRWXO")) bs="S_IRWXO|" . bs
    else {
-        if (f & %{ /* pure */ /* unprivileged */ S_IROTH %}) bs="S_IROTH|" . bs
-        if (f & %{ /* pure */ /* unprivileged */ S_IWOTH %}) bs="S_IWOTH|" . bs
-        if (f & %{ /* pure */ /* unprivileged */ S_IXOTH %}) bs="S_IXOTH|" . bs
+        if (f & @const("S_IROTH")) bs="S_IROTH|" . bs
+        if (f & @const("S_IWOTH")) bs="S_IWOTH|" . bs
+        if (f & @const("S_IXOTH")) bs="S_IXOTH|" . bs
    }
    return (strlen(bs) > 0) ? substr(bs, 0, strlen(bs) - 1) : sprintf("%#o", f)
 }
@@ -1430,17 +1423,17 @@ function _access_mode_str:string(mode:long)
 /* `man 2 mknod` for more information */
 function _mknod_mode_str:string(mode:long)
 {
-   type = mode & %{ /* pure */ /* unprivileged */ S_IFMT %}
-   mode &= %{ /* pure */ ~S_IFMT %}
-   if (type == %{ /* pure */ /* unprivileged */ S_IFREG %})
+   type = mode & @const("S_IFMT")
+   mode &= ~@const("S_IFMT")
+   if (type == @const("S_IFREG"))
         return sprintf("S_IFREG|%#o", mode)
-   if (type == %{ /* pure */ /* unprivileged */ S_IFCHR %})
+   if (type == @const("S_IFCHR"))
         return sprintf("S_IFCHR|%#o", mode)
-   if (type == %{ /* pure */ /* unprivileged */ S_IFBLK %})
+   if (type == @const("S_IFBLK"))
         return sprintf("S_IFBLK|%#o", mode)
-   if (type == %{ /* pure */ /* unprivileged */ S_IFIFO %})
+   if (type == @const("S_IFIFO"))
         return sprintf("S_IFIFO|%#o", mode)
-   if (type == %{ /* pure */ /* unprivileged */ S_IFSOCK %})
+   if (type == @const("S_IFSOCK"))
         return sprintf("S_IFSOCK|%#o", mode)
    return sprintf("%#o", type | mode)
 }
@@ -1543,17 +1536,17 @@ function WTERMSIG(f) {
 
 @__private30 function _ptrace_event_name(f)
 {
-  if (f == %{ /* pure */ /* unprivileged */ PTRACE_EVENT_FORK %})
+  if (f == @const("PTRACE_EVENT_FORK"))
     return "PTRACE_EVENT_FORK"
-  if (f == %{ /* pure */ /* unprivileged */ PTRACE_EVENT_VFORK %})
+  if (f == @const("PTRACE_EVENT_VFORK"))
     return "PTRACE_EVENT_VFORK"
-  if (f == %{ /* pure */ /* unprivileged */ PTRACE_EVENT_CLONE %})
+  if (f == @const("PTRACE_EVENT_CLONE"))
     return "PTRACE_EVENT_CLONE"
-  if (f == %{ /* pure */ /* unprivileged */ PTRACE_EVENT_EXEC %})
+  if (f == @const("PTRACE_EVENT_EXEC"))
     return "PTRACE_EVENT_EXEC"
-  if (f == %{ /* pure */ /* unprivileged */ PTRACE_EVENT_VFORK_DONE %})
+  if (f == @const("PTRACE_EVENT_VFORK_DONE"))
     return "PTRACE_EVENT_VFORK_DONE"
-  if (f == %{ /* pure */ /* unprivileged */ PTRACE_EVENT_EXIT %})
+  if (f == @const("PTRACE_EVENT_EXIT"))
     return "PTRACE_EVENT_EXIT"
   return ""
 }
@@ -1574,7 +1567,7 @@ function _wait_status_str(f) {
     }
   if (WIFSTOPPED(f))
     {
-      if (WSTOPSIG(f) == %{ /* pure */ /* unprivileged */ SIGTRAP %})
+      if (WSTOPSIG(f) == @const("SIGTRAP"))
 	{
 	  event = _ptrace_event_name (f >> 16)
 	  if (event != "")
@@ -2780,31 +2773,31 @@ function _sock_flags_str:string(f:long)
 
 function _sock_protocol_str:string(family:long, protocol:long)
 {
-    if (family == %{ /* pure */ /* unprivileged */ PF_INET %}
-	|| family == %{ /* pure */ /* unprivileged */PF_INET6 %}) {
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_IP %}) return "IPPROTO_IP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_ICMP %}) return "IPPROTO_ICMP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_IGMP %}) return "IPPROTO_IGMP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_IPIP %}) return "IPPROTO_IPIP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_TCP %}) return "IPPROTO_TCP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_EGP %}) return "IPPROTO_EGP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_PUP %}) return "IPPROTO_PUP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_UDP %}) return "IPPROTO_UDP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_IDP %}) return "IPPROTO_IDP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_TP %}) return "IPPROTO_TP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_DCCP %}) return "IPPROTO_DCCP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_IPV6 %}) return "IPPROTO_IPV6"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_RSVP %}) return "IPPROTO_RSVP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_GRE %}) return "IPPROTO_GRE"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_ESP %}) return "IPPROTO_ESP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_AH %}) return "IPPROTO_AH"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_MTP %}) return "IPPROTO_MTP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_ENCAP %}) return "IPPROTO_ENCAP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_PIM %}) return "IPPROTO_PIM"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_COMP %}) return "IPPROTO_COMP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_SCTP %}) return "IPPROTO_SCTP"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_UDPLITE %}) return "IPPROTO_UDPLITE"
-	if (protocol == %{ /* pure */ /* unprivileged */ IPPROTO_RAW %}) return "IPPROTO_RAW"
+    if (family == @const("PF_INET")
+	|| family == @const("PF_INET6")) {
+	if (protocol == @const("IPPROTO_IP")) return "IPPROTO_IP"
+	if (protocol == @const("IPPROTO_ICMP")) return "IPPROTO_ICMP"
+	if (protocol == @const("IPPROTO_IGMP")) return "IPPROTO_IGMP"
+	if (protocol == @const("IPPROTO_IPIP")) return "IPPROTO_IPIP"
+	if (protocol == @const("IPPROTO_TCP")) return "IPPROTO_TCP"
+	if (protocol == @const("IPPROTO_EGP")) return "IPPROTO_EGP"
+	if (protocol == @const("IPPROTO_PUP")) return "IPPROTO_PUP"
+	if (protocol == @const("IPPROTO_UDP")) return "IPPROTO_UDP"
+	if (protocol == @const("IPPROTO_IDP")) return "IPPROTO_IDP"
+	if (protocol == @const("IPPROTO_TP")) return "IPPROTO_TP"
+	if (protocol == @const("IPPROTO_DCCP")) return "IPPROTO_DCCP"
+	if (protocol == @const("IPPROTO_IPV6")) return "IPPROTO_IPV6"
+	if (protocol == @const("IPPROTO_RSVP")) return "IPPROTO_RSVP"
+	if (protocol == @const("IPPROTO_GRE")) return "IPPROTO_GRE"
+	if (protocol == @const("IPPROTO_ESP")) return "IPPROTO_ESP"
+	if (protocol == @const("IPPROTO_AH")) return "IPPROTO_AH"
+	if (protocol == @const("IPPROTO_MTP")) return "IPPROTO_MTP"
+	if (protocol == @const("IPPROTO_ENCAP")) return "IPPROTO_ENCAP"
+	if (protocol == @const("IPPROTO_PIM")) return "IPPROTO_PIM"
+	if (protocol == @const("IPPROTO_COMP")) return "IPPROTO_COMP"
+	if (protocol == @const("IPPROTO_SCTP")) return "IPPROTO_SCTP"
+	if (protocol == @const("IPPROTO_UDPLITE")) return "IPPROTO_UDPLITE"
+	if (protocol == @const("IPPROTO_RAW")) return "IPPROTO_RAW"
     }
     return sprintf("%d", protocol)
 }
@@ -2920,7 +2913,7 @@ function __long:long(val:long)
 # For utimensat and futimesat, the directory fd can have a special value
 function _dfd_str:string(d:long)
 {
-	if (d == %{ /* pure */ /* unprivileged */ AT_FDCWD %})
+	if (d == @const("AT_FDCWD"))
 		return "AT_FDCWD"
 	return sprint(d)
 }
@@ -3826,51 +3819,51 @@ function _ptrace_argstr(request, pid, addr, data)
 		return retval
 
 	// Handle generic ptrace requests.
-	if (request == %{ /* pure */ /* unprivileged */ PTRACE_PEEKTEXT %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_PEEKDATA %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_PEEKUSR %})
+	if (request == @const("PTRACE_PEEKTEXT")
+	    || request == @const("PTRACE_PEEKDATA")
+	    || request == @const("PTRACE_PEEKUSR"))
 		/* For PTRACE_PEEK{TEXT,DATA,USR}, 'data' is ignored
 		 * from the user's point of view, but glibc stores the
 		 * result at the 'data' address. */
 		return sprintf("%s, %d, %p, [%p]",
 			       __ptrace_request_str(request), pid, addr, data)
-	if (request == %{ /* pure */ /* unprivileged */ PTRACE_POKETEXT %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_POKEDATA %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_POKEUSR %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_PEEKSIGINFO %})
+	if (request == @const("PTRACE_POKETEXT")
+	    || request == @const("PTRACE_POKEDATA")
+	    || request == @const("PTRACE_POKEUSR")
+	    || request == @const("PTRACE_PEEKSIGINFO"))
 		return sprintf("%s, %d, %p, %p",
 			       __ptrace_request_str(request), pid, addr, data)
-	if (request == %{ /* pure */ /* unprivileged */ PTRACE_CONT %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_SYSCALL %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_SINGLESTEP %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_DETACH %})
+	if (request == @const("PTRACE_CONT")
+	    || request == @const("PTRACE_SYSCALL")
+	    || request == @const("PTRACE_SINGLESTEP")
+	    || request == @const("PTRACE_DETACH"))
 		return sprintf("%s, %d, %#x, %s",
 			       __ptrace_request_str(request), pid, addr,
 			       _signal_name (data))
-	if (request == %{ /* pure */ /* unprivileged */ PTRACE_GETSIGINFO %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_SETSIGINFO %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_GETEVENTMSG %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_GETSIGMASK %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_SETSIGMASK %})
+	if (request == @const("PTRACE_GETSIGINFO")
+	    || request == @const("PTRACE_SETSIGINFO")
+	    || request == @const("PTRACE_GETEVENTMSG")
+	    || request == @const("PTRACE_GETSIGMASK")
+	    || request == @const("PTRACE_SETSIGMASK"))
 		return sprintf("%s, %d, %#x, %p",
 			       __ptrace_request_str(request), pid, addr, data)
-	if (request == %{ /* pure */ /* unprivileged */ PTRACE_GETREGSET %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_SETREGSET %})
+	if (request == @const("PTRACE_GETREGSET")
+	    || request == @const("PTRACE_SETREGSET"))
 		return sprintf("%s, %d, %s, %s",
 			       __ptrace_request_str(request), pid,
 			       _stp_elf_notes_str(addr),
 			       (@__compat_task
 			        ? _stp_struct_compat_iovec_u(data)
 				: _stp_struct_iovec_u(data)))
-	if (request == %{ /* pure */ /* unprivileged */ PTRACE_TRACEME %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_KILL %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_ATTACH %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_SEIZE %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_INTERRUPT %}
-	    || request == %{ /* pure */ /* unprivileged */ PTRACE_LISTEN %})
+	if (request == @const("PTRACE_TRACEME")
+	    || request == @const("PTRACE_KILL")
+	    || request == @const("PTRACE_ATTACH")
+	    || request == @const("PTRACE_SEIZE")
+	    || request == @const("PTRACE_INTERRUPT")
+	    || request == @const("PTRACE_LISTEN"))
 		return sprintf("%s, %d, %#x, %#x",
 			       __ptrace_request_str(request), pid, addr, data)
-	if (request == %{ /* pure */ /* unprivileged */ PTRACE_SETOPTIONS %})
+	if (request == @const("PTRACE_SETOPTIONS"))
 		return sprintf("PTRACE_SETOPTIONS, %d, %#x, %s", pid,
 			       addr, _ptrace_options_str(data))
 
@@ -3881,7 +3874,7 @@ function _ptrace_argstr(request, pid, addr, data)
 /* ptrace.return syscall decoder for PTRACE_GETEVENTMSG. */
 function _ptrace_return_geteventmsg_data(request,data)
 {
-	if (request == %{ /* pure */ /* unprivileged */ PTRACE_GETEVENTMSG %})
+	if (request == @const("PTRACE_GETEVENTMSG"))
 		return user_long(data)
 }
 
@@ -3992,7 +3985,7 @@ function _stp_shmget_flags_str:string(shmflg:long)
 
 function _stp_msgget_key_str:string(key:long)
 {
-	if (key == %{ /* pure */ /* unprivileged */ IPC_PRIVATE %})
+	if (key == @const("IPC_PRIVATE"))
 		return "IPC_PRIVATE"
 	return sprintf("%d", key)
 }

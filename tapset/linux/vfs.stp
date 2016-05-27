@@ -192,7 +192,7 @@ probe generic.fop.aio_read =
         
 	pos = @choose_defined($pos, kernel_pointer($ppos))
 	buf = $iov->iov_base
-	count = __iov_length($iov, $nr_segs, 1, %{ /* pure */ VERIFY_WRITE %})
+	count = __iov_length($iov, $nr_segs, 1, @const("VERIFY_WRITE"))
 	name = "generic_file_aio_read"
 	argstr = sprintf("%d, %d, %p", count, pos, buf)
 
@@ -226,10 +226,10 @@ probe generic.fop.read_iter = kernel.function("generic_file_read_iter") ?
 	ino = __file_ino($iocb->ki_filp)
         
 	pos = $iter->iov_offset
-	if ($iter->type & %{ /* pure */ ITER_IOVEC %}) {
+	if ($iter->type & @const("ITER_IOVEC")) {
 		buf = $iter->iov->iov_base
 		count = __iov_length($iter->iov, $iter->nr_segs, 1,
-				     %{ /* pure */ VERIFY_WRITE %})
+				     @const("VERIFY_WRITE"))
 	}
 	else {
 		buf = 0
@@ -270,7 +270,7 @@ probe generic.fop.aio_write = kernel.function("generic_file_aio_write") ?
         pos = $pos
 
         count = (@defined($iov)
-		? __iov_length($iov, $nr_segs, 1, %{ /* pure */ VERIFY_READ %})
+		? __iov_length($iov, $nr_segs, 1, @const("VERIFY_READ"))
 		: $count)
 	buf = @choose_defined($iov->iov_base, $buf)
 	name = "generic_file_aio_write"
@@ -300,10 +300,10 @@ probe generic.fop.write_iter = kernel.function("generic_file_write_iter") ?
 	ino = __file_ino($iocb->ki_filp)
 
 	pos = $from->iov_offset
-	if ($from->type &  %{ /* pure */ ITER_IOVEC %}) {
+	if ($from->type &  @const("ITER_IOVEC")) {
 		buf = $from->iov->iov_base
 		count = __iov_length($from->iov, $from->nr_segs, 1,
-				     %{ /* pure */ VERIFY_READ %})
+				     @const("VERIFY_READ"))
 	}
 	else {
 		buf = 0

@@ -106,32 +106,32 @@ function __arch_ptrace_request_str:string(request:long)
 
 function _arch_ptrace_argstr(request, pid, addr, data)
 {
-	if (request == %{ /* pure */ PTRACE_OLDSETOPTIONS %})
+	if (request == @const("PTRACE_OLDSETOPTIONS"))
 		return sprintf("PTRACE_OLDSETOPTIONS, %d, %#x, %s", pid,
 			       addr, _ptrace_options_str(data))
-	if (request == %{ /* pure */ PTRACE_PEEKUSR_AREA %}
-	    || request == %{ /* pure */ PTRACE_POKEUSR_AREA %}
-	    || request == %{ /* pure */ PTRACE_PEEKTEXT_AREA %}
-	    || request == %{ /* pure */ PTRACE_PEEKDATA_AREA %}
-	    || request == %{ /* pure */ PTRACE_POKETEXT_AREA %}
-	    || request == %{ /* pure */ PTRACE_POKEDATA_AREA %})
+	if (request == @const("PTRACE_PEEKUSR_AREA")
+	    || request == @const("PTRACE_POKEUSR_AREA")
+	    || request == @const("PTRACE_PEEKTEXT_AREA")
+	    || request == @const("PTRACE_PEEKDATA_AREA")
+	    || request == @const("PTRACE_POKETEXT_AREA")
+	    || request == @const("PTRACE_POKEDATA_AREA"))
 		return sprintf("%s, %d, %s, %#x",
 			       __arch_ptrace_request_str(request), pid,
 			       (@__compat_task
 			        ? _stp_compat_ptrace_area_u(addr)
 			        : _stp_ptrace_area_u(addr)), data)
-	if (request == %{ /* pure */ PTRACE_GET_LAST_BREAK %}
-	    || request == %{ /* pure */ PTRACE_ENABLE_TE %}
-	    || request == %{ /* pure */ PTRACE_DISABLE_TE %}
-	    || request == %{ /* pure */ PTRACE_TE_ABORT_RAND %})
+	if (request == @const("PTRACE_GET_LAST_BREAK")
+	    || request == @const("PTRACE_ENABLE_TE")
+	    || request == @const("PTRACE_DISABLE_TE")
+	    || request == @const("PTRACE_TE_ABORT_RAND"))
 		return sprintf("%s, %d, %#x, %#x",
 			       __arch_ptrace_request_str(request),
 			       pid, addr, data)
 
 	// Although the following ptrace requests are defined in the
 	// ptrace header file, they aren't implemented in the kernel.
-	if (request == %{ /* pure */ PTRACE_PEEK_SYSTEM_CALL %}
-	    || request == %{ /* pure */ PTRACE_POKE_SYSTEM_CALL %})
+	if (request == @const("PTRACE_PEEK_SYSTEM_CALL")
+	    || request == @const("PTRACE_POKE_SYSTEM_CALL"))
 		return sprintf("%s, %d, %#x, %#x",
 			       __arch_ptrace_request_str(request),
 			       pid, addr, data)

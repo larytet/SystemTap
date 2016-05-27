@@ -410,9 +410,9 @@ probe socket.write_iter = kernel.function("sock_write_iter") ?
 {
 	name = "socket.write_iter"
 	_sock = _get_sock_addr($iocb->ki_filp)
-	if ($from->type & %{ /* pure */ ITER_IOVEC %})	
+	if ($from->type & @const("ITER_IOVEC"))	
 		size = __iov_length($from->iov, $from->nr_segs, 1,
-				    %{ /* pure */ VERIFY_READ %})
+				    @const("VERIFY_READ"))
 	else
 		size = 0
 	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
@@ -476,9 +476,9 @@ probe socket.read_iter = kernel.function("sock_read_iter") ?
 {
 	name = "socket.read_iter"
 	_sock = _get_sock_addr($iocb->ki_filp)
-	if ($to->type & %{ /* pure */ ITER_IOVEC %})
+	if ($to->type & @const("ITER_IOVEC"))
 		size = __iov_length($to->iov, $to->nr_segs, 1,
-				    %{ /* pure */ VERIFY_WRITE %})
+				    @const("VERIFY_WRITE"))
  	else
 		size = 0
 	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))

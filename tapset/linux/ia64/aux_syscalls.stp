@@ -24,17 +24,17 @@ function __arch_ptrace_request_str:string(request:long)
 
 function _arch_ptrace_argstr(request, pid, addr, data)
 {
-	if (request == %{ /* pure */ PTRACE_SINGLEBLOCK %})
+	if (request == @const("PTRACE_SINGLEBLOCK"))
 		return sprintf("PTRACE_SINGLEBLOCK, %d, %#x, %s", pid,
 			       addr, _signal_name (data))
-	if (request == %{ /* pure */ PTRACE_GETREGS %}
-	    || request == %{ /* pure */ PTRACE_SETREGS %}
-	    || request == %{ /* pure */ PTRACE_OLD_GETSIGINFO %}
-	    || request == %{ /* pure */ PTRACE_OLD_SETSIGINFO %})
+	if (request == @const("PTRACE_GETREGS")
+	    || request == @const("PTRACE_SETREGS")
+	    || request == @const("PTRACE_OLD_GETSIGINFO")
+	    || request == @const("PTRACE_OLD_SETSIGINFO"))
 		return sprintf("%s, %d, %#x, %p",
 			       __arch_ptrace_request_str(request), pid,
 			       addr, data)
-	if (request == %{ /* pure */ PTRACE_OLDSETOPTIONS %})
+	if (request == @const("PTRACE_OLDSETOPTIONS"))
 		return sprintf("PTRACE_OLDSETOPTIONS, %d, %#x, %s", pid,
 			       addr, _ptrace_options_str(data))
 }

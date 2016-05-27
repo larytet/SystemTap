@@ -149,49 +149,49 @@ function ipmib_get_proto:long (skb:long)
 %}
 
 @__private30 function _ehostunreach:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-	STAP_RETVALUE = EHOSTUNREACH;
-%}
+{
+	return @const("EHOSTUNREACH")
+}
 
 @__private30 function _enetunreach:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-	STAP_RETVALUE = ENETUNREACH;
-%}
+{
+	return @const("ENETUNREACH")
+}
 
 @__private30 function _icmp_dest_unreach:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-	STAP_RETVALUE = ICMP_DEST_UNREACH;
-%}
+{
+	return @const("ICMP_DEST_UNREACH")
+}
 
 @__private30 function _icmp_prot_unreach:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-	STAP_RETVALUE = ICMP_PROT_UNREACH;
-%}
+{
+	return @const("ICMP_PROT_UNREACH")
+}
 
 @__private30 function _net_rx_drop:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-	STAP_RETVALUE = NET_RX_DROP;
-%}
+{
+	return @const("NET_RX_DROP")
+}
 
 @__private30 function _icmp_time_exceeded:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-	STAP_RETVALUE = ICMP_TIME_EXCEEDED;
-%}
+{
+	return @const("ICMP_TIME_EXCEEDED")
+}
 
 @__private30 function _icmp_exc_fragtime:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-	STAP_RETVALUE = ICMP_EXC_FRAGTIME;
-%}
+{
+	return @const("ICMP_EXC_FRAGTIME")
+}
 
 @__private30 function _rtn_multicast:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-	STAP_RETVALUE = RTN_MULTICAST;
-%}
+{
+	return @const("RTN_MULTICAST")
+}
 
 @__private30 function _rtn_broadcast:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-	STAP_RETVALUE = RTN_BROADCAST;
-%}
+{
+	return @const("RTN_BROADCAST")
+}
 
 /**
  * probe ipmib.InReceives - Count an arriving packet
@@ -425,9 +425,9 @@ probe ipmib.FragFails=kernel.function("ip_fragment").return
 }
 
 @__private30 function _rtn_unspec:long ()
-%{ /* pure */ /* stable */ /* unprivileged */
-	STAP_RETVALUE = RTN_UNSPEC;
-%}
+{
+	return @const("RTN_UNSPEC")
+}
 
 function _input_route_type:long (skb:long)
 {

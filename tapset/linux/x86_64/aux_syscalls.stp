@@ -61,39 +61,39 @@ function __arch_ptrace_request_str:string(request:long)
 function _arch_ptrace_argstr:string(request:long, pid:long, addr:long,
 				    data:long)
 {
-	if (request == %{ /* pure */ PTRACE_GETREGS %}
-	    || request == %{ /* pure */ PTRACE_SETREGS %}
-	    || request == %{ /* pure */ PTRACE_GETFPREGS %}
-	    || request == %{ /* pure */ PTRACE_SETFPREGS %}
-	    || request == %{ /* pure */ PTRACE_GETFPXREGS %}
-	    || request == %{ /* pure */ PTRACE_SETFPXREGS %})
+	if (request == @const("PTRACE_GETREGS")
+	    || request == @const("PTRACE_SETREGS")
+	    || request == @const("PTRACE_GETFPREGS")
+	    || request == @const("PTRACE_SETFPREGS")
+	    || request == @const("PTRACE_GETFPXREGS")
+	    || request == @const("PTRACE_SETFPXREGS"))
 		return sprintf("%s, %d, %#x, %p",
 			       __arch_ptrace_request_str(request), pid,
 			       addr, data)
-	if (request == %{ /* pure */ PTRACE_SYSEMU %}
-	    || request == %{ /* pure */ PTRACE_SYSEMU_SINGLESTEP %}
-	    || request == %{ /* pure */ PTRACE_SINGLEBLOCK %})
+	if (request == @const("PTRACE_SYSEMU")
+	    || request == @const("PTRACE_SYSEMU_SINGLESTEP")
+	    || request == @const("PTRACE_SINGLEBLOCK"))
 		return sprintf("%s, %d, %#x, %s",
 			       __arch_ptrace_request_str(request), pid,
 			       addr, _signal_name (data))
-	if (request == %{ /* pure */ PTRACE_OLDSETOPTIONS %})
+	if (request == @const("PTRACE_OLDSETOPTIONS"))
 		return sprintf("PTRACE_OLDSETOPTIONS, %d, %#x, %s", pid,
 			       addr, _ptrace_options_str(data))
-	if (request == %{ /* pure */ PTRACE_GET_THREAD_AREA %}
-	    || request == %{ /* pure */ PTRACE_SET_THREAD_AREA %})
+	if (request == @const("PTRACE_GET_THREAD_AREA")
+	    || request == @const("PTRACE_SET_THREAD_AREA"))
 		return sprintf("%s, %d, %d, %p", 
 			       __arch_ptrace_request_str(request), pid,
 			       __int32(addr), data)
-	if (request == %{ /* pure */ PTRACE_ARCH_PRCTL %})
+	if (request == @const("PTRACE_ARCH_PRCTL"))
 		return sprintf("PTRACE_ARCH_PRCTL, %d, %p, %s", pid,
 			       addr, _arch_ptrace_prctl_str(data))
 }
 
 function _ptrace_return_arch_prctl_addr(request, addr, data)
 {
-	if (request == %{ /* pure */ PTRACE_ARCH_PRCTL %}
-	    && (data == %{ /* pure */ ARCH_GET_FS %}
-	        || data == %{ /* pure */ ARCH_GET_GS %}))
+	if (request == @const("PTRACE_ARCH_PRCTL")
+	    && (data == @const("ARCH_GET_FS")
+	        || data == @const("ARCH_GET_GS")))
 		return user_long(addr)
 }
 

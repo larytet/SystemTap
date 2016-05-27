@@ -25,9 +25,9 @@ function execname:string ()
  * Description: This function returns the ID of a target process.
  */
 function pid:long ()
-%{ /* pure */ /* unprivileged */ /* stable */
-	STAP_RETVALUE = current->tgid;
-%}
+{
+	return @const("current->tgid")
+}
 
 /**
  * sfunction ns_pid - Returns the ID of a target process as seen in a pid namespace
@@ -48,9 +48,9 @@ function ns_pid:long ()
  * Description: This function returns the thread ID of the target process.
  */
 function tid:long ()
-%{ /* pure */ /* unprivileged */ /* stable */
-	STAP_RETVALUE = current->pid;
-%}
+{
+	return @const("current->pid")
+}
 
 /**
  * sfunction ns_tid - Returns the thread ID of a target process as seen in a pid namespace
@@ -378,9 +378,9 @@ function is_return:long ()
  * target() returns the pid for the executed command specified by -c
  */
 function target:long ()
-%{ /* pure */ /* unprivileged */ /* stable */
-        STAP_RETVALUE = _stp_target;
-%}
+{
+	return @const("_stp_target")
+}
 
 /**
  * sfunction module_name - The module name of the current script
@@ -444,7 +444,7 @@ function stp_pid:long ()
  * staprun/stapsh are older than version 1.7.
  */
 function remote_id:long () {
-         return %{ /* pure */ /* unprivileged */ _stp_remote_id %}
+         return @const("_stp_remote_id")
 }
 
 

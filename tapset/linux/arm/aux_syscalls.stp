@@ -36,28 +36,28 @@ function __arch_ptrace_request_str:string(request:long)
 
 function _arch_ptrace_argstr(request, pid, addr, data)
 {
-	if (request == %{ /* pure */ PTRACE_GETREGS %}
-	    || request == %{ /* pure */ PTRACE_SETREGS %}
-	    || request == %{ /* pure */ PTRACE_GETFPREGS %}
-	    || request == %{ /* pure */ PTRACE_SETFPREGS %}
-	    || request == %{ /* pure */ PTRACE_GETWMMXREGS %}
-	    || request == %{ /* pure */ PTRACE_SETWMMXREGS %}
-	    || request == %{ /* pure */ PTRACE_SET_SYSCALL %}
-	    || request == %{ /* pure */ PTRACE_GETCRUNCHREGS %}
-	    || request == %{ /* pure */ PTRACE_SETCRUNCHREGS %}
-	    || request == %{ /* pure */ PTRACE_GETVFPREGS %}
-	    || request == %{ /* pure */ PTRACE_SETVFPREGS %}
+	if (request == @const("PTRACE_GETREGS")
+	    || request == @const("PTRACE_SETREGS")
+	    || request == @const("PTRACE_GETFPREGS")
+	    || request == @const("PTRACE_SETFPREGS")
+	    || request == @const("PTRACE_GETWMMXREGS")
+	    || request == @const("PTRACE_SETWMMXREGS")
+	    || request == @const("PTRACE_SET_SYSCALL")
+	    || request == @const("PTRACE_GETCRUNCHREGS")
+	    || request == @const("PTRACE_SETCRUNCHREGS")
+	    || request == @const("PTRACE_GETVFPREGS")
+	    || request == @const("PTRACE_SETVFPREGS")
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
-	    || request == %{ /* pure */ PTRACE_GETHBPREGS %}
-	    || request == %{ /* pure */ PTRACE_SETHBPREGS %})
+	    || request == @const("PTRACE_GETHBPREGS")
+	    || request == @const("PTRACE_SETHBPREGS"))
 #endif
 		return sprintf("%s, %d, %#x, %p",
 			       __arch_ptrace_request_str(request), pid,
 			       addr, data)
-	if (request == %{ /* pure */ PTRACE_OLDSETOPTIONS %})
+	if (request == @const("PTRACE_OLDSETOPTIONS"))
 		return sprintf("PTRACE_OLDSETOPTIONS, %d, %#x, %s", pid,
 			       addr, _ptrace_options_str(data))
-	if (request == %{ /* pure */ PTRACE_GET_THREAD_AREA %})
+	if (request == @const("PTRACE_GET_THREAD_AREA"))
 		return sprintf("PTRACE_GET_THREAD_AREA, %d, %d, %p", 
 			       pid, __int32(addr), data)
 }

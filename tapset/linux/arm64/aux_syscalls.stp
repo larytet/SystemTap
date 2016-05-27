@@ -27,17 +27,17 @@ function __arch_ptrace_request_str:string(request:long)
 
 function _arch_ptrace_argstr(request, pid, addr, data)
 {
-	if (request == %{ /* pure */ COMPAT_PTRACE_GETREGS %}
-	    || request == %{ /* pure */ COMPAT_PTRACE_SETREGS %}
-	    || request == %{ /* pure */ COMPAT_PTRACE_SET_SYSCALL %}
-	    || request == %{ /* pure */ COMPAT_PTRACE_GETVFPREGS %}
-	    || request == %{ /* pure */ COMPAT_PTRACE_SETVFPREGS %}
-	    || request == %{ /* pure */ COMPAT_PTRACE_GETHBPREGS %}
-	    || request == %{ /* pure */ COMPAT_PTRACE_SETHBPREGS %})
+	if (request == @const("COMPAT_PTRACE_GETREGS")
+	    || request == @const("COMPAT_PTRACE_SETREGS")
+	    || request == @const("COMPAT_PTRACE_SET_SYSCALL")
+	    || request == @const("COMPAT_PTRACE_GETVFPREGS")
+	    || request == @const("COMPAT_PTRACE_SETVFPREGS")
+	    || request == @const("COMPAT_PTRACE_GETHBPREGS")
+	    || request == @const("COMPAT_PTRACE_SETHBPREGS"))
 		return sprintf("%s, %d, %#x, %p",
 			       __arch_ptrace_request_str(request), pid,
 			       addr, data)
-	if (request == %{ /* pure */ COMPAT_PTRACE_GET_THREAD_AREA %})
+	if (request == @const("COMPAT_PTRACE_GET_THREAD_AREA"))
 		return sprintf("%s, %d, %d, %p", 
 			       __arch_ptrace_request_str(request), pid,
 			       __int32(addr), data)
