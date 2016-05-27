@@ -150,7 +150,7 @@ private:
 
   // convenience forms, these also swallow the token
   void expect_op (string const & expected);
-  interned_string expect_op_any (vector<string> expected);
+  interned_string expect_op_any (vector<const char*> expected);
   void expect_kw (string const & expected);
   void expect_number (int64_t & expected);
   void expect_ident_or_keyword (interned_string & target);
@@ -1271,7 +1271,7 @@ parser::expect_op (string const & expected)
 }
 
 interned_string
-parser::expect_op_any (vector<string> expected)
+parser::expect_op_any (vector<const char*> expected)
 {
   const token *t = next();
   interned_string found;
