@@ -371,6 +371,8 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-walk-stack.c", "STAPCONF_WALK_STACK", NULL);
   output_autoconf(s, o, "autoconf-stacktrace_ops-warning.c",
                   "STAPCONF_STACKTRACE_OPS_WARNING", NULL);
+  output_autoconf(s, o, "autoconf-stacktrace_ops-int-address.c",
+                  "STAPCONF_STACKTRACE_OPS_INT_ADDRESS", NULL);
   output_autoconf(s, o, "autoconf-mm-context-vdso.c", "STAPCONF_MM_CONTEXT_VDSO", NULL);
   output_autoconf(s, o, "autoconf-mm-context-vdso-base.c", "STAPCONF_MM_CONTEXT_VDSO_BASE", NULL);
   output_autoconf(s, o, "autoconf-blk-types.c", "STAPCONF_BLK_TYPES", NULL);

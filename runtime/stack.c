@@ -111,7 +111,11 @@ static int print_stack_stack(void *data, char *name)
 	return -1;
 }
 
+#ifdef STAPCONF_STACKTRACE_OPS_INT_ADDRESS
+static int print_stack_address(void *data, unsigned long addr, int reliable)
+#else
 static void print_stack_address(void *data, unsigned long addr, int reliable)
+#endif
 {
 	struct print_stack_data *sdata = data;
 	if (sdata->skip > 0)
@@ -122,6 +126,9 @@ static void print_stack_address(void *data, unsigned long addr, int reliable)
 				NULL);
 		sdata->levels--;
 	}
+#ifdef STAPCONF_STACKTRACE_OPS_INT_ADDRESS
+	return 0;
+#endif
 }
 
 static const struct stacktrace_ops print_stack_ops = {
