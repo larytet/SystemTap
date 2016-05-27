@@ -4094,14 +4094,16 @@ expression* parser::parse_const_op (const token* t)
     throw PARSE_ERROR (_("using @const operator not permitted; need stap -g"),
                        false /* don't skip tokens for parse resumption */);
 
-  const_op* cop = new const_op;
-  cop->tok = t;
+  interned_string cnst;
+  embedded_expr *ee = new embedded_expr;
+  ee->tok = t;
   expect_op("(");
-  expect_unknown(tok_string, cop->constant);
-  if(cop->constant.empty())
+  expect_unknown(tok_string, cnst);
+  if(cnst.empty())
     throw PARSE_ERROR (_("expected non-empty string"));
   expect_op(")");
-  return cop;
+  ee->code = string("/* pure */ /* unprivileged */ /* stable */ ") + string(cnst);
+  return ee;
 }
 
 

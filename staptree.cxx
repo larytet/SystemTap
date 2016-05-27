@@ -512,12 +512,6 @@ void defined_op::print (ostream& o) const
 }
 
 
-void const_op::print (ostream& o) const
-{
-  o << "@const(\"" << constant << "\")";
-}
-
-
 void entry_op::print (ostream& o) const
 {
   o << "@entry(" << *operand << ")";
@@ -1693,13 +1687,6 @@ defined_op::visit (visitor* u)
 
 
 void
-const_op::visit (visitor* u)
-{
-  u->visit_const_op(this);
-}
-
-
-void
 entry_op::visit (visitor* u)
 {
   u->visit_entry_op(this);
@@ -2055,11 +2042,6 @@ traversing_visitor::visit_defined_op (defined_op* e)
 }
 
 void
-traversing_visitor::visit_const_op (const_op*)
-{
-}
-
-void
 traversing_visitor::visit_entry_op (entry_op* e)
 {
   e->operand->visit (this);
@@ -2292,11 +2274,6 @@ expression_visitor::visit_defined_op (defined_op* e)
 {
   traversing_visitor::visit_defined_op (e);
   visit_expression (e);
-}
-
-void
-expression_visitor::visit_const_op (const_op*)
-{
 }
 
 void
@@ -2594,11 +2571,6 @@ varuse_collecting_visitor::visit_defined_op (defined_op *e)
 {
   // XXX
   functioncall_traversing_visitor::visit_defined_op (e);
-}
-
-void
-varuse_collecting_visitor::visit_const_op (const_op *)
-{
 }
 
 void
@@ -3093,12 +3065,6 @@ throwing_visitor::visit_defined_op (defined_op* e)
 }
 
 void
-throwing_visitor::visit_const_op (const_op* e)
-{
-  throwone (e->tok);
-}
-
-void
 throwing_visitor::visit_entry_op (entry_op* e)
 {
   throwone (e->tok);
@@ -3401,12 +3367,6 @@ update_visitor::visit_defined_op (defined_op* e)
 }
 
 void
-update_visitor::visit_const_op (const_op* e)
-{
-  provide (e);
-}
-
-void
 update_visitor::visit_entry_op (entry_op* e)
 {
   replace (e->operand);
@@ -3670,12 +3630,6 @@ void
 deep_copy_visitor::visit_defined_op (defined_op* e)
 {
   update_visitor::visit_defined_op(new defined_op(*e));
-}
-
-void
-deep_copy_visitor::visit_const_op (const_op* e)
-{
-  update_visitor::visit_const_op(new const_op(*e));
 }
 
 void
