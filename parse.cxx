@@ -150,7 +150,7 @@ private:
 
   // convenience forms, these also swallow the token
   void expect_op (string const & expected);
-  interned_string expect_op_any (vector<const char*> expected);
+  interned_string expect_op_any (initializer_list<const char*> expected);
   void expect_kw (string const & expected);
   void expect_number (int64_t & expected);
   void expect_ident_or_keyword (interned_string & target);
@@ -1271,28 +1271,26 @@ parser::expect_op (string const & expected)
 }
 
 interned_string
-parser::expect_op_any (vector<const char*> expected)
+parser::expect_op_any (initializer_list<const char*> expected)
 {
   const token *t = next();
-  interned_string found;
-  string msg;
-  bool err = true;
-  for (auto it = expected.cbegin(); it != expected.cend(); ++it)
-    {
-      if (t && t->type == tok_operator && t->content == *it)
+  if (t && t->type == tok_operator)
+    for (auto it = expected.begin(); it != expected.end(); ++it)
+      if (t->content == *it)
         {
-          err = false;
-          found = t->content;
-          break;
+          interned_string found = t->content;
+          swallow (); // We are done with it, content was copied.
+          return found;
         }
-      if (it != expected.cbegin())
+
+  string msg;
+  for (auto it = expected.begin(); it != expected.end(); ++it)
+    {
+      if (it != expected.begin())
         msg.append(" ");
       msg.append(*it);
     }
-  if (err)
-    throw PARSE_ERROR (_F("expected one of '%s'", msg.c_str()));
-  swallow (); // We are done with it, content was copied.
-  return found;
+  throw PARSE_ERROR (_F("expected one of '%s'", msg.c_str()));
 }
 
 void
