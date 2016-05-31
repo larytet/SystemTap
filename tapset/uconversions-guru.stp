@@ -1,0 +1,29 @@
+function set_user_string (addr:long, val:string) %{
+  store_uderef_string (STAP_ARG_val, STAP_ARG_addr, MAXSTRINGLEN);
+ %}
+
+function set_user_string_n (addr:long, n:long, val:string) %{
+  int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
+  store_uderef_string (STAP_ARG_val, STAP_ARG_addr, len);  
+ %}
+
+function set_user_long (addr:long, val:long) %{
+  uwrite((long *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+ %}
+
+function set_user_int (addr:long, val:long) %{
+  uwrite((int *) (intptr_t) STAP_ARG_addr, STAP_ARG_val); 
+%}
+
+function set_user_short (addr:long, val:long) %{
+  uwrite((short *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+ %}
+
+function set_user_char (addr:long, val:long) %{
+  uwrite((char *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+ %}
+
+function set_user_pointer (addr:long, val:long) %{
+  uwrite((void **) (uintptr_t) STAP_ARG_addr, (uintptr_t)STAP_ARG_val);
+ %}
+

@@ -918,6 +918,7 @@ extern void __store_deref_bad(void);
 /* The following is for kernel strings, see the uconversions.stp
    tapset for user_string functions. */
 
+
 #define kderef_string(dst, addr, maxbytes)				      \
   ({									      \
     uintptr_t _addr;							      \
@@ -944,6 +945,18 @@ extern void __store_deref_bad(void);
       store_kderef(1, _addr, *_s++);					      \
     store_kderef(1, _addr, '\0');					      \
   })
+
+#define store_uderef_string(src, addr, maxbytes)			      \
+  ({									      \
+    uintptr_t _addr;							      \
+    size_t _len;							      \
+    char *_s = (src);							      \
+    for (_len = (maxbytes), _addr = (uintptr_t)(addr);			      \
+	 _len > 1 && _s && *_s != '\0'; --_len, ++_addr)		      \
+      store_uderef(1, _addr, *_s++);					      \
+    store_uderef(1, _addr, '\0');					      \
+  })
+
 
 
 #endif /* _LINUX_LOC2C_RUNTIME_H_ */
