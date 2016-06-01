@@ -12,6 +12,13 @@
 %{
 #include <linux/uaccess.h>		/* For VERIFY_READ/VERIFY_WRITE */
 #include <linux/uio.h>			/* For ITER_IOVEC */
+
+/* Define our own page size macro. */
+#ifdef PAGE_CACHE_SIZE
+#define _STP_PAGE_SIZE PAGE_CACHE_SIZE
+#else
+#define _STP_PAGE_SIZE PAGE_SIZE
+#endif
 %}
 
 /* generic vfs probes */
@@ -1066,7 +1073,7 @@ probe _vfs.block_prepare_write = kernel.function("__block_write_begin") !,
 	page = $page
 	if (@defined($pos)) {
 		_inode = __page_ino($page)
-		from = $pos & (%{ /* pure */ PAGE_CACHE_SIZE  %} - 1)
+		from = $pos & (@const("_STP_PAGE_SIZE") - 1)
 		to = from + $len		
 %(systemtap_v < "2.3" %?
 		# write_from and write_upto are deprecated
@@ -1099,7 +1106,7 @@ probe _vfs.block_prepare_write.return =
 	page = $page
 	if (@defined($pos)) {
 		_inode = __page_ino($page)
-		from = $pos & (%{ /* pure */ PAGE_CACHE_SIZE  %} - 1)
+		from = $pos & (@const("_STP_PAGE_SIZE") - 1)
 		to = from + $len		
 %(systemtap_v < "2.3" %?
 		# write_from and write_upto are deprecated
