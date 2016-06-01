@@ -63,6 +63,18 @@
 	( &@sock[0] ? @sock->flags : -1 )
 %)
 
+// A macro that acts just like the kernel's iov_iter_count() (which is
+// an inlined function in include/linux/uio.h).
+@define iov_iter_count(i) %(
+	( @i->count )
+%)
+
+// A macro that acts just like the kernel's msg_data_left() (which is
+// an inlined function in include/linux/socket.h).
+@define msg_data_left(msg) %(
+	( @iov_iter_count(@msg->msg_iter) )
+%)
+
 #################
 # PROBE ALIASES #
 #################
@@ -140,10 +152,7 @@ probe socket.receive = socket.recvmsg.return,
 probe socket.sendmsg = kernel.function ("sock_sendmsg")
 {
 	name = "socket.sendmsg"
-	if (@defined($size))
-		size = $size
-	else
-		size = $msg->msg_iter->count
+	size = @choose_defined($size, @msg_data_left($msg))
 	protocol = @_sock_prot_num($sock)
 	family = @_sock_fam_num($sock)
 	state = @_sock_state_num($sock)
@@ -200,7 +209,7 @@ probe socket.sendmsg.return = kernel.function("sock_sendmsg").return
 probe socket.recvmsg = kernel.function("sock_recvmsg")
 {
 	name = "socket.recvmsg"
-	size = $size
+	size = @choose_defined($size, @msg_data_left($msg))
 	protocol = @_sock_prot_num($sock)
 	family = @_sock_fam_num($sock)
 	state = @_sock_state_num($sock)
