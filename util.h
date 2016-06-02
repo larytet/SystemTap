@@ -141,6 +141,34 @@ inline std::string lex_cast(IN const & in)
   return ss.str();
 }
 
+#if __cplusplus < 201103L
+// Older C++0x only had the "long long" implementations, so we cast up.
+#define INT_TO_STRING(IN) \
+  LEX_CAST_TO_STRING(signed IN, long long) \
+  LEX_CAST_TO_STRING(unsigned IN, unsigned long long)
+#else
+// Otherwise, keep the values native.
+#define INT_TO_STRING(IN) \
+  LEX_CAST_TO_STRING(signed IN, signed IN) \
+  LEX_CAST_TO_STRING(unsigned IN, unsigned IN)
+#endif
+
+#define LEX_CAST_TO_STRING(IN, CAST) \
+  template <> \
+  inline std::string lex_cast(IN const & in) \
+  { \
+    return std::to_string(static_cast<CAST>(in)); \
+  }
+
+INT_TO_STRING(char)
+INT_TO_STRING(short)
+INT_TO_STRING(int)
+INT_TO_STRING(long)
+INT_TO_STRING(long long)
+
+#undef INT_TO_STRING
+#undef LEX_CAST_TO_STRING
+
 
 template <typename OUT>
 inline OUT lex_cast(std::string const & in)
