@@ -7,6 +7,40 @@
 #ifndef _SYS_SDT_H
 #define _SYS_SDT_H    1
 
+/*
+  This file defines a family of macros
+
+       STAP_PROBEn(op1, ..., opn)
+
+  that emit a nop into the instruction stream, and some data into an auxiliary
+  note section.  The data in the note section describes the operands, in terms
+  of size and location.  Each location is encoded as assembler operand string.
+  Consumer tools such as gdb or systemtap insert breakpoints on top of
+  the nop, and decode the location operand-strings, like an assembler,
+  to find the values being passed.
+
+  The operand strings are selected by the compiler for each operand.
+  They are constrained by gcc inline-assembler codes.  The default is:
+
+  #define STAP_SDT_ARG_CONSTRAINT nor
+
+  This is a good default if the operands tend to be integral and
+  moderate in number (smaller than number of registers).  In other
+  cases, the compiler may report "'asm' requires impossible reload" or
+  similar.  In this case, consider simplifying the macro call (fewer
+  and simpler operands), reduce optimization, or override the default
+  constraints string via:
+
+  #define STAP_SDT_ARG_CONSTRAINT g
+  #include <sys/sdt.h>
+
+  See also:
+  https://sourceware.org/systemtap/wiki/UserSpaceProbeImplementation
+  https://gcc.gnu.org/onlinedocs/gcc/Constraints.html
+ */
+
+
+
 #ifdef __ASSEMBLER__
 # define _SDT_PROBE(provider, name, n, arglist)	\
   _SDT_ASM_BODY(provider, name, _SDT_ASM_STRING_1, (_SDT_DEPAREN_##n arglist)) \
