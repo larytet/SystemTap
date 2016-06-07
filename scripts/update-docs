@@ -2,6 +2,8 @@
 # This script regenerates the prebuilt documentation
 # checked into the source tree.
 
+set -e
+
 echo "Generating documentation"
 SCRIPT=$(readlink -f $0)
 BASE=$(dirname $SCRIPT)/..
@@ -43,6 +45,10 @@ if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then
 else
     mv tapsets.xml.new2 tapsets.xml;
 fi
+
+# Publicanize
+cp tapsets.xml $DOCS/$STR/
+$DOCS/$STR/publicanize.sh
 
 echo "Generating tapsets pdf"
 env pool_size=6000000 hash_extra=6000000 xmlto --with-fop --stringparam refentry.generate.name=0 --stringparam refentry.generate.title=1 pdf -o $DOCS/$STR/ tapsets.xml

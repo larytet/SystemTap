@@ -1,6 +1,7 @@
 #!/bin/bash
-INFILE="../SystemTap_Tapset_Reference/tapsets.xml"
-OUTFILE="en-US/Tapset_Reference_Guide.xml"
+BASE=$(dirname $(readlink -f $0))
+INFILE="$BASE/../SystemTap_Tapset_Reference/tapsets.xml"
+OUTFILE="$BASE/en-US/Tapset_Reference_Guide.xml"
 TMPFILE=`mktemp` || exit 1
 TMPFILE2=`mktemp` || exit 1
 
