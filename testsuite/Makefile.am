@@ -9,6 +9,7 @@ all-local:
 
 clean-local:
 	-rm -f ./stap site.exp systemtap.sum systemtap.log
+	-rm -f systemtap.temp*
 	-rm -rf .systemtap* .cache_test* 2>/dev/null
 	-rm -f ./stap_*.ko
 	-rm -f flightrec*
@@ -20,6 +21,27 @@ DEJAZILLA=@dejazilla@
 TESTAPPS=@enable_testapps@
 TOOL_OPTS=
 
+# The SYSTEMTAP_TESTSUITE_RESUME environmental variable will turn on the
+# "resume mode" of the systemtap testsuite if set to some non-zero value.  In
+# this mode, tests, that have already been run, are not being re-executed, and
+# their existing test results are being reused and merged instead.  This can be
+# useful e.g. when some of the tests causes kernel panic or stall.  Using the
+# "resume mode", it is possible to reboot the testing box, and then re-run the
+# testsuite skipping already executed tests.  In this case, the problematic
+# testcase is left in an "unfinished" state. See "make list-unfinished".  In
+# case the testsuite was running in the parallel testing mode, more than one
+# test will be left unfinished of course.  Unfinished tests need separate
+# investigation.  The "resume mode" can be used with "make installcheck", or
+# "make installcheck-parallel" targets.
+SKIPTESTS=--ignore \'$(shell \
+	test -z $(SYSTEMTAP_TESTSUITE_RESUME) || \
+	  grep -r 'Running.*testsuite.*exp\ ...' * 2>/dev/null |\
+	  grep -o '[^\/]*\.exp' |\
+	  sort -u |\
+	  tr '\n' ' ' |\
+	  sed 's/\ $$/\n/' \
+	)\'
+
 # automake's dejagnu library already runs check-DEJAGNU before check-local
 # That's why we need to add "execrc" to $(RUNTEST) - to ensure that this
 # subtarget gets run even if runtest per se exits with a failure.
@@ -28,16 +50,27 @@ check-local:
 
 # but installcheck does not follow an implicit check-DEJAGNU, go figure
 installcheck: site.exp
+	-rm -rf artifacts
+	-test -z $(SYSTEMTAP_TESTSUITE_RESUME) && $(MAKE) clean
+	-mv systemtap.log systemtap.temp1.log 2>/dev/null
+	-mv systemtap.sum systemtap.temp1.sum 2>/dev/null
 	-rmmod uprobes 2>/dev/null
-	-$(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU RUNTESTFLAGS="$(RUNTESTFLAGS) --tool_opts \'install $(TOOL_OPTS)\'"
+	-$(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU RUNTESTFLAGS="$(RUNTESTFLAGS) $(SKIPTESTS) --tool_opts \'install $(TOOL_OPTS)\'"
+	mv systemtap.log systemtap.temp2.log
+	mv systemtap.sum systemtap.temp2.sum
+	$(SHELL) $(srcdir)/dg-extract-results.sh `find . -name 'systemtap.*sum' -print` > systemtap.sum
+	$(SHELL) $(srcdir)/dg-extract-results.sh -L `find . -name 'systemtap.*log' -print` > systemtap.log
+	rm -f systemtap.temp*
+	tail systemtap.sum
 	if test -n "$(DEJAZILLA)"; then mail $(DEJAZILLA) < systemtap.sum; fi
+
 
 # In the parallel mode, the dg-extract-results.sh generates common .sum and .log
 # files for all the tests, plus separate logs per testcase are kept in the artifacts
 # directory. Serial tests (see below) log to artifacts/__serialtests.
 installcheck-parallel: site.exp
+	-test -z $(SYSTEMTAP_TESTSUITE_RESUME) && $(MAKE) clean
 	-rmmod uprobes 2>/dev/null
-	rm -rf artifacts
 	mkdir -p artifacts/__serialtests
 	MAKEFLAGS= $(RUNTEST2) systemtap.base/environment_sanity.exp
 	-$(MAKE) -k do-installcheck-parallel; \
@@ -93,11 +126,32 @@ do-installcheck-parallel: installcheck-serial-tests $(REGULAR_TEST_TARGETS)
 	@:
 
 installcheck-serial-tests: site.exp
-	test -z $(serial_tests) || MAKEFLAGS= $(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU RUNTESTFLAGS="--outdir=artifacts/__serialtests $(serial_tests) $(RUNTESTFLAGS) --tool_opts \'install $(TOOL_OPTS)\'" STAP_PARALLEL=yes
+	-mv artifacts/__serialtests/systemtap.log artifacts/__serialtests/systemtap.temp1.log 2>/dev/null
+	-mv artifacts/__serialtests/systemtap.sum artifacts/__serialtests/systemtap.temp1.sum 2>/dev/null
+	test -z $(serial_tests) || MAKEFLAGS= $(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU RUNTESTFLAGS="--outdir=artifacts/__serialtests $(serial_tests) $(RUNTESTFLAGS) $(SKIPTESTS) --tool_opts \'install $(TOOL_OPTS)\'" STAP_PARALLEL=yes
+	mv artifacts/__serialtests/systemtap.log artifacts/__serialtests/systemtap.temp2.log
+	mv artifacts/__serialtests/systemtap.sum artifacts/__serialtests/systemtap.temp2.sum
+	$(SHELL) $(srcdir)/dg-extract-results.sh `find ./artifacts/__serialtests -name 'systemtap.*sum' -print` > artifacts/__serialtests/systemtap.sum
+	$(SHELL) $(srcdir)/dg-extract-results.sh -L `find ./artifacts/__serialtests -name 'systemtap.*log' -print` > artifacts/__serialtests/systemtap.log
+	rm -f artifacts/__serialtests/systemtap.temp*
+
 
 installcheck/%.exp: site.exp
-	mkdir -p artifacts/$*
-	-MAKEFLAGS= $(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU RUNTESTFLAGS="--outdir=artifacts/$* $*.exp $(RUNTESTFLAGS) --tool_opts \'install $(TOOL_OPTS)\'" STAP_PARALLEL=yes
+	if test -e artifacts/$* ; then \
+	echo "Using existing test result for $*.exp"; \
+	else \
+	mkdir -p artifacts/$* ; \
+	MAKEFLAGS= $(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU RUNTESTFLAGS="--outdir=artifacts/$* $*.exp $(RUNTESTFLAGS) --tool_opts \'install $(TOOL_OPTS)\'" STAP_PARALLEL=yes; \
+	fi
+
+# In case a test caused kernel panic or stall, followed by the test box reboot
+# and testsuite re-run, it will stay unfinished.  All other testcases that might
+# have been running in parallel with it, are left unfinished too.  After the the
+# last testsuite re-run, after all the testcases have been executed, unfinished
+# testcases should be listed and investigated manually.  The "make clean" target
+# cleans whole the table entirely.
+list-unfinished:
+	@awk '/Running.*testsuite.*exp .../ {tests[$$2]++}  /testcase.*testsuite.*completed in.*seconds/ {tests[$$2]++} END {for (key in tests) if (tests[key] != 2) { print key }}' systemtap.log
 
 # $(srcdir)/These values point the test suite to the install tree, and
 # are overridden by "make check" from full source/build tree

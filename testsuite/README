@@ -58,5 +58,20 @@ for passing additional parameters to DejaGnu. So, e.g.
 runs argv.exp and add.exp in parallel.
 
 
+Resume mode
+***********
 
+The SYSTEMTAP_TESTSUITE_RESUME environmental variable will turn on the "resume
+mode" of the systemtap testsuite if set to some non-zero value.  In this mode,
+tests, that have already been run, are not being re-executed, and their existing
+test results are being reused and merged instead.
+
+This can be useful e.g. when some of the tests causes kernel panic or stall.
+Using the "resume mode", it is possible to reboot the testing box, and then
+re-run the testsuite skipping already executed tests.  In this case, the
+problematic testcase is left in an "unfinished" state. See "make
+list-unfinished".  In case the testsuite was running in the parallel testing
+mode, more than one test may be left unfinished, of course.  Unfinished tests
+need separate investigation.  The "resume mode" can be used with "make
+installcheck", or "make installcheck-parallel" targets.
 
