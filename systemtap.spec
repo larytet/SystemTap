@@ -118,7 +118,7 @@ BuildRequires: boost-devel
 BuildRequires: crash-devel zlib-devel
 %endif
 %if %{with_rpm}
-BuildRequires: rpm-devel glibc-headers
+BuildRequires: rpm-devel
 %endif
 %if %{with_bundled_elfutils}
 Source1: elfutils-%{elfutils_version}.tar.gz
