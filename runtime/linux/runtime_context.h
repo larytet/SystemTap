@@ -11,8 +11,11 @@
 #ifndef _LINUX_RUNTIME_CONTEXT_H_
 #define _LINUX_RUNTIME_CONTEXT_H_
 
-static struct context *contexts[NR_CPUS] = { NULL };
-static struct context *free_contexts[NR_CPUS] = { NULL };
+#ifndef __rcu
+#define __rcu
+#endif
+
+static struct context __rcu *contexts[NR_CPUS] = { NULL };
 
 static int _stp_runtime_contexts_alloc(void)
 {
@@ -38,11 +41,20 @@ static int _stp_runtime_contexts_alloc(void)
  * use RCU-sched synchronization to be sure its safe to free them.  */
 static void _stp_runtime_contexts_free(void)
 {
+	// Note that 'free_contexts' is static because it is
+	// (probably) too big to fit on a kernel function's stack.
+	static struct context *free_contexts[NR_CPUS] = { NULL };
 	int cpu;
 
-	/* First clear all pointers to prevent new readers.  */
+	/* First, save all the pointers.  */
+	rcu_read_lock_sched();
 	for_each_possible_cpu(cpu) {
-		free_contexts[cpu] = contexts[cpu];
+		free_contexts[cpu] = rcu_dereference_sched(contexts[cpu]);
+	}
+	rcu_read_unlock_sched();
+
+	/* Now clear all pointers to prevent new readers.  */
+	for_each_possible_cpu(cpu) {
 		rcu_assign_pointer(contexts[cpu], NULL);
 	}
 
@@ -101,9 +113,11 @@ static void _stp_runtime_context_wait(void)
 		int i;
 
 		holdon = 0;
+		rcu_read_lock_sched();
 		for_each_possible_cpu(i) {
-			if (contexts[i] != NULL
-			    && atomic_read (& contexts[i]->busy)) {
+			struct context *c = rcu_dereference_sched(contexts[i]);
+			if (c != NULL
+			    && atomic_read (& c->busy)) {
 				holdon = 1;
 
 				/* Just in case things are really
@@ -111,10 +125,11 @@ static void _stp_runtime_context_wait(void)
 				if (time_after(jiffies, hold_start + HZ)  // > 1 second
 				    && (i > hold_index)) { // not already printed
 					hold_index = i;
-					printk(KERN_ERR "%s context[%d] stuck: %s\n", THIS_MODULE->name, i, contexts[i]->probe_point);
+					printk(KERN_ERR "%s context[%d] stuck: %s\n", THIS_MODULE->name, i, c->probe_point);
 				}
 			}
 		}
+		rcu_read_unlock_sched();
 
 		/*
 		 * Just in case things are really really stuck, a
