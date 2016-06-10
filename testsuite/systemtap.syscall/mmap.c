@@ -133,8 +133,16 @@ int main()
 	r = mmap(NULL, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 	//staptest// mmap[2]* (0x0, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = XXXX
 
-	mprotect(r, 4096, PROT_READ);
-	//staptest// mprotect (XXXX, 4096, PROT_READ) = 0
+	mprotect(r, 4096, PROT_READ|PROT_EXEC);
+	//staptest// mprotect (XXXX, 4096, PROT_READ|PROT_EXEC) = 0
+
+	mprotect(r, 4096, PROT_GROWSDOWN|PROT_GROWSUP);
+	//staptest// mprotect (XXXX, 4096, PROT_GROWSDOWN|PROT_GROWSUP) = -XXXX (EINVAL)
+
+#ifdef PROT_SAO
+	mprotect(r, 4096, PROT_SAO);
+	//staptest// mprotect (XXXX, 4096, PROT_SAO) = 
+#endif
 
 	munmap(r, 12288);
 	//staptest// munmap (XXXX, 12288) = 0
@@ -192,6 +200,31 @@ int main()
 	//staptest// munmap (XXXX, 18446744073709551615) = NNNN
 #else
 	//staptest// munmap (XXXX, 4294967295) = NNNN
+#endif
+
+#ifdef MAP_STACK
+	r = mmap(NULL, 0, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0);
+	//staptest// mmap[2]* (0x0, 0, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0) = -XXXX
+#endif
+
+#ifdef MAP_HUGETLB
+	r = mmap(NULL, 0, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB, -1, 0);
+	//staptest// mmap[2]* (0x0, 0, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB, -1, 0) = -XXXX
+
+#ifdef MAP_HUGE_SHIFT
+	r = mmap(NULL, 0, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|(21 << MAP_HUGE_SHIFT), -1, 0);
+	//staptest// mmap[2]* (0x0, 0, PROT_READ|PROT_WRITE, MAP_HUGE_2MB|MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB, -1, 0) = -XXXX
+#endif
+#endif
+
+#ifdef MAP_UNINITIALIZED
+	r = mmap(NULL, 0, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_UNINITIALIZED, -1, 0);
+	//staptest// mmap[2]* (0x0, 0, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_UNINITIALIZED, -1, 0) = -XXXX
+#endif
+
+#ifdef MAP_32BIT
+	r = mmap(NULL, 0, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_32BIT, -1, 0);
+	//staptest// mmap[2]* (0x0, 0, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_32BIT, -1, 0) = -XXXX
 #endif
 
 	return 0;

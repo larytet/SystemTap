@@ -2124,6 +2124,9 @@ static const _stp_val_array const _stp_madvice_advice_list[] = {
 	V(MADV_SEQUENTIAL),
 	V(MADV_WILLNEED),
 	V(MADV_DONTNEED),
+#ifdef MADV_FREE
+	V(MADV_FREE),
+#endif
 	V(MADV_REMOVE),
 	V(MADV_DONTFORK),
 	V(MADV_DOFORK),
@@ -3282,6 +3285,11 @@ static const _stp_val_array const _stp_mprotect_list[] = {
 	V(PROT_WRITE),
 	V(PROT_EXEC),
 	V(PROT_SEM),
+	V(PROT_GROWSDOWN),
+	V(PROT_GROWSUP),
+#ifdef PROT_SAO // powerpc only
+	V(PROT_SAO),
+#endif
 	{0, NULL}
 };
 %}
@@ -3305,12 +3313,43 @@ static const _stp_val_array const _stp_mmap_list[] = {
 	V(MAP_NORESERVE),
 	V(MAP_POPULATE),
 	V(MAP_NONBLOCK),
+#ifdef MAP_STACK
+	V(MAP_STACK),
+#endif
+#ifdef MAP_HUGETLB
+	V(MAP_HUGETLB),
+#endif
+#ifdef MAP_UNINITIALIZED
+	V(MAP_UNINITIALIZED),
+#endif
+#ifdef MAP_32BIT // x86 only
+	V(MAP_32BIT),
+#endif
 	{0, NULL}
 };
 %}
 
 function _mmap_flags:string(flags:long) 
 %{ /* pure */ /* unprivileged */
+#ifdef MAP_HUGE_SHIFT
+	// Extract the huge page size for special treatment.
+	u8 huge = (STAP_ARG_flags >> MAP_HUGE_SHIFT) & MAP_HUGE_MASK;
+	STAP_ARG_flags &= ~((long)MAP_HUGE_MASK << MAP_HUGE_SHIFT);
+
+	if (huge) {
+		// MAP_HUGE_2MB and MAP_HUGE_1GB are predefined on x86, but
+		// the log2 value can be used to represent any power of two.
+		const char* suffix = "";
+		if (huge >= 60) { huge -= 60; suffix = "EB"; }
+		else if (huge >= 50) { huge -= 50; suffix = "PB"; }
+		else if (huge >= 40) { huge -= 40; suffix = "TB"; }
+		else if (huge >= 30) { huge -= 30; suffix = "GB"; }
+		else if (huge >= 20) { huge -= 20; suffix = "MB"; }
+		else if (huge >= 10) { huge -= 10; suffix = "KB"; }
+		_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "MAP_HUGE_%ld%s|", 1L << huge, suffix);
+	}
+#endif
+
 	_stp_lookup_or_str(_stp_mmap_list, STAP_ARG_flags, STAP_RETVALUE, MAXSTRINGLEN);
 %}
 

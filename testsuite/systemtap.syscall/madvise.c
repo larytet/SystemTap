@@ -57,6 +57,12 @@ int main(int argc, char *argv[])
     madvise(file, size, MADV_DONTNEED);
     //staptest// madvise (XXXX, 40960, MADV_DONTNEED) = 0
 
+#ifdef MADV_FREE
+    /* Ignore return value */
+    madvise(file, size, MADV_FREE);
+    //staptest// madvise (XXXX, 40960, MADV_FREE)
+#endif
+
     /* Ignore return value */
     madvise(file, size, MADV_REMOVE);
     //staptest// madvise (XXXX, 40960, MADV_REMOVE)

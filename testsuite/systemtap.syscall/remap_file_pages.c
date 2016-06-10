@@ -44,7 +44,7 @@ int main()
 #endif
 
     remap_file_pages(data, pgsz, -1, 0, MAP_SHARED);
-    //staptest// remap_file_pages (XXXX, XXXX, PROT_READ|PROT_WRITE|PROT_EXEC|PROT_SEM|XXXX, XXXX, MAP_SHARED) = -NNNN
+    //staptest// remap_file_pages (XXXX, XXXX, PROT_[^ ]+|XXXX, XXXX, MAP_SHARED) = -NNNN
 
     remap_file_pages(data, pgsz, PROT_NONE, (ssize_t)-1, MAP_SHARED);
 #if __WORDSIZE == 64
@@ -54,7 +54,7 @@ int main()
 #endif
 
     remap_file_pages(data, pgsz, PROT_NONE, 0, -1);
-    //staptest// remap_file_pages (XXXX, XXXX, PROT_NONE, XXXX, MAP_SHARED|MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS|MAP_GROWSDOWN|MAP_DENYWRITE|MAP_EXECUTABLE|MAP_LOCKED|MAP_NORESERVE|MAP_POPULATE|MAP_NONBLOCK|XXXX) = NNNN
+    //staptest// remap_file_pages (XXXX, XXXX, PROT_NONE, XXXX, MAP_[^ ]+|XXXX) = NNNN
 
 
     return 0;
