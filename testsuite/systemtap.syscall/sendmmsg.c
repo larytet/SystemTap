@@ -16,6 +16,16 @@
 #include <sys/syscall.h>
 #include <linux/net.h>
 
+/* glibc sometimes gets too smart and substitutes sendmsg for
+ * sendmmsg. So, we'll have to define our own sendmmsg(). */
+#if defined(SYS_sendmmsg)
+static inline int
+sys_sendmmsg(int fd, struct mmsghdr *vmessages, unsigned int vlen, int flags)
+{
+    return syscall(SYS_sendmmsg, fd, vmessages, vlen, flags);
+}
+#endif
+
 static int sfd;			/* shared between start_server and do_child */
 
 void do_child()
@@ -90,8 +100,7 @@ start_server(struct sockaddr_in *sin0)
 
 int main()
 {
-// glibc support for sendmmsg() was added in glibc 2.14.
-#if __GLIBC_PREREQ(2, 14)
+#if defined(SYS_sendmmsg)
     int s, fd_null;
     struct sockaddr_in sin1, from;
     pid_t pid = 0;
@@ -122,19 +131,19 @@ int main()
 
     fd_null = open("/dev/null", O_WRONLY);
 
-    sendmmsg(-1, msgs, 2, 0);
+    sys_sendmmsg(-1, msgs, 2, 0);
     //staptest// sendmmsg (-1, XXXX, 2, 0x0) = -NNNN (EBADF)
 
-    sendmmsg(fd_null, msgs, 2, MSG_DONTWAIT);
+    sys_sendmmsg(fd_null, msgs, 2, MSG_DONTWAIT);
     //staptest// sendmmsg (NNNN, XXXX, 2, MSG_DONTWAIT) = -NNNN (ENOTSOCK)
 
     s = socket(PF_INET, SOCK_DGRAM, 0);
     //staptest// socket (PF_INET, SOCK_DGRAM, IPPROTO_IP) = NNNN
 
-    sendmmsg(s, msgs, 2, 0);
+    sys_sendmmsg(s, msgs, 2, 0);
     //staptest// sendmmsg (NNNN, XXXX, 2, 0x0) = -NNNN (EDESTADDRREQ)
 
-    sendmmsg(s, (struct mmsghdr *)-1, 2, 0);
+    sys_sendmmsg(s, (struct mmsghdr *)-1, 2, 0);
     //staptest// sendmmsg (NNNN, 0x[f]+, 2, 0x0) = -NNNN (EFAULT)
 
     close(s);
@@ -151,7 +160,7 @@ int main()
     // for instance), MAXSTRINGLEN is only 256. Passing a -1 as the
     // flags value can produce a string that will cause argstr to get
     // too big. So, we'll make the end of the argument optional.
-    sendmmsg(s, msgs, 2, -1);
+    sys_sendmmsg(s, msgs, 2, -1);
     //staptest// sendmmsg (NNNN, XXXX, 2, MSG_[^ ]+[[[[|XXXX]]]]?) = -NNNN
 
     close(s);
@@ -165,7 +174,7 @@ int main()
 
     // We don't want to wait for -1 vectors, since we'd be waiting for
     // a long time...
-    sendmmsg(s, msgs, -1, MSG_DONTWAIT);
+    sys_sendmmsg(s, msgs, -1, MSG_DONTWAIT);
     //staptest// sendmmsg (NNNN, XXXX, 4294967295, MSG_DONTWAIT)
 
     close(s);
@@ -177,7 +186,7 @@ int main()
     connect(s, (struct sockaddr *)&sin1, sizeof(sin1));
     //staptest// connect (NNNN, {AF_INET, 0.0.0.0, NNNN}, 16) = 0
 
-    sendmmsg(s, msgs, 2, MSG_DONTWAIT);
+    sys_sendmmsg(s, msgs, 2, MSG_DONTWAIT);
     //staptest// sendmmsg (NNNN, XXXX, 2, MSG_DONTWAIT) = NNNN
 
     close(s);

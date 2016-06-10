@@ -206,11 +206,15 @@ int main()
     select(s + 1, &rdfds, 0, 0, &timeout);
     //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
+    // Starting with glibc-2.23.90-19.fc25, this causes a SEGFAULT, so
+    // we'll skip it.
+#if !__GLIBC_PREREQ(2, 23)
     recvmmsg(s, (struct mmsghdr *)-1, 2, 0, NULL);
 #ifdef __s390__
     //staptest// recvmmsg (NNNN, 0x[7]?[f]+, 2, 0x0, NULL) = -NNNN (EFAULT)
 #else
     //staptest// recvmmsg (NNNN, 0x[f]+, 2, 0x0, NULL) = -NNNN (EFAULT)
+#endif
 #endif
 
     close(s);

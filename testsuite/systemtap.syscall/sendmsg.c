@@ -129,8 +129,12 @@ int main()
     sendmsg(s, &msgdat, MSG_OOB);
     //staptest// sendmsg (NNNN, XXXX, MSG_OOB) = -NNNN (EOPNOTSUPP)
 
+    // Starting with glibc-2.23.90-19.fc25, this causes a SEGFAULT, so
+    // we'll skip it.
+#if !__GLIBC_PREREQ(2, 23)
     sendmsg(s, (struct msghdr *)-1, 0);
     //staptest// sendmsg (NNNN, 0x[f]+, 0x0) = -NNNN (EFAULT)
+#endif
 
     close(s);
     //staptest// close (NNNN) = 0
