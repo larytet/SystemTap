@@ -1,0 +1,12 @@
+#! stap -p2
+
+probe begin {
+    println("task_struct: ", @cast_sizeof("task_struct"))
+    println("task_struct: ", @module_sizeof("kernel", "task_struct"))
+    println("task_struct: ", @module_sizeof("kernel<linux/sched.h>", "task_struct"))
+    println("FILE: ", @module_sizeof("<stdio.h>", "FILE"))
+}
+
+probe process("stap").function("main") {
+    println("systemtap_session: ", @cast_sizeof("systemtap_session"))
+}

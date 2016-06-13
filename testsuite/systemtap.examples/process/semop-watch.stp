@@ -3,7 +3,7 @@ global times;
 
 probe syscall.{semop,semtimedop}
 {
-  sembuf_sz = & @cast(0, "struct sembuf")[1];
+  sembuf_sz = @cast_sizeof("struct sembuf");
   res = sprintf("set %d sems", semid)
 
   %( systemtap_v < "2.3" %? 
