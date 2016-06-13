@@ -10,6 +10,6 @@ probe oneshot {
   println("type ", @1, 
           %( $# > 1 %? " in ", @2, %)   /* module or header file name */
           " byte-size: ",
-          %( $# > 1 %? @module_sizeof(@2, @1) %: @cast_sizeof(@1) %)
+          %( $# > 1 %? @cast_module_sizeof(@2, @1) %: @cast_sizeof(@1) %)
           )
 }

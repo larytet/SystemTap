@@ -4,6 +4,6 @@
     ( & @cast(0, @type) [1] )
 %)
 
-@define module_sizeof(module, type) %(
+@define cast_module_sizeof(module, type) %(
     ( & @cast(0, @type, @module) [1] )
 %)
