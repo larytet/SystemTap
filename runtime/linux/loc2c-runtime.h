@@ -319,7 +319,7 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 
 #define kread(ptr) ({ \
         typeof(*(ptr)) _v = 0; \
-        if (lookup_bad_addr((unsigned long)(ptr), sizeof (*(ptr))) ||	\
+        if (lookup_bad_addr(VERIFY_READ, (unsigned long)(ptr), sizeof (*(ptr))) || \
             probe_kernel_read((void *)&_v, (void *)(ptr), sizeof(*(ptr)))) \
           DEREF_FAULT(ptr); \
         _v; \
@@ -329,7 +329,7 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 #define kwrite(ptr, value) ({ \
         typeof(*(ptr)) _v; \
         _v = (typeof(*(ptr)))(value); \
-        if (lookup_bad_addr((unsigned long)addr, sizeof (*(ptr))) ||	\
+        if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, sizeof (*(ptr))) || \
             probe_kernel_write((void *)(ptr), (void *)&_v, sizeof(*(ptr)))) \
           STORE_DEREF_FAULT(ptr); \
     })
@@ -374,7 +374,7 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr((unsigned long)addr, size))			      \
+    if (lookup_bad_addr(VERIFY_READ, (unsigned long)addr, size))	      \
       _bad = 1;                                                               \
     else                                                                      \
       switch (size)                                                           \
@@ -397,7 +397,7 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr((unsigned long)addr, size))			      \
+    if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, size))	      \
       _bad = 1;                                                               \
     else                                                                      \
       switch (size)                                                           \
@@ -423,7 +423,7 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr((unsigned long)addr, size))			      \
+    if (lookup_bad_addr(VERIFY_READ, (unsigned long)addr, size))	      \
       _bad = 1;                                                               \
     else                                                                      \
       switch (size)                                                           \
@@ -447,7 +447,7 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr((unsigned long)addr, size))			      \
+    if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, size))	      \
       _bad = 1;                                                               \
     else                                                                      \
       switch (size)                                                           \
@@ -473,7 +473,7 @@ extern void __store_deref_bad(void);
      mm_segment_t _oldfs = get_fs();                                    \
      set_fs(seg);                                                       \
      pagefault_disable();                                               \
-     if (lookup_bad_addr((unsigned long)addr, size))			\
+     if (lookup_bad_addr(VERIFY_READ, (unsigned long)addr, size))	\
        _bad = 1;                                                        \
      else {								\
        switch (size) {                                                  \
@@ -497,7 +497,7 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                     \
     set_fs(seg);                                                        \
     pagefault_disable();                                                \
-    if (lookup_bad_addr((unsigned long)addr, size))			\
+    if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, size))	\
       _bad = 1;                                                         \
     else                                                                \
       switch (size){							\
@@ -534,7 +534,7 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr((unsigned long)addr, size))			      \
+    if (lookup_bad_addr(VERIFY_READ, (unsigned long)addr, size))	      \
       _bad = 1;                                                               \
     else                                                                      \
       switch (size)                                                           \
@@ -558,7 +558,7 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr((unsigned long)addr, size))			      \
+    if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, size))	      \
       _bad = 1;                                                               \
     else                                                                      \
       switch (size)                                                           \
@@ -584,7 +584,7 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr((unsigned long)addr, size))			      \
+    if (lookup_bad_addr(VERIFY_READ, (unsigned long)addr, size))	      \
       _bad = 1;                                                               \
     else                                                                      \
       switch (size)                                                           \
@@ -608,7 +608,7 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr((unsigned long)addr, size))			      \
+    if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, size))	      \
       _bad = 1;                                                               \
     else                                                                      \
       switch (size)                                                           \
@@ -742,7 +742,7 @@ extern void __store_deref_bad(void);
      mm_segment_t _oldfs = get_fs();                                    \
      set_fs(seg);                                                       \
      pagefault_disable();                                               \
-     if (lookup_bad_addr(__gu_addr, size))				\
+     if (lookup_bad_addr(VERIFY_READ, __gu_addr, size))			\
       _bad = 1;                                                         \
      else                                                               \
       switch (size){							\
@@ -765,7 +765,7 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();					\
     set_fs(seg);							\
     pagefault_disable();						\
-    if (lookup_bad_addr(__pu_addr, size))				\
+    if (lookup_bad_addr(VERIFY_WRITE, __pu_addr, size))			\
       _bad = 1;                                                         \
     else                                                                \
       switch (size){							\
@@ -793,7 +793,7 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr((unsigned long)addr, size))			\
+    if (lookup_bad_addr(VERIFY_READ, (unsigned long)addr, size))	      \
       _bad = 1;                                                         \
     else switch (size) { \
       case 1: _bad = __get_user(_b, (u8 *)(_a)); _v = _b; break; \
@@ -814,7 +814,7 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr((unsigned long)addr, size))			\
+    if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, size))	\
       _bad = 1;                                                         \
     else switch (size) {		                                \
       case 1: _bad = __put_user(((u8)(value)), ((u8 *)(addr))); break; \

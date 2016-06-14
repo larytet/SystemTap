@@ -16,6 +16,47 @@
  * certain addresses.
  */
 
+// PR12970 (populate runtime/bad-addr database) hasn't been
+// fixed. Until we're ready to populate the bad address database,
+// let's provide a "junior" version of lookup_bad_addr(), since that
+// will allow us to skip grabbing the lock and searching the empty
+// list.
+//
+// See <https://sourceware.org/bugzilla/show_bug.cgi?id=12970> for
+// more details.
+
+#include <linux/uaccess.h>
+
+#ifndef PR12970
+
+#if ! STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPDEV) && \
+    ! STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPSYS)
+#include <asm/processor.h> /* For TASK_SIZE */
+#endif
+
+static int
+lookup_bad_addr(const int type, unsigned long addr, size_t size)
+{
+  /* Is this a valid memory access?  */
+  if (size == 0 || ULONG_MAX - addr < size - 1 || !access_ok(type, addr, size))
+    return 1;
+
+#if ! STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPDEV) && \
+    ! STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPSYS)
+  /* Unprivileged users must not access memory while the context
+     does not refer to their own process.  */
+  if (! is_myproc ())
+    return 1;
+  /* Unprivileged users must not access kernel space memory.  */
+  if (addr + size > TASK_SIZE)
+    return 1;
+#endif
+
+  return 0;
+}
+
+#else /* PR12970 */
+
 struct addr_map_entry
 {
   unsigned long min;
@@ -106,14 +147,13 @@ lookup_addr_aux(unsigned long addr, size_t size, struct addr_map* map)
 #endif
 
 static int
-lookup_bad_addr(unsigned long addr, size_t size)
+lookup_bad_addr(const int type, unsigned long addr, size_t size)
 {
   struct addr_map_entry* result = 0;
   unsigned long flags;
 
-
   /* Is this a valid memory access?  */
-  if (size == 0 || ULONG_MAX - addr < size - 1)
+  if (size == 0 || ULONG_MAX - addr < size - 1 || !access_ok(type, addr, size))
     return 1;
 
 #if ! STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPDEV) && \
@@ -221,5 +261,7 @@ static void
 delete_bad_addr_entry(struct addr_map_entry* entry)
 {
 }
+
+#endif /* PR12970 */
 
 #endif /* _STAPLINUX_ADDR_MAP_C_ */
