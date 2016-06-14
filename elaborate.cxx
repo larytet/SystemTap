@@ -68,6 +68,7 @@ derived_probe::derived_probe (probe *p, probe_point *l, bool rewrite_loc):
   assert (p);
   this->tok = p->tok;
   this->privileged = p->privileged;
+  this->synthetic = p->synthetic;
   this->body = deep_copy_visitor::deep_copy(p->body);
 
   assert (l);
@@ -2021,8 +2022,83 @@ void add_global_var_display (systemtap_session& s)
     }
 }
 
+static void gen_monitor_data(systemtap_session& s)
+{
+  vardecl* v;
+  embeddedcode* ec;
+
+  v = new vardecl;
+  v->unmangled_name = v->name = "__global___monitor_module_start";
+  v->set_arity(0, 0);
+  v->type = pe_long;
+  v->synthetic = true;
+  s.globals.push_back(v);
+
+  ec = new embeddedcode;
+  ec->code = "#define STAP_MONITOR_READ 8192\n"
+             "static char _monitor_buf[STAP_MONITOR_READ];";
+  s.embeds.push_back(ec);
+
+  functiondecl* fd = new functiondecl;
+  fd->synthetic = true;
+  fd->unmangled_name = fd->name = "__private___monitor_data_function_probes";
+  fd->type = pe_string;
+  v = new vardecl;
+  v->type = pe_long;
+  v->unmangled_name = v->name = "index";
+  fd->formal_args.push_back(v);
+  ec = new embeddedcode;
+  string code;
+  code = "/* unprivileged */ /* pure */"
+         "const struct stap_probe *const p = &stap_probes[STAP_ARG_index];\n"
+         "if (likely (probe_timing(STAP_ARG_index))) {\n"
+         "struct stat_data *stats = _stp_stat_get (probe_timing(STAP_ARG_index), 0);\n"
+         "if (stats->count) {\n"
+         "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);\n"
+         "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
+         "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %lld, "
+         "\\\"min\\\": %lld, \\\"avg\\\": %lld, \\\"max\\\": %lld, \",\n"
+         "p->index, p->cond_enabled ? \"on\" : \"off\", (long long) stats->count,\n"
+         "(long long) stats->min, (long long) avg, (long long) stats->max);\n"
+         "} else {\n"
+         "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
+         "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %d, "
+         "\\\"min\\\": %d, \\\"avg\\\": %d, \\\"max\\\": %d, \",\n"
+         "p->index, p->cond_enabled ? \"on\" : \"off\", 0, 0, 0, 0);}}\n"
+         "STAP_RETURN(_monitor_buf);\n";
+  ec->code = code;
+  fd->body = ec;
+  s.functions[fd->name] = fd;
+
+  stringstream probe_code;
+  probe_code << "probe begin {" << endl;
+  probe_code << "__monitor_module_start = jiffies()" << endl;
+  probe_code << "}" << endl;
+
+  probe* p = parse_synthetic_probe(s, probe_code, 0);
+  if (!p)
+    throw SEMANTIC_ERROR (_("can't create begin probe"), 0);
+
+  vector<derived_probe*> dps;
+  derive_probes (s, p, dps);
+
+  derived_probe* dp = dps[0];
+  s.probes.push_back (dp);
+  dp->join_group (s);
+
+  // Repopulate symbol info
+  symresolution_info sym (s);
+  sym.current_function = 0;
+  sym.current_probe = dp;
+  dp->body->visit (&sym);
+}
+
 static void monitor_mode_read(systemtap_session& s)
 {
+  if (!s.monitor) return;
+
+  gen_monitor_data(s);
+
   stringstream code;
 
   unsigned long rough_max_json_size = 100 +
@@ -2065,6 +2141,8 @@ static void monitor_mode_read(systemtap_session& s)
   code << "$value .= sprintf(\"\\\"probe_list\\\": [\\n\")" << endl;
   for (auto it = s.probes.cbegin(); it != s.probes.cend(); ++it)
     {
+      if ((*it)->synthetic) continue;
+
       if (it != s.probes.cbegin())
         code << "$value .= sprintf(\",\\n\")" << endl;
 
@@ -2100,11 +2178,16 @@ static void monitor_mode_read(systemtap_session& s)
   sym.current_function = 0;
   sym.current_probe = dp;
   dp->body->visit (&sym);
+
+  // Resolve types for variables used in the new procfs probe
+  semantic_pass_types(s);
 }
 
 static void monitor_mode_write(systemtap_session& s)
 {
-  for (auto it = s.probes.cbegin(); it != s.probes.cend()-1; ++it) // Skip monitor read probe
+  if (!s.monitor) return;
+
+  for (auto it = s.probes.cbegin(); it != s.probes.cend(); ++it)
     {
       vardecl* v = new vardecl;
       v->unmangled_name = v->name = "__monitor_" + lex_cast(it-s.probes.begin()) + "_enabled";
@@ -2170,13 +2253,13 @@ static void monitor_mode_write(systemtap_session& s)
     }
 
   code << "} else if ($value == \"resume\") {" << endl;
-  for (auto it = s.probes.cbegin(); it != s.probes.cend()-1; ++it)
+  for (auto it = s.probes.cbegin(); it != s.probes.cend(); ++it)
     {
       code << "  __monitor_" << it-s.probes.begin() << "_enabled" << " = 1" << endl;
     }
 
   code << "} else if ($value == \"pause\") {" << endl;
-  for (auto it = s.probes.cbegin(); it != s.probes.cend()-1; ++it)
+  for (auto it = s.probes.cbegin(); it != s.probes.cend(); ++it)
     {
       code << "  __monitor_" << it-s.probes.begin() << "_enabled" << " = 0" << endl;
     }
@@ -2184,7 +2267,7 @@ static void monitor_mode_write(systemtap_session& s)
   code << "  exit()" << endl;
   code << "}";
 
-  for (auto it = s.probes.cbegin(); it != s.probes.cend()-1; ++it)
+  for (auto it = s.probes.cbegin(); it != s.probes.cend(); ++it)
     {
       code << "  if ($value == \"" << it-s.probes.begin() << "\")"
            << "  __monitor_" << it-s.probes.begin() << "_enabled" << " ^= 1" << endl;
@@ -2208,89 +2291,6 @@ static void monitor_mode_write(systemtap_session& s)
   sym.current_function = 0;
   sym.current_probe = dp;
   dp->body->visit (&sym);
-}
-
-static void create_monitor_function(systemtap_session& s)
-{
-  functiondecl* fd = new functiondecl;
-  fd->synthetic = true;
-  fd->unmangled_name = fd->name = "__private___monitor_data_function_probes";
-  fd->type = pe_string;
-
-  vardecl* v = new vardecl;
-  v->type = pe_long;
-  v->unmangled_name = v->name = "index";
-  fd->formal_args.push_back(v);
-
-  embeddedcode* ec = new embeddedcode;
-  string code;
-  code = "/* unprivileged */ /* pure */"
-         "const struct stap_probe *const p = &stap_probes[STAP_ARG_index];\n"
-         "if (likely (probe_timing(STAP_ARG_index))) {\n"
-         "struct stat_data *stats = _stp_stat_get (probe_timing(STAP_ARG_index), 0);\n"
-         "if (stats->count) {\n"
-         "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);\n"
-         "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
-         "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %lld, "
-         "\\\"min\\\": %lld, \\\"avg\\\": %lld, \\\"max\\\": %lld, \",\n"
-         "p->index, p->cond_enabled ? \"on\" : \"off\", (long long) stats->count,\n"
-         "(long long) stats->min, (long long) avg, (long long) stats->max);\n"
-         "} else {\n"
-         "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
-         "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %d, "
-         "\\\"min\\\": %d, \\\"avg\\\": %d, \\\"max\\\": %d, \",\n"
-         "p->index, p->cond_enabled ? \"on\" : \"off\", 0, 0, 0, 0);}}\n"
-         "STAP_RETURN(_monitor_buf);\n";
-  ec->code = code;
-  fd->body = ec;
-
-  s.functions[fd->name] = fd;
-}
-
-static void monitor_mode_init(systemtap_session& s)
-{
-  if (!s.monitor) return;
-
-  vardecl* v = new vardecl;
-  v->unmangled_name = v->name = "__global___monitor_module_start";
-  v->set_arity(0, 0);
-  v->type = pe_long;
-  v->synthetic = true;
-  s.globals.push_back(v);
-
-  embeddedcode* ec = new embeddedcode;
-  ec->code = "#define STAP_MONITOR_READ 8192\n"
-             "static char _monitor_buf[STAP_MONITOR_READ];";
-  s.embeds.push_back(ec);
-
-  create_monitor_function(s);
-  monitor_mode_read(s);
-  monitor_mode_write(s);
-
-  stringstream code;
-  code << "probe begin {" << endl;
-  code << "__monitor_module_start = jiffies()" << endl;
-  code << "}" << endl;
-
-  probe* p = parse_synthetic_probe(s, code, 0);
-  if (!p)
-    throw SEMANTIC_ERROR (_("can't create begin probe"), 0);
-
-  vector<derived_probe*> dps;
-  derive_probes (s, p, dps);
-
-  derived_probe* dp = dps[0];
-  s.probes.push_back (dp);
-  dp->join_group (s);
-
-  // Repopulate symbol info
-  symresolution_info sym (s);
-  sym.current_function = 0;
-  sym.current_probe = dp;
-  dp->body->visit (&sym);
-
-  // Resolve types for variables in the new procfs probes
-  semantic_pass_types(s);
 }
 
 static void setup_timeout(systemtap_session& s)
@@ -2333,12 +2333,13 @@ semantic_pass (systemtap_session& s)
 
       if (rc == 0) setup_timeout(s);
       if (rc == 0) rc = semantic_pass_symbols (s);
+      if (rc == 0) monitor_mode_write (s);
       if (rc == 0) rc = semantic_pass_conditions (s);
       if (rc == 0) rc = semantic_pass_optimize1 (s);
       if (rc == 0) rc = semantic_pass_types (s);
       if (rc == 0) rc = gen_dfa_table(s);
       if (rc == 0) add_global_var_display (s);
-      if (rc == 0) monitor_mode_init (s);
+      if (rc == 0) monitor_mode_read(s);
       if (rc == 0) rc = semantic_pass_optimize2 (s);
       if (rc == 0) rc = semantic_pass_vars (s);
       if (rc == 0) rc = semantic_pass_stats (s);

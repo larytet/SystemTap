@@ -831,6 +831,7 @@ struct probe
   std::vector<vardecl*> locals;
   std::vector<vardecl*> unused_locals;
   bool privileged;
+  bool synthetic;
   unsigned id;
 
   probe ();

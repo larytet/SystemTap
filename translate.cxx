@@ -1964,7 +1964,7 @@ c_unparser::emit_module_init ()
                       it != session->probes[i]->probes_with_affected_conditions.end()
                             && !start_timer; ++it)
                   {
-                    if ((*it)->group->otf_supported(*session))
+                    if ((*it)->group && (*it)->group->otf_supported(*session))
                       start_timer = true;
                   }
               }

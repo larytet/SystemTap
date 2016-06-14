@@ -123,7 +123,7 @@ unsigned probe::last_probeidx = 0;
 
 probe::probe ():
   body (0), base (0), tok (0), systemtap_v_conditional (0), privileged (false),
-  id (last_probeidx ++)
+  synthetic (false), id (last_probeidx ++)
 {
 }
 
@@ -134,7 +134,7 @@ probe::probe ():
 probe::probe(probe* p, probe_point* l):
   locations (1, l), body (deep_copy_visitor::deep_copy (p->body)),
   base (p), tok (p->tok), systemtap_v_conditional (p->systemtap_v_conditional),
-  privileged (p->privileged), id (last_probeidx ++)
+  privileged (p->privileged), synthetic (p->synthetic), id (last_probeidx ++)
 {
   assert (p->locals.size() == 0);
   assert (p->unused_locals.size() == 0);

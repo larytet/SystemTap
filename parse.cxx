@@ -2012,6 +2012,7 @@ parser::parse_synthetic_probe (const token* chain)
 
   input.set_current_file(0);
   input.set_current_token_chain(0);
+  p->synthetic = true;
   return p;
 }
 
