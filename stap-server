@@ -500,6 +500,19 @@ prepare_stat_dir () {
   return 0
 }
 
+prepare_certs () {
+    if [ "$USER" != "`id -un`" ]; then
+        if ! runuser -s /bin/bash - $USER -c 'test -f $HOME/.systemtap/ssl/server/stap.cert'; then
+            runuser -s /bin/bash - $USER -c %{_libexecdir}/systemtap/stap-gen-cert >/dev/null
+        fi
+    else
+        if ! test -f $HOME/.systemtap/ssl/server/stap.cert; then
+            ${PKGLIBEXECDIR}stap-gen-cert
+        fi
+    fi
+}
+
+
 prepare_log_dir () {
   local log_path=`dirname "$1"`
   if [ ! -d "$log_path" ]; then
@@ -857,6 +870,13 @@ start_server () {
 	    do_success $"$prog start `echo_server_options`"
 	    return 0 # Success
 	fi
+    fi
+
+    # Create certificates for this server
+    prepare_certs
+    if [ $? -ne 0 ]; then
+	echo $"Failed to make certificates ($USER .systemtap/ssl/server/stap.cert)" >&2
+	exit 1
     fi
 
     # Create the log directory for this server

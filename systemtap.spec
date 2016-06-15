@@ -658,11 +658,6 @@ test -e %{_localstatedir}/log/stap-server/log || {
      chmod 644 %{_localstatedir}/log/stap-server/log
      chown stap-server:stap-server %{_localstatedir}/log/stap-server/log
 }
-# If it does not already exist, as stap-server, generate the certificate
-# used for signing and for ssl.
-if test ! -e ~stap-server/.systemtap/ssl/server/stap.cert; then
-   runuser -s /bin/sh - stap-server -c %{_libexecdir}/systemtap/stap-gen-cert >/dev/null
-fi
 # Prepare the service
 %if %{with_systemd}
      # Note, Fedora policy doesn't allow network services enabled by default
