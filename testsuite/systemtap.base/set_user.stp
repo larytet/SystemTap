@@ -1,96 +1,75 @@
-/*
- * set_user.stp
- *
- * Check that the set_user_* functions work correctly.
- */
+global errors =0
 
 probe begin {  println("systemtap starting probe")  }
-probe end   {  println("systemtap ending probe")    }
-
-global errors = 0
-
-function assert_string(test, expected, value)
-{
-    if (value == expected)
-        return 1
-    printf("systemtap test failure - %s: expected \"%s\", got \"%s\"\n",
-           test, expected, value)
-    errors++
-    return 0
+probe end 
+{ 
+   println("systemtap ending probe")    
+   if (!errors)
+       println("systemtap test success")
 }
 
-function assert_number(test, expected, value)
-{
-    if (value == expected)
-        return 1
-    printf("systemtap test failure - %s: expected %#x, got %#x\n",
-           test, expected, value)
-    errors++
-    return 0
-}
-
-function assert_not_reached(test)
-{
-    printf("systemtap test failure - %s: missing exception\n", test)
-    errors++
-}
-
-probe syscall.write
-{
-    if (pid()!=target()&&!target_set_pid(pid()))
-        next
-    test = "set_user_string"
-    addr = buf_uaddr
-    set_user_string(addr, "foobar")
-    assert_string(test, "foobar", user_string(addr))
-    try {
-        set_user_string(-1, "foobar")
-        assert_not_reached(test)
-    } catch {}
-    test = "set_user_string_n"
-    set_user_string_n(addr, 10, "raboof")
-    if (assert_string(test, "raboof", user_string(addr))) {
-        set_user_string_n(addr, 3, "raboof")
-        assert_string(test, "rab", user_string(addr))
-    }
-    try {
-        set_user_string_n(-1, 10, "foobar")
-        assert_not_reached(test)
-    } catch {}
-
-    test = "set_user_long"
-    long_val = %( CONFIG_64BIT == "y" %? 0x123456789ABCDEF0 %: 0x12345678 %)
-    set_user_long(addr, long_val)
-    assert_number(test, long_val, user_long(addr))
-    try {
-        set_user_long(-1, 42)
-        assert_not_reached(test)
-    } catch {}
-
-    test = "set_user_int"
-    set_user_int(addr, 0x12345678)
-    assert_number(test, 0x12345678, user_int(addr))
-    try {
-        set_user_int(-1, 42)
-        assert_not_reached(test)
-    } catch {}
-
-    test = "set_user_short"
-    set_user_short(addr, 0x1234)
-    assert_number(test, 0x1234, user_short(addr))
-    try {
-        set_user_short(-1, 42)
-        assert_not_reached(test)
-    } catch {}
-
-    test = "set_user_char"
-    set_user_char(addr, 0x12)
-    assert_number(test, 0x12, user_char(addr))
-    try {
-        set_user_char(-1, 42)
-        assert_not_reached(test)
-    } catch {}
-
-    if (!errors)
-        println("systemtap test success")
+probe process("set_user.exe").statement("*@set_user.c:11")
+{     
+  addr = $cbuf	
+  try {
+     set_user_string(addr,"hello")
+     if (user_string(addr) != "hello") 
+         printf("Unsuccessful (string)\n")
+  } 
+  catch {
+     printf("Error (string)")
+     errors++
+  }
+  try {
+     set_user_string_n(addr,4,"test")
+     if (user_string_n(addr,4) != "test")
+         printf("Unsuccessful (string_n)\n")
+  }
+  catch {
+     printf("Error (string_n)")
+     errors++
+  }
+  try {
+     set_user_long(addr,825253290)
+     if (user_long(addr) != 825253290)
+         printf("Unsuccessful (long)\n")
+  }
+  catch {
+      printf("Error (long)\n")
+      errors++
+   }
+   try {
+      set_user_int(addr,333)
+      if (user_int(addr) != 333)
+          printf("Unsuccessful (int)\n")
+   }
+   catch {
+      printf("Error (int)\n")
+      errors++
+   }
+   try {
+      set_user_short(addr,8)
+      if (user_short(addr) != 8)
+          printf("Unsuccessful (short)\n")
+   }   
+   catch {
+      printf("Error (short)\n")
+      errors++
+   }
+   try {
+      set_user_char(addr,15)
+      if (user_char(addr) != 15)
+          printf("Unsuccessful (char)\n")
+   }
+   catch {
+      printf("Error (char)\n")
+      errors++
+   }
+   try {
+      set_user_pointer(addr,0x05)
+   }
+   catch {
+      printf("Error (pointer)\n\n")
+      errors++
+   }
 }

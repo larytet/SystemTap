@@ -1,10 +1,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 int main()
 {
-  char buf[1024];
-  memset(buf, 'a', sizeof(buf));
-  write(1, buf, 1024);
+  char cbuf[64];
+  
+  mlockall(MCL_CURRENT);
+  memset(cbuf,'a',sizeof(cbuf));
   exit(0);
 }
