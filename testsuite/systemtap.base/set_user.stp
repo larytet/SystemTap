@@ -1,4 +1,4 @@
-global errors =0
+global errors = 0
 
 probe begin {  println("systemtap starting probe")  }
 probe end 
@@ -8,7 +8,7 @@ probe end
        println("systemtap test success")
 }
 
-probe process("set_user.exe").statement("*@set_user.c:11")
+probe process("set_user.exe").mark("point") 
 {     
   addr = $cbuf	
   try {
