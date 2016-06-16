@@ -9,6 +9,10 @@
 - New installcheck-parallel testsuite feature allows running the tests in
   parallel in order to save time.  See testsuite/README for details.
 
+- New tapset functions set_user_string(), set_user_string_n(), set_user_long()
+  set_user_int(), set_user_short(), set_user_char() and set_user_pointer() to
+  write a value of specified type directly to a user space address.
+
 * What's new in version 3.0, 2016-03-27
 
 - The new experimental "interactive" mode, specified by "stap -i",

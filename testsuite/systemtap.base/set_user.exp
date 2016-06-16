@@ -1,0 +1,17 @@
+# Check that the set_user_* functions work correctly.
+
+set test "set_user"
+set srcfile "$srcdir/$subdir/$test.c"
+set exefile "[pwd]/$test.exe"
+set test_flags "additional_flags=-g"
+set res [target_compile "$srcfile" "$exefile" executable "$test_flags"]
+
+if { $res != ""} {
+  verbose "target_compile failed: $res" 2
+  fail "$test compile"
+  untested "$test"
+  return
+} else {
+  pass "$test compile"
+}
+stap_run $srcdir/$subdir/$test.stp no_load $all_pass_string -g -c "$exefile > /dev/null"

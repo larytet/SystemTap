@@ -1,0 +1,75 @@
+global errors = 0
+
+probe begin {  println("systemtap starting probe")  }
+probe end 
+{ 
+   println("systemtap ending probe")    
+   if (!errors)
+       println("systemtap test success")
+}
+
+probe process("set_user.exe").mark("point") 
+{     
+  addr = $cbuf	
+  try {
+     set_user_string(addr,"hello")
+     if (user_string(addr) != "hello") 
+         printf("Unsuccessful (string)\n")
+  } 
+  catch {
+     printf("Error (string)")
+     errors++
+  }
+  try {
+     set_user_string_n(addr,4,"test")
+     if (user_string_n(addr,4) != "test")
+         printf("Unsuccessful (string_n)\n")
+  }
+  catch {
+     printf("Error (string_n)")
+     errors++
+  }
+  try {
+     set_user_long(addr,825253290)
+     if (user_long(addr) != 825253290)
+         printf("Unsuccessful (long)\n")
+  }
+  catch {
+      printf("Error (long)\n")
+      errors++
+   }
+   try {
+      set_user_int(addr,333)
+      if (user_int(addr) != 333)
+          printf("Unsuccessful (int)\n")
+   }
+   catch {
+      printf("Error (int)\n")
+      errors++
+   }
+   try {
+      set_user_short(addr,8)
+      if (user_short(addr) != 8)
+          printf("Unsuccessful (short)\n")
+   }   
+   catch {
+      printf("Error (short)\n")
+      errors++
+   }
+   try {
+      set_user_char(addr,15)
+      if (user_char(addr) != 15)
+          printf("Unsuccessful (char)\n")
+   }
+   catch {
+      printf("Error (char)\n")
+      errors++
+   }
+   try {
+      set_user_pointer(addr,0x05)
+   }
+   catch {
+      printf("Error (pointer)\n\n")
+      errors++
+   }
+}
