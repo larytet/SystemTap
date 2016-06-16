@@ -1,0 +1,37 @@
+global counters
+
+probe pthread = process(@1) {}
+
+@define mark(name) %(
+  probe init { counters[@name] = 0 }
+  probe pthread_mark = pthread.mark(@name)
+%)
+
+@mark("cond_broadcast") {}
+@mark("cond_destroy") {}
+@mark("cond_init") {}
+@mark("cond_signal") {}
+@mark("cond_timedwait") ? {}
+@mark("cond_wait") {}
+@mark("mutex_acquired") {}
+@mark("mutex_destroy") {}
+@mark("mutex_entry") {}
+@mark("mutex_init") {}
+@mark("mutex_release") {}
+@mark("mutex_timedlock_acquired") {}
+@mark("mutex_timedlock_entry") {}
+@mark("pthread_create") {}
+@mark("pthread_join") {}
+@mark("pthread_join_ret") {}
+@mark("pthread_start") {}
+@mark("rdlock_entry") {}
+@mark("rwlock_destroy") {}
+@mark("wrlock_entry") {}
+
+probe pthread_mark { ++counters[$$name]; }
+
+probe end {
+  foreach (counter = [name] in counters)
+    printf("%s=%d\n", name, counter)
+}
+
