@@ -1383,6 +1383,7 @@ probe syscall.fanotify_mark = __syscall.fanotify_mark ?,
 }
 probe __syscall.fanotify_mark = kernel.function("sys_fanotify_mark").call ?
 {
+	@__syscall_gate_compat_simple
 	fanotify_fd = __int32($fanotify_fd)
 	flags = __uint32($flags)
 	mask = $mask

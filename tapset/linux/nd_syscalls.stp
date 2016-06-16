@@ -1516,6 +1516,7 @@ probe nd_syscall.fanotify_mark = __nd_syscall.fanotify_mark ?,
 }
 probe __nd_syscall.fanotify_mark = kprobe.function("sys_fanotify_mark") ?
 {
+	@__syscall_gate_compat_simple
 	asmlinkage()
 	fanotify_fd = int_arg(1)
 	flags = uint_arg(2)

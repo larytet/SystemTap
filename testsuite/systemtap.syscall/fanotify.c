@@ -37,8 +37,8 @@ int main()
     /* Note that the fanotify calls require root access or the
      * CAP_SYS_ADMIN capability. */
 
-    fd_notify = fanotify_init(FAN_CLASS_NOTIF, O_RDONLY);
-    //staptest// fanotify_init (FAN_CLASS_NOTIF, O_RDONLY) = NNNN
+    fd_notify = fanotify_init(FAN_CLASS_NOTIF|FAN_NONBLOCK, O_RDONLY);
+    //staptest// fanotify_init (FAN_CLASS_NOTIF|FAN_NONBLOCK, O_RDONLY) = NNNN
 
     fanotify_mark(fd_notify, FAN_MARK_ADD,
 		  FAN_ACCESS|FAN_MODIFY|FAN_CLOSE|FAN_OPEN, AT_FDCWD, fname);
