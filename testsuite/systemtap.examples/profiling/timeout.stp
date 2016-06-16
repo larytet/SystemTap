@@ -24,7 +24,7 @@ probe syscall.epoll_wait.return {
   if ($return == 0 && to[pid()] > 0 ) {
     epoll_timeout[pid()]++
     timeout_count[pid()]++
-    process[p] = execname()
+    process[pid()] = execname()
     delete to[pid()]
   }
 }
