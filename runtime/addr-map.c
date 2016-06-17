@@ -1,6 +1,7 @@
 /* -*- linux-c -*- 
  * Map of addresses to disallow.
- * Copyright (C) 2005-2012 Red Hat Inc.
+ *
+ * Copyright (C) 2012-2016 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -11,6 +12,7 @@
 #ifndef _ADDR_MAP_C_
 #define _ADDR_MAP_C_ 1
 
+#include "addr-map.h"
 
 #if defined(__KERNEL__)
 

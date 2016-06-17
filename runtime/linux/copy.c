@@ -24,80 +24,6 @@
  * @{
  */
 
-#ifdef CONFIG_GENERIC_STRNCPY_FROM_USER
-#define __stp_strncpy_from_user(dst,src,count,res) \
-	do { res = strncpy_from_user(dst, src, count); } while(0)
-#else  /* !CONFIG_GENERIC_STRNCPY_FROM_USER */
-#if defined (__i386__)
-#define __stp_strncpy_from_user(dst,src,count,res)			   \
-do {									   \
-	int __d0, __d1, __d2;						   \
-	__asm__ __volatile__(						   \
-		"	testl %1,%1\n"					   \
-		"	jz 2f\n"					   \
-		"0:	lodsb\n"					   \
-		"	stosb\n"					   \
-		"	testb %%al,%%al\n"				   \
-		"	jz 1f\n"					   \
-		"	decl %1\n"					   \
-		"	jnz 0b\n"					   \
-		"1:	subl %1,%0\n"					   \
-		"2:\n"							   \
-		".section .fixup,\"ax\"\n"				   \
-		"3:	movl %5,%0\n"					   \
-		"	jmp 2b\n"					   \
-		".previous\n"						   \
-		".section __ex_table,\"a\"\n"				   \
-		"	.align 4\n"					   \
-		"	.long 0b,3b\n"					   \
-		".previous"						   \
-		: "=d"(res), "=c"(count), "=&a" (__d0), "=&S" (__d1),	   \
-		  "=&D" (__d2)						   \
-		: "i"(-EFAULT), "0"(count), "1"(count), "3"(src), "4"(dst) \
-		: "memory");						   \
-} while (0)
-#elif defined (__x86_64__)
-#define __stp_strncpy_from_user(dst,src,count,res)			   \
-do {									   \
-	long __d0, __d1, __d2;						   \
-	__asm__ __volatile__(						   \
-		"	testq %1,%1\n"					   \
-		"	jz 2f\n"					   \
-		"0:	lodsb\n"					   \
-		"	stosb\n"					   \
-		"	testb %%al,%%al\n"				   \
-		"	jz 1f\n"					   \
-		"	decq %1\n"					   \
-		"	jnz 0b\n"					   \
-		"1:	subq %1,%0\n"					   \
-		"2:\n"							   \
-		".section .fixup,\"ax\"\n"				   \
-		"3:	movq %5,%0\n"					   \
-		"	jmp 2b\n"					   \
-		".previous\n"						   \
-		".section __ex_table,\"a\"\n"				   \
-		"	.align 8\n"					   \
-		"	.quad 0b,3b\n"					   \
-		".previous"						   \
-		: "=r"(res), "=c"(count), "=&a" (__d0), "=&S" (__d1),	   \
-		  "=&D" (__d2)						   \
-		: "i"(-EFAULT), "0"(count), "1"(count), "3"(src), "4"(dst) \
-		: "memory");						   \
-} while (0)
-#elif defined (__powerpc__) || defined (__arm__)
-#define __stp_strncpy_from_user(dst,src,count,res) \
-	do { res = __strncpy_from_user(dst, src, count); } while(0)
-
-#elif defined (__s390__) || defined (__s390x__)|| defined (__aarch64__)
-#define __stp_strncpy_from_user(dst,src,count,res) \
-	do { res = strncpy_from_user(dst, src, count); } while(0)
-#elif defined (__ia64__)
-#define __stp_strncpy_from_user(dst,src,count,res)		\
-	do { res = __strncpy_from_user(dst, src, count); } while(0)
-#endif
-#endif	/* !CONFIG_GENERIC_STRNCPY_FROM_USER */
-
-
 /** Copy a NULL-terminated string from userspace.
  * On success, returns the length of the string (not including the trailing
  * NULL).
@@ -120,8 +46,8 @@ static long _stp_strncpy_from_user(char *dst, const char __user *src, long count
         mm_segment_t _oldfs = get_fs();
         set_fs(USER_DS);
         pagefault_disable();
-	if (access_ok(VERIFY_READ, src, count)) /* XXX: bad_addr? */
-		__stp_strncpy_from_user(dst, src, count, res);
+	if (!lookup_bad_addr(VERIFY_READ, (const unsigned long)src, count))
+		res = strncpy_from_user(dst, src, count);
         pagefault_enable();
         set_fs(_oldfs);
 	return res;
@@ -147,7 +73,7 @@ static unsigned long _stp_copy_from_user(char *dst, const char __user *src, unsi
                 mm_segment_t _oldfs = get_fs();
                 set_fs(USER_DS);
                 pagefault_disable();
-		if (access_ok(VERIFY_READ, src, count))
+		if (!lookup_bad_addr(VERIFY_READ, (const unsigned long)src, count))
 			count = __copy_from_user_inatomic(dst, src, count);
 		else
 			/* Notice that if we fail, we don't modify

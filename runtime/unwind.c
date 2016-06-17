@@ -1,6 +1,6 @@
 /* -*- linux-c -*-
  * kernel stack unwinding
- * Copyright (C) 2008-2011, 2014 Red Hat Inc.
+ * Copyright (C) 2008-2016 Red Hat Inc.
  *
  * Based on old kernel code that is
  * Copyright (C) 2002-2006 Novell, Inc.
@@ -1107,8 +1107,8 @@ static int compute_expr(const u8 *expr, struct unwind_frame_info *frame,
 				unsigned long addr = POP;
 				switch (value) {
 #define CASE(n)     		case sizeof(u##n):			\
-					if (unlikely(_stp_read_address(value, (u##n *)addr, \
-						                       (user ? USER_DS : KERNEL_DS)))) \
+					if (unlikely(_stp_deref_nofault(value, sizeof(u##n), (u##n *)addr, \
+									(user ? USER_DS : KERNEL_DS)))) \
 						goto copy_failed;	\
 					break
 					CASES;
@@ -1130,7 +1130,7 @@ static int compute_expr(const u8 *expr, struct unwind_frame_info *frame,
 	return 0;
 
 copy_failed:
-	_stp_warn("_stp_read_address failed to access memory for deref\n");
+	_stp_warn("failed to access memory for deref\n");
 	return 1;
 truncated:
 	_stp_warn("invalid (truncated) DWARF expression in CFI\n");
@@ -1427,8 +1427,8 @@ static int unwind_frame(struct unwind_context *context,
 			   for 32-on-64 bit unwinding we need to ensure this is 0xFFFFFFFF */
 			switch (reg_info[i].width) {
 #define CASE(n)     case sizeof(u##n):					\
-				if (unlikely(_stp_read_address(FRAME_REG(i, u##n), (u##n *)addr, \
-							       (user ? USER_DS : KERNEL_DS)))) \
+				if (unlikely(_stp_deref_nofault(FRAME_REG(i, u##n), sizeof(u##n), (u##n *)addr, \
+								(user ? USER_DS : KERNEL_DS)))) \
 					goto copy_failed;		\
 				if (compat_task) FRAME_REG(i, u##n) &= 0xFFFFFFFF; \
 				dbug_unwind(1, "set register %d to %lx\n", i, (long)FRAME_REG(i,u##n)); \

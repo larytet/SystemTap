@@ -1,5 +1,5 @@
 /* target operations in the Linux kernel mode
- * Copyright (C) 2005-2012 Red Hat Inc.
+ * Copyright (C) 2005-2016 Red Hat Inc.
  * Copyright (C) 2005-2007 Intel Corporation.
  * Copyright (C) 2007 Quentin Barnes.
  *
@@ -291,81 +291,87 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 #endif /* STAPCONF_REGSET */
 
 
-/* The deref and store_deref macros are called to safely access addresses
-   in the probe context.  These macros are used only for kernel addresses.
-   The macros must handle bogus addresses here gracefully (as from
-   corrupted data structures, stale pointers, etc), by doing a "goto
-   deref_fault".
+/* The deref and store_deref macros are called to safely access
+   addresses in the probe context.  These macros are used only for
+   kernel addresses.  The macros must handle bogus addresses here
+   gracefully (as from corrupted data structures, stale pointers,
+   etc), by doing a "goto deref_fault".
 
-   On most machines, the asm/uaccess.h macros __get_user_asm and
-   __put_user_asm do exactly the low-level work we need to access memory
-   with fault handling, and are not actually specific to user-address
-   access at all.  Each machine's definition of deref and deref_store here
-   must work right for kernel addresses, and can use whatever existing
-   machine-specific kernel macros are convenient.  */
+   On most machines, the asm/uaccess.h macros __get_user and
+   __put_user macros do exactly the low-level work we need to access
+   memory with fault handling, and are not actually specific to
+   user-address access at all.  */
+
+/*
+ * On most platforms, __get_user_inatomic() and __put_user_inatomic()
+ * are defined, which are the same as __get_user() and __put_user(),
+ * but without a call to might_sleep(). Since we're disabling page
+ * faults when we read, we want to use the 'inatomic' variants when
+ * available.
+ */
+#ifdef __get_user_inatomic
+#define __stp_get_user __get_user_inatomic
+#else
+#define __stp_get_user __get_user
+#endif
+#ifdef __put_user_inatomic
+#define __stp_put_user __put_user_inatomic
+#else
+#define __stp_put_user __put_user
+#endif
 
 
-/* NB: this autoconf is always disabled, pending further performance eval. */
-#if 0 && defined STAPCONF_PROBE_KERNEL
-
-/* Kernel 2.6.26 adds probe_kernel_{read,write}, which lets us write
- * architecture-neutral implementations of kread, kwrite, deref, and
- * store_deref.
+/* 
+ * __stp_deref_nocheck(): reads a simple type from a
+ * location with no address sanity checking.
  *
- * NB: deref and store_deref shouldn't be used with 64-bit values on 32-bit
- * platforms, because they will lose data in the conversion to intptr_t.  We
- * generally want to encourage using kread and kwrite instead.
+ * value: read the simple type into this variable
+ * size: number of bytes to read
+ * addr: address to read from
+ *
+ * Note that the caller *must* check the address for validity and do
+ * any other checks necessary. This macro is designed to be used as
+ * the base for the other macros more suitable for the rest of the
+ * code to use. Note that the caller is also responsible for ensuring
+ * that the kernel doesn't pagefault while reading.
  */
 
-#define kread(ptr) ({ \
-        typeof(*(ptr)) _v = 0; \
-        if (lookup_bad_addr(VERIFY_READ, (unsigned long)(ptr), sizeof (*(ptr))) || \
-            probe_kernel_read((void *)&_v, (void *)(ptr), sizeof(*(ptr)))) \
-          DEREF_FAULT(ptr); \
-        _v; \
-    })
-#define uread kread
-
-#define kwrite(ptr, value) ({ \
-        typeof(*(ptr)) _v; \
-        _v = (typeof(*(ptr)))(value); \
-        if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, sizeof (*(ptr))) || \
-            probe_kernel_write((void *)(ptr), (void *)&_v, sizeof(*(ptr)))) \
-          STORE_DEREF_FAULT(ptr); \
-    })
-#define uwrite kwrite
-
-#define uderef(size, addr) ({ \
-    intptr_t _i = 0; \
-    switch (size) { \
-      case 1: _i = kread((u8 *)(addr)); break; \
-      case 2: _i = kread((u16 *)(addr)); break; \
-      case 4: _i = kread((u32 *)(addr)); break; \
-      case 8: _i = kread((u64 *)(addr)); break; \
-      default: __deref_bad(); \
-    } \
-    _i; \
+#define __stp_deref_nocheck(value, size, addr)				      \
+  ({									      \
+    int _err = -EFAULT;							      \
+    switch (size)							      \
+      {									      \
+      case 1: { u8 _b; _err = __stp_get_user(_b, ((u8 *)(uintptr_t)(addr)));  \
+		(value) = _b; }						      \
+	break;								      \
+      case 2: { u16 _w; _err = __stp_get_user(_w, ((u16 *)(uintptr_t)(addr))); \
+		(value) = _w; }						      \
+	break;								      \
+      case 4: { u32 _l; _err = __stp_get_user(_l, ((u32 *)(uintptr_t)(addr))); \
+		(value) = _l; }						      \
+	break;								      \
+      case 8: { u64 _q; _err = __stp_get_user(_q, ((u64 *)(uintptr_t)(addr))); \
+		(value) = _q; }						      \
+	break;								      \
+      default: __get_user_bad();					      \
+	break;								      \
+      }									      \
+    _err;								      \
   })
-#define kderef uderef
-
-#define store_uderef(size, addr, value) ({ \
-    switch (size) { \
-      case 1: kwrite((u8 *)(addr), (value)); break; \
-      case 2: kwrite((u16 *)(addr), (value)); break; \
-      case 4: kwrite((u32 *)(addr), (value)); break; \
-      case 8: kwrite((u64 *)(addr), (value)); break; \
-      default: __store_deref_bad(); \
-    } \
-  })
-#define store_kderef store_uderef
 
 
-extern void __deref_bad(void);
-extern void __store_deref_bad(void);
-
-#else /* !STAPCONF_PROBE_KERNEL */
-
-#if defined __i386__
+/* 
+ * _stp_deref(): safely read a simple type from memory
+ *
+ * size: number of bytes to read
+ * addr: address to read from
+ * seg: memory segment to use, either kernel (KERN_DS) or user
+ * (USER_DS)
+ * 
+ * The macro returns the value read. If this macro gets an error while
+ * trying to read memory, a DEREF_FAULT will occur. Note that the
+ * kernel will not pagefault when trying to read the memory.
+ */
 
 #define _stp_deref(size, addr, seg)                                           \
   ({									      \
@@ -374,16 +380,10 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_READ, (unsigned long)addr, size))	      \
-      _bad = 1;                                                               \
+    if (lookup_bad_addr(VERIFY_READ, (const unsigned long)(addr), (size)))    \
+      _bad = -EFAULT;                                                         \
     else                                                                      \
-      switch (size)                                                           \
-        {                                                                     \
-        case 1: { u8 _b; __get_user_asm(_b,addr,_bad,"b","b","=q",1); _v = _b; } break; \
-        case 2: { u16 _w; __get_user_asm(_w,addr,_bad,"w","w","=r",1); _v = _w; } break; \
-        case 4: { u32 _l; __get_user_asm(_l,addr,_bad,"l","","=r",1); _v = _l; } break; \
-        default: _v = __get_user_bad();                                       \
-        }                                                                     \
+      _bad = __stp_deref_nocheck(_v, (size), (addr));			      \
     pagefault_enable();                                                       \
     set_fs(_oldfs);                                                           \
     if (_bad)                                                                 \
@@ -391,55 +391,87 @@ extern void __store_deref_bad(void);
     _v;									      \
   })
 
-#define _stp_store_deref(size, addr, value, seg)                              \
-  ({									      \
-    int _bad = 0;							      \
-    mm_segment_t _oldfs = get_fs();                                           \
-    set_fs(seg);                                                              \
-    pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, size))	      \
-      _bad = 1;                                                               \
-    else                                                                      \
-      switch (size)                                                           \
-        {                                                                     \
-        case 1: __put_user_asm(((u8)(value)),addr,_bad,"b","b","iq",1); break;\
-        case 2: __put_user_asm(((u16)(value)),addr,_bad,"w","w","ir",1); break;\
-        case 4: __put_user_asm(((u32)(value)),addr,_bad,"l","k","ir",1); break;\
-        default: __put_user_bad();                                            \
-        }                                                                     \
-    pagefault_enable();                                                       \
-    set_fs(_oldfs);                                                           \
-    if (_bad)                                                                 \
-      STORE_DEREF_FAULT(addr);                                                \
-  })
 
+/* 
+ * _stp_deref_nofault(): safely read a simple type from memory without
+ * a DEREF_FAULT on error
+ *
+ * value: read the simple type into this variable
+ * size: number of bytes to read
+ * addr: address to read from
+ * seg: memory segment to use, either kernel (KERN_DS) or user
+ * (USER_DS)
+ * 
+ * If this macro gets an error while trying to read memory, nonzero is
+ * returned. On success, 0 is return. Note that the kernel will not
+ * pagefault when trying to read the memory.
+ */
 
-#elif defined __x86_64__
-
-#define _stp_deref(size, addr, seg)                                           \
+#define _stp_deref_nofault(value, size, addr, seg)			      \
   ({									      \
     int _bad = 0;							      \
     intptr_t _v = 0;							      \
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_READ, (unsigned long)addr, size))	      \
-      _bad = 1;                                                               \
+    if (lookup_bad_addr(VERIFY_READ, (const unsigned long)(addr), (size)))    \
+      _bad = -EFAULT;							      \
     else                                                                      \
-      switch (size)                                                           \
-        {                                                                     \
-        case 1: { u8 _b; __get_user_asm(_b,(unsigned long)addr,_bad,"b","b","=q",1); _v = _b; } break; \
-        case 2: { u16 _w; __get_user_asm(_w,(unsigned long)addr,_bad,"w","w","=r",1); _v = _w; } break; \
-        case 4: { u32 _l; __get_user_asm(_l,(unsigned long)addr,_bad,"l","","=r",1); _v = _l; } break; \
-        case 8: { u64 _q; __get_user_asm(_q,(unsigned long)addr,_bad,"q","","=r",1); _v = _q; } break; \
-        default: _v = __get_user_bad();                                       \
-        }                                                                     \
+      _bad = __stp_deref_nocheck((value), (size), (addr));		      \
     pagefault_enable();                                                       \
     set_fs(_oldfs);                                                           \
-    if (_bad)								      \
-      DEREF_FAULT(addr);						      \
-    _v;									      \
+    _bad;								      \
   })
+
+
+/* 
+ * __stp_store_deref_nocheck(): writes a simple type to a location
+ * with no address sanity checking.
+ *
+ * size: number of bytes to write
+ * addr: address to write to
+ * value: read the simple type from this variable
+ *
+ * Note that the caller *must* check the address for validity and do
+ * any other checks necessary. This macro is designed to be used as
+ * the base for the other macros more suitable for the rest of the
+ * code to use. Note that the caller is also responsible for ensuring
+ * that the kernel doesn't pagefault while writing.
+ */
+
+#define __stp_store_deref_nocheck(size, addr, value)			      \
+  ({									      \
+    int _err = -EFAULT;							      \
+    switch (size)							      \
+      {									      \
+      case 1: _err = __stp_put_user(((u8)(value)), ((u8 *)(uintptr_t)(addr)));\
+        break;								      \
+      case 2: _err = __stp_put_user(((u16)(value)), ((u16 *)(uintptr_t)(addr)));\
+        break;								      \
+      case 4: _err = __stp_put_user(((u32)(value)), ((u32 *)(uintptr_t)(addr)));\
+        break;								      \
+      case 8: _err = __stp_put_user(((u64)(value)), ((u64 *)(uintptr_t)(addr)));\
+        break;								      \
+      default: __put_user_bad();					      \
+	break;								      \
+      }									      \
+    _err;								      \
+  })
+
+
+/* 
+ * _stp_store_deref(): safely write a simple type to memory
+ *
+ * size: number of bytes to write
+ * addr: address to write to
+ * value: read the simple type from this variable
+ * seg: memory segment to use, either kernel (KERN_DS) or user
+ * (USER_DS)
+ * 
+ * The macro has no return value. If this macro gets an error while
+ * trying to write, a STORE_DEREF_FAULT will occur. Note that the
+ * kernel will not pagefault when trying to write the memory.
+ */
 
 #define _stp_store_deref(size, addr, value, seg)                              \
   ({									      \
@@ -447,389 +479,15 @@ extern void __store_deref_bad(void);
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, size))	      \
-      _bad = 1;                                                               \
+    if (lookup_bad_addr(VERIFY_WRITE, (const unsigned long)(addr), (size)))   \
+      _bad = -EFAULT;                                                         \
     else                                                                      \
-      switch (size)                                                           \
-        {                                                                     \
-        case 1: __put_user_asm(((u8)(value)),addr,_bad,"b","b","iq",1); break; \
-        case 2: __put_user_asm(((u16)(value)),addr,_bad,"w","w","ir",1); break;\
-        case 4: __put_user_asm(((u32)(value)),addr,_bad,"l","k","ir",1); break;\
-        case 8: __put_user_asm(((u64)(value)),addr,_bad,"q","","Zr",1); break; \
-        default: __put_user_bad();                                      \
-        }                                                               \
+      _bad = __stp_store_deref_nocheck((size), (addr), (value));	      \
     pagefault_enable();                                                       \
     set_fs(_oldfs);                                                           \
     if (_bad)								      \
       STORE_DEREF_FAULT(addr);						      \
   })
-
-#elif defined __ia64__
-
-#define _stp_deref(size, addr, seg)					\
-  ({									\
-     int _bad = 0;							\
-     intptr_t _v=0;							\
-     mm_segment_t _oldfs = get_fs();                                    \
-     set_fs(seg);                                                       \
-     pagefault_disable();                                               \
-     if (lookup_bad_addr(VERIFY_READ, (unsigned long)addr, size))	\
-       _bad = 1;                                                        \
-     else {								\
-       switch (size) {                                                  \
-	 case 1: __get_user_size(_v, addr, 1, _bad); break; 		\
-	 case 2: __get_user_size(_v, addr, 2, _bad); break;  		\
-	 case 4: __get_user_size(_v, addr, 4, _bad); break;  		\
-	 case 8: __get_user_size(_v, addr, 8, _bad); break;  		\
-	 default: __get_user_unknown(); break;				\
-	  }								\
-     }									\
-     pagefault_enable();                                                \
-     set_fs(_oldfs);                                                    \
-     if (_bad) 								\
-       DEREF_FAULT(addr);						\
-     _v;								\
-   })
-
-#define _stp_store_deref(size, addr, value, seg)                        \
-  ({									\
-    int _bad=0;								\
-    mm_segment_t _oldfs = get_fs();                                     \
-    set_fs(seg);                                                        \
-    pagefault_disable();                                                \
-    if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, size))	\
-      _bad = 1;                                                         \
-    else                                                                \
-      switch (size){							\
-      case 1: __put_user_size(value, addr, 1, _bad); break;		\
-      case 2: __put_user_size(value, addr, 2, _bad); break;		\
-      case 4: __put_user_size(value, addr, 4, _bad); break;		\
-      case 8: __put_user_size(value, addr, 8, _bad); break;		\
-      default: __put_user_unknown(); break;				\
-      }                                                                 \
-    pagefault_enable();                                                 \
-    set_fs(_oldfs);                                                     \
-    if (_bad)								\
-	   STORE_DEREF_FAULT(addr);					\
-   })
-
-#elif defined __powerpc__ || defined __powerpc64__
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
-#define __stp_get_user_size(x, ptr, size, retval)		\
-		__get_user_size(x, ptr, size, retval)
-#define __stp_put_user_size(x, ptr, size, retval)		\
-		__put_user_size(x, ptr, size, retval)
-#else
-#define __stp_get_user_size(x, ptr, size, retval)		\
-		__get_user_size(x, ptr, size, retval, -EFAULT)
-#define __stp_put_user_size(x, ptr, size, retval)		\
-		__put_user_size(x, ptr, size, retval, -EFAULT)
-#endif
-
-#define _stp_deref(size, addr, seg)                                           \
-  ({									      \
-    int _bad = 0;							      \
-    intptr_t _v = 0;							      \
-    mm_segment_t _oldfs = get_fs();                                           \
-    set_fs(seg);                                                              \
-    pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_READ, (unsigned long)addr, size))	      \
-      _bad = 1;                                                               \
-    else                                                                      \
-      switch (size)                                                           \
-        {                                                                     \
-	case 1: __stp_get_user_size(_v, addr, 1, _bad); break;                \
-	case 2: __stp_get_user_size(_v, addr, 2, _bad); break;                \
-	case 4: __stp_get_user_size(_v, addr, 4, _bad); break;                \
-	case 8: __stp_get_user_size(_v, addr, 8, _bad); break;                \
-        default: _v = __get_user_bad();                                       \
-        }                                                                     \
-    pagefault_enable();                                                       \
-    set_fs(_oldfs);                                                           \
-    if (_bad)								      \
-      DEREF_FAULT(addr);						      \
-    _v;									      \
-  })
-
-#define _stp_store_deref(size, addr, value, seg)                              \
-  ({									      \
-    int _bad = 0;							      \
-    mm_segment_t _oldfs = get_fs();                                           \
-    set_fs(seg);                                                              \
-    pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, size))	      \
-      _bad = 1;                                                               \
-    else                                                                      \
-      switch (size)                                                           \
-        {                                                                     \
-	case 1: __stp_put_user_size(((u8)(value)), addr, 1, _bad); break;     \
-	case 2: __stp_put_user_size(((u16)(value)), addr, 2, _bad); break;    \
-	case 4: __stp_put_user_size(((u32)(value)), addr, 4, _bad); break;    \
-	case 8: __stp_put_user_size(((u64)(value)), addr, 8, _bad); break;    \
-        default: __put_user_bad();                                            \
-        }                                                                     \
-    pagefault_enable();                                                       \
-    set_fs(_oldfs);                                                           \
-    if (_bad)								      \
-      STORE_DEREF_FAULT(addr);						      \
-  })
-
-#elif defined (__aarch64__)
-
-#define _stp_deref(size, addr, seg)                                           \
-  ({									      \
-    int _bad = 0;							      \
-    intptr_t _v = 0;							      \
-    mm_segment_t _oldfs = get_fs();                                           \
-    set_fs(seg);                                                              \
-    pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_READ, (unsigned long)addr, size))	      \
-      _bad = 1;                                                               \
-    else                                                                      \
-      switch (size)                                                           \
-        {                                                                     \
-	case 1: __get_user_asm("ldrb", "%w", _v, (unsigned long)addr, _bad); break;\
-	case 2: __get_user_asm("ldrh", "%w",_v, (unsigned long)addr, _bad); break;\
-	case 4: __get_user_asm("ldr", "%w",_v,  (unsigned long)addr, _bad); break;\
-	case 8: __get_user_asm("ldr", "%",_v,  (unsigned long)addr, _bad); break;\
-        default: BUILD_BUG();			                              \
-        }                                                                     \
-    pagefault_enable();                                                       \
-    set_fs(_oldfs);                                                           \
-    if (_bad)								      \
-      DEREF_FAULT(addr);						      \
-    _v;									      \
-  })
-
-#define _stp_store_deref(size, addr, value, seg)                              \
-  ({									      \
-    int _bad = 0;							      \
-    mm_segment_t _oldfs = get_fs();                                           \
-    set_fs(seg);                                                              \
-    pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, size))	      \
-      _bad = 1;                                                               \
-    else                                                                      \
-      switch (size)                                                           \
-        {                                                                     \
-	case 1: __put_user_asm("strb", "%w", ((u8)(value)), addr, _bad); break;\
-	case 2: __put_user_asm("strh", "%w", ((u16)(value)), addr, _bad); break;\
-	case 4: __put_user_asm("str", "%w", ((u32)(value)), addr, _bad); break;\
-	case 8: __put_user_asm("str", "%", ((u64)(value)), addr, _bad); break;\
-        default: BUILD_BUG();                                                 \
-        }                                                                     \
-    pagefault_enable();                                                       \
-    set_fs(_oldfs);                                                           \
-    if (_bad)								      \
-      STORE_DEREF_FAULT(addr);						      \
-  })
-
-#elif defined (__arm__)
-
-/* Macros for ARM lifted from 2.6.21.1's linux/include/asm-arm/uaccess.h
- * and slightly altered. */
-
-#define __stp_get_user_asm_byte(x,addr,err)			\
-	__asm__ __volatile__(					\
-	"1:	ldrb	%1,[%2],#0\n"				\
-	"2:\n"							\
-	"	.section .fixup,\"ax\"\n"			\
-	"	.align	2\n"					\
-	"3:	mov	%0, %3\n"				\
-	"	mov	%1, #0\n"				\
-	"	b	2b\n"					\
-	"	.previous\n"					\
-	"	.section __ex_table,\"a\"\n"			\
-	"	.align	3\n"					\
-	"	.long	1b, 3b\n"				\
-	"	.previous"					\
-	: "+r" (err), "=&r" (x)					\
-	: "r" (addr), "i" (-EFAULT)				\
-	: "cc")
-
-#ifndef __ARMEB__
-#define __stp_get_user_asm_half(x,__gu_addr,err)		\
-({								\
-	unsigned long __b1, __b2;				\
-	__stp_get_user_asm_byte(__b1, __gu_addr, err);		\
-	__stp_get_user_asm_byte(__b2, __gu_addr + 1, err);	\
-	(x) = __b1 | (__b2 << 8);				\
-})
-#else
-#define __stp_get_user_asm_half(x,__gu_addr,err)		\
-({								\
-	unsigned long __b1, __b2;				\
-	__stp_get_user_asm_byte(__b1, __gu_addr, err);		\
-	__stp_get_user_asm_byte(__b2, __gu_addr + 1, err);	\
-	(x) = (__b1 << 8) | __b2;				\
-})
-#endif
-
-#define __stp_get_user_asm_word(x,addr,err)			\
-	__asm__ __volatile__(					\
-	"1:	ldr	%1,[%2],#0\n"				\
-	"2:\n"							\
-	"	.section .fixup,\"ax\"\n"			\
-	"	.align	2\n"					\
-	"3:	mov	%0, %3\n"				\
-	"	mov	%1, #0\n"				\
-	"	b	2b\n"					\
-	"	.previous\n"					\
-	"	.section __ex_table,\"a\"\n"			\
-	"	.align	3\n"					\
-	"	.long	1b, 3b\n"				\
-	"	.previous"					\
-	: "+r" (err), "=&r" (x)					\
-	: "r" (addr), "i" (-EFAULT)				\
-	: "cc")
-
-#define __stp_put_user_asm_byte(x,__pu_addr,err)		\
-	__asm__ __volatile__(					\
-	"1:	strb	%1,[%2],#0\n"				\
-	"2:\n"							\
-	"	.section .fixup,\"ax\"\n"			\
-	"	.align	2\n"					\
-	"3:	mov	%0, %3\n"				\
-	"	b	2b\n"					\
-	"	.previous\n"					\
-	"	.section __ex_table,\"a\"\n"			\
-	"	.align	3\n"					\
-	"	.long	1b, 3b\n"				\
-	"	.previous"					\
-	: "+r" (err)						\
-	: "r" (x), "r" (__pu_addr), "i" (-EFAULT)		\
-	: "cc")
-
-#ifndef __ARMEB__
-#define __stp_put_user_asm_half(x,__pu_addr,err)			\
-({									\
-	unsigned long __temp = (unsigned long)(x);			\
-	__stp_put_user_asm_byte(__temp, __pu_addr, err);		\
-	__stp_put_user_asm_byte(__temp >> 8, __pu_addr + 1, err);	\
-})
-#else
-#define __stp_put_user_asm_half(x,__pu_addr,err)			\
-({									\
-	unsigned long __temp = (unsigned long)(x);			\
-	__stp_put_user_asm_byte(__temp >> 8, __pu_addr, err);		\
-	__stp_put_user_asm_byte(__temp, __pu_addr + 1, err);		\
-})
-#endif
-
-#define __stp_put_user_asm_word(x,__pu_addr,err)		\
-	__asm__ __volatile__(					\
-	"1:	str	%1,[%2],#0\n"				\
-	"2:\n"							\
-	"	.section .fixup,\"ax\"\n"			\
-	"	.align	2\n"					\
-	"3:	mov	%0, %3\n"				\
-	"	b	2b\n"					\
-	"	.previous\n"					\
-	"	.section __ex_table,\"a\"\n"			\
-	"	.align	3\n"					\
-	"	.long	1b, 3b\n"				\
-	"	.previous"					\
-	: "+r" (err)						\
-	: "r" (x), "r" (__pu_addr), "i" (-EFAULT)		\
-	: "cc")
-
-#define _stp_deref(size, addr, seg)					\
-  ({									\
-     unsigned long __gu_addr = (unsigned long)(addr);			\
-     int _bad = 0;							\
-     intptr_t _v=0;							\
-     mm_segment_t _oldfs = get_fs();                                    \
-     set_fs(seg);                                                       \
-     pagefault_disable();                                               \
-     if (lookup_bad_addr(VERIFY_READ, __gu_addr, size))			\
-      _bad = 1;                                                         \
-     else                                                               \
-      switch (size){							\
-      case 1: __stp_get_user_asm_byte(_v, __gu_addr, _bad); break;	\
-      case 2: __stp_get_user_asm_half(_v, __gu_addr, _bad); break;	\
-      case 4: __stp_get_user_asm_word(_v, __gu_addr, _bad); break;	\
-      default: __get_user_bad(); break;                                 \
-      }                                                                 \
-    pagefault_enable();                                                 \
-    set_fs(_oldfs);                                                     \
-    if (_bad)  								\
-	DEREF_FAULT(addr);						\
-     _v;								\
-   })
-
-#define _stp_store_deref(size, addr, value, seg)                        \
-  ({									\
-    unsigned long __pu_addr = (unsigned long)(addr);			\
-    int _bad=0;								\
-    mm_segment_t _oldfs = get_fs();					\
-    set_fs(seg);							\
-    pagefault_disable();						\
-    if (lookup_bad_addr(VERIFY_WRITE, __pu_addr, size))			\
-      _bad = 1;                                                         \
-    else                                                                \
-      switch (size){							\
-      case 1: __stp_put_user_asm_byte(value, __pu_addr, _bad); break;	\
-      case 2: __stp_put_user_asm_half(value, __pu_addr, _bad); break;	\
-      case 4: __stp_put_user_asm_word(value, __pu_addr, _bad); break;	\
-      default: __put_user_bad(); break;                                 \
-      }                                                                 \
-    pagefault_enable();							\
-    set_fs(_oldfs);							\
-    if (_bad)								\
-	   STORE_DEREF_FAULT(addr);						\
-   })
-
-#elif defined (__s390__) || defined (__s390x__)
-
-/* Use same __get_user() and __put_user() for both user and kernel
-   addresses, but make sure set_fs() is called appropriately first. */
-
-#define _stp_deref(size, addr, seg) ({ \
-    u8 _b; u16 _w; u32 _l; u64 _q; \
-    uintptr_t _a = (uintptr_t) addr; \
-    intptr_t _v = 0; \
-    int _bad = 0; \
-    mm_segment_t _oldfs = get_fs();                                           \
-    set_fs(seg);                                                              \
-    pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_READ, (unsigned long)addr, size))	      \
-      _bad = 1;                                                         \
-    else switch (size) { \
-      case 1: _bad = __get_user(_b, (u8 *)(_a)); _v = _b; break; \
-      case 2: _bad = __get_user(_w, (u16 *)(_a)); _v = _w; break; \
-      case 4: _bad = __get_user(_l, (u32 *)(_a)); _v = _l; break; \
-      case 8: _bad = __get_user(_q, (u64 *)(_a)); _v = _q; break; \
-      default: __get_user_bad(); \
-    } \
-    pagefault_enable();                                                       \
-    set_fs(_oldfs);                                                           \
-    if (_bad) \
-      DEREF_FAULT(addr); \
-    _v; \
-  })
-
-#define _stp_store_deref(size, addr, value, seg) ({ \
-    int _bad = 0; \
-    mm_segment_t _oldfs = get_fs();                                           \
-    set_fs(seg);                                                              \
-    pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_WRITE, (unsigned long)addr, size))	\
-      _bad = 1;                                                         \
-    else switch (size) {		                                \
-      case 1: _bad = __put_user(((u8)(value)), ((u8 *)(addr))); break; \
-      case 2: _bad = __put_user(((u16)(value)), ((u16 *)(addr))); break; \
-      case 4: _bad = __put_user(((u32)(value)), ((u32 *)(addr))); break; \
-      case 8: _bad = __put_user(((u64)(value)), ((u64 *)(addr))); break; \
-      default: __put_user_bad(); \
-    } \
-    pagefault_enable();                                                       \
-    set_fs(_oldfs);                                                           \
-    if (_bad) \
-	STORE_DEREF_FAULT(addr); \
-  })
-
-#endif /* (s390) || (s390x) */
 
 
 /* Map kderef/uderef to the generic segment-aware deref macros. */ 
@@ -850,8 +508,6 @@ extern void __store_deref_bad(void);
 #define store_uderef(s,a,v) _stp_store_deref(s,a,v,USER_DS)
 #endif
 
-
-
 #if defined (__i386__) || defined (__arm__)
 
 /* x86 and arm can't do 8-byte put/get_user_asm, so we have to split it */
@@ -871,7 +527,7 @@ extern void __store_deref_bad(void);
       store_Xderef(4, &((u32 *)(ptr))[0], _kw.l[0]);			     \
       store_Xderef(4, &((u32 *)(ptr))[1], _kw.l[1]);			     \
     } else								     \
-      store_Xderef(sizeof(*(ptr)), (ptr), (long)(typeof(*(ptr)))(value));     \
+      store_Xderef(sizeof(*(ptr)), (ptr), (long)(typeof(*(ptr)))(value));    \
   })
 
 #else
@@ -889,7 +545,6 @@ extern void __store_deref_bad(void);
 #define kwrite(ptr, value) __Xwrite((ptr), (value), store_kderef)
 #define uwrite(ptr, value) __Xwrite((ptr), (value), store_uderef)
 
-#endif /* STAPCONF_PROBE_KERNEL */
 
 /* Dereference a kernel buffer ADDR of size MAXBYTES. Put the bytes in
  * address DST (which can be NULL).
@@ -906,12 +561,26 @@ extern void __store_deref_bad(void);
     size_t _len;							      \
     unsigned char _c;							      \
     char *_d = (dst);							      \
-    for (_len = (maxbytes), _addr = (uintptr_t)(addr);			      \
-	 _len > 1;							      \
-	 --_len, ++_addr)						      \
-      _c = kderef (1, _addr);						      \
-      if (_d)								      \
-	 *_d++ = _c;							      \
+    int _bad = 0;							      \
+    mm_segment_t _oldfs = get_fs();                                           \
+    set_fs(KERNEL_DS);							      \
+    pagefault_disable();                                                      \
+    if (lookup_bad_addr(VERIFY_READ, (const unsigned long)(addr), (maxbytes))) \
+      _bad = 1;                                                               \
+    else                                                                      \
+      for (_len = (maxbytes), _addr = (uintptr_t)(addr);		      \
+	   _len > 1; --_len, ++_addr)					      \
+        {								      \
+	  _bad = __stp_deref_nocheck(_c, 1, _addr);			      \
+	  if (_bad)							      \
+	    break;							      \
+	  else if (_d)							      \
+	    *_d++ = _c;							      \
+	}								      \
+    pagefault_enable();                                                       \
+    set_fs(_oldfs);                                                           \
+    if (_bad)                                                                 \
+      DEREF_FAULT(addr);						      \
     (dst);								      \
   })
 
@@ -925,38 +594,107 @@ extern void __store_deref_bad(void);
     size_t _len;							      \
     unsigned char _c;							      \
     char *_d = (dst);							      \
-    for (_len = (maxbytes), _addr = (uintptr_t)(addr);			      \
-	 _len > 1 && (_c = kderef (1, _addr)) != '\0';			      \
-	 --_len, ++_addr)						      \
-      if (_d)								      \
-	 *_d++ = _c;							      \
-    if (_d)								      \
-      *_d = '\0';							      \
+    int _bad = 0;							      \
+    mm_segment_t _oldfs = get_fs();                                           \
+    set_fs(KERNEL_DS);							      \
+    pagefault_disable();                                                      \
+    if (lookup_bad_addr(VERIFY_READ, (const unsigned long)(addr), (maxbytes))) \
+      _bad = 1;                                                               \
+    else                                                                      \
+      {									      \
+	for (_len = (maxbytes), _addr = (uintptr_t)(addr);		      \
+	     _len > 1; --_len, ++_addr)					      \
+	  {								      \
+	    _bad = __stp_deref_nocheck(_c, 1, _addr);			      \
+	    if (_bad || _c == '\0')					      \
+	      break;							      \
+	    else if (_d)						      \
+	      *_d++ = _c;						      \
+	  }								      \
+	if (!_bad && _d)						      \
+	  *_d = '\0';							      \
+      }									      \
+    pagefault_enable();                                                       \
+    set_fs(_oldfs);                                                           \
+    if (_bad)                                                                 \
+      DEREF_FAULT(addr);						      \
     (dst);								      \
   })
 
-#define store_kderef_string(src, addr, maxbytes)			      \
+
+/* 
+ * _stp_store_deref_string(): safely write a string to memory
+ *
+ * src: source string
+ * addr: address to write to
+ * maxbytes: maximum number of bytes to write
+ * seg: memory segment to use, either kernel (KERN_DS) or user
+ * (USER_DS)
+ * 
+ * The macro has no return value. If this macro gets an error while
+ * trying to write, a STORE_DEREF_FAULT will occur. Note that the
+ * kernel will not pagefault when trying to write the memory.
+ */
+
+#define _stp_store_deref_string(src, addr, maxbytes, seg)		      \
   ({									      \
     uintptr_t _addr;							      \
     size_t _len;							      \
     char *_s = (src);							      \
-    for (_len = (maxbytes), _addr = (uintptr_t)(addr);			      \
-	 _len > 1 && _s && *_s != '\0'; --_len, ++_addr)		      \
-      store_kderef(1, _addr, *_s++);					      \
-    store_kderef(1, _addr, '\0');					      \
+    int _bad = 0;							      \
+    mm_segment_t _oldfs = get_fs();                                           \
+    set_fs(seg);                                                              \
+    pagefault_disable();                                                      \
+    if (lookup_bad_addr(VERIFY_WRITE, (const unsigned long)(addr), (maxbytes))) \
+      _bad = 1;                                                               \
+    else                                                                      \
+      {									      \
+	for (_len = (maxbytes), _addr = (uintptr_t)(addr);		      \
+	     _len > 1 && _s && *_s != '\0'; --_len, ++_addr)		      \
+	  {								      \
+	    _bad = __stp_store_deref_nocheck(1, _addr, *_s++);		      \
+	    if (_bad)					      		      \
+	      break;							      \
+	  }								      \
+	if (!_bad)							      \
+	  __stp_store_deref_nocheck(1, _addr, '\0');			      \
+      }									      \
+    pagefault_enable();                                                       \
+    set_fs(_oldfs);                                                           \
+    if (_bad)								      \
+      STORE_DEREF_FAULT(addr);						      \
   })
+
+
+/* 
+ * store_kderef_string(): safely write a string to kernel memory
+ *
+ * src: source string
+ * addr: address to write to
+ * maxbytes: maximum number of bytes to write
+ * 
+ * The macro has no return value. If this macro gets an error while
+ * trying to write, a STORE_DEREF_FAULT will occur. Note that the
+ * kernel will not pagefault when trying to write the memory.
+ */
+
+#define store_kderef_string(src, addr, maxbytes)			      \
+  _stp_store_deref_string((src), (addr), (maxbytes), KERNEL_DS)
+
+
+/* 
+ * store_uderef_string(): safely write a string to user memory
+ *
+ * src: source string
+ * addr: address to write to
+ * maxbytes: maximum number of bytes to write
+ * 
+ * The macro has no return value. If this macro gets an error while
+ * trying to write, a STORE_DEREF_FAULT will occur. Note that the
+ * kernel will not pagefault when trying to write the memory.
+ */
 
 #define store_uderef_string(src, addr, maxbytes)			      \
-  ({									      \
-    uintptr_t _addr;							      \
-    size_t _len;							      \
-    char *_s = (src);							      \
-    for (_len = (maxbytes), _addr = (uintptr_t)(addr);			      \
-	 _len > 1 && _s && *_s != '\0'; --_len, ++_addr)		      \
-      store_uderef(1, _addr, *_s++);					      \
-    store_uderef(1, _addr, '\0');					      \
-  })
-
-
+  _stp_store_deref_string((src), (addr), (maxbytes), USER_DS)
 
 #endif /* _LINUX_LOC2C_RUNTIME_H_ */

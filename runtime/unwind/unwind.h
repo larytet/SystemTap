@@ -196,9 +196,10 @@ static unsigned long read_ptr_sect(const u8 **pLoc, const void *end,
 	default:
 		return 0;
 	}
-	if ((ptrType & DW_EH_PE_indirect)
-	    && _stp_read_address(value, (unsigned long *)value,
-				 (user ? USER_DS : KERNEL_DS)))
+	if (ptrType & DW_EH_PE_indirect
+	    && _stp_deref_nofault(value, sizeof(value),
+				  (unsigned long *)value, 
+				  (user ? USER_DS : KERNEL_DS)))
 		return 0;
 	*pLoc = ptr.p8;
 

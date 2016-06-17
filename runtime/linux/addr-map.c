@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * Map of addresses to disallow.
- * Copyright (C) 2005-2011 Red Hat Inc.
+ * Copyright (C) 2005-2016 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -35,10 +35,11 @@
 #endif
 
 static int
-lookup_bad_addr(const int type, unsigned long addr, size_t size)
+lookup_bad_addr(const int type, const unsigned long addr, const size_t size)
 {
   /* Is this a valid memory access?  */
-  if (size == 0 || ULONG_MAX - addr < size - 1 || !access_ok(type, addr, size))
+  if (size == 0 || ULONG_MAX - addr < size - 1
+      || !access_ok(type, (void *)addr, size))
     return 1;
 
 #if ! STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPDEV) && \
@@ -147,13 +148,14 @@ lookup_addr_aux(unsigned long addr, size_t size, struct addr_map* map)
 #endif
 
 static int
-lookup_bad_addr(const int type, unsigned long addr, size_t size)
+lookup_bad_addr(const int type, const unsigned long addr, const size_t size)
 {
   struct addr_map_entry* result = 0;
   unsigned long flags;
 
   /* Is this a valid memory access?  */
-  if (size == 0 || ULONG_MAX - addr < size - 1 || !access_ok(type, addr, size))
+  if (size == 0 || ULONG_MAX - addr < size - 1
+      || !access_ok(type, (void *)addr, size))
     return 1;
 
 #if ! STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPDEV) && \

@@ -1,5 +1,5 @@
 /* target operations in the Dyninst mode
- * Copyright (C) 2012 Red Hat Inc.
+ * Copyright (C) 2012, 2016 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -30,6 +30,9 @@
 #define pt_dwarf_register_4(regs)	regs->esp
 #endif
 
+
+#define _stp_deref_nofault(value, size, addr, seg)			\
+    __copy_from_user((void *)&(value), (void *)(addr), (size_t)(size))
 
 #define uread(ptr) ({ \
 	typeof(*(ptr)) _v = 0; \
