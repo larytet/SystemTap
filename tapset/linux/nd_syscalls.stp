@@ -1540,9 +1540,9 @@ probe __nd_syscall.compat_fanotify_mark =
 	fanotify_fd = int_arg(1)
 	flags = uint_arg(2)
 	if (@__BIG_ENDIAN)
-		mask = ((ulong_arg(3) << 32) | ulong_arg(4))
+		mask = ((uint_arg(3) << 32) | uint_arg(4))
 	else
-		mask = ((ulong_arg(4) << 32) | ulong_arg(3))
+		mask = ((uint_arg(4) << 32) | uint_arg(3))
 	dirfd = int_arg(5)
 	pathname = user_string_quoted(pointer_arg(6))
 }

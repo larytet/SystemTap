@@ -1396,9 +1396,9 @@ probe __syscall.compat_fanotify_mark =
 	fanotify_fd = __int32($fanotify_fd)
 	flags = __uint32($flags)
 	if (@__BIG_ENDIAN)
-		mask = ((__ulong($mask0) << 32) | __ulong($mask1))
+		mask = ((__uint32($mask0) << 32) | __uint32($mask1))
 	else
-		mask = ((__ulong($mask1) << 32) | __ulong($mask0))
+		mask = ((__uint32($mask1) << 32) | __uint32($mask0))
 	dirfd = __int32($dfd)
 	pathname = user_string_quoted(@__pointer($pathname))
 }
