@@ -538,6 +538,8 @@ struct procfs_builder: public derived_probe_builder
                      probe_point * location,
                      literal_map_t const & parameters,
                      vector<derived_probe *> & finished_results);
+
+  virtual string name() { return "procfs builder"; }
 };
 
 

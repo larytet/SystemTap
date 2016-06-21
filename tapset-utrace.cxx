@@ -711,6 +711,8 @@ struct utrace_builder: public derived_probe_builder
 							has_path, path_tgt, pid,
 							flags));
   }
+
+  virtual string name() { return "utrace builder"; }
 };
 
 

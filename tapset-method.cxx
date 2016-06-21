@@ -81,6 +81,8 @@ public:
 	      literal_map_t const & parameters,
 	      vector <derived_probe *> & finished_results);
   std::string mark_param(int i);
+
+  virtual string name() { return "java builder"; }
 };
 
 std::string

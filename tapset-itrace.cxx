@@ -130,6 +130,8 @@ struct itrace_builder: public derived_probe_builder
 							single_step
 							));
   }
+
+  virtual string name() { return "itrace builder"; }
 };
 
 

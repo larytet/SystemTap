@@ -1014,6 +1014,8 @@ struct dwarf_builder: public derived_probe_builder
 		     probe_point * location,
 		     literal_map_t const & parameters,
 		     vector<derived_probe *> & finished_results);
+
+  virtual string name() { return "DWARF builder"; }
 };
 
 
@@ -8845,6 +8847,8 @@ struct uprobe_builder: public derived_probe_builder
 
     finished_results.push_back(new uprobe_derived_probe(base, location, process, address, rr));
   }
+
+  virtual string name() { return "uprobe builder"; }
 };
 
 
@@ -9724,6 +9728,7 @@ public:
 		     probe_point * location,
 		     literal_map_t const & parameters,
 		     vector<derived_probe *> & finished_results);
+  virtual string name() { return "kprobe builder"; }
 };
 
 
@@ -10215,6 +10220,8 @@ struct hwbkpt_builder: public derived_probe_builder
 		     probe_point * location,
 		     literal_map_t const & parameters,
 		     vector<derived_probe *> & finished_results);
+
+  virtual string name() { return "hwbkpt builder"; }
 };
 
 void
@@ -11439,6 +11446,8 @@ public:
              probe *base, probe_point *location,
              literal_map_t const& parameters,
              vector<derived_probe*>& finished_results);
+
+  virtual string name() { return "tracepoint builder"; }
 };
 
 

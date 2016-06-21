@@ -1937,6 +1937,8 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
 
       suggest_alternative_linenos(srcfile, lineno, current_funcs);
     }
+  else if (lineno_type == WILDCARD)
+    throw SEMANTIC_ERROR(_F("no line records for %s [man error::dwarf]", srcfile));
 }
 
 

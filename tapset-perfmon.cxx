@@ -279,6 +279,8 @@ struct perf_builder: public derived_probe_builder
                        vector<derived_probe *> & finished_results);
 
     static void register_patterns(systemtap_session& s);
+
+    virtual string name() { return "perf builder"; }
 };
 
 

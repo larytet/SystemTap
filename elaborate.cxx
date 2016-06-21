@@ -436,7 +436,8 @@ match_node::bind_privilege(privilege_t p)
 void
 match_node::find_and_build (systemtap_session& s,
                             probe* p, probe_point *loc, unsigned pos,
-                            vector<derived_probe *>& results)
+                            vector<derived_probe *>& results,
+                            set<string>& builders)
 {
   assert (pos <= loc->components.size());
   if (pos == loc->components.size()) // matched all probe point components so far
@@ -464,11 +465,20 @@ match_node::find_and_build (systemtap_session& s,
         param_map[loc->components[i]->functor] = loc->components[i]->arg;
       // maybe 0
 
+      unsigned int num_results = results.size();
+
       // Iterate over all bound builders
       for (unsigned k=0; k<ends.size(); k++) 
         {
           derived_probe_builder *b = ends[k];
           b->build (s, p, loc, param_map, results);
+        }
+
+      // Collect names of builders attempted for error reporting
+      if (results.size() == num_results)
+        {
+          for (unsigned k=0; k<ends.size(); k++)
+            builders.insert(ends[k]->name());
         }
     }
   else if (isdoubleglob(loc->components[pos]->functor)) // ** wildcard?
@@ -493,7 +503,7 @@ match_node::find_and_build (systemtap_session& s,
       simple_pp->components[pos] = simple_comp;
       try
         {
-          find_and_build (s, p, simple_pp, pos, results);
+          find_and_build (s, p, simple_pp, pos, results, builders);
         }
       catch (const semantic_error& e)
         {
@@ -523,7 +533,7 @@ match_node::find_and_build (systemtap_session& s,
                                      expanded_comp_post);
       try
         {
-          find_and_build (s, p, expanded_pp, pos, results);
+          find_and_build (s, p, expanded_pp, pos, results, builders);
         }
       catch (const semantic_error& e)
         {
@@ -594,7 +604,7 @@ match_node::find_and_build (systemtap_session& s,
 	      try
 	        {
 		  subnode->find_and_build (s, p, non_wildcard_pp, pos+1,
-					   results);
+					   results, builders);
 	        }
 	      catch (const semantic_error& e)
 	        {
@@ -635,7 +645,7 @@ match_node::find_and_build (systemtap_session& s,
         {
           match_node* subnode = i->second;
           // recurse
-          subnode->find_and_build (s, p, loc, pos+1, results);
+          subnode->find_and_build (s, p, loc, pos+1, results, builders);
           return;
         }
 
@@ -995,6 +1005,7 @@ derive_probes (systemtap_session& s,
 
   for (unsigned i = 0; i < p->locations.size(); ++i)
     {
+      set<string> builders;
       assert_no_interrupts();
 
       probe_point *loc = p->locations[i];
@@ -1008,7 +1019,7 @@ derive_probes (systemtap_session& s,
 
           try
 	    {
-	      s.pattern_root->find_and_build (s, p, loc, 0, dps); // <-- actual derivation!
+	      s.pattern_root->find_and_build (s, p, loc, 0, dps, builders); // <-- actual derivation!
 	    }
           catch (const semantic_error& e)
 	    {
@@ -1068,7 +1079,24 @@ derive_probes (systemtap_session& s,
               // the optional errs
               semantic_error err(ERR_SRC, _("while resolving probe point"),
                                  loc->components[0]->tok, NULL, &e);
-              s.print_error(err);
+              // provide some details about which builders were tried
+              if (s.verbose > 0)
+                {
+                  string msg;
+                  for (auto it = builders.begin(); it != builders.end(); ++it)
+                    {
+                      if (it != builders.begin())
+                        msg.append(", ");
+                      msg.append(*it);
+                    }
+                  semantic_error err2(ERR_SRC, _F("resolution failed in %s", msg.c_str()));
+                  err2.set_chain(err);
+                  s.print_error(err2);
+                }
+              else
+                {
+                  s.print_error(err);
+                }
 
               // print optional errs accumulated while visiting other probe points
               for (vector<semantic_error>::const_iterator it = optional_errs.begin();

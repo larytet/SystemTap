@@ -94,6 +94,8 @@ struct be_builder: public derived_probe_builder
     finished_results.push_back
       (new be_derived_probe(base, location, type, priority));
   }
+
+  virtual string name() { return "begin/end builder"; }
 };
 
 
@@ -210,6 +212,8 @@ struct never_builder: public derived_probe_builder
   {
     finished_results.push_back(new never_derived_probe(base, location));
   }
+
+  virtual string name() { return "never builder"; }
 };
 
 

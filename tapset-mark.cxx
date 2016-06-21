@@ -590,6 +590,8 @@ public:
              probe_point * location,
              literal_map_t const & parameters,
              vector<derived_probe *> & finished_results);
+
+  virtual string name() { return "mark builder"; }
 };
 
 
