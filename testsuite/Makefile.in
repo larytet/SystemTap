@@ -214,7 +214,7 @@ TOOL_OPTS =
 # "make installcheck-parallel" targets.
 SKIPTESTS = --ignore \'$(shell \
 	test -z $(SYSTEMTAP_TESTSUITE_RESUME) || \
-	  grep -r 'Running.*testsuite.*exp\ ...' * 2>/dev/null |\
+	  grep -r 'Running.*testsuite.*exp\ ...' systemtap.log 2>/dev/null |\
 	  grep -o '[^\/]*\.exp' |\
 	  sort -u |\
 	  tr '\n' ' ' |\
@@ -500,11 +500,13 @@ installcheck: site.exp
 	-mv systemtap.sum systemtap.temp1.sum 2>/dev/null
 	-rmmod uprobes 2>/dev/null
 	-$(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU RUNTESTFLAGS="$(RUNTESTFLAGS) $(SKIPTESTS) --tool_opts \'install $(TOOL_OPTS)\'"
-	mv systemtap.log systemtap.temp2.log
-	mv systemtap.sum systemtap.temp2.sum
-	$(SHELL) $(srcdir)/dg-extract-results.sh `find . -name 'systemtap.*sum' -print` > systemtap.sum
-	$(SHELL) $(srcdir)/dg-extract-results.sh -L `find . -name 'systemtap.*log' -print` > systemtap.log
-	rm -f systemtap.temp*
+	if test -e systemtap.temp1.log -o -e systemtap.temp1.sum; then \
+	  mv systemtap.log systemtap.temp2.log; \
+	  mv systemtap.sum systemtap.temp2.sum; \
+	  $(SHELL) $(srcdir)/dg-extract-results.sh `find . -name 'systemtap.temp[1,2].sum' -print` > systemtap.sum; \
+	  $(SHELL) $(srcdir)/dg-extract-results.sh -L `find . -name 'systemtap.temp[1,2].log' -print` > systemtap.log; \
+	  rm -f systemtap.temp1.log systemtap.temp1.sum systemtap.temp2.log systemtap.temp2.sum; \
+	fi
 	tail systemtap.sum
 	if test -n "$(DEJAZILLA)"; then mail $(DEJAZILLA) < systemtap.sum; fi
 
