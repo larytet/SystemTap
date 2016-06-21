@@ -214,19 +214,17 @@ function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
 		// filesystems that need special handling. As
 		// mentioned earlier, we'd like to call d_dname()
 		// here, but it isn't safe.
-		if (vfsmnt->mnt_sb->s_magic == %{ /* pure */ SOCKFS_MAGIC %}) {
+		if (vfsmnt->mnt_sb->s_magic == @const("SOCKFS_MAGIC")) {
 			return sprintf("socket:[%lu]", dentry->d_inode->i_ino)
 		}
-		else if (vfsmnt->mnt_sb->s_magic
-			 == %{ /* pure */ PIPEFS_MAGIC %}) {
+		else if (vfsmnt->mnt_sb->s_magic == @const("PIPEFS_MAGIC")) {
 			return sprintf("pipe:[%lu]", dentry->d_inode->i_ino)
 		}
 		else if (vfsmnt->mnt_sb->s_magic
-			 == %{ /* pure */ ANON_INODE_FS_MAGIC %}) {
+			 == @const("ANON_INODE_FS_MAGIC")) {
 			return sprintf("ANON_INODE:%s", d_name(dentry))
 		}
-		else if (vfsmnt->mnt_sb->s_magic
-			 == %{ /* pure */ NSFS_MAGIC %}) {
+		else if (vfsmnt->mnt_sb->s_magic == @const("NSFS_MAGIC")) {
 			ns_ops = &@cast(dentry->d_fsdata, "proc_ns_operations")
 			return sprintf("%s:[%lu]", kernel_string(ns_ops->name),
 				       dentry->d_inode->i_ino)

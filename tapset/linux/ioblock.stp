@@ -46,7 +46,7 @@
 /* returns 0 for read, 1 for write */
 function bio_rw_num:long(rw:long)
 {
-    return (rw & %{ /* pure */ REQ_WRITE %})
+    return (rw & @const("REQ_WRITE"))
 }
 
 /* returns R for read, W for write */

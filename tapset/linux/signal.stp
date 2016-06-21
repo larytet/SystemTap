@@ -323,13 +323,13 @@ probe __signal.wakeup.signal_wake_up_state
 	= kernel.function("signal_wake_up_state")
 {
     resume = ($state == 0) ? 0 : 1;
-    if ($state & %{ /* pure */ __TASK_STOPPED %} != 0) {
+    if ($state & @const("__TASK_STOPPED") != 0) {
 	state_mask .= " | TASK_STOPPED"
     }
-    if ($state & %{ /* pure */ __TASK_TRACED %} != 0) {
+    if ($state & @const("__TASK_TRACED") != 0) {
 	state_mask .= " | TASK_TRACED"
     }
-    if ($state & %{ /* pure */ TASK_WAKEKILL %} != 0) {
+    if ($state & @const("TASK_WAKEKILL") != 0) {
 	state_mask .= " | TASK_WAKEKILL"
     }
     state_mask = "TASK_INTERRUPTIBLE" . state_mask

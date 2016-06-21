@@ -190,7 +190,7 @@ probe nd_syscall.open = kprobe.function("compat_sys_open") ?,
 	filename = user_string_quoted(pointer_arg(1))
 	flags = int_arg(2)
 	mode = uint_arg(3)
-	if (flags & %{ /* pure */ O_CREAT %})
+	if (flags & @const("O_CREAT"))
 		argstr = sprintf("%s, %s, %#o",
 				 user_string_quoted(pointer_arg(1)),
 				 _sys_open_flag_str(flags), mode)
@@ -221,7 +221,7 @@ probe nd_syscall.openat = kprobe.function("compat_sys_openat") ?,
 	filename = user_string_quoted(pointer_arg(2))
 	flags = int_arg(3)
 	mode = uint_arg(4)
-	if (flags & %{ /* pure */ O_CREAT %})
+	if (flags & @const("O_CREAT"))
 		argstr = sprintf("%s, %s, %s, %#o", _dfd_str(dfd),
 				 user_string_quoted(pointer_arg(2)),
 				 _sys_open_flag_str(flags), mode)
@@ -655,7 +655,7 @@ probe __nd_syscall.preadv = kprobe.function("sys_preadv")
 	fd = int_arg(1)
 	vector_uaddr = pointer_arg(2)
 	count = int_arg(3)
-	offset = (ulong_arg(5) << %{ /* pure */ BITS_PER_LONG %}) + ulong_arg(4)
+	offset = (ulong_arg(5) << @const("BITS_PER_LONG")) + ulong_arg(4)
 	argstr = sprintf("%d, %p, %d, 0x%x", fd, vector_uaddr, count, offset)
 }
 probe __nd_syscall.compat_preadv = kprobe.function("compat_sys_preadv")
@@ -693,7 +693,7 @@ probe __nd_syscall.preadv2 = kprobe.function("sys_preadv2")
 	fd = int_arg(1)
 	vector_uaddr = pointer_arg(2)
 	count = int_arg(3)
-	offset = (ulong_arg(5) << %{ /* pure */ BITS_PER_LONG %}) + ulong_arg(4)
+	offset = (ulong_arg(5) << @const("BITS_PER_LONG")) + ulong_arg(4)
 	flags = int_arg(6)
 	flags_str = _preadv2_flags_str(flags)
 	argstr = sprintf("%d, %p, %d, 0x%x, %s", fd, vector_uaddr,
@@ -985,7 +985,7 @@ probe __nd_syscall.pwritev = kprobe.function("sys_pwritev").call
 	fd = int_arg(1)
 	vector_uaddr = pointer_arg(2)
 	count = int_arg(3)
-	offset = (ulong_arg(5) << %{ /* pure */ BITS_PER_LONG %}) + ulong_arg(4)
+	offset = (ulong_arg(5) << @const("BITS_PER_LONG")) + ulong_arg(4)
 	argstr = sprintf("%d, %p, %d, 0x%x", fd, vector_uaddr, count, offset)
 }
 probe __nd_syscall.compat_pwritev = kprobe.function("compat_sys_pwritev").call
@@ -1024,7 +1024,7 @@ probe __nd_syscall.pwritev2 = kprobe.function("sys_pwritev2").call
 	fd = int_arg(1)
 	vector_uaddr = pointer_arg(2)
 	count = int_arg(3)
-	offset = (ulong_arg(5) << %{ /* pure */ BITS_PER_LONG %}) + ulong_arg(4)
+	offset = (ulong_arg(5) << @const("BITS_PER_LONG")) + ulong_arg(4)
 	flags = int_arg(6)
 	flags_str = _preadv2_flags_str(flags)
 	argstr = sprintf("%d, %p, %d, 0x%x, %s", fd, vector_uaddr,
@@ -1907,7 +1907,7 @@ probe nd_syscall.rt_sigprocmask = kprobe.function("sys_rt_sigprocmask") ?
 	// straight to the 64-bit rt_sigprocmask function.
 %( arch == "x86_64" && kernel_v >= "3.4" && CONFIG_COMPAT == "y" %?
 	if (@__compat_task &&
-	    _stp_syscall_nr() == %{ /* pure */ __NR_compat_rt_sigprocmask %}) {
+	    _stp_syscall_nr() == @const("__NR_compat_rt_sigprocmask")) {
 		oldset_uaddr = uint_arg(3)
 		argstr = sprintf("%s, %s, %p, %d", how_str,
 				 _stp_compat_sigset_u(set_uaddr), oldset_uaddr,
