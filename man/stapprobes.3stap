@@ -314,6 +314,9 @@ The same context variables are available, as far as possible.
 
 .SS TIMERS
 
+There are two main types of timer probes: "jiffies" timer probes and
+time interval timer probes.
+
 Intervals defined by the standard kernel "jiffies" timer may be used
 to trigger probe handlers asynchronously.  Two probe point variants
 are supported by the translator:
@@ -377,6 +380,12 @@ lack the corresponding profile timer facility.
 Profiling timers with specified frequencies are only accurate up to around
 100 hz. You may need to provide a larger value to achieve the desired
 rate.
+.PP
+Note that if a timer probe is set to fire at a very high rate
+and if the probe body is complex, succeeding timer probes can get
+skipped, since the time for them to run has already passed. Normally
+systemtap reports missed probes, but it will not report these skipped
+probes.
 
 .SS DWARF
 
