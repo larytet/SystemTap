@@ -320,6 +320,18 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 #define __stp_put_user __put_user
 #endif
 
+/*
+ * Some arches (like aarch64) don't have __get_user_bad() or
+ * __put_user_bad(), so use BUILD_BUG() instead.
+ */
+#ifdef BUILD_BUG
+#define __stp_get_user_bad BUILD_BUG
+#define __stp_put_user_bad BUILD_BUG
+#else
+#define __stp_get_user_bad __get_user_bad
+#define __stp_put_user_bad __put_user_bad
+#endif
+
 
 /* 
  * __stp_deref_nocheck(): reads a simple type from a
@@ -353,8 +365,8 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
       case 8: { u64 _q; _err = __stp_get_user(_q, ((u64 *)(uintptr_t)(addr))); \
 		(value) = _q; }						      \
 	break;								      \
-      default: __get_user_bad();					      \
-	break;								      \
+      default:								      \
+ 	__stp_get_user_bad();					      	      \
       }									      \
     _err;								      \
   })
@@ -452,8 +464,8 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
         break;								      \
       case 8: _err = __stp_put_user(((u64)(value)), ((u64 *)(uintptr_t)(addr)));\
         break;								      \
-      default: __put_user_bad();					      \
-	break;								      \
+      default:								      \
+	__stp_put_user_bad();						      \
       }									      \
     _err;								      \
   })
