@@ -1,7 +1,7 @@
 #! stap -p2
 
-probe oneshot
-{
+
+@define STUFF %(
     // precheck, it should work with @cast
     if (!@defined(@task(0)->mm)) {
         println($cast_failed_mm)
@@ -17,4 +17,16 @@ probe oneshot
     if (@defined(task_current()->systemtap)) {
         println($autocast_succeeded_systemtap)
     }
+%)
+
+
+probe oneshot
+{
+  @STUFF
+  foo() // from a function too, to test PR18079 function processing
+}
+
+function foo ()
+{
+  @STUFF
 }
