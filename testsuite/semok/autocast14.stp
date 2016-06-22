@@ -17,6 +17,19 @@
     if (@defined(task_current()->systemtap)) {
         println($autocast_succeeded_systemtap)
     }
+
+    // Test that autocast can resolve on the results of @defined
+    mm1 = @choose_defined($nonsense, task_current())->mm;
+    mm2 = @choose_defined(task_current(), $nonsense)->mm;
+    println(mm1 == mm2)
+
+    // Test an even deeper level of @defined
+    if (!@defined(mm1->mmap) || !@defined(mm2->mmap)) {
+        println($autocast_failed_mm_mmap)
+    }
+    if (@defined(mm1->systemtap) || @defined(mm2->systemtap)) {
+        println($autocast_succeeded_mm_systemtap)
+    }
 %)
 
 
