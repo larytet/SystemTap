@@ -25,13 +25,14 @@ proc add_args { prototype } {
 }
 
 # Test valid probe types
-proc test_embedded_C { privilege test_fraction } {
+proc test_embedded_C { privilege test_fraction { transitive_test 0 } } {
     global prototype_info test arch
     global k1 k2 k3
 
     set emsg2 "semantic error: embedded expression may not be used when --privilege=stapusr is specified"
 
-    # Test using --unprivileged and --privilege=stapusr. They should be equivalent
+    # Test using --unprivileged and --privilege=stapusr. They should
+    # be equivalent.
     set stapusr_options [list --unprivileged --privilege=stapusr ]
     # Test using no option and --privilege=stapdev. They should be equivalent
     set stapdev_options [list "" --privilege=stapdev ]
@@ -66,50 +67,30 @@ proc test_embedded_C { privilege test_fraction } {
 	    continue
 	}
 	    
-	# We need to ignore the stub functions in registers.stp that
-	# get overridden by arch-specific functions in
-	# $ARCH/registers.stp.
-	if { $status == "no embedded C" } {
-	    switch "$prototype" {
-		"register (string)" -
-		"u_register (string)" -
-		"int_arg (long)" -
-		"uint_arg (long)" -
-		"long_arg (long)" -
-		"ulong_arg (long)" -
-		"longlong_arg (long)" -
-		"ulonglong_arg (long)" -
-		"pointer_arg (long)" -
-		"s32_arg (long)" -
-		"u32_arg (long)" -
-		"s64_arg (long)" -
-		"u64_arg (long)" -
-		"asmlinkage()" -
-		"fastcall()" -
-		"regparm(long)"
-		{
-		    # Note that we only want to ignore the first mention
-		    # for each function. If the "real" function is "no
-		    # embedded C", we'll go ahead and test it the 2nd
-		    # time we see it.
-		    if { ![info exists stub_seen($info)] } {
-			set stub_seen($info) 1
-			continue
-		    }
-		}
+	# Some function in earlier versions of systemtap were written
+	# in embedded-C, but later versions of systemtap had pure
+	# script versions. There is no point in testing these.
+	switch "$prototype" {
+	    "probefunc ()"
+	    {
+		untested "$test: $status: $option: $prototype (rewritten pure)"
+		continue
 	    }
 	}
 
-	# Deprecated functions will be untested
+	# Deprecated functions will be untested. The awk script that
+	# finds functions doesn't know about deprecated functions.
 	switch "$prototype" {
-	    "cpuid ()"
+	    "cpuid ()" -
+	    "get_mmap_args (long)"
 	    {
-		untested "$test: $status: $option: $prototype"
+		untested "$test: $status: $option: $prototype (deprecated)"
 		continue
 	    }
 	}
 	
-	# Before 2.6.21 __get_skb_iphdr wasn't native.
+	# Before 2.6.21 __get_skb_iphdr was pure script code. After
+	# 2.6.21, it is an embedded C function.
 	if { "$prototype" == "__get_skb_iphdr(long)" } {
 		if {($k1*256*256 + $k2*256 + $k3) < (2*256*256 + 6*256 + 21)} {
 			untested "$test: $status: $prototype"
@@ -117,27 +98,37 @@ proc test_embedded_C { privilege test_fraction } {
 		}
 	}
 
+	# If the function we're about to test doesn't contain any
+	# embedded C, we can't know if it calls any privileged
+	# functions. So, we won't bother testing functions without
+	# embedded C.
+	if { $status == "no embedded C" } {
+		untested "$test: $status: $prototype"
+		continue
+	}
 
 	# Test calling the function. If successful, the stap rc will be 0.
-	set call [add_args $prototype]
-	set cmd [concat [list stap -p2 $option -e "probe begin { $call }"]]
+	if { $transitive_test } {
+	    set call [add_args $prototype]
+	    set cmd [concat [list stap -p2 $option -e "function foo() { $call } probe begin { foo() }"]]
+	} else {
+	    set call [add_args $prototype]
+	    set cmd [concat [list stap -p2 $option -e "probe begin { $call }"]]
+	}
 	verbose -log "eval exec $cmd"
 	set rc [catch {eval exec $cmd} res_stap]
 	verbose -log $res_stap
 
-	# Look for a message saying that the function is not allowed for unprivileged users.
+	# Look for a message saying that the function is not allowed
+	# for unprivileged users.
 	regexp "(\[^\[:space:](]*).*" $prototype match funcname
 	verbose -log "funcname is $funcname"
 
-	# The function '_wait_status_str' is not allowed for unprivileged but it fails with a
-	# reference to the function '_signal_name' which it calls and which is checked first.
-	if {"$funcname" == "_wait_status_str"} {
-	    set funcname "_signal_name"
-	}
 	set emsg1 "semantic error: function may not be used when --privilege=stapusr is specified: identifier '$funcname'"
 	set found [expr [regexp ".*$emsg1.*" $res_stap] || [regexp ".*$emsg2.*" $res_stap]]
 
-	# Evaluate the result based upon the function's status and the privilege level
+	# Evaluate the result based upon the function's status and the
+	# privilege level.
 	switch $status {
 	    unprivileged -
 	    myproc-unprivileged -
@@ -178,6 +169,10 @@ verbose -log "Looking for tapset scripts in $tapsetdir"
 set files [glob -nocomplain $tapsetdir/*.stp]
 verbose -log "Looking for tapset scripts in $tapsetdir/[exec uname -i]"
 set files [concat $files [glob -nocomplain $tapsetdir/[exec uname -i]/*.stp]]
+verbose -log "Looking for tapset scripts in $tapsetdir/linux"
+set files [glob -nocomplain $tapsetdir/linux/*.stp]
+verbose -log "Looking for tapset scripts in $tapsetdir/linux/[exec uname -i]"
+set files [concat $files [glob -nocomplain $tapsetdir/linux/[exec uname -i]/*.stp]]
 
 verbose -log "eval exec $srcdir/$subdir/embeddedc.awk [join $files]"
 catch {eval exec $srcdir/$subdir/embeddedc.awk [join $files]} res_stap
@@ -192,6 +187,19 @@ if {[llength prototype_info] > 0} {
     return
 }
 
+# Now run the tests. We'll test all the embedded C functions.
+test_embedded_C stapusr 1
+test_embedded_C stapsys 1
+#test_embedded_C stapdev 1
+
+# Now let's make sure that privileged function are "transitive" -
+# i.e. if an embedded-C function is privileged, then any pure script
+# function that calls it is also privileged. Since we don't know the
+# call graph information for functions, we'll define our own new pure
+# script function that then calls the real embedded-C function. (See
+# function "foo" above in test_embedded_C().)
+#
+# Here we'll just test a subset of the embedded C functions.
 if {! [info exists env(SYSTEMTAP_TEST_ALL_EMBEDDED_C)]} {
     # Test a subset (1/5) of the tapset functions containing embedded C code.
     set test_fraction 5
@@ -199,8 +207,7 @@ if {! [info exists env(SYSTEMTAP_TEST_ALL_EMBEDDED_C)]} {
     # Test all of the tapset functions containing embedded C code.
     set test_fraction 1
 }
-
-# Now run the tests
-test_embedded_C stapusr $test_fraction
-test_embedded_C stapsys $test_fraction
-#test_embedded_C stapdev $test_fraction
+set test "$test (transitive)"
+test_embedded_C stapusr $test_fraction 1
+test_embedded_C stapsys $test_fraction 1
+#test_embedded_C stapdev $test_fraction 1
