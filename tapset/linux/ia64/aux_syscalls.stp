@@ -43,3 +43,11 @@ function _ptrace_return_arch_prctl_addr:long(request:long, addr:long, data:long)
 {
 	return 0
 }
+
+# arch-specific pipe() syscall support
+function _ia64_pipe0:long() %{ /* pure */
+	STAP_RETVALUE = CONTEXT->kregs ? CONTEXT->kregs->r8 : 0;
+%}
+function _ia64_pipe1:long() %{ /* pure */
+	STAP_RETVALUE = _stp_current_pt_regs()->r9;
+%}

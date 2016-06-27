@@ -373,15 +373,6 @@ probe syscall.personality.return = kernel.function("sys_personality").return
 	retstr = return_str(1, $return)
 }
 
-# ia64 returns the results from the pipe call through (user) registers.
-%( arch == "ia64" %?
-function _ia64_pipe0:long() %{
-	STAP_RETVALUE = CONTEXT->kregs ? CONTEXT->kregs->r8 : 0;
-%}
-function _ia64_pipe1:long() %{
-	STAP_RETVALUE = _stp_current_pt_regs()->r9;
-%}
-%)
 # pipe _______________________________________________________
 #
 # asmlinkage int sys_pipe(unsigned long __user * fildes)

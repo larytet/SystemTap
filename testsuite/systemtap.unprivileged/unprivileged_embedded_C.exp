@@ -109,18 +109,6 @@ proc test_embedded_C { privilege test_fraction } {
 	    }
 	}
 	
-	# Filter arch-specific tests
-	if { "$arch" != "ia64" } {
-	    switch "$prototype" {
-		"_ia64_pipe0()" -
-		"_ia64_pipe1()"
-		{
-		    untested "$test: $status: $option: $prototype"
-		    continue
-		}
-	    }
-	}
-
 	# Before 2.6.21 __get_skb_iphdr wasn't native.
 	if { "$prototype" == "__get_skb_iphdr(long)" } {
 		if {($k1*256*256 + $k2*256 + $k3) < (2*256*256 + 6*256 + 21)} {
