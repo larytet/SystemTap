@@ -258,7 +258,7 @@
     appropriate values):
   </para>
 
-<screen><command>stap -r <replaceable>kernel_version</replaceable> <replaceable>script</replaceable> -m <replaceable>module_name</replaceable></command></screen>
+<screen><command>stap -p4 -r <replaceable>kernel_version</replaceable> <replaceable>script</replaceable> -m <replaceable>module_name</replaceable></command></screen>
 
   <para>
     Here, <replaceable>kernel_version</replaceable> refers to
