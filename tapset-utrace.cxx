@@ -702,6 +702,8 @@ struct utrace_builder: public derived_probe_builder
       }
     else if (has_path)
       {
+        if (path == "")
+            throw SEMANTIC_ERROR (_("empty module"));
         path = find_executable (path, sess.sysroot, sess.sysenv);
         sess.unwindsym_modules.insert (path);
         path_tgt = path_remove_sysroot(sess, path);
