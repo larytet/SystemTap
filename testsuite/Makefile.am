@@ -63,7 +63,7 @@ installcheck: site.exp
 	  $(SHELL) $(srcdir)/dg-extract-results.sh -L `find . -name 'systemtap.temp[1,2].log' -print` > systemtap.log; \
 	  rm -f systemtap.temp1.log systemtap.temp1.sum systemtap.temp2.log systemtap.temp2.sum; \
 	fi
-	tail systemtap.sum
+	-tail systemtap.sum
 	if test -n "$(DEJAZILLA)"; then mail $(DEJAZILLA) < systemtap.sum; fi
 
 
@@ -81,7 +81,7 @@ installcheck-parallel: site.exp
 	`find artifacts -name systemtap.sum -print` > systemtap.sum; \
 	$(SHELL) $(srcdir)/dg-extract-results.sh -L \
 	`find artifacts -name systemtap.log -print` > systemtap.log; \
-	tail systemtap.sum
+	-tail systemtap.sum
 	exit $$result
 
 # TESTS exists for the user to pass on the command line to easily
