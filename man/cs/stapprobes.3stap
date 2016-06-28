@@ -319,6 +319,9 @@ ze systémového volání na základě kontextových proměnných a tudíž nere
 eventuální pozdější změny těchto kontextových proměnných. 
 
 .SS ČASOVAČE
+Existují dva hlavní typy 'timer' sond:  Jsou to sondy 'jiffies', a sondy pro
+časové intervaly.
+
 Časové intervaly jsou v terminologii linuxového jádra definovány v jednotkách
 "jiffies" (odpovídající přibližně 1 až 60 ms). Časovač aktivuje asynchronní
 sondy 'timer'.  Překladač podporuje dvě varianty těchto sond:
@@ -374,6 +377,12 @@ potřebná funkcionalita jádra.  Ale timer.profile umí na novějších jádrec
 transparentně využít perf.sw.cpu_clock. Je tedy obecnější.
 .PP
 Profilovací časovače s určenou frekvencí jsou přesné jen přibližně do 100 Hz.
+
+.PP
+Poznamenejme, že pokud je frekvence 'timer' sondy příliš vysoké, a tělo sondy
+příliš složité,  mohou být některé aktivace dané sondy přeskočeny, neboť
+jejich čas již uplynul.  Normálně systemtap hlásí přeskočené sondy, ovšem takto
+přeskočené 'timer' sondy hlášeny nebudou.
 
 .SS LADICÍ INFORMACE (DWARF)
 

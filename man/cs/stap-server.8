@@ -162,10 +162,8 @@ Viz manuálová stránka
 
 .TP
 \fB\-i\fR
-Tato volba je zkratkou pro jeden server pro každou jadernou verzi instalovanou
-v \fI/lib/modules/\fR.  Výše uvedené volby \fB\-I\fR, \fB\-R\fR, \fB\-B\fR a
-\fB\-u\fR se aplikují na každý server, nicméně předchozí volba \fB\-a\fR se bude
-ignorovat a použije se výchozí architektura.
+Tato volba určuje systemtap server, který obsluhuje všechny verze jádra, které
+jsou nainstalovány v \fI/lib/modules/\fR.
 
 .TP
 \fB\-n\fR \fInickname\fR
@@ -421,7 +419,7 @@ zkonfigurovaný:
 .PP
 .B \& $ [ service ] stap\-server start
 .PP
-Nastartovat systemtap server pro každé jádro nainstalované v /lib/modules:
+Spustit systemtap server, který bude obsluhovat všechna jádra nainstalovaná v /lib/modules:
 .PP
 .B \& $ [ service ] stap\-server start \-i
 .PP

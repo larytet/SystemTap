@@ -346,6 +346,9 @@ souborů překročí
 .B N
 , systemtap odstraní nejstarší výstupní soubor.  Druhý z argumentů lze vynechat.
 .TP
+.BI \-T " TIMEOUT"
+Ukončit skript po uplynutí TIMEOUT sekund.
+.TP
 .B \-\-skip\-badvars
 Ignoruje neidentifikovatelné nebo nedostupné kontextové proměnné a, aniž by
 došlo k chybě, nahradí jejich hodnotu nulou.
@@ -1001,6 +1004,15 @@ sdružovat do knihoven s příponou ".stpm" nacházející se v "tapset search p
 Tyto soubory mohou obsahovat @define konstrukty, které budou dostupné nejen ve
 všech tapsetech, ale i v uživatelských skriptech.  Volitelně mohou být definice
 maker v rámci ".stpm" souborů zabaleny v kondicionálech preprocesoru.
+
+.SS KONSTANTY
+V rámci tapset skriptů, nebo guru skriptů je možno přistupovat ke konstantním
+symbolům, jako jsou například makra jazyka C, prostřednictvím vestavěného
+operátoru @const().  Pokud je potřeba přidat příslušný #include dodatečného
+hlavičkového souboru, lze tak učinit prostřednictvím vloženého kódu jazyka C.
+.SAMPLE
+@const("STP_SKIP_BADVARS")
+.ESAMPLE
 
 .SS PROMĚNNÉ
 Identifikátory pro proměnné a funkce jsou alfanumerické sekvence, které mohou
