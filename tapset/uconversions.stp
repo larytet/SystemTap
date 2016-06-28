@@ -9,26 +9,11 @@
 
 // implement in terms of runtime/loc2c-runtime.h macro uread()
 %{
-#define __STP_GET_USER(t, warn)						\
+#define STP_GET_USER(t)							\
 	do {								\
-		__label__ deref_fault;					\
 		t *_ptr = (t*) (intptr_t) STAP_ARG_addr;		\
 		STAP_RETVALUE = uread (_ptr);				\
-		if (0) {						\
-		deref_fault:						\
-			STAP_RETVALUE = 0;				\
-			CONTEXT->last_error = NULL;			\
-			if (warn) {					\
-				snprintf(CONTEXT->error_buffer,		\
-				    sizeof(CONTEXT->error_buffer),	\
-				    "user %s copy fault %p [man error::fault]", #t, _ptr);	\
-				_stp_warn(CONTEXT->error_buffer);	\
-			}						\
-		}							\
 	} while (0)
-
-#define STP_GET_USER(t) __STP_GET_USER(t, 0)
-#define STP_GET_USER_WARN(t) __STP_GET_USER(t, 1)
 %}
 
 /**
@@ -537,6 +522,19 @@ function user_string_quoted_utf16:string (addr:long) {
 
 
 /**
+ * sfunction user_char_error - Retrieves a char value stored in user space
+ *
+ * @addr: the user space address to retrieve the char from
+ *
+ * Description: Returns the char value from a given user space address.
+ * If the user space data is not accessible, an error will occur.
+ */
+function user_char_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(char);
+	CATCH_DEREF_FAULT();
+%}
+
+/**
  * sfunction user_char - Retrieves a char value stored in user space
  *
  * @addr: the user space address to retrieve the char from
@@ -544,21 +542,40 @@ function user_string_quoted_utf16:string (addr:long) {
  * Description: Returns the char value from a given user space address.
  * Returns zero when user space data is not accessible.
  */
-function user_char:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER(char);
-%}
+function user_char:long (addr:long) {
+	try { return user_char_error(addr) } catch { return 0 }
+}
 
 /**
  * sfunction user_char_warn - Retrieves a char value stored in user space
  *
  * @addr: the user space address to retrieve the char from
  *
- * Description: Returns the char value from a given user space address.
- * Returns zero when user space and warns (but does not abort) about the
- * failure.
+ * Description: Returns the char value from a given user space
+ * address.  Returns zero when user space data is not accessible and
+ * warns about the failure (but does not error).
  */
-function user_char_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER_WARN(char);
+function user_char_warn:long (addr:long) {
+	try {
+		return user_char_error(addr)
+	} catch {
+		warn(sprintf("user char copy fault %p [man error::fault]",
+			     addr))
+		return 0
+	}
+}
+
+/**
+ * sfunction user_short_error - Retrieves a short value stored in user space
+ *
+ * @addr: the user space address to retrieve the short from
+ *
+ * Description: Returns the short value from a given user space address.
+ * If the user space data is not accessible, an error will occur.
+ */
+function user_short_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(short);
+	CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -569,21 +586,41 @@ function user_char_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
  * Description: Returns the short value from a given user space address.
  * Returns zero when user space data is not accessible.
  */
-function user_short:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER(short);
-%}
+function user_short:long (addr:long) {
+	try { return user_short_error(addr) } catch { return 0 }
+}
 
 /**
  * sfunction user_short_warn - Retrieves a short value stored in user space
  *
  * @addr: the user space address to retrieve the short from
  *
- * Description: Returns the short value from a given user space address.
- * Returns zero when user space and warns (but does not abort) about the
- * failure.
+ * Description: Returns the short value from a given user space
+ * address.  Returns zero when user space data is not accessible and
+ * warns about the failure (but does not error).
  */
-function user_short_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER_WARN(short);
+function user_short_warn:long (addr:long) {
+	try {
+		return user_short_error(addr)
+	} catch {
+		warn(sprintf("user short copy fault %p [man error::fault]",
+			     addr))
+		return 0
+	}
+}
+
+/**
+ * sfunction user_ushort_error - Retrieves an unsigned short value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned short from
+ *
+ * Description: Returns the unsigned short value from a given user
+ * space address.  If the user space data is not accessible, an error
+ * will occur.
+ */
+function user_ushort_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(unsigned short);
+	CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -594,9 +631,10 @@ function user_short_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged *
  * Description: Returns the unsigned short value from a given user
  * space address.  Returns zero when user space data is not accessible.
  */
-function user_ushort:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER(unsigned short);
-%}
+function user_ushort:long (addr:long)
+{
+	try { return user_ushort_error(addr) } catch { return 0 }
+}
 
 /**
  * sfunction user_ushort_warn - Retrieves an unsigned short value stored in user space
@@ -604,11 +642,31 @@ function user_ushort:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
  * @addr: the user space address to retrieve the unsigned short from
  *
  * Description: Returns the unsigned short value from a given user
- * space address.  Returns zero when user space and warns (but does
- * not abort) about the failure.
+ * space address.  Returns zero when user space data is not accessible
+ * and warns about the failure (but does not error).
  */
-function user_ushort_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER_WARN(unsigned short);
+function user_ushort_warn:long (addr:long)
+{
+	try {
+		return user_ushort_error(addr)
+	} catch {
+		warn(sprintf("user unsigned short copy fault %p [man error::fault]",
+			     addr))
+		return 0
+	}
+}
+
+/**
+ * sfunction user_int_error - Retrieves an int value stored in user space
+ *
+ * @addr: the user space address to retrieve the int from
+ *
+ * Description: Returns the int value from a given user space address.
+ * If the user space data is not accessible, an error will occur.
+ */
+function user_int_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(int);
+	CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -619,9 +677,10 @@ function user_ushort_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged 
  * Description: Returns the int value from a given user space address.
  * Returns zero when user space data is not accessible.
  */
-function user_int:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER(int);
-%}
+function user_int:long (addr:long)
+{
+	try { return user_int_error(addr) } catch { return 0 }
+}
 
 /**
  * sfunction user_int_warn - Retrieves an int value stored in user space
@@ -629,11 +688,39 @@ function user_int:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
  * @addr: the user space address to retrieve the int from
  *
  * Description: Returns the int value from a given user space address.
- * Returns zero when user space and warns (but does not abort) about the
- * failure.
+ * Returns zero when user space data is not accessible and warns about
+ * the failure (but does not error).
  */
-function user_int_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER_WARN(int);
+function user_int_warn:long (addr:long)
+{
+	try {
+		return user_int_error(addr)
+	} catch {
+		warn(sprintf("user int copy fault %p [man error::fault]",
+			     addr))
+		return 0
+	}
+}
+
+/**
+ * sfunction user_long_error - Retrieves a long value stored in user space
+ *
+ * @addr: the user space address to retrieve the long from
+ *
+ * Description: Returns the long value from a given user space
+ * address.  If the user space data is not accessible, an error will
+ * occur.  Note that the size of the long depends on the architecture
+ * of the current user space task (for those architectures that
+ * support both 64/32 bit compat tasks).
+ */
+function user_long_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+#ifdef CONFIG_COMPAT
+	if (_stp_is_compat_task())
+		STP_GET_USER(compat_long_t);
+	else
+#endif
+		STP_GET_USER(long);
+	CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -646,33 +733,51 @@ function user_int_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
  * size of the long depends on the architecture of the current user space
  * task (for those architectures that support both 64/32 bit compat tasks).
  */
-function user_long:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-#ifdef CONFIG_COMPAT
-	if (_stp_is_compat_task())
-		STP_GET_USER(compat_long_t);
-	else
-#endif
-		STP_GET_USER(long);
-%}
+function user_long:long (addr:long) {
+	try { return user_long_error(addr) } catch { return 0 }
+}
 
 /**
  * sfunction user_long_warn - Retrieves a long value stored in user space
  *
  * @addr: the user space address to retrieve the long from
  *
- * Description: Returns the long value from a given user space address.
- * Returns zero when user space and warns (but does not abort) about the
- * failure. Note that the size of the long depends on the architecture
- * of the current user space task (for those architectures that support
- * both 64/32 bit compat tasks).
+ * Description: Returns the long value from a given user space
+ * address.  Returns zero when user space data is not accessible and
+ * warns about the failure (but does not error).  Note that the size
+ * of the long depends on the architecture of the current user space
+ * task (for those architectures that support both 64/32 bit compat
+ * tasks).
  */
-function user_long_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+function user_long_warn:long (addr:long) {
+	try {
+		return user_long_error(addr)
+	} catch {
+		warn(sprintf("user long copy fault %p [man error::fault]",
+			     addr))
+		return 0
+	}
+}
+
+/**
+ * sfunction user_ulong_error - Retrieves a unsigned long value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned long from
+ *
+ * Description: Returns the unsigned long value from a given user space
+ * address.  If the user space data is not accessible, an error will
+ * occur.  Note that the size of the unsigned long depends on the architecture
+ * of the current user space task (for those architectures that
+ * support both 64/32 bit compat tasks).
+ */
+function user_ulong_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
 #ifdef CONFIG_COMPAT
 	if (_stp_is_compat_task())
-		STP_GET_USER_WARN(compat_long_t);
+		STP_GET_USER(compat_ulong_t);
 	else
 #endif
-		STP_GET_USER_WARN(long);
+		STP_GET_USER(unsigned long);
+	CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -686,15 +791,9 @@ function user_long_warn:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
  * architecture of the current user space task (for those
  * architectures that support both 64/32 bit compat tasks).
  */
-function user_ulong:long (addr:long)
-%{ /* pure */ /* myproc-unprivileged */
-#ifdef CONFIG_COMPAT
-	if (_stp_is_compat_task())
-		STP_GET_USER(compat_ulong_t);
-	else
-#endif
-		STP_GET_USER(unsigned long);
-%}
+function user_ulong:long (addr:long) {
+	try { return user_ulong_error(addr) } catch { return 0 }
+}
 
 /**
  * sfunction user_ulong_warn - Retrieves an unsigned long value stored in user space
@@ -702,19 +801,34 @@ function user_ulong:long (addr:long)
  * @addr: the user space address to retrieve the unsigned long from
  *
  * Description: Returns the unsigned long value from a given user
- * space address. Returns zero when user space and warns (but does not
- * abort) about the failure. Note that the size of the unsigned long
- * depends on the architecture of the current user space task (for
- * those architectures that support both 64/32 bit compat tasks).
+ * space address.  Returns zero when user space data is not accessible
+ * and warns about the failure (but does not error).  Note that the
+ * size of the unsigned long depends on the architecture of the
+ * current user space task (for those architectures that support both
+ * 64/32 bit compat tasks).
  */
-function user_ulong_warn:long (addr:long)
-%{ /* pure */ /* myproc-unprivileged */
-#ifdef CONFIG_COMPAT
-	if (_stp_is_compat_task())
-		STP_GET_USER_WARN(compat_ulong_t);
-	else
-#endif
-		STP_GET_USER_WARN(unsigned long);
+function user_ulong_warn:long (addr:long) {
+	try {
+		return user_ulong_error(addr)
+	} catch {
+		warn(sprintf("user unsigned long copy fault %p [man error::fault]",
+			     addr))
+		return 0
+	}
+}
+
+/**
+ * sfunction user_int8_error - Retrieves a 8-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the 8-bit integer from
+ *
+ * Description: Returns the 8-bit integer value from a given user
+ * space address.  If the user space data is not accessible, an error
+ * will occur.
+ */
+function user_int8_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(int8_t);
+	CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -725,20 +839,50 @@ function user_ulong_warn:long (addr:long)
  * Description: Returns the 8-bit integer value from a given user space
  * address.  Returns zero when user space data is not accessible.
  */
-function user_int8:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER(int8_t);
-%}
+function user_int8:long (addr:long) {
+	try { return user_int8_error(addr) } catch { return 0 }
+}
+
 
 /**
- * sfunction user_uint8 - Retrieves an unsigned 8-bit integer value stored in user space
+ * sfunction user_uint8_error - Retrieves a unsigned 8-bit integer value stored in user space
  *
  * @addr: the user space address to retrieve the unsigned 8-bit integer from
  *
- * Description: Returns the unsigned 8-bit integer value from a given user
- * space address.  Returns zero when user space data is not accessible.
+ * Description: Returns the unsigned 8-bit integer value from a given
+ * user space address.  If the user space data is not accessible, an
+ * error will occur.
  */
-function user_uint8:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+function user_uint8_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
 	STP_GET_USER(uint8_t);
+	CATCH_DEREF_FAULT();
+%}
+
+/**
+ * sfunction user_uint8 - Retrieves a unsigned 8-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned 8-bit integer from
+ *
+ * Description: Returns the unsigned 8-bit integer value from a given
+ * user space address.  Returns zero when user space data is not
+ * accessible.
+ */
+function user_uint8:long (addr:long) {
+	try { return user_uint8_error(addr) } catch { return 0 }
+}
+
+/**
+ * sfunction user_int16_error - Retrieves a 16-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the 16-bit integer from
+ *
+ * Description: Returns the 16-bit integer value from a given user
+ * space address.  If the user space data is not accessible, an error
+ * will occur.
+ */
+function user_int16_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(int16_t);
+	CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -749,8 +893,22 @@ function user_uint8:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
  * Description: Returns the 16-bit integer value from a given user space
  * address.  Returns zero when user space data is not accessible.
  */
-function user_int16:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER(int16_t);
+function user_int16:long (addr:long) {
+	try { return user_int16_error(addr) } catch { return 0 }
+}
+
+/**
+ * sfunction user_uint16_error - Retrieves an unsigned 16-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned 16-bit integer from
+ *
+ * Description: Returns the unsigned 16-bit integer value from a given user
+ * space address.  If the user space data is not accessible, an error
+ * will occur.
+ */
+function user_uint16_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(uint16_t);
+	CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -761,8 +919,22 @@ function user_int16:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
  * Description: Returns the unsigned 16-bit integer value from a given user
  * space address.  Returns zero when user space data is not accessible.
  */
-function user_uint16:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER(uint16_t);
+function user_uint16:long (addr:long) {
+	try { return user_uint16_error(addr) } catch { return 0 }
+}
+
+/**
+ * sfunction user_int32_error - Retrieves a 32-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the 32-bit integer from
+ *
+ * Description: Returns the 32-bit integer value from a given user
+ * space address.  If the user space data is not accessible, an error
+ * will occur.
+ */
+function user_int32_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(int32_t);
+	CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -773,8 +945,22 @@ function user_uint16:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
  * Description: Returns the 32-bit integer value from a given user space
  * address.  Returns zero when user space data is not accessible.
  */
-function user_int32:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER(int32_t);
+function user_int32:long (addr:long) {
+	try { return user_int32_error(addr) } catch { return 0 }
+}
+
+/**
+ * sfunction user_uint32_error - Retrieves an unsigned 32-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned 32-bit integer from
+ *
+ * Description: Returns the unsigned 32-bit integer value from a given
+ * user space address.  If the user space data is not accessible, an
+ * error will occur.
+ */
+function user_uint32_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(uint32_t);
+	CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -785,8 +971,22 @@ function user_int32:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
  * Description: Returns the unsigned 32-bit integer value from a given user
  * space address.  Returns zero when user space data is not accessible.
  */
-function user_uint32:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER(uint32_t);
+function user_uint32:long (addr:long) {
+	try { return user_uint32_error(addr) } catch { return 0 }
+}
+
+/**
+ * sfunction user_int64_error - Retrieves a 64-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the 64-bit integer from
+ *
+ * Description: Returns the 64-bit integer value from a given user
+ * space address.  If the user space data is not accessible, an error
+ * will occur.
+ */
+function user_int64_error:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
+	STP_GET_USER(int64_t);
+	CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -797,9 +997,24 @@ function user_uint32:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
  * Description: Returns the 64-bit integer value from a given user space
  * address.  Returns zero when user space data is not accessible.
  */
-function user_int64:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
-	STP_GET_USER(int64_t);
-%}
+function user_int64:long (addr:long) {
+	try { return user_int64_error(addr) } catch { return 0 }
+}
+
+/**
+ * sfunction user_uint64_error - Retrieves an unsigned 64-bit integer value stored in user space
+ *
+ * @addr: the user space address to retrieve the unsigned 64-bit integer from
+ *
+ * Description: Returns the unsigned 64-bit integer value from a given
+ * user space address.  If the user space data is not accessible, an
+ * error will occur.
+ */
+function user_uint64_error:long (addr:long) {
+	/* NB: We have no script-level notion of 64-bit unsigned, but
+	 * we keep user_uint64_error anyway for API completeness. */
+	return user_int64_error(addr)
+}
 
 /**
  * sfunction user_uint64 - Retrieves an unsigned 64-bit integer value stored in user space
@@ -812,5 +1027,5 @@ function user_int64:long (addr:long) %{ /* pure */ /* myproc-unprivileged */
 function user_uint64:long (addr:long) {
 	/* NB: We have no script-level notion of 64-bit unsigned,
 	 * but we keep user_uint64 anyway for API completeness. */
-	return user_int64 (addr);
+	return user_int64(addr)
 }

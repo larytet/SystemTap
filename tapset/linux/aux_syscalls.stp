@@ -868,23 +868,12 @@ function __sem_flags:string(semflg:long)
 	}
 %}
 
+%(systemtap_v <= "3.2" %?
 @__private30 function __user_pointer:long (addr:long)
- %{ /* pure */ /* myproc-unprivileged */
-#ifdef CONFIG_COMPAT
-	if (_stp_is_compat_task()) {
-		compat_ulong_t *compat_ptr = (void *)(intptr_t)STAP_ARG_addr;
-		STAP_RETVALUE = uread (compat_ptr);
-	}
-	else {
-		unsigned long *ptr = (void *)(intptr_t)STAP_ARG_addr;
-		STAP_RETVALUE = uread (ptr);
-	}	
-#else
-	unsigned long *ptr = (void *)(intptr_t)STAP_ARG_addr;
-	STAP_RETVALUE = uread (ptr);
-#endif
-	CATCH_DEREF_FAULT();
-%}
+{
+	return user_long_error(addr)
+}
+%)
 
 /* This function copies an argv from userspace. */
 function __get_argv:string(argv:long, first:long)
@@ -895,11 +884,8 @@ function __get_argv:string(argv:long, first:long)
 		# 8 == sizeof(long) on a 64-bit OS
 		argv += (8 * first)
 	while (argv) {
-		# We'd like to just call 'user_long(argv)' here, but
-		# we need to know the difference between a bad address
-		# and just getting a 0. 
 		try {
-			vstr = __user_pointer(argv)
+			vstr = user_long_error(argv)
 		} catch {
 			if (len)
 				str .= ", "
@@ -935,11 +921,8 @@ function __get_compat_argv:string(argv:long, first:long)
 		# 4 == sizeof(long) on a 32-bit OS
 		argv += (4 * first)
 	while (argv) {
-		# We'd like to just call 'user_long(argv)' here, but
-		# we need to know the difference between a bad address
-		# and just getting a 0. 
 		try {
-			vstr = __user_pointer(argv) & 0xffffffff
+			vstr = user_long_error(argv) & 0xffffffff
 		} catch {
 			if (len)
 				str .= ", "
