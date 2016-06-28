@@ -1,0 +1,90 @@
+# The syscall number to name is not a 1-to-1 sort of mapping.  It's rather
+# a 1-to-N mapping.  Systemtap tries to report things from the user's point
+# of view, so if we get a stat/stat64/newstat syscall, it reports all of them
+# just as "stat".  Following __syscall_map array is a memory used by the
+# syscall_map() function that helps to decide whether a syscall1 reasonably
+# maps to syscall2.  This helps testing, see systemtap.syscall/sys.stp.
+
+private __syscall_map
+
+probe init {
+    __syscall_map["chown"] = ",chown32,chown16,"
+    __syscall_map["fadvise64"] = ",fadvise64_64,"
+    __syscall_map["fchown"] = ",fchown32,fchown16,"
+    __syscall_map["fcntl"] = ",fcntl64,"
+    __syscall_map["fstat"] = ",fstat64,"
+    __syscall_map["fstatat"] = ",newfstatat,fstatat64,"
+    __syscall_map["ftruncate"] = ",ftruncate64,"
+    __syscall_map["getdents"] = ",getdents64,"
+    __syscall_map["getegid"] = ",getegid32,"
+    __syscall_map["geteuid"] = ",geteuid32,"
+    __syscall_map["getgid"] = ",getgid32,"
+    __syscall_map["getgroups"] = ",getgroups32,"
+    __syscall_map["getresgid"] = ",getresgid32,"
+    __syscall_map["getresuid"] = ",getresuid32,"
+    __syscall_map["getrlimit"] = ",ugetrlimit,"
+    __syscall_map["getuid"] = ",getuid32,"
+    __syscall_map["ipc"] = ",msgctl,msgget,msgrcv,msgsnd,semctl,semget,semop,semtimedop,shmctl,shmdt,shmget,"
+    __syscall_map["lchown"] = ",lchown32,lchown16,"
+    __syscall_map["llseek"] = ",_llseek,"
+    __syscall_map["lstat"] = ",lstat64,"
+    __syscall_map["mmap"] = ",mmap2,"
+    __syscall_map["pread"] = ",pread64,"
+    __syscall_map["pwrite"] = ",pwrite64,"
+    __syscall_map["select"] = ",_newselect,"
+    __syscall_map["signalfd"] = ",signalfd4,"
+    __syscall_map["semop"] = ",semtimedop,"
+    __syscall_map["setfsgid"] = ",setfsgid32,"
+    __syscall_map["setfsuid"] = ",setfsuid32,"
+    __syscall_map["setgid"] = ",setgid32,"
+    __syscall_map["setgroups"] = ",setgroups32,"
+    __syscall_map["setregid"] = ",setregid32,"
+    __syscall_map["setresgid"] = ",setresgid32,"
+    __syscall_map["setresuid"] = ",setresuid32,"
+    __syscall_map["setreuid"] = ",setreuid32,"
+    __syscall_map["setuid"] = ",setuid32,"
+    __syscall_map["stat"] = ",stat64,lstat64,fstat64,"
+    __syscall_map["socketcall"] = ",accept,accept4,bind,connect,getpeername,getsockname,getsockopt,listen,recv,recvfrom,recvmsg,recvmmsg,send,sendmsg,sendto,setsockopt,shutdown,socket,socketpair,"
+    __syscall_map["sync_file_range"] = ",sync_file_range2,"
+    __syscall_map["sysctl"] = ",_sysctl,"
+    __syscall_map["truncate"] = ",truncate64,"
+    __syscall_map["umount"] = ",umount2,"
+    __syscall_map["uname"] = ",oldolduname,olduname,"
+
+%( arch == "i386" %?
+    __syscall_map["ni_syscall"] = ",get_mempolicy,kcmp,mbind,migrate_pages,move_pages,set_mempolicy,uselib,"
+%)
+
+%( arch == "x86_64" %?
+    __syscall_map["ni_syscall"] = ",get_thread_area,kcmp,nfsservctl,set_thread_area,uselib,"
+%)
+
+%( arch == "arm" %?
+    __syscall_map["ni_syscall"] = ",get_mempolicy,kcmp,mbind,move_pages,set_mempolicy,uselib,"
+%)
+
+%( arch == "arm64" %?
+    __syscall_map["ni_syscall"] = ",get_mempolicy,kcmp,mbind,migrate_pages,move_pages,set_mempolicy,"
+%)
+
+%( arch == "powerpc" %?
+    __syscall_map["ni_syscall"] = ",execveat,getrandom,kcmp,memfd_create,olduname,oldolduname,readdir,renameat2,sched_getattr,sched_setattr,sigaction,signalfd4,sigpending,sigprocmask,"
+%)
+
+%( arch == "s390" %?
+    __syscall_map["ni_syscall"] = ",kcmp,readdir,nfsservctl,"
+%)
+
+}
+
+function syscall_map(name1, name2) {
+    if (name1 == "" || name2 == "")
+        return 0
+    if (name1 == name2)
+        return 1
+    if (isinstr (__syscall_map[name1], ",".name2.","))
+        return 1
+    if (isinstr (__syscall_map[name2], ",".name1.","))
+        return 1
+    return 0
+}

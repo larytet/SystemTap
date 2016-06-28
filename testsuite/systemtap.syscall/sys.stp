@@ -16,6 +16,9 @@ probe syscall.* ? {
 		if (entry_p) printf("\n")
 		printf("%s%s: %s (%s) = ", indent_str[indent], execname(), name, argstr)
 #		printf("%s%s: %s (%s) = ", indent_str[indent], execname(), probefunc(), argstr)
+		syscall_nr = _stp_syscall_nr()
+		if (! syscall_map(syscall_name(syscall_nr), name))
+			printf(" [ ERROR: Unmatched syscalls %s vs. %s (%d) ] ", syscall_name(syscall_nr), name, syscall_nr)
 		indent++
 		entry_p = 1
 	}
