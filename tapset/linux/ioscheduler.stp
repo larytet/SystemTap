@@ -149,7 +149,7 @@ probe ioscheduler.elv_add_request.tp = kernel.trace("block_rq_insert") ?
 {
 	name = "elv_add_request"
 	q =  $q
-	elevator_name = kernel_string(
+	elevator_name = ($q->elevator == 0) ? "" : kernel_string(
 		@choose_defined($q->elevator->type->elevator_name,
 			@choose_defined($q->elevator->elevator_type->elevator_name,
                                         $q->elevator->elevator_name)), "")
