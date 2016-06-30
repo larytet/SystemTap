@@ -5755,7 +5755,7 @@ c_unparser::visit_print_format (print_format* e)
 
 	    /* Limit how much can be printed at a time. (see also PR10490) */
 	    o->newline() << "c->last_stmt = " << lex_cast_qstring(*prec_tok) << ";";
-	    o->newline() << "if (" << mem_size << " > 1024) {";
+	    o->newline() << "if (" << mem_size << " > PAGE_SIZE) {";
 	    o->newline(1) << "snprintf(c->error_buffer, sizeof(c->error_buffer), "
 			  << "\"%lld is too many bytes for a memory dump\", (long long)"
 			  << mem_size << ");";

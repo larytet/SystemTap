@@ -329,6 +329,24 @@ deref_fault: /* branched to from kread() */
  *
  * @addr: the kernel space address to retrieve the buffer from
  * @inlen: the exact length of the buffer to read
+ *
+ * Description: Reads inlen characters of a buffer from the given kernel space
+ * memory address, and returns up to MAXSTRINGLEN characters, where any ASCII
+ * characters that are not printable are replaced by the corresponding escape
+ * sequence in the returned string. Note that the string will be surrounded by
+ * double quotes. On the rare cases when kernel space data is not accessible at
+ * the given address, the address itself is returned as a string, without
+ * double quotes.
+ */
+function kernel_buffer_quoted:string (addr:long, inlen:long) {
+  return kernel_buffer_quoted(addr, inlen, %{ /* pure */ MAXSTRINGLEN%})
+}
+
+/**
+ * sfunction kernel_buffer_quoted - Retrieves and quotes buffer from kernel space
+ *
+ * @addr: the kernel space address to retrieve the buffer from
+ * @inlen: the exact length of the buffer to read
  * @outlen: the maximum length of the output string
  *
  * Description: Reads inlen characters of a buffer from the given kernel space
@@ -340,7 +358,7 @@ deref_fault: /* branched to from kread() */
  * double quotes.
  */
 function kernel_buffer_quoted:string (addr:long, inlen:long, outlen:long)
-%{
+%{ /* pure */
   if ( _stp_text_str(STAP_RETVALUE,
                        (char *)(uintptr_t)STAP_ARG_addr,
 	                STAP_ARG_inlen, STAP_ARG_outlen, 1, 0, 1) < 0)
@@ -362,7 +380,7 @@ function kernel_buffer_quoted:string (addr:long, inlen:long, outlen:long)
  * the given address, an error is thrown.
  */
 function kernel_buffer_quoted_error:string (addr:long, inlen:long, outlen:long)
-%{
+%{ /* pure */
   if (_stp_text_str(STAP_RETVALUE,
                         (char *) (uintptr_t) STAP_ARG_addr,
 			 STAP_ARG_inlen, STAP_ARG_outlen, 1, 0, 1) < 0)
