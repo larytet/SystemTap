@@ -2732,7 +2732,8 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
       for (unsigned j=0; j<f->globals.size(); j++)
         {
           vardecl* g = f->globals[j];
-          if (g->name == gname)
+          if ((g->name == gname) ||
+              (g->name == pname)) // private global within tapset
             {
 	      g->set_arity (arity, tok);
 
