@@ -61,7 +61,7 @@
 
 ;; Syntax definitions for SystemTap
 (c-lang-defconst c-primitive-type-kwds
-  systemtap '("string" "long" "global"))
+  systemtap '("string" "long" "global" "private"))
 
 (c-lang-defconst c-modifier-kwds
   systemtap (append '("probe" "function") (c-lang-const c-modifier-kwds)))
