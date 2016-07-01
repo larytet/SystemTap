@@ -706,7 +706,7 @@ probe __nd_syscall.compat_preadv2 = kprobe.function("compat_sys_preadv2")
 	vector_uaddr = pointer_arg(2)
 	count = int_arg(3)
 	offset = (u32_arg(5) << 32) + u32_arg(4)
-	flags = int_arg(5)
+	flags = int_arg(6)
 	flags_str = _preadv2_flags_str(flags)
 	argstr = sprintf("%d, %p, %d, 0x%x, %s", fd, vector_uaddr,
 			 count, offset, flags_str)
@@ -1038,7 +1038,7 @@ probe __nd_syscall.compat_pwritev2 =
 	vector_uaddr = pointer_arg(2)
 	count = int_arg(3)
 	offset = (u32_arg(5) << 32) + u32_arg(4)
-	flags = int_arg(5)
+	flags = int_arg(6)
 	flags_str = _preadv2_flags_str(flags)
 	argstr = sprintf("%d, %p, %d, 0x%x, %s", fd, vector_uaddr,
 			 count, offset, flags_str)
