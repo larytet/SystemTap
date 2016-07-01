@@ -2733,7 +2733,7 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
         {
           vardecl* g = f->globals[j];
           if ((g->name == gname) ||
-              (g->name == pname)) // private global within tapset
+              (g->name == pname)) // private global within tapset probe alias
             {
 	      g->set_arity (arity, tok);
 
