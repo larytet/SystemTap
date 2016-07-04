@@ -13,6 +13,11 @@
   set_user_int(), set_user_short(), set_user_char() and set_user_pointer() to
   write a value of specified type directly to a user space address.
 
+- New tapset functions user_buffer_quoted(), user_buffer_quoted_error(), 
+  kernel_buffer_quoted(), and kernel_buffer_quoted_error() to print a
+  buffer of an exact length.  These functions can handle '\0' characters
+  as well.  
+
 * What's new in version 3.0, 2016-03-27
 
 - The new experimental "interactive" mode, specified by "stap -i",
