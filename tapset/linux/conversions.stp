@@ -66,7 +66,7 @@ function kernel_string_quoted:string (addr:long)
   if (STAP_ARG_addr != 0)
     rc = _stp_text_str(STAP_RETVALUE,
                        (char *)(uintptr_t)STAP_ARG_addr,
-                       MAXSTRINGLEN, MAXSTRINGLEN, 1, 0);
+                       MAXSTRINGLEN, MAXSTRINGLEN, 1, 0, 0);
   if (STAP_ARG_addr == 0 || rc < 0)
     snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p", (void *)(long)STAP_ARG_addr);
 %}
@@ -322,4 +322,50 @@ deref_fault: /* branched to from kread() */
         "kernel pointer copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
+%}
+
+/**
+ * sfunction kernel_buffer_quoted - Retrieves and quotes buffer from kernel space
+ *
+ * @addr: the kernel space address to retrieve the buffer from
+ * @inlen: the exact length of the buffer to read
+ * @outlen: the maximum length of the output string
+ *
+ * Description: Reads inlen characters of a buffer from the given kernel space
+ * memory address, and returns up to outlen characters, where any ASCII
+ * characters that are not printable are replaced by the corresponding escape
+ * sequence in the returned string. Note that the string will be surrounded by
+ * double quotes. On the rare cases when kernel space data is not accessible at
+ * the given address, the address itself is returned as a string, without
+ * double quotes.
+ */
+function kernel_buffer_quoted:string (addr:long, inlen:long, outlen:long)
+%{
+  if ( _stp_text_str(STAP_RETVALUE,
+                       (char *)(uintptr_t)STAP_ARG_addr,
+	                STAP_ARG_inlen, STAP_ARG_outlen, 1, 0, 1) < 0)
+			snprintf(STAP_RETVALUE, STAP_ARG_outlen, "0x%x",(unsigned int) STAP_ARG_addr);
+%}
+
+/**
+ * sfunction kernel_buffer_quoted_warn - Retrieves and quotes buffer from kernel space
+ *
+ * @addr: the kernel space address to retrieve the buffer from
+ * @inlen: the exact length of the buffer to read
+ * @outlen: the maximum length of the output string
+ * @warn_msg: the warning message to throw when data isn't available
+ *
+ * Description: Reads inlen characters of a buffer from the given kernel space
+ * memory address, and returns up to outlen characters, where any ASCII
+ * characters that are not printable are replaced by the corresponding escape
+ * sequence in the returned string. Note that the string will be surrounded by
+ * double quotes. On the rare cases when kernel space data is not accessible at
+ * the given address, an error is thrown.
+ */
+function kernel_buffer_quoted_warn:string (addr:long,inlen:long, outlen:long, warn_msg:string)
+%{
+  if (_stp_text_str(STAP_RETVALUE,
+                        (char *) (uintptr_t) STAP_ARG_addr,
+			 STAP_ARG_inlen, STAP_ARG_outlen, 1, 0, 1) < 0)
+			 STAP_ERROR(STAP_ARG_warn_msg);
 %}

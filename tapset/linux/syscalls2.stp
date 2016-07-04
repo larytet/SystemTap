@@ -5424,7 +5424,7 @@ probe syscall.write =
 	buf_uaddr = $buf
 	count = __ulong($count)
 	argstr = sprintf("%d, %s, %u", __int32($fd),
-		user_string_n_quoted($buf, $count, syscall_string_trunc),
+		user_buffer_quoted($buf, $count, syscall_string_trunc),
 		__ulong($count))
 }
 probe __syscall.write = kernel.function("sys_write").call
