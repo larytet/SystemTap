@@ -651,12 +651,9 @@ function _struct_sockaddr_u:string(uaddr:long, len:long)
                 // We need conversion on this place.
                 // No check of ret value, because _stp_text_str returns
                 // "<unknown>" if bad things happen.
-                //
-                // Well. There can be NUL chars inside sun_path.
-                // We just stop at first NUL char. 
-                // TODO: We need byte oriented conversion function.
+
                 _stp_text_str(CONTEXT->out_str, &sun->sun_path[1],
-                    len - sizeof(sa_family_t), MAXSTRINGLEN - 1, 0, 0);
+                    len - sizeof(sa_family_t), MAXSTRINGLEN - 1, 0, 0, 1);
                 snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, \"\\000%s\"}",
                     CONTEXT->out_str);
             } else

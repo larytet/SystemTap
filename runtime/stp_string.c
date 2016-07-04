@@ -150,7 +150,7 @@ verbatim:
  * @param user Set this to indicate the input string pointer is a userspace pointer.
  */
 static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
-			 int quoted, int user)
+			 int quoted, int user, int buffer)
 {
 	int c = 0;
 	char *out = outstr;
@@ -170,7 +170,7 @@ static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
 		int n = _stp_decode_utf8(in, inlen, user, &c);
 		if (n <= 0)
 			goto bad;
-		if (c == 0 || outlen <= 0)
+		if ((c == 0 && !buffer) || outlen <= 0)
 			break;
 		in += n;
 		inlen -= n;
@@ -195,6 +195,7 @@ static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
 			*out++ = c;
 		else {
 			switch (c) {
+			case '\0':
 			case '\a':
 			case '\b':
 			case '\f':
@@ -216,6 +217,9 @@ static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
 
 			*out++ = '\\';
 			switch (c) {
+			case '\0':
+                               *out++ = '0';
+                               break;
 			case '\a':
 				*out++ = 'a';
 				break;
@@ -243,7 +247,7 @@ static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
 			case '\\':
 				*out++ = '\\';
 				break;
-			default:                  /* output octal representation */
+			default:	          /* output octal representation */
 				*out++ = to_oct_digit((c >> 6) & 03);
 				*out++ = to_oct_digit((c >> 3) & 07);
 				*out++ = to_oct_digit(c & 07);
