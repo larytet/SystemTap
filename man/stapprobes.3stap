@@ -38,7 +38,11 @@ prefix.
 .PP
 A probe declaration may list multiple comma-separated probe points in
 order to attach a handler to all of the named events.  Normally, the
-handler statements are run whenever any of events occur.
+handler statements are run whenever any of events occur.  Depending on
+the type of probe point, the handler statements may refer to context
+variables (denoted with a dollar-sign prefix like $foo) to read or
+write state.  This may include function parameters for function
+probes, or local variables for statement probes.
 .PP
 The syntax of a single probe point is a general dotted-symbol
 sequence.  This allows a breakdown of the event namespace into parts,
