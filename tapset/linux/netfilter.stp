@@ -105,6 +105,62 @@
    CATCH_DEREF_FAULT();
 %}
 
+private function __skb_nonlinear:long(addr:long)
+%{ /* pure */
+  struct sk_buff *skb = (struct sk_buff *)STAP_ARG_addr;
+  STAP_RETVALUE = skb_is_nonlinear(skb);
+%}
+
+private function __skb_shinfo:long(addr:long)
+%{ /* pure */
+  struct sk_buff *skb = (struct sk_buff *)STAP_ARG_addr;
+  STAP_RETVALUE = (uintptr_t)skb_end_pointer(skb);
+%}
+
+private function __skb_frag_size:long(addr:long, frag:long)
+%{ /* pure */
+  struct skb_shared_info *skb_shr = (struct skb_shared_info *)STAP_ARG_addr;
+  skb_frag_t skb_frag = skb_shr->frags[STAP_ARG_frag];
+  STAP_RETVALUE = skb_frag.size;
+%}
+
+private function __skb_frag_data_addr:long(addr:long, frag:long)
+%{ /* pure */
+  struct skb_shared_info *skb_shr = (struct skb_shared_info *)STAP_ARG_addr;
+  const skb_frag_t *skb_frag = &skb_shr->frags[STAP_ARG_frag];
+  STAP_RETVALUE = (uintptr_t)skb_frag_address_safe(skb_frag);
+%}
+
+private function __buffer_data:string(skb:long, str:long)
+{
+  length = @cast(skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
+  data_length = @cast(skb, "struct sk_buff", "kernel<linux/skbuff.h>")->data_len
+  skb_data = @cast(skb, "struct sk_buff", "kernel<linux/skbuff.h>")->data
+  headlen = length - data_length /* skb_headlen() */
+  data = ""
+  if (str) {
+    data = kernel_buffer_quoted(skb_data, headlen)
+  } else {
+    data = sprintf("%.*M", headlen, skb_data)
+  }
+
+  if (__skb_nonlinear(skb)) {
+    shinfo = __skb_shinfo(skb)
+    nr_frags = @cast(shinfo, "struct skb_shared_info",
+                     "kernel<linux/skbuff.h>")->nr_frags
+    for (i = 0; i < nr_frags; i++) {
+      frag_size = __skb_frag_size(shinfo, i)
+      frag_data_addr = __skb_frag_data_addr(shinfo, i)
+      if (str) {
+        data .= kernel_buffer_quoted(frag_data_addr, frag_size)
+      } else {
+        data .= sprintf("%.*M", frag_size, frag_data_addr)
+      }
+    }
+  }
+  return data
+}
+
 @define netfilter_common_setup(pf_name) %(
         pf = @pf_name
 
@@ -133,6 +189,10 @@
            outdev_mac_len = outdev->addr_len
            out_mac = __get_mac_addr(outdev)
         }
+
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
+        data_hex = __buffer_data($skb, 0)
+        data_str = __buffer_data($skb, 1)
 %)
 
 @define netfilter_ip4_setup %(
@@ -141,8 +201,6 @@
         saddr = format_ipaddr(__ip_skb_saddr(iphdr), @const("AF_INET"))
         daddr = format_ipaddr(__ip_skb_daddr(iphdr), @const("AF_INET"))
         protocol = __ip_skb_proto(iphdr)
-
-        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
 
         tcphdr = __get_skb_tcphdr($skb)
         if (protocol == ipproto_tcp) {
@@ -170,8 +228,6 @@
         saddr = format_ipaddr(&iphdr->saddr, @const("AF_INET6"))
         daddr = format_ipaddr(&iphdr->daddr, @const("AF_INET6"))
         protocol = __ip6_skb_proto($skb)
-
-        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
 
         tcphdr = __get_skb_tcphdr($skb)
         if (protocol == ipproto_tcp) {
@@ -201,6 +257,8 @@
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @iphdr: Address of IP header
  * @protocol: Packet protocol from driver (ipv4 only)
  * @ipproto_tcp: Constant used to signify that the packet protocol is TCP
@@ -251,6 +309,8 @@ probe netfilter.ipv6.pre_routing
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @iphdr: Address of IP header
  * @protocol: Packet protocol from driver (ipv4 only)
  * @ipproto_tcp: Constant used to signify that the packet protocol is TCP
@@ -301,6 +361,8 @@ probe netfilter.ipv6.local_in
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @iphdr: Address of IP header
  * @protocol: Packet protocol from driver (ipv4 only)
  * @ipproto_tcp: Constant used to signify that the packet protocol is TCP
@@ -351,6 +413,8 @@ probe netfilter.ipv6.forward
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @iphdr: Address of IP header
  * @protocol: Packet protocol from driver (ipv4 only)
  * @ipproto_tcp: Constant used to signify that the packet protocol is TCP
@@ -400,6 +464,8 @@ probe netfilter.ipv6.local_out
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @iphdr: Address of IP header
  * @protocol: Packet protocol from driver (ipv4 only)
  * @ipproto_tcp: Constant used to signify that the packet protocol is TCP
@@ -461,8 +527,6 @@ probe netfilter.ipv6.post_routing
            ar_tip =  format_ipaddr(kernel_int(ar_data + 16), @const("AF_INET"))
         }
         /* XXX support for additional cases? */
-
-        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
 %)
 
 /**
@@ -473,6 +537,8 @@ probe netfilter.ipv6.post_routing
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @arphdr: Address of ARP header
  * @ar_hrd: Format of hardware address
  * @ar_pro: Format of protocol address
@@ -506,6 +572,8 @@ probe netfilter.arp.in = netfilter.hook("NF_ARP_IN").pf("NFPROTO_ARP")
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @arphdr: Address of ARP header
  * @ar_hrd: Format of hardware address
  * @ar_pro: Format of protocol address
@@ -538,6 +606,8 @@ probe netfilter.arp.out = netfilter.hook("NF_ARP_OUT").pf("NFPROTO_ARP")
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @arphdr: Address of ARP header
  * @ar_hrd: Format of hardware address
  * @ar_pro: Format of protocol address
@@ -584,8 +654,6 @@ probe netfilter.arp.forward = netfilter.hook("NF_ARP_FORWARD").pf("NFPROTO_ARP")
             br_htime = ntohs(kernel_short(brhdr + 31))
             br_fd = ntohs(kernel_short(brhdr + 33))
         }
-
-        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
 %)
 
 /**
@@ -614,6 +682,8 @@ probe netfilter.arp.forward = netfilter.hook("NF_ARP_FORWARD").pf("NFPROTO_ARP")
  * @br_htime: Hello time in 1/256 secs
  * @br_fd: Forward delay in 1/256 secs
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @nf_drop: Constant used to signify a 'drop' verdict
  * @nf_accept: Constant used to signify an 'accept' verdict
  * @nf_stolen: Constant used to signify a 'stolen' verdict
@@ -654,6 +724,8 @@ probe netfilter.bridge.pre_routing
  * @br_htime: Hello time in 1/256 secs
  * @br_fd: Forward delay in 1/256 secs
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @nf_drop: Constant used to signify a 'drop' verdict
  * @nf_accept: Constant used to signify an 'accept' verdict
  * @nf_stolen: Constant used to signify a 'stolen' verdict
@@ -694,6 +766,8 @@ probe netfilter.bridge.local_in
  * @br_htime: Hello time in 1/256 secs
  * @br_fd: Forward delay in 1/256 secs
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @nf_drop: Constant used to signify a 'drop' verdict
  * @nf_accept: Constant used to signify an 'accept' verdict
  * @nf_stolen: Constant used to signify a 'stolen' verdict
@@ -734,6 +808,8 @@ probe netfilter.bridge.forward
  * @br_htime: Hello time in 1/256 secs
  * @br_fd: Forward delay in 1/256 secs
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @nf_drop: Constant used to signify a 'drop' verdict
  * @nf_accept: Constant used to signify an 'accept' verdict
  * @nf_stolen: Constant used to signify a 'stolen' verdict
@@ -774,6 +850,8 @@ probe netfilter.bridge.local_out
  * @br_htime: Hello time in 1/256 secs
  * @br_fd: Forward delay in 1/256 secs
  * @length: The length of the packet buffer contents, in bytes
+ * @data_str: A string representing the packet buffer contents
+ * @data_hex: A hexadecimal string representing the packet buffer contents
  * @nf_drop: Constant used to signify a 'drop' verdict
  * @nf_accept: Constant used to signify an 'accept' verdict
  * @nf_stolen: Constant used to signify a 'stolen' verdict

@@ -1,5 +1,8 @@
 * What's new in version 3.1, PRERELEASE
 
+- Netfilter tapsets now provide variables data_hex and data_str to display packet
+  contents in hexadecimal and ASCII respectively.
+
 - Translator now accepts new @const() operator for convenient expressing
   constants in tapset code, or guru-mode scripts. See stap(1) for details.
 
