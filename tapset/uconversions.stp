@@ -1059,7 +1059,7 @@ function user_buffer_quoted:string (addr:long, inlen:long, outlen:long)
  * @addr: the user space address to retrieve the buffer from
  * @inlen: the exact length of the buffer to read
  * @outlen: the maximum length of the output string
-  *
+ *
  * Description: Reads inlen characters of a buffer from the given user space
  * memory address, and returns up to outlen characters, where any ASCII
  * characters that are not printable are replaced by the corresponding escape

@@ -238,7 +238,7 @@ probe tty.write = kernel.function("n_tty_write") !,
 %(systemtap_v < "2.8" %?
 	buffer = kernel_string($buf)
 %:
-	buffer = kernel_string_quoted($buf)
+       buffer = kernel_buffer_quoted($buf, $nr, 0)
 %)
 	nr = $nr
 
@@ -264,7 +264,7 @@ probe tty.read = kernel.function("n_tty_read") !,
 %(systemtap_v < "2.8" %?
 	buffer = kernel_string($buf)
 %:
-	buffer = kernel_string_quoted($buf)
+       buffer = kernel_buffer_quoted($buf, $nr, 0)
 %)
 	nr = $nr
 	file_name = d_name(@choose_defined($file->f_path->dentry,

@@ -942,7 +942,7 @@ probe syscall.pwrite = kernel.function("sys_pwrite64").call
 	count = __ulong($count)
 	offset = $pos
 	argstr = sprintf("%d, %s, %u, %d", __int32($fd),
-		user_string_n_quoted($buf, $count, syscall_string_trunc),
+		user_buffer_quoted($buf, $count, syscall_string_trunc),
 		__ulong($count), $pos)
 }
 probe syscall.pwrite.return = kernel.function("sys_pwrite64").return
@@ -963,7 +963,7 @@ probe syscall.pwrite32 = kernel.function("sys32_pwrite64").call ?
 	offset = ($poshi << 32) + $poslo
 	buf_uaddr = @choose_defined($buf, $ubuf)
 	argstr = sprintf("%d, %s, %u, %d", __int32($fd),
-			 user_string_n_quoted(buf_uaddr, $count,
+			 user_buffer_quoted(buf_uaddr, $count,
 					       syscall_string_trunc),
 			 $count, ($poshi << 32) + $poslo)
 }
