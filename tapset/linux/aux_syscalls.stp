@@ -4635,12 +4635,24 @@ static const _stp_val_array const _stp_prctl_mm_option_list[] = {
 	V(PR_SET_MM_START_STACK),
 	V(PR_SET_MM_START_BRK),
 	V(PR_SET_MM_BRK),
+#ifdef PR_SET_MM_ARG_START
 	V(PR_SET_MM_ARG_START),
+#endif
+#ifdef PR_SET_MM_ARG_END
 	V(PR_SET_MM_ARG_END),
+#endif
+#ifdef PR_SET_MM_ENV_START
 	V(PR_SET_MM_ENV_START),
+#endif
+#ifdef PR_SET_MM_ENV_END
 	V(PR_SET_MM_ENV_END),
+#endif
+#ifdef PR_SET_MM_AUXV
 	V(PR_SET_MM_AUXV),
+#endif
+#ifdef PR_SET_MM_EXE_FILE
 	V(PR_SET_MM_EXE_FILE),
+#endif
 #ifdef PR_SET_MM_MAP
 	V(PR_SET_MM_MAP),
 #endif
