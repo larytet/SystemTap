@@ -27,7 +27,12 @@
  * Yet note some kernels (RHEL6) may already have both...  */
 #if defined(cputime_to_usecs)
 #if !defined(cputime_to_msecs)
-#define cputime_to_msecs(__ct)		_stp_div64(NULL, cputime_to_usecs(__ct), 1000ULL)
+/* On some kernels (android 3.0 kernels), the cputime_to_usecs() macro
+ * definition inadvertently had a semicolon on the end. The following
+ * should handle versions of that macro with and without the extra
+ * semi-colon. */
+#define cputime_to_msecs(__ct)					\
+	_stp_div64(NULL, ({cputime_to_usecs(__ct);}), 1000ULL)
 #endif
 
 /* Kernels before 2.6.37 have cputime_to_msecs, but not usecs. */
