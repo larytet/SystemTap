@@ -48,7 +48,7 @@ int main()
     fd = open(fname, O_WRONLY);
     //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"testfile", O_WRONLY) = NNNN
 
-    write(fd, fname, strlen(fname) + 1);
+    write(fd, fname, strlen(fname));
     //staptest// write (NNNN, "testfile", NNNN) = NNNN
 
     close(fd);
