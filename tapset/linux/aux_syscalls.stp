@@ -43,6 +43,9 @@
 // Get _stp_val_array and _stp_lookup_* definitions.
 #include "linux/syscalls-common.h"
 
+// Get _stp_syscall_get_nr() definitions.
+#include "syscall.h"
+
 static void
 _stp_lookup_str2(const _stp_val_array * const array, long val, char *ptr,
 		 int len, int base)
