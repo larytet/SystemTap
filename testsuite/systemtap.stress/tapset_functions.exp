@@ -190,14 +190,6 @@ proc dmesg_check {} {
     }
 }
 
-# Show contents of the errors.txt file
-proc show_errors {} {
-    if {[catch {exec bash -c "cat errors.txt"} output]} {
-        fail "$test (can't read errors.txt)"
-    }
-    verbose -log $output
-}
-
 # Setup
 file mkdir "$test"
 cd "$test"
@@ -249,11 +241,10 @@ foreach line [split $outputv "\n"] {
                 close $testscript
                 # Debug-mode test
                 verbose -log "testing ${fname}(${fargs})"
-                set rc [as_root "stap -g $opts testscript.stp 2>errors.txt"]
+                set rc [as_root "stap -g $opts testscript.stp 2>@1"]
                 if {$rc == 0} {
                     pass "testscript (${fname}(${fargs}))"
                 } else {
-                    show_errors
                     fail "testscript (${fname}(${fargs}))"
                 }
                 dmesg_check
@@ -269,11 +260,10 @@ if { !$debugmode } {
     close $testscript
     # Non-debug-mode test
     dmesg_snap
-    set rc [as_root "stap -g $opts testscript.stp 2>errors.txt"]
+    set rc [as_root "stap -g $opts testscript.stp 2>@1"]
     if {$rc == 0} {
         pass "testscript"
     } else {
-        show_errors
         fail "testscript"
     }
     dmesg_check
