@@ -30,6 +30,13 @@
     if (@defined(mm1->systemtap) || @defined(mm2->systemtap)) {
         println($autocast_succeeded_mm_systemtap)
     }
+
+    // Test that autocast can resolve through nested @defined
+    // (especially that the ternary isn't automatically "defined")
+    mm3 = @choose_defined(@choose_defined($nonsense, $wut), task_current())->mm;
+    mm4 = @choose_defined(@choose_defined($nonsense, task_current()), $wut)->mm;
+    mm5 = @choose_defined(@choose_defined(task_current(), $nonsense), $wut)->mm;
+    println(mm3 == mm4 && mm4 == mm5)
 %)
 
 
