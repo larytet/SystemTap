@@ -2835,7 +2835,8 @@ private:
 unsigned var_expanding_visitor::tick = 0;
 
 
-var_expanding_visitor::var_expanding_visitor (): op()
+var_expanding_visitor::var_expanding_visitor ():
+  replaced_defined_ops(0), op()
 {
   // FIXME: for the time being, by default we only support plain '$foo
   // = bar', not '+=' or any other op= variant. This is fixable, but a
@@ -2964,6 +2965,7 @@ var_expanding_visitor::visit_delete_statement (delete_statement* s)
 void
 var_expanding_visitor::visit_defined_op (defined_op* e)
 {
+  expression * const old_operand = e->operand;
   bool resolved = true;
 
   defined_ops.push (e);
@@ -2999,11 +3001,12 @@ var_expanding_visitor::visit_defined_op (defined_op* e)
     target_symbol* tsym = dynamic_cast<target_symbol*> (e->operand);
     if (tsym && tsym->saved_conversion_error) // failing
       resolved = false;
-    else if (tsym) // unresolved but not marked failing
+    else if (e->operand == old_operand) // unresolved but not marked failing
       {
         // There are some visitors that won't touch certain target_symbols,
         // e.g. dwarf_var_expanding_visitor won't resolve @cast.  We should
         // leave it for now so some other visitor can have a chance.
+        defined_ops.pop ();
         provide (e);
         return;
       }
@@ -3017,6 +3020,7 @@ var_expanding_visitor::visit_defined_op (defined_op* e)
   literal_number* ln = new literal_number (resolved ? 1 : 0);
   ln->tok = e->tok;
   provide (ln);
+  ++replaced_defined_ops;
 }
 
 
