@@ -106,11 +106,15 @@ int main()
 
     fd_null = open("/dev/null", O_WRONLY);
 
+    memset(buf, 'a', sizeof(buf));
+
     sendto(-1, buf, sizeof(buf), 0, NULL, 0);
-    //staptest// sendto (-1, XXXX, 1024, 0x0, NULL, 0) = -NNNN (EBADF)
+    //staptest// sendto (-1, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"..., 1024, 0x0, NULL, 0) = -NNNN (EBADF)
+
+    memset(buf, 'b', sizeof(buf));
 
     sendto(fd_null, buf, sizeof(buf), MSG_DONTWAIT, NULL, 0);
-    //staptest// sendto (NNNN, XXXX, 1024, MSG_DONTWAIT, NULL, 0) = -NNNN (ENOTSOCK)
+    //staptest// sendto (NNNN, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"..., 1024, MSG_DONTWAIT, NULL, 0) = -NNNN (ENOTSOCK)
 
     s = socket(PF_INET, SOCK_DGRAM, 0);
     //staptest// socket (PF_INET, SOCK_DGRAM, IPPROTO_IP) = NNNN
@@ -118,19 +122,23 @@ int main()
     connect(s, (struct sockaddr *)&sin1, sizeof(sin1));
     //staptest// connect (NNNN, {AF_INET, 0.0.0.0, NNNN}, 16) = 0
 
+    memset(buf, 'c', sizeof(buf));
+
     sendto(s, (void *)buf, sizeof(buf), MSG_OOB, (struct sockaddr *)&sin1,
 	   sizeof(sin1));
-    //staptest// sendto (NNNN, XXXX, 1024, MSG_OOB, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN (EOPNOTSUPP)
+    //staptest// sendto (NNNN, "ccccccccccccccccccccccccccccccccccccccccccccc"..., 1024, MSG_OOB, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN (EOPNOTSUPP)
 
     sendto(s, (void *)-1, sizeof(buf), 0, (struct sockaddr *)&sin1,
 	   sizeof(sin1));
     //staptest// sendto (NNNN, 0x[f]+, 1024, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN (EFAULT)
 
+    memset(buf, 'd', sizeof(buf));
+
     sendto(s, (void *)buf, -1, 0, (struct sockaddr *)&sin1, sizeof(sin1));
 #if __WORDSIZE == 64
-    //staptest// sendto (NNNN, XXXX, 18446744073709551615, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN
+    //staptest// sendto (NNNN, "ddddddddddddddddddddddddddddddddddddddddddddd"..., 18446744073709551615, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN
 #else
-    //staptest// sendto (NNNN, XXXX, 4294967295, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN
+    //staptest// sendto (NNNN, "ddddddddddddddddddddddddddddddddddddddddddddd"..., 4294967295, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN
 #endif
 
     close(s);
@@ -142,14 +150,22 @@ int main()
     connect(s, (struct sockaddr *)&sin1, sizeof(sin1));
     //staptest// connect (NNNN, {AF_INET, 0.0.0.0, NNNN}, 16) = 0
 
+    memset(buf, 'e', sizeof(buf));
+
     sendto(s, buf, sizeof(buf), 0, (struct sockaddr *)&sin1, sizeof(sin1));
-    //staptest// sendto (NNNN, XXXX, 1024, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = 1024
+    //staptest// sendto (NNNN, "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"..., 1024, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = 1024
+
+    memset(buf, 'f', sizeof(buf));
 
     sendto(s, buf, sizeof(buf), 0, (struct sockaddr *)&sin1, -1);
-    //staptest// sendto (NNNN, XXXX, 1024, 0x0, {unknown .+}, 4294967295) = -NNNN (EINVAL)
+    //staptest// sendto (NNNN, "fffffffffffffffffffffffffffffffffffffffffffff"..., 1024, 0x0, {unknown .+}, 4294967295) = -NNNN (EINVAL)
+
+    memset(buf, 'g', sizeof(buf));
 
     sendto(s, buf, sizeof(buf), 0, (struct sockaddr *)-1, sizeof(sin1));
-    //staptest// sendto (NNNN, XXXX, 1024, 0x0, {\.\.\.}, 16) = -NNNN (EFAULT)
+    //staptest// sendto (NNNN, "ggggggggggggggggggggggggggggggggggggggggggggg"..., 1024, 0x0, {\.\.\.}, 16) = -NNNN (EFAULT)
+
+    memset(buf, 'h', sizeof(buf));
 
     // Ignore the return value on this sendto() call.  Note that on a
     // 32-bit kernel (i686 for instance), MAXSTRINGLEN is only
@@ -157,7 +173,7 @@ int main()
     // will cause argstr to get too big. So, we'll make the end of the
     // arguments optional.
     sendto(s, buf, sizeof(buf), -1, (struct sockaddr *)&sin1, sizeof(sin1));
-    //staptest// sendto (NNNN, XXXX, 1024, MSG_[^ ]+[[[[|XXXX, {AF_INET, 0.0.0.0, NNNN}, 16]]]]?) = NNNN
+    //staptest// sendto (NNNN, "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh"..., 1024, MSG_[^ ]+[[[[|XXXX, {AF_INET, 0.0.0.0, NNNN}, 16]]]]?) = NNNN
 
     close(s);
     //staptest// close (NNNN) = 0

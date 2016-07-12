@@ -110,17 +110,23 @@ int main()
 
     fd_null = open("/dev/null", O_WRONLY);
 
+    memset(buf, 'a', sizeof(buf));
+
     send(-1, buf, sizeof(buf), 0);
-    //staptest// send[[[[to]]]]? (-1, XXXX, 1024, 0x0[[[[, NULL, 0]]]]?) = -NNNN (EBADF)
+    //staptest// send[[[[to]]]]? (-1, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"..., 1024, 0x0[[[[, NULL, 0]]]]?) = -NNNN (EBADF)
+
+    memset(buf, 'b', sizeof(buf));
 
     send(fd_null, buf, sizeof(buf), MSG_DONTWAIT);
-    //staptest// send[[[[to]]]]? (NNNN, XXXX, 1024, MSG_DONTWAIT[[[[, NULL, 0]]]]?) = -NNNN (ENOTSOCK)
+    //staptest// send[[[[to]]]]? (NNNN, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"..., 1024, MSG_DONTWAIT[[[[, NULL, 0]]]]?) = -NNNN (ENOTSOCK)
 
     s = socket(PF_INET, SOCK_DGRAM, 0);
     //staptest// socket (PF_INET, SOCK_DGRAM, IPPROTO_IP) = NNNN
 
     connect(s, (struct sockaddr *)&sin1, sizeof(sin1));
     //staptest// connect (NNNN, {AF_INET, 0.0.0.0, NNNN}, 16) = 0
+
+    memset(buf, 'c', sizeof(buf));    
 
     send(s, (void *)-1, sizeof(buf), 0);
 #ifdef __s390__
@@ -131,9 +137,9 @@ int main()
 
     send(s, (void *)buf, -1, 0);
 #if __WORDSIZE == 64
-    //staptest// send[[[[to]]]]? (NNNN, XXXX, 18446744073709551615, 0x0[[[[, NULL, 0]]]]?) = -NNNN
+    //staptest// send[[[[to]]]]? (NNNN, "ccccccccccccccccccccccccccccccccccccccccccccc"..., 18446744073709551615, 0x0[[[[, NULL, 0]]]]?) = -NNNN
 #else
-    //staptest// send[[[[to]]]]? (NNNN, XXXX, 4294967295, 0x0[[[[, NULL, 0]]]]?) = -NNNN
+    //staptest// send[[[[to]]]]? (NNNN, "ccccccccccccccccccccccccccccccccccccccccccccc"..., 4294967295, 0x0[[[[, NULL, 0]]]]?) = -NNNN
 #endif
 
     close(s);
@@ -145,12 +151,16 @@ int main()
     connect(s, (struct sockaddr *)&sin1, sizeof(sin1));
     //staptest// connect (NNNN, {AF_INET, 0.0.0.0, NNNN}, 16) = 0
 
+    memset(buf, 'd', sizeof(buf));
+
     send(s, buf, sizeof(buf), MSG_DONTWAIT);
-    //staptest// send[[[[to]]]]? (NNNN, XXXX, 1024, MSG_DONTWAIT[[[[, NULL, 0]]]]?) = 1024
+    //staptest// send[[[[to]]]]? (NNNN, "ddddddddddddddddddddddddddddddddddddddddddddd"..., 1024, MSG_DONTWAIT[[[[, NULL, 0]]]]?) = 1024
+
+    memset(buf, 'e', sizeof(buf));  
 
     // Ignore the return value on this send() call.
     send(s, buf, sizeof(buf), -1);
-    //staptest// send[[[[to]]]]? (NNNN, XXXX, 1024, MSG_[^ ]+[[[[|XXXX, NULL, 0]]]]?)
+    //staptest// send[[[[to]]]]? (NNNN, "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"..., 1024, MSG_[^ ]+[[[[|XXXX, NULL, 0]]]]?)
 
     close(s);
     //staptest// close (NNNN) = 0
