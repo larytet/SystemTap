@@ -161,7 +161,7 @@ int main()
     // flags value can produce a string that will cause argstr to get
     // too big. So, we'll make the end of the argument optional.
     sys_sendmmsg(s, msgs, 2, -1);
-    //staptest// sendmmsg (NNNN, XXXX, 2, MSG_[^ ]+[[[[|XXXX]]]]?) = -NNNN
+    //staptest// sendmmsg (NNNN, XXXX, 2, MSG_[^ ]+[[[[|XXXX]]]]?) = NNNN
 
     close(s);
     //staptest// close (NNNN) = 0
