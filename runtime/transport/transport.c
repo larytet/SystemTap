@@ -36,12 +36,11 @@ static atomic_t _stp_ctl_attached = ATOMIC_INIT(0);
 static pid_t _stp_target = 0;
 static int _stp_probes_started = 0;
 
-/* _stp_transport_mutext guards _stp_start_called and _stp_exit_called.
-   We only want to do the startup and exit sequences once.  Note that
-   these indicate the respective process starting, not their conclusion. */
-static int _stp_start_called = 0;
-static int _stp_exit_called = 0;
-static DEFINE_MUTEX(_stp_transport_mutex);
+/* We only want to do the startup and exit sequences once, so the
+   flags are atomic.  Note that these indicate the respective process
+   starting, not their conclusion. */
+static atomic_t _stp_start_called = ATOMIC_INIT(0);
+static atomic_t _stp_exit_called = ATOMIC_INIT(0);
 
 #ifndef STP_CTL_TIMER_INTERVAL
 /* ctl timer interval in jiffies (default 20 ms) */
@@ -129,8 +128,8 @@ static void _stp_handle_start(struct _stp_msg_start *st)
 #endif
 
         // protect against excessive or premature startup
-	handle_startup = (! _stp_start_called && ! _stp_exit_called);
-	_stp_start_called = 1;
+	handle_startup = (atomic_add_unless(&_stp_start_called, 1, 1)
+			  && ! atomic_read(&_stp_exit_called));
 	
 	if (handle_startup) {
 		dbug_trans(1, "stp_handle_start\n");
@@ -216,8 +215,8 @@ static void _stp_cleanup_and_exit(int send_exit)
 	int handle_exit;
 
         // protect against excessive or premature cleanup
-	handle_exit = (_stp_start_called && ! _stp_exit_called);
-	_stp_exit_called = 1;
+	handle_exit = (atomic_read(&_stp_start_called)
+		       && atomic_add_unless(&_stp_exit_called, 1, 1));
 
 	if (handle_exit) {
 		int failures;
