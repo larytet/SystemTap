@@ -796,9 +796,10 @@ proc prelink { FILE ADDR } {
   return 1
 }
 
-# Send signal SIG to PID. If KILL_TIMEOUT > 0, waits KILL_TIMEOUT seconds before
-# also sending a SIGKILL signal to PID. SIG can be with or without leading '-'.
-proc kill { SIG PID {KILL_TIMEOUT 0} } {
+# Send signal SIG to PID. If KILL_TIMEOUT > 0, waits KILL_TIMEOUT
+# seconds before also sending a SIGKILL signal to PID. SIG can be with
+# or without leading '-'. If AS_ROOT isn't 0, send the signal as root.
+proc kill { SIG PID {KILL_TIMEOUT 0} {AS_ROOT 0} } {
    global kill_needs_doubledash
 
    if {$kill_needs_doubledash} {
@@ -808,9 +809,13 @@ proc kill { SIG PID {KILL_TIMEOUT 0} } {
       set SIG "-$SIG"
    }
 
-   verbose -log "Executing: kill $SIG $PID"
-   if {[catch {eval exec kill $SIG $PID} killout]} {
-      verbose -log "kill: $killout"
+   if {$AS_ROOT != 0} {
+      as_root [list kill $SIG $PID]
+   } else {
+      verbose -log "Executing: kill $SIG $PID"
+      if {[catch {eval exec kill $SIG $PID} killout]} {
+	 verbose -log "kill: $killout"
+      }
    }
 
    if {$KILL_TIMEOUT > 0} {
@@ -821,9 +826,13 @@ proc kill { SIG PID {KILL_TIMEOUT 0} } {
          sleep 1
          incr KILL_TIMEOUT -1
       }
-      verbose -log "Executing: kill -KILL $PID"
-      if {[catch {eval exec kill -KILL $PID} killout]} {
-         verbose -log "kill: $killout"
+      if {$AS_ROOT != 0} {
+	 as_root [list kill -KILL $PID]
+      } else {
+	 verbose -log "Executing: kill -KILL $PID"
+	 if {[catch {eval exec kill -KILL $PID} killout]} {
+	    verbose -log "kill: $killout"
+	 }
       }
    }
 }
