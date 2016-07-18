@@ -25,14 +25,14 @@ if {$pid == 0} {
 
 # switch file to .1
 exec sleep 2
-exec kill -USR2 $pid
+kill -USR2 $pid
 
 # check output file
 exec sleep 2
 eval set outfile {[glob -nocomplain $test.out_cpu*.0]}
 if {$outfile == ""} {
   fail "$test (no output file) $outfile"
-  exec kill -TERM $pid
+  kill -TERM $pid
   return -1
 } else {
   pass "$test (output file)"
@@ -40,13 +40,13 @@ if {$outfile == ""} {
 eval exec rm $outfile
 
 # switch file to .2
-exec kill -USR2 $pid
+kill -USR2 $pid
 # switch file to .3 (this time, .1 file should be deleted)
 exec sleep 2
-exec kill -USR2 $pid
+kill -USR2 $pid
 
 exec sleep 2
-exec kill -TERM $pid
+kill -TERM $pid 5
 
 # check switched output file
 exec sleep 2

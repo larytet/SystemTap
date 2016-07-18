@@ -35,7 +35,7 @@ wait; catch {close}
 
 # switch file
 exec sleep 2
-exec kill -USR2 $pid
+kill -USR2 $pid
 
 # check output file
 exec sleep 2
@@ -46,7 +46,7 @@ if {[catch {exec rm $test.out}]} {
   pass "$test (output file)"
 }
 
-exec kill -TERM $pid
+kill -TERM $pid
 
 # check switched output file
 if {[catch {exec rm $test.out.1}]} {

@@ -40,7 +40,7 @@ foreach remote $remotes {
   spawn stap $srcdir/$subdir/$test.stp --remote=$remote
   expect {
     -timeout 180
-    -re "^begin0:$remote\r\n" { incr begin; exec kill -INT [exp_pid]; exp_continue }
+    -re "^begin0:$remote\r\n" { incr begin; kill -INT [exp_pid] 5; exp_continue }
     -re "^end0:$remote\r\n" { incr end; exp_continue }
     -re {^[^\r\n]*\r\n} { incr err; exp_continue }
     timeout { fail "$test run $remote (timeout)" }
@@ -68,13 +68,13 @@ if {[llength $batch_remotes] < 2} {
     -timeout 180
     -re {^begin[0-9]+:[^\r\n]+\r\n} {
       incr begin
-      if {$begin == [llength $batch_remotes]} {exec kill -INT [exp_pid]}
+      if {$begin == [llength $batch_remotes]} {kill -INT [exp_pid] 5}
       exp_continue
     }
       -re {^end[0-9]+:[^\r\n]+\r\n} { incr end; exp_continue }
     -re {^[^\r\n]*\r\n} {
       incr err;
-      if {$err == 1} {exec kill -INT [exp_pid]}
+      if {$err == 1} {kill -INT [exp_pid] 5}
       exp_continue
     }
     timeout { fail "$test batch $batch_remotes (timeout)" }

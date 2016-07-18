@@ -26,7 +26,7 @@ exec sleep 4
 array set cpus {}
 set scnt 0
 # wait for log files
-catch {exec kill -STOP $pid}
+kill -STOP $pid
 exec sleep 1
 catch {eval spawn stat -c \"%n %s\" [glob -nocomplain flightlog.out_cpu*]}
 expect {
@@ -41,9 +41,9 @@ expect {
   timeout { fail "$test (logfile timeout)"}
 }
 wait; catch {close}
-catch {exec kill -CONT $pid}
+kill -CONT $pid
 exec sleep 3
-catch {exec kill -STOP $pid}
+kill -STOP $pid
 catch {eval spawn stat -c \"%n %s\" [glob -nocomplain flightlog.out_cpu*]}
 expect {
   -timeout 100
@@ -57,7 +57,7 @@ expect {
   timeout { fail "$test (logfile timeout)"}
 }
 wait; catch {close}
-catch {exec kill -CONT $pid}
+kill -CONT $pid
 # check logfile number
 set cnt 0
 foreach e [array names cpus] {
@@ -74,7 +74,7 @@ if {$scnt == $cnt} {
 } else {
     fail "$test (log file size ($scnt != $cnt))"
 }
-catch {exec kill -TERM $pid}
+kill -TERM $pid 5
 # wait for exiting...
 exec sleep 1
 catch {system "rm -f flightlog.out*"}

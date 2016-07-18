@@ -23,7 +23,7 @@ if {![installtest_p] || [catch {exec test -f /usr/bin/socat}]} {
     stap_run2 $srcdir/$subdir/$test.stp --remote=unix:$sock
 
     set spawn_id $socat_sid 
-    catch {exec kill $socat_pid}
+    kill -INT $socat_pid 5
     catch {close}
     catch {wait}
 }
