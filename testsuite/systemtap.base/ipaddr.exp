@@ -58,7 +58,7 @@ proc start_nc_server { IPV4 } {
 proc stop_nc_server {} {
     global TEST_NAME nc_pipe
 
-    exec kill -s SIGINT [pid $nc_pipe]
+    kill -INT [pid $nc_pipe] 5
     catch { close $nc_pipe } res
     pass "$TEST_NAME nc server stop"
     return

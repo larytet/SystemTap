@@ -25,7 +25,7 @@ if {$pid == 0} {
 
 # switch file to .1
 exec sleep 2
-exec kill -USR2 $pid
+kill -USR2 $pid
 
 # check output file
 if {[catch {exec rm $test.out.0}]} {
@@ -37,10 +37,10 @@ if {[catch {exec rm $test.out.0}]} {
 
 # switch file to .2
 exec sleep 2
-exec kill -USR2 $pid
+kill -USR2 $pid
 # switch file to .3 (this time, .1 file should be deleted)
 exec sleep 2
-exec kill -USR2 $pid
+kill -USR2 $pid
 
 # check switched output file
 exec sleep 2
@@ -51,7 +51,7 @@ if {[catch {exec rm $test.out.1}]} {
   return -1
 }
 
-exec kill -TERM $pid
+kill -TERM $pid 5
 
 # check switched output file
 if {[catch {exec rm $test.out.2 $test.out.3}]} {

@@ -61,7 +61,7 @@ if {$scnt == $cnt1 + $cnt2 } {
 } else {
   fail "$test (log file size ($scnt != $cnt1 + $cnt2))"
 }
-exec kill -TERM $pid
+kill -TERM $pid
 # wait for exiting...
 exec sleep 1
 system "rm -f flightlog.out*"

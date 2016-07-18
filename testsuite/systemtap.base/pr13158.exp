@@ -57,8 +57,8 @@ expect {
 # Kill both of the hanging processes
 set firstpid [exp_pid -i $firstid]
 set secondpid [exp_pid -i $secondid]
-exec kill $firstpid
-exec kill $secondpid
+kill -INT $firstpid
+kill -INT $secondpid
 catch { wait -i $firstid; wait -i $secondid; close }
 if {$failed} {
     fail "$test"

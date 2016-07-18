@@ -49,7 +49,7 @@ proc expect_target_set_pids generations {
 		set pid_it $pid_array($pid_it)
 	}
 	if {$generations > 1} {
-		exec kill -INT $pid_it
+		kill -INT $pid_it
 	}
 }
 
