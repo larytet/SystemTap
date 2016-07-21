@@ -15,7 +15,7 @@ probe vm.pagefault {
 probe vm.pagefault.return {
   t=gettimeofday_us()
   if (!(tid() in fault_entry_time)) next
-  e = t - fault_entry_time[id]
+  e = t - fault_entry_time[tid()]
   if (vm_fault_contains(fault_type,VM_FAULT_MINOR)) {
     ftype="minor"
   } else if (vm_fault_contains(fault_type,VM_FAULT_MAJOR)) {
