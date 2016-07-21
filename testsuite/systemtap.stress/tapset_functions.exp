@@ -241,11 +241,12 @@ foreach line [split $outputv "\n"] {
                 close $testscript
                 # Debug-mode test
                 verbose -log "testing ${fname}(${fargs})"
-                set rc [as_root "stap -g $opts testscript.stp 2>@1"]
+                set rc [catch {eval exec "stap -g $opts testscript.stp 2>@1"} msg]
                 if {$rc == 0} {
                     pass "testscript (${fname}(${fargs}))"
                 } else {
                     fail "testscript (${fname}(${fargs}))"
+                    verbose -log "$msg"
                 }
                 dmesg_check
             } else {
@@ -260,11 +261,12 @@ if { !$debugmode } {
     close $testscript
     # Non-debug-mode test
     dmesg_snap
-    set rc [as_root "stap -g $opts testscript.stp 2>@1"]
+    set rc [catch {eval exec "stap -g $opts testscript.stp 2>@1"} msg]
     if {$rc == 0} {
         pass "testscript"
     } else {
         fail "testscript"
+        verbose -log "$msg"
     }
     dmesg_check
 }
