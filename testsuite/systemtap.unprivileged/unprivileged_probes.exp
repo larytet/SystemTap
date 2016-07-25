@@ -498,7 +498,7 @@ proc test_unrestricted_probes { privilege } {
     }
 
     # Kill the the test executable
-    catch { exec kill $our_pid }
+    kill -INT $our_pid 5
 }
 
 # Test restricted probe types
@@ -559,7 +559,7 @@ proc test_restricted_probes { privilege } {
     }
 
     # Kill the the test executable
-    catch { exec kill $our_pid }
+    kill -INT $our_pid 5
 }
 
 # Need to build a user shared library.
