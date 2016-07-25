@@ -81,6 +81,14 @@ static inline void atomic_set(atomic_t *v, int i)
 	v->counter = i;
 }
 
+static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+{
+	int prev = atomic_read(v);
+	if (prev == old)
+		atomic_set(v, new);
+	return prev;
+}
+
 #define atomic_inc_return(v)		atomic_add_return(1, (v))
 
 

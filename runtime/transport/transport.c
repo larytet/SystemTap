@@ -36,11 +36,14 @@ static atomic_t _stp_ctl_attached = ATOMIC_INIT(0);
 static pid_t _stp_target = 0;
 static int _stp_probes_started = 0;
 
+#define _STP_TS_UNINITIALIZED	0
+#define _STP_TS_START_CALLED	1
+#define _STP_TS_START_FINISHED	2
+#define _STP_TS_EXIT_CALLED	3
+
 /* We only want to do the startup and exit sequences once, so the
-   flags are atomic.  Note that these indicate the respective process
-   starting, not their conclusion. */
-static atomic_t _stp_start_called = ATOMIC_INIT(0);
-static atomic_t _stp_exit_called = ATOMIC_INIT(0);
+ * transport state flag is atomic. */
+static atomic_t _stp_transport_state = ATOMIC_INIT(_STP_TS_UNINITIALIZED);
 
 #ifndef STP_CTL_TIMER_INTERVAL
 /* ctl timer interval in jiffies (default 20 ms) */
@@ -128,9 +131,10 @@ static void _stp_handle_start(struct _stp_msg_start *st)
 #endif
 
         // protect against excessive or premature startup
-	handle_startup = (atomic_add_unless(&_stp_start_called, 1, 1)
-			  && ! atomic_read(&_stp_exit_called));
-	
+	handle_startup = (atomic_cmpxchg(&_stp_transport_state,
+					 _STP_TS_UNINITIALIZED,
+					 _STP_TS_START_CALLED)
+			  == _STP_TS_UNINITIALIZED);
 	if (handle_startup) {
 		dbug_trans(1, "stp_handle_start\n");
 
@@ -202,6 +206,11 @@ static void _stp_handle_start(struct _stp_msg_start *st)
 #if STP_TRANSPORT_VERSION == 2
 		atomic_notifier_chain_register(&panic_notifier_list, &_stp_module_panic_notifier_nb);
 #endif
+
+		/* If we're here, we know that _stp_transport_state
+		 * is _STP_TS_START_CALLED. Go ahead and set it to
+		 * _STP_TS_START_FINISHED. */
+		atomic_set(&_stp_transport_state, _STP_TS_START_FINISHED);
 	}
 }
 
@@ -215,9 +224,10 @@ static void _stp_cleanup_and_exit(int send_exit)
 	int handle_exit;
 
         // protect against excessive or premature cleanup
-	handle_exit = (atomic_read(&_stp_start_called)
-		       && atomic_add_unless(&_stp_exit_called, 1, 1));
-
+	handle_exit = (atomic_cmpxchg(&_stp_transport_state,
+				      _STP_TS_START_FINISHED,
+				      _STP_TS_EXIT_CALLED)
+		       == _STP_TS_START_FINISHED);
 	if (handle_exit) {
 		int failures;
 

@@ -7,7 +7,7 @@
 		return &g_##name;			\
 	}
 
-DEFINE_SESSION_ATOMIC(session_state, STAP_SESSION_STARTING);
+DEFINE_SESSION_ATOMIC(session_state, STAP_SESSION_UNINITIALIZED);
 
 DEFINE_SESSION_ATOMIC(error_count, 0);
 DEFINE_SESSION_ATOMIC(skipped_count, 0);

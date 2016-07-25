@@ -184,7 +184,7 @@ static int stp_session_init(void)
 	if (session != _stp_shm_base)
 		return -EINVAL;
 
-	atomic_set(session_state(), STAP_SESSION_STARTING);
+	atomic_set(session_state(), STAP_SESSION_UNINITIALIZED);
 
 	atomic_set(error_count(), 0);
 	atomic_set(skipped_count(), 0);

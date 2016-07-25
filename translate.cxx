@@ -1813,6 +1813,20 @@ c_unparser::emit_module_init ()
   o->newline() << "goto out;";
   o->newline(-1) << "}";
 
+  // This signals any other probes that may be invoked in the next little
+  // while to abort right away.  Currently running probes are allowed to
+  // terminate.  These may set STAP_SESSION_ERROR!
+  //
+  // Note that this *must* be done after stp_session_init() is called,
+  // since that initializes the dyninst session atomics. Note that we
+  // don't want to run systemtap_module_init() twice.
+  o->newline() << "if (atomic_cmpxchg(session_state(), STAP_SESSION_UNINITIALIZED, STAP_SESSION_STARTING) != STAP_SESSION_UNINITIALIZED) {";
+  o->newline(1) << "_stp_error (\"session has already been initialized\");";
+  // Note that here we don't want to jump to "out", since we don't
+  // want to deregister anything, we just want to return.
+  o->newline() << "return -EALREADY;";
+  o->newline(-1) << "}";
+
   // initialize gettimeofday (if needed)
   o->newline() << "#ifdef STAP_NEED_GETTIMEOFDAY";
   o->newline() << "rc = _stp_init_time();";  // Kick off the Big Bang.
@@ -1836,10 +1850,6 @@ c_unparser::emit_module_init ()
   o->newline() << "(void) probe_point;";
   o->newline() << "(void) i;";
   o->newline() << "(void) j;";
-  o->newline() << "atomic_set (session_state(), STAP_SESSION_STARTING);";
-  // This signals any other probes that may be invoked in the next little
-  // while to abort right away.  Currently running probes are allowed to
-  // terminate.  These may set STAP_SESSION_ERROR!
 
   // Allocate context structures.
   o->newline() << "rc = _stp_runtime_contexts_alloc();";
@@ -1922,10 +1932,8 @@ c_unparser::emit_module_init ()
     }
 
   // All registrations were successful.  Consider the system started.
-  o->newline() << "if (atomic_read (session_state()) == STAP_SESSION_STARTING)";
   // NB: only other valid state value is ERROR, in which case we don't
-  o->newline(1) << "atomic_set (session_state(), STAP_SESSION_RUNNING);";
-  o->newline(-1);
+  o->newline() << "atomic_cmpxchg(session_state(), STAP_SESSION_STARTING, STAP_SESSION_RUNNING);";
 
   // Run all post-session starting code.
   for (unsigned i=0; i<g.size(); i++)

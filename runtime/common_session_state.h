@@ -1,10 +1,11 @@
 // Will be included once by translate.cxx c_unparser::emit_common_header ().
 
-#define STAP_SESSION_STARTING 0
-#define STAP_SESSION_RUNNING 1
-#define STAP_SESSION_ERROR 2
-#define STAP_SESSION_STOPPING 3
-#define STAP_SESSION_STOPPED 4
+#define STAP_SESSION_UNINITIALIZED 0
+#define STAP_SESSION_STARTING 1
+#define STAP_SESSION_RUNNING 2
+#define STAP_SESSION_ERROR 3
+#define STAP_SESSION_STOPPING 4
+#define STAP_SESSION_STOPPED 5
 
 #if defined(__KERNEL__)
 
