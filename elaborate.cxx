@@ -1080,7 +1080,7 @@ derive_probes (systemtap_session& s,
               semantic_error err(ERR_SRC, _("while resolving probe point"),
                                  loc->components[0]->tok, NULL, &e);
               // provide some details about which builders were tried
-              if (s.verbose > 0)
+              if (s.verbose > 0 && !builders.empty())
                 {
                   string msg;
                   for (auto it = builders.begin(); it != builders.end(); ++it)
