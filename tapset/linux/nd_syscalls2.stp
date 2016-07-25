@@ -2680,7 +2680,8 @@ probe nd_syscall.send = __nd_syscall.send ?, __nd_syscall.socketcall.send ?,
 {
 	name = "send"
 	flags_str = _msg_flags_str(flags)
-	argstr = sprintf("%d, %p, %u, %s", s, buf_uaddr, len, flags_str)
+	buf = user_buffer_quoted(buf_uaddr, len, syscall_string_trunc)
+	argstr = sprintf("%d, %s, %u, %s", s, buf, len, flags_str)
 }
 probe __nd_syscall.send = kprobe.function("sys_send") ?
 {
@@ -2959,8 +2960,8 @@ probe nd_syscall.sendto = __nd_syscall.sendto ?,
 {
 	name = "sendto"
 	flags_str = _msg_flags_str(flags)
-	argstr = sprintf("%d, %p, %u, %s, %s, %u", s, buf_uaddr,
-			 len, flags_str,
+	buf = user_buffer_quoted(buf_uaddr, len, syscall_string_trunc)
+	argstr = sprintf("%d, %s, %u, %s, %s, %u", s, buf, len, flags_str,
 			 _struct_sockaddr_u(to_uaddr, tolen), tolen)
 }
 probe __nd_syscall.sendto = kprobe.function("sys_sendto").call ?
