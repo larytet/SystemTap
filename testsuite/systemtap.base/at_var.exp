@@ -40,10 +40,20 @@ if {! [uretprobes_p]} { untested "$test"; return }
 set res [target_compile ${testpath}/${test}.c ${test} executable "additional_flags=-O2 additional_flags=-g"]
 if { $res != "" } {
     verbose "target_compile failed: $res" 2
-    fail "unable to compile ${test}.c"
+    fail "${test}: unable to compile ${test}.c"
+} else {
+    stap_run3 $test $srcdir/$subdir/$test.stp -c ./${test}
 }
 
-stap_run3 $test $srcdir/$subdir/$test.stp -c ./${test}
+# Test for target program compiled without optimization
+set test_name "${test} (non-optimized)"
+set res [target_compile ${testpath}/${test}.c ${test} executable "additional_flags=-g"]
+if { $res != "" } {
+    verbose "target_compile failed: $res" 2
+    fail "${test_name}: unable to compile ${test}.c"
+} else {
+    stap_run3 $test_name $srcdir/$subdir/$test.stp -c ./${test}
+}
 
 # Cleanup
 if { $verbose == 0 } { catch { exec rm -f $test } }
