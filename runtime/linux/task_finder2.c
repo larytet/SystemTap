@@ -1672,6 +1672,7 @@ stap_start_task_finder(void)
 			/* If the thread doesn't have a mm_struct, it
 			 * is a kernel thread which we need to
 			 * skip. */
+			task_unlock(tsk);
 			continue;
 		}
 		mmpath = __stp_get_mm_path(tsk->mm, mmpath_buf, PATH_MAX);
