@@ -9901,11 +9901,7 @@ kprobe_var_expanding_visitor::visit_entry_op (entry_op *e)
 
   if (has_return)
     {
-      // expand the operand as if it weren't a return probe
-      has_return = false;
-      replace (e->operand);
-      has_return = true;
-
+      // see also PR20416
       // XXX it would be nice to use gen_kretprobe_saved_return when
       // available, but it requires knowing the types already, which is
       // problematic for arbitrary expressons.
