@@ -86,7 +86,7 @@ if {! [uprobes_p]} {
     }
     catch {close}; catch {wait}
 
-    spawn $stap_path $srcdir/$subdir/perf04.stp $exepath -c $exepath
+    spawn $stap_path -W $srcdir/$subdir/perf04.stp $exepath -c $exepath
 
     expect {
 	-timeout 180

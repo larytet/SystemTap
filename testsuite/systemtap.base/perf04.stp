@@ -2,10 +2,10 @@ global main
 
 probe perf.hw.instructions.counter("a") { }
 
-probe process(@1).statement("main@towers.c")
+probe process(@1).function("main").return
 {
     # counter "a" has no defined process so the default is ours
-    main <<< @perf("a")
+    main <<< @perf("a") - @entry(@perf("a"))
 }
 
 probe end

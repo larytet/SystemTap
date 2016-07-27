@@ -4402,10 +4402,11 @@ dwarf_var_expanding_visitor::visit_entry_op (entry_op *e)
   expression *repl = e;
   if (q.has_return)
     {
-      // expand the operand as if it weren't a return probe
-      q.has_return = false;
-      replace (e->operand);
-      q.has_return = true;
+      // NB: don't expand the operand here, as if it weren't a return
+      // probe.  The original operand expression is transcribed into
+      // the synthetic .call probe that gen_mapped_saved_return calls.
+      // If we were to expand it here, we may e.g. map @perf("...") to
+      // __perf_read_... prematurely & incorrectly.  PR20416
 
       // XXX it would be nice to use gen_kretprobe_saved_return when available,
       // but it requires knowing the types already, which is problematic for
@@ -5163,6 +5164,9 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
           q.has_return = false;
           q.has_call = true;
 
+          // NB: any moved @entry(EXPR) bits will be expanded during this
+          // nested *derived_probe ctor for the synthetic .call probe.
+          // PR20416
           if (q.has_process)
             {
               // Place handler probe at the same addr as where the vars were
