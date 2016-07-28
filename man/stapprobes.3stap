@@ -918,6 +918,23 @@ If PATH names refer to scripts, the actual interpreters (specified in the
 script in the first line after the #! characters) are probed.
 
 .PP
+Tapset process probes placed in the special directory
+$prefix/share/systemtap/tapset/PATH/ with relative paths will have their
+process parameter prefixed with the location of the tapset. For example,
+
+.SAMPLE
+process("foo").function("NAME")
+.ESAMPLE
+.PP
+expands to
+.SAMPLE
+process("/usr/bin/foo").function("NAME")
+.ESAMPLE
+
+.PP
+when placed in $prefix/share/systemtap/tapset/PATH/usr/bin/
+
+.PP
 If PATH is a process component parameter referring to shared libraries
 then all processes that map it at runtime would be selected for probing.
 If PATH is a library component parameter referring to shared libraries

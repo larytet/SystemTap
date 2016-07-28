@@ -105,6 +105,7 @@ private:
   bool errs_as_warnings;
   bool privileged;
   bool user_file;
+  bool auto_path;
   parse_context context;
 
   // preprocessing subordinate, first pass (macros)
@@ -286,8 +287,8 @@ parse_synthetic_probe (systemtap_session &s, istream& i, const token* tok)
 parser::parser (systemtap_session& s, const string &n, istream& i, unsigned flags):
   session (s), input_name (n), input (i, input_name, s, !(flags & pf_no_compatible)),
   errs_as_warnings(flags & pf_squash_errors), privileged (flags & pf_guru),
-  user_file (flags & pf_user_file), context(con_unknown), systemtap_v_seen(0),
-  last_t (0), next_t (0), num_errors (0)
+  user_file (flags & pf_user_file), auto_path (flags & pf_auto_path),
+  context(con_unknown), systemtap_v_seen(0), last_t (0), next_t (0), num_errors (0)
 {
 }
 
@@ -2665,6 +2666,19 @@ parser::parse_component()
         {
           swallow (); // consume "("
           c->arg = parse_literal ();
+
+          // prefix argument with file location from PATH directory
+          if (auto_path && c->functor == "process")
+            {
+              literal_string* ls = dynamic_cast<literal_string*>(c->arg);
+              if (ls && !ls->value.empty() && ls->value[0] != '/')
+                {
+                  string::size_type start = input_name.find("PATH/") + 4;
+                  string::size_type end = input_name.rfind("/");
+                  string path = input_name.substr(start, end-start+1) + ls->value.to_string();
+                  ls->value = path;
+                }
+            }
 
           t = next ();
           if (! (t->type == tok_operator && t->content == ")"))

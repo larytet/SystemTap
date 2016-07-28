@@ -1,5 +1,12 @@
 * What's new in version 3.1, PRERELEASE
 
+- Tapsets containing process probes may now be placed in the special
+  $prefix/share/systemtap/tapset/PATH/ directory to have their process parameter
+  prefixed with the location of the tapset. For example,
+
+  process("foo").function("NAME") expands to process("/usr/bin/foo").function("NAME")
+  when placed in $prefix/share/systemtap/tapset/PATH/usr/bin/
+
 - Netfilter tapsets now provide variables data_hex and data_str to display packet
   contents in hexadecimal and ASCII respectively.
 

@@ -104,6 +104,7 @@ enum parse_flag
     pf_no_compatible = 2,
     pf_squash_errors = 4,
     pf_user_file = 8,
+    pf_auto_path = 16,
   };
 
 

@@ -50,6 +50,7 @@ extern "C" {
 #include <time.h>
 #include <unistd.h>
 #include <wordexp.h>
+#include <ftw.h>
 }
 
 using namespace std;
@@ -353,6 +354,46 @@ run_sdt_benchmark(systemtap_session& s)
   return EXIT_SUCCESS;
 }
 
+static set<string> files;
+static string path_dir;
+
+static int collect_stp(const char* fpath, const struct stat*,
+                       int typeflag, struct FTW* ftwbuf)
+{
+  if (typeflag == FTW_F)
+    {
+      const char* ext = strrchr(fpath, '.');
+      if (ext && (strcmp(".stp", ext) == 0))
+        files.insert(fpath);
+    }
+  else if (typeflag == FTW_D && ftwbuf->level > 0)
+    {
+      // Only recurse for PATH root directory
+      if (strncmp(path_dir.c_str(), fpath, path_dir.size()) != 0 ||
+          (fpath[path_dir.size()] != '/' && fpath[path_dir.size()] != '\0'))
+        return FTW_SKIP_SUBTREE;
+    }
+  return FTW_CONTINUE;
+}
+
+static int collect_stpm(const char* fpath, const struct stat*,
+                        int typeflag, struct FTW* ftwbuf)
+{
+  if (typeflag == FTW_F)
+    {
+      const char* ext = strrchr(fpath, '.');
+      if (ext && (strcmp(".stpm", ext) == 0))
+        files.insert(fpath);
+    }
+  else if (typeflag == FTW_D && ftwbuf->level > 0)
+    {
+      // Only recurse for PATH root directory
+      if (strncmp(path_dir.c_str(), fpath, path_dir.size()) != 0 ||
+          (fpath[path_dir.size()] != '/' && fpath[path_dir.size()] != '\0'))
+        return FTW_SKIP_SUBTREE;
+    }
+  return FTW_CONTINUE;
+}
 
 // Compilation passes 0 through 4
 int
@@ -502,6 +543,9 @@ passes_0_4 (systemtap_session &s)
 	    version_suffixes.insert(version_suffixes.begin() + i/2,
 				    runtime_prefix + version_suffixes[i]);
 
+      // we need to set this for the nftw() callback
+      path_dir = s.include_path[0] + "/PATH";
+
       // First, parse .stpm files on the include path. We need to have the
       // resulting macro definitions available for parsing library files,
       // but since .stpm files can consist only of '@define' constructs,
@@ -514,28 +558,26 @@ passes_0_4 (systemtap_session &s)
 	  // now iterate upon it
 	  for (unsigned k=0; k<version_suffixes.size(); k++)
 	    {
-	      glob_t globbuf;
-	      string dir = s.include_path[i] + version_suffixes[k] + "/*.stpm";
-	      int r = glob(dir.c_str (), 0, NULL, & globbuf);
-	      if (r == GLOB_NOSPACE || r == GLOB_ABORTED)
-		rc ++;
-	      // GLOB_NOMATCH is acceptable
+              int flags = FTW_ACTIONRETVAL;
+	      string dir = s.include_path[i] + version_suffixes[k];
+              files.clear();
+              (void) nftw(dir.c_str(), collect_stpm, 1, flags);
 
 	      unsigned prev_s_library_files = s.library_files.size();
 
-	      for (unsigned j=0; j<globbuf.gl_pathc; j++)
+	      for (auto it = files.begin(); it != files.end(); ++it)
 	        {
 		  assert_no_interrupts();
 
 		  struct stat tapset_file_stat;
-		  int stat_rc = stat (globbuf.gl_pathv[j], & tapset_file_stat);
+		  int stat_rc = stat (it->c_str(), & tapset_file_stat);
 		  if (stat_rc == 0 && user_file_stat_rc == 0 &&
 		      user_file_stat.st_dev == tapset_file_stat.st_dev &&
 		      user_file_stat.st_ino == tapset_file_stat.st_ino)
 		    {
 		      cerr
 			  << _F("usage error: macro tapset file '%s' cannot be run directly as a session script.",
-				globbuf.gl_pathv[j]) << endl;
+				it->c_str()) << endl;
 		      rc ++;
 		    }
 
@@ -547,14 +589,14 @@ passes_0_4 (systemtap_session &s)
 		      if (seen_library_macro_files.find(here) != seen_library_macro_files.end())
 		        {
 			  if (s.verbose>2)
-			    clog << _F("Skipping tapset \"%s\", duplicate inode.", globbuf.gl_pathv[j]) << endl;
+			    clog << _F("Skipping tapset \"%s\", duplicate inode.", it->c_str()) << endl;
 			  continue; 
 			}
 		      seen_library_macro_files.insert (here);
 		    }
 
 		  // PR12443: duplicate-eliminate harder
-		  string full_path = globbuf.gl_pathv[j];
+		  string full_path = *it;
 		  string tapset_base = s.include_path[i]; // not dir; it has arch suffixes too
 		  if (full_path.size() > tapset_base.size())
 		    {
@@ -562,30 +604,28 @@ passes_0_4 (systemtap_session &s)
 		      if (seen_library_macro_files_names.find (tail_part) != seen_library_macro_files_names.end())
 		        {
 			  if (s.verbose>2)
-			    clog << _F("Skipping tapset \"%s\", duplicate name.", globbuf.gl_pathv[j]) << endl;
+			    clog << _F("Skipping tapset \"%s\", duplicate name.", it->c_str()) << endl;
 			  continue;
 			}
 		      seen_library_macro_files_names.insert (tail_part);
 		    }
 
 		  if (s.verbose>2)
-		    clog << _F("Processing tapset \"%s\"", globbuf.gl_pathv[j]) << endl;
+		    clog << _F("Processing tapset \"%s\"", it->c_str()) << endl;
 
-		  stapfile* f = parse_library_macros (s, globbuf.gl_pathv[j]);
+		  stapfile* f = parse_library_macros (s, *it);
 		  if (f == 0)
-		    s.print_warning(_F("macro tapset \"%s\" has errors, and will be skipped.", string(globbuf.gl_pathv[j]).c_str()));
+		    s.print_warning(_F("macro tapset \"%s\" has errors, and will be skipped.", it->c_str()));
 		  else
 		    s.library_files.push_back (f);
 		}
 
 	      unsigned next_s_library_files = s.library_files.size();
-	      if (s.verbose>1 && globbuf.gl_pathc > 0)
+	      if (s.verbose>1 && !files.empty())
 		  //TRANSLATORS: Searching through directories, 'processed' means 'examined so far'
 		clog << _F("Searched for library macro files: \"%s\", found: %zu, processed: %u",
-			   dir.c_str(), globbuf.gl_pathc,
+			   dir.c_str(), files.size(),
 			   (next_s_library_files-prev_s_library_files)) << endl;
-
-	      globfree (&globbuf);
 	    }
 	}
 
@@ -595,38 +635,41 @@ passes_0_4 (systemtap_session &s)
 
       for (unsigned i=0; i<s.include_path.size(); i++)
         {
-	  unsigned tapset_flags = pf_guru | pf_squash_errors;
-
-	  // The first path is special, as it's the builtin tapset.
-	  // Allow all features no matter what s.compatible says.
-	  if (i == 0)
-	    tapset_flags |= pf_no_compatible;
-
 	  // now iterate upon it
 	  for (unsigned k=0; k<version_suffixes.size(); k++)
 	    {
-	      glob_t globbuf;
-	      string dir = s.include_path[i] + version_suffixes[k] + "/*.stp";
-	      int r = glob(dir.c_str (), 0, NULL, & globbuf);
-	      if (r == GLOB_NOSPACE || r == GLOB_ABORTED)
-		  rc ++;
-	      // GLOB_NOMATCH is acceptable
+              int flags = FTW_ACTIONRETVAL;
+	      string dir = s.include_path[i] + version_suffixes[k];
+              files.clear();
+              (void) nftw(dir.c_str(), collect_stp, 1, flags);
 
 	      unsigned prev_s_library_files = s.library_files.size();
 
-	      for (unsigned j=0; j<globbuf.gl_pathc; j++)
+              for (auto it = files.begin(); it != files.end(); ++it)
 	        {
+                  unsigned tapset_flags = pf_guru | pf_squash_errors;
+
+                  // The first path is special, as it's the builtin tapset.
+                  // Allow all features no matter what s.compatible says.
+                  if (i == 0)
+                    {
+                      tapset_flags |= pf_no_compatible;
+                      if (it->find("/tapset/PATH/") != string::npos)
+                        tapset_flags |= pf_auto_path;
+                    }
+
+
 		  assert_no_interrupts();
 
 		  struct stat tapset_file_stat;
-		  int stat_rc = stat (globbuf.gl_pathv[j], & tapset_file_stat);
+		  int stat_rc = stat (it->c_str(), & tapset_file_stat);
 		  if (stat_rc == 0 && user_file_stat_rc == 0 &&
 		      user_file_stat.st_dev == tapset_file_stat.st_dev &&
 		      user_file_stat.st_ino == tapset_file_stat.st_ino)
 		    {
 		      cerr 
 			  << _F("usage error: tapset file '%s' cannot be run directly as a session script.",
-				globbuf.gl_pathv[j]) << endl;
+				it->c_str()) << endl;
 		      rc ++;
 		    }
 
@@ -638,14 +681,14 @@ passes_0_4 (systemtap_session &s)
 		      if (seen_library_files.find(here) != seen_library_files.end())
 		        {
 			  if (s.verbose>2)
-			    clog << _F("Skipping tapset \"%s\", duplicate inode.", globbuf.gl_pathv[j]) << endl;
+			    clog << _F("Skipping tapset \"%s\", duplicate inode.", it->c_str()) << endl;
 			  continue; 
 			}
 		      seen_library_files.insert (here);
 		    }
 
 		  // PR12443: duplicate-eliminate harder
-		  string full_path = globbuf.gl_pathv[j];
+		  string full_path = *it;
 		  string tapset_base = s.include_path[i]; // not dir; it has arch suffixes too
 		  if (full_path.size() > tapset_base.size())
 		    {
@@ -653,14 +696,14 @@ passes_0_4 (systemtap_session &s)
 		      if (seen_library_files_names.find (tail_part) != seen_library_files_names.end())
 		        {
 			  if (s.verbose>2)
-			    clog << _F("Skipping tapset \"%s\", duplicate name.", globbuf.gl_pathv[j]) << endl;
+			    clog << _F("Skipping tapset \"%s\", duplicate name.", it->c_str()) << endl;
 			  continue;
 			}
 		      seen_library_files_names.insert (tail_part);
 		    }
 
 		  if (s.verbose>2)
-		    clog << _F("Processing tapset \"%s\"", globbuf.gl_pathv[j]) << endl;
+		    clog << _F("Processing tapset \"%s\"", it->c_str()) << endl;
 
 		  // NB: we don't need to restrict privilege only for
 		  // /usr/share/systemtap, i.e., excluding
@@ -670,23 +713,22 @@ passes_0_4 (systemtap_session &s)
 		  // a trusted environment, where client-side
 		  // $XDG_DATA_DIRS are not passed.
 
-		  stapfile* f = parse (s, globbuf.gl_pathv[j], tapset_flags);
+		  stapfile* f = parse (s, *it, tapset_flags);
 		  if (f == 0)
-		    s.print_warning(_F("tapset \"%s\" has errors, and will be skipped", string(globbuf.gl_pathv[j]).c_str()));
+		    s.print_warning(_F("tapset \"%s\" has errors, and will be skipped", it->c_str()));
 		  else
 		    s.library_files.push_back (f);
 		}
 
 	      unsigned next_s_library_files = s.library_files.size();
-	      if (s.verbose>1 && globbuf.gl_pathc > 0)
+	      if (s.verbose>1 && !files.empty())
 		  //TRANSLATORS: Searching through directories, 'processed' means 'examined so far'
 		clog << _F("Searched: \"%s\", found: %zu, processed: %u",
-			   dir.c_str(), globbuf.gl_pathc,
+			   dir.c_str(), files.size(),
 			   (next_s_library_files-prev_s_library_files)) << endl;
-
-	      globfree (& globbuf);
 	    }
 	}
+
       if (s.num_errors())
 	rc ++;
 
