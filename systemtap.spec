@@ -110,6 +110,9 @@ BuildRequires: sqlite-devel
 %if %{with_monitor}
 BuildRequires: json-c-devel ncurses-devel
 %endif
+%if %{with_systemd}
+BuildRequires: systemd
+%endif
 # Needed for libstd++ < 4.0, without <tr1/memory>
 %if %{with_boost}
 BuildRequires: boost-devel
@@ -189,6 +192,9 @@ Requires(postun): initscripts
 BuildRequires: nss-devel avahi-devel
 %if %{with_openssl}
 Requires: openssl
+%endif
+%if %{with_systemd}
+Requires: systemd
 %endif
 
 %description server
