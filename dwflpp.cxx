@@ -3680,8 +3680,37 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
     case DW_TAG_structure_type:
     case DW_TAG_class_type:
     case DW_TAG_union_type:
-      throw SEMANTIC_ERROR (_F("'%s' is being accessed instead of a member",
-                               dwarf_type_name(typedie).c_str()), e->tok);
+      {
+        string type_name = dwarf_type_name(typedie);
+        string decl_file = dwarf_decl_file(typedie) ?: "";
+        int decl_line = 0;
+        (void) dwarf_decl_line(typedie, &decl_line);
+        string decl_source;
+        // PR20423: assemble an error message at least as informative
+        // as bad-member message in translate_components()
+        if (decl_file[0] && decl_line > 0)
+          decl_source = " (" + decl_file + ":" + lex_cast(decl_line) + ")";
+        string a_member; 
+        try
+          {
+            set<string> members;
+            set<string> dupes;
+            get_members (typedie, members, dupes);
+            if (members.begin() != members.end())
+              {
+                a_member = " such as '->" + (*members.begin()) + "'";
+              }
+          }
+        catch (...)
+          {
+            // leave a_member empty
+          }
+        throw SEMANTIC_ERROR (_F("'%s'%s is being accessed instead of a member%s",
+                                 type_name.c_str(),
+                                 decl_source.c_str(),
+                                 a_member.c_str()),
+                              e->components[e->components.size()-1].tok);
+      }
       break;
 
     case DW_TAG_base_type:
