@@ -159,6 +159,7 @@ probe generic.fop.llseek = kernel.function("generic_file_llseek")
 	devname = __find_bdevname(dev, __file_bdev($file))
 	ino = __file_ino($file)
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 
 	offset = $offset
 %(systemtap_v < "2.3" %?
@@ -177,6 +178,7 @@ probe generic.fop.llseek.return = kernel.function("generic_file_llseek").return
 	name = "generic_file_llseek"
 	retstr = sprintf("%d", $return)
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	offset = $offset
 %(systemtap_v < "2.3" %?
 	origin = @choose_defined($whence, $origin)
@@ -193,6 +195,7 @@ probe generic.fop.aio_read =
 	kernel.function("generic_file_aio_read") ?
 {
 	file = $iocb->ki_filp
+        pathname = fullpath_struct_file(task_current(), $iocb->ki_filp)
 	dev = __file_dev($iocb->ki_filp)
 	devname = __find_bdevname(dev, __file_bdev($iocb->ki_filp))
 	ino = __file_ino($iocb->ki_filp)
@@ -211,6 +214,7 @@ probe generic.fop.aio_read.return =
 	kernel.function("generic_file_aio_read").return ?
 {
 	file = $iocb->ki_filp
+        pathname = fullpath_struct_file(task_current(), $iocb->ki_filp)
 	nr_segs = $nr_segs
 	name = "generic_file_aio_read"
 	retstr = sprintf("%d", $return)
@@ -228,6 +232,7 @@ probe generic.fop.aio_read.return =
 probe generic.fop.read_iter = kernel.function("generic_file_read_iter") ?
 {
 	file = $iocb->ki_filp
+        pathname = fullpath_struct_file(task_current(), $iocb->ki_filp)
 	dev = __file_dev($iocb->ki_filp)
 	devname = __find_bdevname(dev, __file_bdev($iocb->ki_filp))
 	ino = __file_ino($iocb->ki_filp)
@@ -253,6 +258,7 @@ probe generic.fop.read_iter.return =
 	kernel.function("generic_file_read_iter").return ?
 {
 	file = $iocb->ki_filp
+        pathname = fullpath_struct_file(task_current(), $iocb->ki_filp)
 	nr_segs = $iter->nr_segs
 	name = "generic_file_read_iter"
 	retstr = sprintf("%d", $return)
@@ -270,6 +276,7 @@ probe generic.fop.read_iter.return =
 probe generic.fop.aio_write = kernel.function("generic_file_aio_write") ?
 {
 	file = $iocb->ki_filp
+        pathname = fullpath_struct_file(task_current(), $iocb->ki_filp)
 	dev = __file_dev($iocb->ki_filp)
 	devname = __find_bdevname(dev, __file_bdev($iocb->ki_filp))
 	ino = __file_ino($iocb->ki_filp)
@@ -290,6 +297,7 @@ probe generic.fop.aio_write.return =
 	kernel.function("generic_file_aio_write").return ?
 {
 	file = $iocb->ki_filp
+        pathname = fullpath_struct_file(task_current(), $iocb->ki_filp)
 	name = "generic_file_aio_write"
 	retstr = sprintf("%d", $return)
 
@@ -302,6 +310,7 @@ probe generic.fop.aio_write.return =
 probe generic.fop.write_iter = kernel.function("generic_file_write_iter") ?
 {
 	file = $iocb->ki_filp
+        pathname = fullpath_struct_file(task_current(), $iocb->ki_filp)
 	dev = __file_dev($iocb->ki_filp)
 	devname = __find_bdevname(dev, __file_bdev($iocb->ki_filp))
 	ino = __file_ino($iocb->ki_filp)
@@ -327,6 +336,7 @@ probe generic.fop.write_iter.return =
 	kernel.function("generic_file_write_iter").return ?
 {
 	file = $iocb->ki_filp
+        pathname = fullpath_struct_file(task_current(), $iocb->ki_filp)
 	name = "generic_file_write_iter"
 	retstr = sprintf("%d", $return)
 
@@ -342,6 +352,7 @@ probe generic.fop.readv = kernel.function("generic_file_readv") ?
 	devname = __find_bdevname(dev, __file_bdev($filp))
 	ino = __file_ino($filp)
 	file = $filp
+        pathname = fullpath_struct_file(task_current(), $filp)
 
 	nr_segs = $nr_segs
 	pos = kernel_pointer($ppos)
@@ -355,6 +366,7 @@ probe generic.fop.readv = kernel.function("generic_file_readv") ?
 probe generic.fop.readv.return = kernel.function("generic_file_readv").return ?
 {
 	file = $filp
+        pathname = fullpath_struct_file(task_current(), $filp)
 	name = "generic_file_readv"
 	retstr = sprintf("%d", $return)
 
@@ -375,6 +387,7 @@ probe generic.fop.writev = kernel.function("generic_file_writev") ?
 	devname = __find_bdevname(dev, __file_bdev($file))
 	ino = __file_ino($file)
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 
 	nr_segs = $nr_segs
 	pos = kernel_pointer($ppos)
@@ -389,6 +402,7 @@ probe generic.fop.writev.return =
 	kernel.function("generic_file_writev").return ?
 {
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	name = "generic_file_writev"
 	retstr = sprintf("%d", $return)
 
@@ -408,6 +422,7 @@ probe generic.fop.writev.return =
 probe generic.fop.mmap = kernel.function("generic_file_mmap")
 {
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	dev = __file_dev($file)
 	devname = __find_bdevname(dev, __file_bdev($file))
 	ino = __file_ino($file)
@@ -423,6 +438,7 @@ probe generic.fop.mmap = kernel.function("generic_file_mmap")
 probe generic.fop.mmap.return = kernel.function("generic_file_mmap").return
 {
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	name = "generic_file_mmap"
 	retstr = sprintf("%d", $return)
 
@@ -436,8 +452,9 @@ probe generic.fop.open = kernel.function("generic_file_open")
 	devname = __find_bdevname(dev, __file_bdev($filp))
 	ino = $inode->i_ino
 	file = $filp
-
 	filename = __file_filename($filp)
+        pathname = fullpath_struct_file(task_current(), $filp)
+
         flag = $filp->f_flags
         size = $inode->i_size
 
@@ -456,6 +473,7 @@ probe generic.fop.sendfile = kernel.function("generic_file_sendfile") ?
 	devname = __find_bdevname($in_file, __file_bdev($in_file))
 	ino = __file_ino($in_file)
 	file = $in_file
+        pathname = fullpath_struct_file(task_current(), $in_file)
 
 	count = $count
         ppos = $ppos
@@ -484,6 +502,7 @@ probe generic.fop.splice_read = kernel.function("generic_file_splice_read") ?
 	devname = __find_bdevname(dev, __file_bdev($in))
 	ino = __file_ino($in)
 	file = $in
+        pathname = fullpath_struct_file(task_current(), $in)
 	dev_major = MAJOR(dev)
 	dev_minor = MINOR(dev)
 
@@ -502,6 +521,7 @@ probe generic.fop.splice_read.return =
 	name = "generic_file_splice_read"
 	retstr = sprintf("%d", $return)
 	file = $in
+        pathname = fullpath_struct_file(task_current(), $in)
 	ino = __file_ino($in)
 	dev = __file_dev($in)
 	dev_major = MAJOR(dev)
@@ -523,6 +543,7 @@ probe generic.fop.splice_write = kernel.function("generic_file_splice_write") ?
 	devname = __find_bdevname(dev, __file_bdev($out))
 	ino = __file_ino($out)
 	file = $out
+        pathname = fullpath_struct_file(task_current(), $out)
 
 	len = $len
 	flags = $flags
@@ -540,6 +561,7 @@ probe generic.fop.splice_write.return =
 	retstr = sprintf("%d", $return)
 
 	file = $out
+        pathname = fullpath_struct_file(task_current(), $out)
 
 	error = $return < 0 ? $return : 0
 	error_str = error ? errno_str(error) : ""
@@ -556,6 +578,7 @@ probe generic.fop.read = kernel.function("generic_file_read") ?
 	devname = __find_bdevname(dev, __file_bdev($filp))
 	ino = __file_ino($filp)
 	file = $filp
+        pathname = fullpath_struct_file(task_current(), $filp)
 
 	count = $count
 
@@ -582,6 +605,7 @@ probe generic.fop.write = kernel.function("generic_file_write") ?
 	devname = __find_bdevname(dev, __file_bdev($file))
 	ino = __file_ino($file)
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 
 	count = $count
 
@@ -631,6 +655,7 @@ probe vfs.do_sync_read = kernel.function("do_sync_read") !,
 				  __file_bdev(@choose_defined($filp, $file)))
 	ino = __file_ino(@choose_defined($filp, $file))
 	file = @choose_defined($filp, $file)
+        pathname = @defined($filp) ? fullpath_struct_file(task_current(), $filp) : fullpath_struct_file(task_current(), $file)
 
 	len = @choose_defined($len, $count)
 	pos = kernel_pointer(@choose_defined($ppos, $pos))
@@ -682,6 +707,7 @@ probe vfs.do_sync_write = kernel.function("do_sync_write") !,
 				  __file_bdev(@choose_defined($filp, $file)))
 	ino = __file_ino(@choose_defined($filp, $file))
 	file = @choose_defined($filp, $file)
+        pathname = @defined($filp) ? fullpath_struct_file(task_current(), $filp) : fullpath_struct_file(task_current(), $file)
 
 	len = @choose_defined($len, $count)
 	pos = kernel_pointer(@choose_defined($ppos, $pos))
@@ -889,6 +915,7 @@ probe vfs.remove_from_page_cache.return =
 probe vfs.read = kernel.function("vfs_read")
 {
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	pos = $pos
 	buf = $buf
 	bytes_to_read = $count
@@ -906,6 +933,7 @@ probe vfs.read.return = kernel.function("vfs_read").return
 	retstr = sprintf("%d", $return)
 
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	pos = $pos
 	buf = $buf
 	bytes_to_read = $count
@@ -922,6 +950,7 @@ probe vfs.read.return = kernel.function("vfs_read").return
 probe vfs.readv = kernel.function("vfs_readv")
 {
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	dev = __file_dev($file)
 	devname = __find_bdevname(dev, __file_bdev($file))
 	ino = __file_ino($file)
@@ -940,6 +969,7 @@ probe vfs.readv.return = kernel.function("vfs_readv").return
 	retstr = sprintf("%d", $return)
 
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	dev = __file_dev($file)
 	devname = __find_bdevname(dev, __file_bdev($file))
 	ino = __file_ino($file)
@@ -957,6 +987,7 @@ probe vfs.readv.return = kernel.function("vfs_readv").return
 probe vfs.write = kernel.function("vfs_write")
 {
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	pos = $pos
 	buf = $buf
 	bytes_to_write = $count
@@ -974,6 +1005,7 @@ probe vfs.write.return = kernel.function("vfs_write").return
 	retstr = sprintf("%d", $return)
 
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	pos = $pos
 	buf = $buf
 	bytes_to_write = $count
@@ -990,6 +1022,7 @@ probe vfs.write.return = kernel.function("vfs_write").return
 probe vfs.writev = kernel.function("vfs_writev")
 {
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	dev = __file_dev($file)
 	devname = __find_bdevname(dev, __file_bdev($file))
 	ino = __file_ino($file)
@@ -1008,6 +1041,7 @@ probe vfs.writev.return = kernel.function("vfs_writev").return
 	retstr = sprintf("%d", $return)
 
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	dev = __file_dev($file)
 	devname = __find_bdevname(dev, __file_bdev($file))
 	ino = __file_ino($file)
@@ -1026,6 +1060,7 @@ probe _vfs.generic_file_readonly_mmap =
 	kernel.function("generic_file_readonly_mmap")
 {
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	vma = $vma
 
 	name = "_vfs.generic_file_readonly_mmap"
@@ -1039,6 +1074,7 @@ probe _vfs.generic_file_readonly_mmap.return =
 	retstr = sprintf("%d", $return)
 
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	vma = $vma
 
 	ret = $return
@@ -1059,6 +1095,7 @@ probe _vfs.generic_block_bmap = kernel.function("generic_block_bmap")
 probe _vfs.generic_commit_write = kernel.function("generic_commit_write") ?
 {
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	page = $page
 	from = $from
 	to = $to
@@ -1134,6 +1171,7 @@ probe _vfs.block_prepare_write.return =
 probe _vfs.block_write_begin = kernel.function("block_write_begin") ?
 {
 	file = @choose_defined($file, 0)
+        pathname = @defined($file) ? fullpath_struct_file(task_current(), $file) : ""
 	pos = $pos
 	len = $len
 	flags = $flags
@@ -1151,6 +1189,7 @@ probe _vfs.block_write_begin.return =
 	retstr = sprintf("%d", $return)
 
 	file = @choose_defined($file, 0)
+        pathname = @defined($file) ? fullpath_struct_file(task_current(), $file) : ""
 	pos = $pos
 	len = $len
 	flags = $flags
@@ -1165,6 +1204,7 @@ probe _vfs.block_write_begin.return =
 probe _vfs.block_write_end = kernel.function("block_write_end") ?
 {
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	pos = $pos
 	len = $len
 	page = $page
@@ -1180,6 +1220,7 @@ probe _vfs.block_write_end.return = kernel.function("block_write_end").return ?
 	retstr = sprintf("%d", $return)
 
 	file = $file
+        pathname = fullpath_struct_file(task_current(), $file)
 	pos = $pos
 	len = $len
 	page = $page
