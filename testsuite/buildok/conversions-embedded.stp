@@ -1,15 +1,28 @@
 #! stap -p4
 
 probe begin {
-	print (kernel_string (0))
+	print (kernel_string(0))
+	print (kernel_string(0, "error"))
+	print (kernel_string_quoted(0))
 	print (kernel_string_n(0, 1))
-	print (kernel_string_utf32 (0))
-	print (kernel_string_utf16 (0))
+
+	print (kernel_string_utf32(0))
+	print (kernel_string_utf32(0, "error"))
+	print (kernel_string_quoted_utf32(0))
+
+	print (kernel_string_utf16(0))
+	print (kernel_string_utf16(0, "error"))
+	print (kernel_string_quoted_utf16(0))
+
 	print (kernel_long (0))
 	print (kernel_int (0))
 	print (kernel_short (0))
 	print (kernel_char (0))
 	print (kernel_pointer(0))
+
+	print (kernel_buffer_quoted(0, 32))
+	print (kernel_buffer_quoted(0, 32, 32))
+	print (kernel_buffer_quoted_error(0, 32, 32))
 
 	print (user_string(0))
 	print (user_string (0, ""))
