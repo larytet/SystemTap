@@ -4670,20 +4670,19 @@ static void semantic_pass_dead_control (systemtap_session& s, bool& relaxed_p)
 struct function_next_check : public traversing_visitor
 {
   functiondecl* current_function;
-  set<functiondecl*>& function_next;
 
-  function_next_check(set<functiondecl*>& fn)
-    : current_function(0), function_next(fn) { }
+  function_next_check()
+    : current_function(0) { }
 
   void visit_next_statement(next_statement*)
   {
-    function_next.insert(current_function);
+    current_function->has_next = true;
   }
 
   void visit_embeddedcode(embeddedcode* s)
   {
     if (s->code.find("STAP_NEXT;") != string::npos)
-      function_next.insert(current_function);
+      current_function->has_next = true;
   }
 };
 
@@ -4691,12 +4690,10 @@ struct dead_overload_remover : public traversing_visitor
 {
   systemtap_session& s;
   bool& relaxed_p;
-  const set<functiondecl*>& function_next;
 
   dead_overload_remover(systemtap_session& sess,
-                        bool& r,
-                        const set<functiondecl*>& fn)
-    : s(sess), relaxed_p(r), function_next(fn) { }
+                        bool& r)
+    : s(sess), relaxed_p(r) { }
 
   void visit_functioncall(functioncall* e);
 };
@@ -4711,10 +4708,12 @@ void dead_overload_remover::visit_functioncall(functioncall *e)
       functiondecl* r = e->referents[fd];
 
       // Note that this is not a sound inference but it suffices for most
-      // cases. We simply use the presence of a 'next' statement as an indicator
+      // cases. It may be the case that there is a 'next' statement in the
+      // function that will never be executed by the control flow.
+      // We simply use the presence of a 'next' statement as an indicator
       // of a potential fall through. Once a function can't be 'nexted' the
       // remaining functions are unreachable.
-      if (chained && function_next.find(r) != function_next.end())
+      if (chained && r->has_next)
         reachable++;
       else
         chained = false;
@@ -4736,7 +4735,7 @@ void dead_overload_remover::visit_functioncall(functioncall *e)
 static void semantic_pass_overload(systemtap_session& s, bool& relaxed_p)
 {
   set<functiondecl*> function_next;
-  function_next_check fnc(function_next);
+  function_next_check fnc;
 
   for (auto it = s.functions.begin(); it != s.functions.end(); ++it)
     {
@@ -4747,13 +4746,13 @@ static void semantic_pass_overload(systemtap_session& s, bool& relaxed_p)
 
   for (auto it = s.probes.begin(); it != s.probes.end(); ++it)
     {
-      dead_overload_remover ovr(s, relaxed_p, function_next);
+      dead_overload_remover ovr(s, relaxed_p);
       (*it)->body->visit(&ovr);
     }
 
   for (auto it = s.functions.begin(); it != s.functions.end(); ++it)
     {
-      dead_overload_remover ovr(s, relaxed_p, function_next);
+      dead_overload_remover ovr(s, relaxed_p);
       it->second->body->visit(&ovr);
     }
 }

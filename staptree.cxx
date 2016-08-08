@@ -212,7 +212,8 @@ vardecl::compatible_arity (int a)
 
 
 functiondecl::functiondecl ():
-  body (0), synthetic (false), mangle_oldstyle (false), priority(1)
+  body (0), synthetic (false), mangle_oldstyle (false), has_next(false),
+  priority(1)
 {
 }
 

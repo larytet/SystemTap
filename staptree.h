@@ -618,6 +618,7 @@ struct functiondecl: public symboldecl
   statement* body;
   bool synthetic;
   bool mangle_oldstyle;
+  bool has_next;
   int64_t priority;
   functiondecl ();
   void print (std::ostream& o) const;

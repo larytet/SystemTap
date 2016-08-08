@@ -5550,7 +5550,7 @@ c_unparser::visit_functioncall (functioncall* e)
           yield = true;
         }
 
-      if (e->referents.size() > 1)
+      if (e->referents.size() > 1 && r != e->referents.back())
         // branch to end of the enclosing statement-expression if one of the
         // function alternatives is selected
         o->newline() << "if (!c->next) goto fc_end_" << fc_counter << ";";
@@ -5562,8 +5562,9 @@ c_unparser::visit_functioncall (functioncall* e)
       o->newline() << "fc_end_" << fc_counter++ << ":";
     }
 
-  // check for aborted return from function; this could happen from non-overloaded ones too
-  o->newline() << "if (unlikely(c->next)) { c->last_error = \"all functions exhausted\"; goto out; }";
+  if (e->referents.back()->has_next)
+    // check for aborted return from function; this could happen from non-overloaded ones too
+    o->newline() << "if (unlikely(c->next)) { c->last_error = \"all functions exhausted\"; goto out; }";
 
   // return result from retvalue slot NB: this must be last, for the
   // enclosing statement-expression ({ ... }) to carry this value.
