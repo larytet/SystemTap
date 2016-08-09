@@ -179,9 +179,9 @@ private: // nonterminals
   void do_parse_functiondecl (vector<functiondecl*>&, const token*,
                               string const&, bool);
   embeddedcode* parse_embeddedcode ();
-  vector<probe_point*> parse_probe_points ();
-  vector<probe_point*> parse_components ();
-  vector<probe_point*> parse_component ();
+  vector<probe_point*> parse_probe_points (bool alias_seen);
+  vector<probe_point*> parse_components (bool alias_seen);
+  vector<probe_point*> parse_component (bool alias_seen);
   literal_string* consume_string_literals (const token*);
   literal_string* parse_literal_string ();
   literal* parse_literal ();
@@ -2030,10 +2030,11 @@ parser::parse_probe (vector<probe *> & probe_ret,
   vector<probe_point *> locations;
 
   int epilogue_alias = 0;
+  bool alias_seen = false;
 
   while (1)
     {
-      vector<probe_point*> pps = parse_probe_points();
+      vector<probe_point*> pps = parse_probe_points(alias_seen);
 
       const token* t = peek ();
       if (pps.size() == 1 && t
@@ -2042,6 +2043,7 @@ parser::parse_probe (vector<probe *> & probe_ret,
           if (pps[0]->optional || pps[0]->sufficient)
             throw PARSE_ERROR (_("probe point alias name cannot be optional nor sufficient"), pps[0]->components.front()->tok);
           aliases.push_back(pps[0]);
+          alias_seen = true;
           swallow ();
           continue;
         }
@@ -2052,6 +2054,7 @@ parser::parse_probe (vector<probe *> & probe_ret,
             throw PARSE_ERROR (_("probe point alias name cannot be optional nor sufficient"), pps[0]->components.front()->tok);
           aliases.push_back(pps[0]);
           epilogue_alias = 1;
+          alias_seen = true;
           swallow ();
           continue;
         }
@@ -2476,12 +2479,12 @@ parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
 }
 
 vector<probe_point*>
-parser::parse_probe_points()
+parser::parse_probe_points(bool alias_seen)
 {
   vector<probe_point*> pps;
   while (1)
     {
-      vector<probe_point*> tail = parse_components();
+      vector<probe_point*> tail = parse_components(alias_seen);
       pps.insert(pps.end(), tail.begin(), tail.end());
 
       const token* t = peek();
@@ -2502,12 +2505,12 @@ parser::parse_probe_points()
 }
 
 vector<probe_point*>
-parser::parse_components()
+parser::parse_components(bool alias_seen)
 {
   vector<probe_point*> pps;
   while (1)
     {
-      vector<probe_point*> suffix = parse_component();
+      vector<probe_point*> suffix = parse_component(alias_seen);
 
       // Cartesian product of components
       if (pps.empty())
@@ -2593,7 +2596,7 @@ parser::parse_components()
 }
 
 vector<probe_point*>
-parser::parse_component()
+parser::parse_component(bool alias_seen)
 {
   const token* t = next ();
   if (! (t->type == tok_identifier
@@ -2606,7 +2609,7 @@ parser::parse_component()
   if (t && t->type == tok_operator && t->content == "{")
     {
       swallow();
-      vector<probe_point*> pps = parse_probe_points();
+      vector<probe_point*> pps = parse_probe_points(alias_seen);
       t = peek();
       if (!(t && t->type == tok_operator && t->content == "}"))
         throw PARSE_ERROR (_("expected '}'"));
@@ -2685,6 +2688,16 @@ parser::parse_component()
             throw PARSE_ERROR (_("expected ')'"));
           swallow ();
         }
+      else if (alias_seen && auto_path && c->functor == "process")
+        {
+          // PATH expansion of process component without argument.
+          // The filename without the .stp extension is used.
+          string::size_type start = input_name.find("PATH/") + 4;
+          string::size_type end = input_name.rfind(".stp");
+          string path = input_name.substr(start, end - start);
+          c->arg = new literal_string(path);
+        }
+
       return pps;
     }
 }
