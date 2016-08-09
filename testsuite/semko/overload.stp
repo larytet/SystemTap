@@ -1,0 +1,14 @@
+#! stap -Wp2
+
+function f() {
+  println(1)
+}
+
+// Unreachable overload
+function f() {
+  println(1)
+}
+
+probe begin {
+  f()
+}
