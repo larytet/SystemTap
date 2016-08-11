@@ -62,6 +62,7 @@ enum {
   LONG_OPT_SAVE_UPROBES,
   LONG_OPT_TARGET_NAMESPACES,
   LONG_OPT_MONITOR,
+  LONG_OPT_INTERACTIVE,
 };
 
 // NB: when adding new options, consider very carefully whether they

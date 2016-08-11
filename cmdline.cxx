@@ -58,5 +58,6 @@ struct option stap_long_options[] = {
   { "save-uprobes",                no_argument,       NULL, LONG_OPT_SAVE_UPROBES },
   { "target-namespaces",           required_argument, NULL, LONG_OPT_TARGET_NAMESPACES },
   { "monitor",                     optional_argument, NULL, LONG_OPT_MONITOR },
+  { "interactive",                 no_argument,       NULL, LONG_OPT_INTERACTIVE},
   { NULL, 0, NULL, 0 }
 };

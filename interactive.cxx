@@ -284,6 +284,22 @@ public:
   }
 };
 
+class help2_cmd: public cmdopt
+{
+public:
+  help2_cmd()
+  {
+    name = usage = "?";
+    _help_text = "Print this command list.";
+  }
+  bool handler(systemtap_session &s __attribute ((unused)),
+	       vector<string> &tokens __attribute ((unused)),
+	       string &input __attribute ((unused)))
+  {interactive_usage();
+    return false;
+  }
+};
+
 class list_cmd : public cmdopt
 {
 public:
@@ -1155,7 +1171,7 @@ interactive_usage ()
   // Print usage field and help text for each command.
   for (cmdopt_vector_const_iterator it = command_vec.begin();
        it != command_vec.end(); ++it)
-    {
+    { if ((*it)->usage != "?")
       cout << setw(width) << left << (*it)->usage << " -- "
 	   << (*it)->help_text(width + 4) << endl;
     }
@@ -1630,6 +1646,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   command_vec.push_back(new show_cmd);
   option_command_vec.push_back(command_vec.back());
   command_vec.push_back(new help_cmd);
+  command_vec.push_back(new help2_cmd);
   command_vec.push_back(new quit_cmd);
 
   // Set up set/show option list.
@@ -1734,7 +1751,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
       }
   }
 #endif
-
+  cout << "Example commands: 'sample', 'add', 'run', 'help'" << endl;
   while (1)
     {
       // PR19847: clear any pending interrupts from previous commands
@@ -1782,7 +1799,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
       // If it isn't a command, complain.
       if (!input_handled)
 	clog << "Undefined command: \"" << tokens[0]
-	     << "\". Try \"help\"." << endl;
+	     << "\". Try \"help\" or \"?\"." << endl;
     }
   delete_match_map_items(&probe_map);
   return 0;

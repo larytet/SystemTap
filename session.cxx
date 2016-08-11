@@ -672,6 +672,10 @@ systemtap_session::usage (int exitcode)
     "   --monitor=INTERVAL\n"
     "              enables monitor interfaces\n"
 #endif
+#ifdef HAVE_LIBREADLINE
+     "   --interactive\n"     
+     "             interactive mode \n"
+#endif
     , compatible.c_str()) << endl
   ;
 
@@ -876,6 +880,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
 	case 'i':
+	case LONG_OPT_INTERACTIVE:
 #ifdef HAVE_LIBREADLINE
           if (client_options) { cerr << _F("ERROR: %s invalid with %s", "-i", "--client-options") << endl; return 1; } 
 	  interactive_mode = true;
@@ -1604,7 +1609,7 @@ systemtap_session::check_options (int argc, char * const argv [])
   // NB: this is also triggered if stap is invoked with no arguments at all
   if (need_script && ! have_script)
     {
-      cerr << _("A script must be specified.") << endl;
+      cerr << _("A script must be specified.  Alternatively, use 'stap -i' or 'stap --interactive' for an interactive mode.") << endl;
       usage(1);
     }
   if (dump_mode && have_script)
