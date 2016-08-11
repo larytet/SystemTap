@@ -14,4 +14,6 @@
 
 static int _stp_text_str(char *out, const char *in, int inlen, int outlen, int quoted, int user, int buffer);
 
+static inline int _stp_strcmp(const char *s1 const char *s2);
+
 #endif /* _STP_STRING_H_ */
