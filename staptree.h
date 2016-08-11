@@ -808,6 +808,7 @@ struct probe_point
   bool optional;
   bool sufficient;
   bool well_formed; // used in derived_probe::script_location()
+  bool auto_path;
   expression* condition;
   void print (std::ostream& o, bool print_extras=true) const;
   probe_point ();

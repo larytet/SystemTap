@@ -7920,33 +7920,51 @@ dwarf_builder::build(systemtap_session & sess,
 
       if(has_null_param(filled_parameters, TOK_PROCESS))
         {
-          string file;
-          try
+          if (location->auto_path)
             {
-              file = sess.cmd_file();
+              if (location->components[0]->functor == TOK_PROCESS &&
+                  location->components[0]->arg == 0)
+                {
+                  // PATH expansion of process component without argument.
+                  // The filename without the .stp extension is used.
+                  string full_path = location->components[0]->tok->location.file->name;
+                  string::size_type start = full_path.find("PATH/") + 4;
+                  string::size_type end = full_path.rfind(".stp");
+                  module_name = full_path.substr(start, end - start);
+                  location->components[0]->arg = new literal_string(module_name);
+                  filled_parameters[TOK_PROCESS] = new literal_string(module_name);
+                }
             }
-          catch (const semantic_error& e)
+          else
             {
-              if(sess.target_pid)
-                throw SEMANTIC_ERROR(_("invalid -x pid for unspecified process"
-                                       " probe [man stapprobes]"), NULL, NULL, &e);
-              else
-                throw SEMANTIC_ERROR(_("invalid -c command for unspecified process"
-                                     " probe [man stapprobes]"), NULL, NULL, &e);
-            }
-          if(file.empty())
-            throw SEMANTIC_ERROR(_("unspecified process probe is invalid without"
-                                   " a -c COMMAND or -x PID [man stapprobes]"));
-          module_name = sess.sysroot + file;
-          filled_parameters[TOK_PROCESS] = new literal_string(module_name);// this needs to be used in place of the blank map
-          // in the case of TOK_MARK we need to modify locations as well   // XXX why?
-          if(location->components[0]->functor==TOK_PROCESS &&
-             location->components[0]->arg == 0)
-            {
-              if (sess.target_pid)
-                location->components[0]->arg = new literal_number(sess.target_pid);
-              else
-                location->components[0]->arg = new literal_string(module_name);
+              string file;
+              try
+                {
+                  file = sess.cmd_file();
+                }
+              catch (const semantic_error& e)
+                {
+                  if(sess.target_pid)
+                    throw SEMANTIC_ERROR(_("invalid -x pid for unspecified process"
+                                           " probe [man stapprobes]"), NULL, NULL, &e);
+                  else
+                    throw SEMANTIC_ERROR(_("invalid -c command for unspecified process"
+                                           " probe [man stapprobes]"), NULL, NULL, &e);
+                }
+              if(file.empty())
+                throw SEMANTIC_ERROR(_("unspecified process probe is invalid without"
+                                       " a -c COMMAND or -x PID [man stapprobes]"));
+              module_name = sess.sysroot + file;
+              filled_parameters[TOK_PROCESS] = new literal_string(module_name);// this needs to be used in place of the blank map
+              // in the case of TOK_MARK we need to modify locations as well   // XXX why?
+              if(location->components[0]->functor==TOK_PROCESS &&
+                 location->components[0]->arg == 0)
+                {
+                  if (sess.target_pid)
+                    location->components[0]->arg = new literal_number(sess.target_pid);
+                  else
+                    location->components[0]->arg = new literal_string(module_name);
+                }
             }
         }
 
@@ -7954,8 +7972,25 @@ dwarf_builder::build(systemtap_session & sess,
       // we get the module_name out.
       else if (get_param (parameters, TOK_PROCESS, module_name))
         {
-          module_name = (string)sess.sysroot + (string)module_name;
-          filled_parameters[TOK_PROCESS] = new literal_string(module_name);
+          if (location->auto_path)
+            {
+              if (!module_name.empty() && module_name[0] != '/')
+                {
+                  // prefix argument with file location from PATH directory
+                  string full_path = location->components[0]->tok->location.file->name;
+                  string::size_type start = full_path.find("PATH/") + 4;
+                  string::size_type end = full_path.rfind("/");
+                  string arg = module_name;
+                  module_name = full_path.substr(start, end-start+1) + arg;
+                  location->components[0]->arg = new literal_string(module_name);
+                  filled_parameters[TOK_PROCESS] = new literal_string(module_name);
+                }
+            }
+          else
+            {
+              module_name = (string)sess.sysroot + (string)module_name;
+              filled_parameters[TOK_PROCESS] = new literal_string(module_name);
+            }
         }
 
       else if (get_param (parameters, TOK_PROCESS, proc_pid))
