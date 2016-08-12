@@ -2532,7 +2532,8 @@ parser::parse_components()
                                         suffix[j]->components.end());
                   pp->optional = suffix[j]->optional;
                   pp->sufficient = suffix[j]->sufficient;
-                  pp->auto_path = suffix[j]->auto_path;
+                  if (auto_path)
+                    pp->auto_path = suffix[j]->auto_path;
                   pp->condition = suffix[j]->condition;
                   product.push_back(pp);
                 }
@@ -2658,7 +2659,8 @@ parser::parse_component()
       c->tok = t;
       vector<probe_point*> pps;
       probe_point* pp = new probe_point;
-      pp->auto_path = auto_path;
+      if (auto_path)
+        pp->auto_path = input_name;
       pp->components.push_back(c);
       pps.push_back(pp);
       // NB we may add c->arg soon

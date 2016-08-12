@@ -7920,14 +7920,14 @@ dwarf_builder::build(systemtap_session & sess,
 
       if(has_null_param(filled_parameters, TOK_PROCESS))
         {
-          if (location->auto_path)
+          if (!location->auto_path.empty())
             {
               if (location->components[0]->functor == TOK_PROCESS &&
                   location->components[0]->arg == 0)
                 {
                   // PATH expansion of process component without argument.
                   // The filename without the .stp extension is used.
-                  string full_path = location->components[0]->tok->location.file->name;
+                  string full_path = location->auto_path;
                   string::size_type start = full_path.find("PATH/") + 4;
                   string::size_type end = full_path.rfind(".stp");
                   module_name = full_path.substr(start, end - start);
@@ -7972,12 +7972,12 @@ dwarf_builder::build(systemtap_session & sess,
       // we get the module_name out.
       else if (get_param (parameters, TOK_PROCESS, module_name))
         {
-          if (location->auto_path)
+          if (!location->auto_path.empty())
             {
               if (!module_name.empty() && module_name[0] != '/')
                 {
                   // prefix argument with file location from PATH directory
-                  string full_path = location->components[0]->tok->location.file->name;
+                  string full_path = location->auto_path;
                   string::size_type start = full_path.find("PATH/") + 4;
                   string::size_type end = full_path.rfind("/");
                   string arg = module_name;
