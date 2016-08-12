@@ -555,7 +555,7 @@ installcheck/%.exp: site.exp
 # testcases should be listed and investigated manually.  The "make clean" target
 # cleans whole the table entirely.
 list-unfinished:
-	@awk '/Running.*testsuite.*exp .../ {tests[$$2]++}  /testcase.*testsuite.*completed in.*seconds/ {tests[$$2]++} END {for (key in tests) if (tests[key] != 2) { print key }}' systemtap.log
+	@find . -type f -name systemtap.log | xargs awk '/Running.*testsuite.*exp .../ {tests[$$2]++}  /testcase.*testsuite.*completed in.*seconds/ {tests[$$2]++} END {for (key in tests) if (tests[key] != 2) { print key }}'
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

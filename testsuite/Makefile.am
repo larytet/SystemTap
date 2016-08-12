@@ -153,7 +153,7 @@ installcheck/%.exp: site.exp
 # testcases should be listed and investigated manually.  The "make clean" target
 # cleans whole the table entirely.
 list-unfinished:
-	@awk '/Running.*testsuite.*exp .../ {tests[$$2]++}  /testcase.*testsuite.*completed in.*seconds/ {tests[$$2]++} END {for (key in tests) if (tests[key] != 2) { print key }}' systemtap.log
+	@find . -type f -name systemtap.log | xargs awk '/Running.*testsuite.*exp .../ {tests[$$2]++}  /testcase.*testsuite.*completed in.*seconds/ {tests[$$2]++} END {for (key in tests) if (tests[key] != 2) { print key }}'
 
 # $(srcdir)/These values point the test suite to the install tree, and
 # are overridden by "make check" from full source/build tree
