@@ -1,0 +1,65 @@
+set test "auto_path"
+if {![installtest_p]} { untested $test; return }
+
+set cmd_dir "/tmp/stap_auto_path"
+set test_dir "$srcdir/$subdir"
+set include_root "$srcdir/$subdir/tapset"
+
+exec /bin/mkdir -p ${cmd_dir}
+
+set res [target_compile ${test_dir}/${test}.c ${cmd_dir}/ap executable "additional_flags=-g"]
+if { $res != "" } {
+  fail "unable to compile ${test}.c"
+}
+
+exec /bin/mkdir -p ${cmd_dir}/a
+exec /bin/mkdir -p ${cmd_dir}/a/b
+exec /bin/mkdir -p ${cmd_dir}/b
+exec /bin/cp ${cmd_dir}/ap ${cmd_dir}/a/ap1
+exec /bin/cp ${cmd_dir}/ap ${cmd_dir}/a/b/ap2
+exec /bin/cp ${cmd_dir}/ap ${cmd_dir}/b/ap3
+
+set status 0
+spawn stap -I $include_root -e {probe begin {println("begin")} probe ap1.process {println(pp()) exit()}}
+expect {
+  -timeout 10
+  -re "^begin\r\n$" {
+    exec ${cmd_dir}/a/ap1
+      expect {
+        -timeout 10
+        -re ${cmd_dir}/a/ap1 {incr status;}
+      }
+  }
+}
+if {$status == 1} {pass ${test}1} else {fail ${test}1}
+
+set status 0
+spawn stap -I $include_root -e {probe begin {println("begin")} probe ap2 {println(pp()) exit()}}
+expect {
+  -timeout 10
+  -re "^begin\r\n$" {
+    exec ${cmd_dir}/a/b/ap2
+    expect {
+      -timeout 10
+      -re ${cmd_dir}/a/b/ap2 {incr status;}
+    }
+  }
+}
+if {$status == 1} {pass ${test}2} else {fail ${test}2}
+
+set status 0
+spawn stap -I $include_root -e {probe begin {println("begin")} probe ap3 {println(pp()) exit()}}
+expect {
+  -timeout 10
+  -re "^begin\r\n$" {
+    exec ${cmd_dir}/b/ap3
+    expect {
+        -timeout 10
+        -re ${cmd_dir}/b/ap3 {incr status;}
+    }
+  }
+}
+if {$status == 1} {pass ${test}3} else {fail ${test}3}
+
+# cleanup
+exec /bin/rm -rf $cmd_dir

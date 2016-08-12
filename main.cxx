@@ -543,9 +543,6 @@ passes_0_4 (systemtap_session &s)
 	    version_suffixes.insert(version_suffixes.begin() + i/2,
 				    runtime_prefix + version_suffixes[i]);
 
-      // we need to set this for the nftw() callback
-      path_dir = s.include_path[0] + "/PATH";
-
       // First, parse .stpm files on the include path. We need to have the
       // resulting macro definitions available for parsing library files,
       // but since .stpm files can consist only of '@define' constructs,
@@ -561,6 +558,8 @@ passes_0_4 (systemtap_session &s)
               int flags = FTW_ACTIONRETVAL;
 	      string dir = s.include_path[i] + version_suffixes[k];
               files.clear();
+              // we need to set this for the nftw() callback
+              path_dir = s.include_path[i] + "/PATH";
               (void) nftw(dir.c_str(), collect_stpm, 1, flags);
 
 	      unsigned prev_s_library_files = s.library_files.size();
@@ -641,6 +640,8 @@ passes_0_4 (systemtap_session &s)
               int flags = FTW_ACTIONRETVAL;
 	      string dir = s.include_path[i] + version_suffixes[k];
               files.clear();
+              // we need to set this for the nftw() callback
+              path_dir = s.include_path[i] + "/PATH";
               (void) nftw(dir.c_str(), collect_stp, 1, flags);
 
 	      unsigned prev_s_library_files = s.library_files.size();
@@ -652,14 +653,12 @@ passes_0_4 (systemtap_session &s)
                   // The first path is special, as it's the builtin tapset.
                   // Allow all features no matter what s.compatible says.
                   if (i == 0)
-                    {
-                      tapset_flags |= pf_no_compatible;
-                      if (it->find("/tapset/PATH/") != string::npos)
-                        tapset_flags |= pf_auto_path;
-                    }
+                    tapset_flags |= pf_no_compatible;
 
+                  if (it->find("/PATH/") != string::npos)
+                    tapset_flags |= pf_auto_path;
 
-		  assert_no_interrupts();
+                  assert_no_interrupts();
 
 		  struct stat tapset_file_stat;
 		  int stat_rc = stat (it->c_str(), & tapset_file_stat);
