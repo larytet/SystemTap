@@ -11,7 +11,6 @@
 #define _STP_STRING_C_
 
 #include "stp_string.h"
-#include <linux/string.h>
 
 /** @file stp_string.c
  * @brief Implements string functions.
@@ -334,28 +333,6 @@ static int _stp_convert_utf32(char* buf, int size, u32 c)
 	}
 
 	return n;
-}
-
-/**
- * Compare two strings.
- *
- * @param s1 The first string.
- * @param s2 The second string.
- *
- * @return _stp_strcmp returns an integer less than, equal to, or
- *         greater than zero if s1 is found, respectively, to be
- *         less than, to match, or be greater than s2. NULL pointers
- *         are treated as empty strings.
- */
-static inline int _stp_strcmp(const char *s1 const char *s2)
-{
-	if (s1 == NULL && s2 == NULL)
-		return 0;
-	else if (s1 == NULL)
-		return -1;
-	else if (s2 == NULL)
-		return 1;
-	return strcmp(s1, s2);
 }
 
 /** @} */

@@ -163,11 +163,8 @@ static int _stp_vma_mmap_cb(struct stap_task_finder_target *tgt,
 	if (path != NULL && offset == 0 && (vm_flags & VM_EXEC)
 	    && stap_find_vma_map_info(tsk, addr, NULL, NULL, NULL, NULL) != 0) {
 		for (i = 0; i < _stp_num_modules; i++) {
-			// Note we're using _stp_strcmp() instead of
-			// strcmp() here. _stp_strcmp() treats NULL
-			// string pointers as empty strings. See
-			// PR20433 for more details.
-			if (_stp_strcmp(path, _stp_modules[i]->path) == 0)
+			// PR20433: papering over possibility of NULL pointers
+			if (strcmp(path ?: "", _stp_modules[i]->path ?: "") == 0)
 			{
 			  unsigned long vm_start = 0;
 			  unsigned long vm_end = 0;
