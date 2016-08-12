@@ -1609,7 +1609,8 @@ systemtap_session::check_options (int argc, char * const argv [])
   // NB: this is also triggered if stap is invoked with no arguments at all
   if (need_script && ! have_script)
     {
-      cerr << _("A script must be specified.  Alternatively, use 'stap -i' or 'stap --interactive' for an interactive mode.") << endl;
+      cerr << _("A script must be specified.") << endl;
+      cerr << _("Try '-i' for building a script interactively.") << endl;
       usage(1);
     }
   if (dump_mode && have_script)
