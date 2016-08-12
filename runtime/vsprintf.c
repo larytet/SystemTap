@@ -359,8 +359,12 @@ _stp_vsprint_memory(char * str, char * end, const char * ptr,
                 /* PR13386: Skip if called with null context */
 		c = _stp_runtime_get_context();
                 if (c) for (i = 0; i < len && str < end; i++) {
-			unsigned char c_tmp = kread((unsigned char *)(ptr));
-			ptr++;
+		    unsigned char c_tmp;
+			  if (flags & STP_SPECIAL)
+			    c_tmp = uread((unsigned char *)(ptr));
+			  else
+			    c_tmp = kread((unsigned char *)(ptr));
+			  ptr++;
 			*str++ = _stp_hex_asc[(c_tmp & 0xf0) >> 4];
 			*str++ = _stp_hex_asc[(c_tmp & 0x0f)];
 		}
@@ -370,8 +374,11 @@ _stp_vsprint_memory(char * str, char * end, const char * ptr,
                 /* PR13386: Skip if called with null context */
 		c = _stp_runtime_get_context();
 		if (c) for (i = 0; i < len && str <= end; ++i) {
-			*str++ = kread((unsigned char *)(ptr));
-			ptr++;
+		    if (flags & STP_SPECIAL)
+			*str++ = uread((unsigned char *)(ptr));
+                    else
+		        *str++ = kread((unsigned char *)(ptr));
+		    ptr++;
 		}
 	}
 	else				/* %s format */

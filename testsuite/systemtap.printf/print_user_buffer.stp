@@ -1,0 +1,38 @@
+global errors = 0
+
+probe begin { println("systemtap starting probe") }
+probe end 
+{
+       println("systemtap ending probe")	
+  if (!errors)
+     println("systemtap test success")
+}
+
+probe syscall.write
+{
+    if (!target_set_pid(pid())) next;
+    
+    value = sprintf("%#.*M",$count, $buf)       
+    if (value != "666f6f6261720a"&& value!= "000a")
+         errors++		    
+    
+    value = sprintf("%#.*m",$count, $buf)
+    if (value != "foobar\n" && value !="\0\n")
+         errors++
+
+    try {
+	errors++
+	value = sprintf("%#.*M",$count, $fd)
+    } 
+    catch {
+         errors--
+    }
+    try {
+	errors++
+        value = sprintf("%#.*m", $count, $fd)
+    }
+    catch {
+	    errors--
+    }
+
+}

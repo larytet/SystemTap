@@ -1532,7 +1532,7 @@ Character.
 Signed decimal.
 .TP
 %m
-Safely reads kernel memory at the given address, outputs its content.  The optional precision specifier (not field width) determines the number of bytes to read - default is 1 byte.  %10.4m prints 4 bytes of the memory in a 10-character-wide field.
+Safely reads kernel (without #) or user (with #) memory at the given address, outputs its content.  The optional precision specifier (not field width) determines the number of bytes to read - default is 1 byte.  %10.4m prints 4 bytes of the memory in a 10-character-wide field.  Note, on some architectures user memory can still be read without #.
 .TP
 %M
 Same as %m, but outputs in hexadecimal.  The minimal size of output is double the optional precision specifier - default is 1 byte (2 hex chars).  %10.4M prints 4 bytes of the memory as 8 hexadecimal characters in a 10-character-wide field.   %.*M hex-dumps a given number of bytes from a given buffer.
@@ -1563,7 +1563,8 @@ The
 .IR #
 flag selects the alternate forms.  For octal, this prefixes a 0.  For hex, this
 prefixes 0x or 0X, depending on case.  For characters, this escapes
-non-printing values with either C-like escapes or raw octal.
+non-printing values with either C-like escapes or raw octal.  In the case of %#m/%#M,
+this safely accesses user space memory rather than kernel space memory.
 .PP
 Examples:
 .SAMPLE
