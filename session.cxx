@@ -606,6 +606,7 @@ systemtap_session::usage (int exitcode)
     "   --all-modules\n"
     "              add unwind/symbol data for all loaded kernel objects.\n"
     "   -t         collect probe timing information\n"
+    "   -T TIME    terminate the script after TIME seconds\n"
 #ifdef HAVE_LIBSQLITE3
     "   -q         generate information on tapset coverage\n"
 #endif /* HAVE_LIBSQLITE3 */
