@@ -2340,14 +2340,9 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
               // decl_line, the user doesn't actually want to probe a lineno,
               // but rather the function itself. So let fall through to
               // query_func_info/query_inline_instance_info in final else.
-               && !q->is_fully_specified_function())
+               && !q->is_fully_specified_function()
+               && !q->has_function_str)
         {
-          // .statement(...:NN) often gets mixed up with .function(...:NN)
-          if (q->has_function_str)
-            q->sess.print_warning (_("For probing a particular line, use a "
-                                   ".statement() probe, not .function()"),
-                                   q->base_probe->tok);
-
           auto bfis = q->filtered_all();
 
           for (auto srcfile = q->filtered_srcfiles.cbegin();
@@ -2359,6 +2354,14 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
         }
       else
         {
+          // .statement(...:NN) often gets mixed up with .function(...:NN)
+          if (q->spec_type == function_file_and_line
+              && !q->is_fully_specified_function()
+              && q->has_function_str)
+            q->sess.print_warning (_("For probing a particular line, use a "
+                                     ".statement() probe, not .function()"),
+                                   q->base_probe->tok);
+
           // Otherwise, simply probe all resolved functions.
           for (auto i = q->filtered_functions.begin();
                i != q->filtered_functions.end(); ++i)
