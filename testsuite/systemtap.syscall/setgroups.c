@@ -24,9 +24,9 @@ int main()
 
     setgroups(ngroups, (gid_t *)-1);
 #ifdef __s390__
-    //staptest// setgroups (NNNN, 0x[7]?[f]+) = -NNNN
+    //staptest// setgroups (NNNN, 0x[7]?[f]+) = NNNN
 #else
-    //staptest// setgroups (NNNN, 0x[f]+) = -NNNN
+    //staptest// setgroups (NNNN, 0x[f]+) = NNNN
 #endif
 
 #if (__WORDSIZE != 64) && defined(SYS_setgroups)
@@ -38,9 +38,9 @@ int main()
 
     syscall(SYS_setgroups, ngroups, (gid_t *)-1);
 #ifdef __s390__
-    //staptest// setgroups (NNNN, 0x[7]?[f]+) = -NNNN
+    //staptest// setgroups (NNNN, 0x[7]?[f]+) = NNNN
 #else
-    //staptest// setgroups (NNNN, 0x[f]+) = -NNNN
+    //staptest// setgroups (NNNN, 0x[f]+) = NNNN
 #endif
 #endif
 }
