@@ -2126,7 +2126,7 @@ probe nd_syscall.rt_tgsigqueueinfo.return =
 #			 compat_ulong_t __user *, user_mask_ptr)
 #
 probe nd_syscall.sched_getaffinity =
-	kprobe.function("sys_sched_getaffinity"),
+	kprobe.function("sys_sched_getaffinity") ?,
 	kprobe.function("compat_sys_sched_getaffinity") ?
 {
 	name = "sched_getaffinity"
@@ -2137,7 +2137,7 @@ probe nd_syscall.sched_getaffinity =
 	argstr = sprintf("%d, %u, %p", pid, len, mask_uaddr)
 }
 probe nd_syscall.sched_getaffinity.return =
-	kprobe.function("sys_sched_getaffinity").return,
+	kprobe.function("sys_sched_getaffinity").return ?,
 	kprobe.function("compat_sys_sched_getaffinity").return ?
 {
 	name = "sched_getaffinity"
@@ -2300,7 +2300,8 @@ probe nd_syscall.sched_setattr.return =
 #	unsigned int len,
 #	unsigned long __user *user_mask_ptr)
 #
-probe nd_syscall.sched_setaffinity = kprobe.function("sys_sched_setaffinity"),
+probe nd_syscall.sched_setaffinity =
+	kprobe.function("sys_sched_setaffinity") ?,
 	kprobe.function("compat_sys_sched_setaffinity") ?
 {
 	name = "sched_setaffinity"
@@ -2311,7 +2312,7 @@ probe nd_syscall.sched_setaffinity = kprobe.function("sys_sched_setaffinity"),
 	argstr = sprintf("%d, %u, %p", pid, len, mask_uaddr)
 }
 probe nd_syscall.sched_setaffinity.return =
-	kprobe.function("sys_sched_setaffinity").return,
+	kprobe.function("sys_sched_setaffinity").return ?,
 	kprobe.function("compat_sys_sched_setaffinity").return ?
 {
 	name = "sched_setaffinity"
