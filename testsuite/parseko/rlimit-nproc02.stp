@@ -1,0 +1,4 @@
+#!/bin/sh
+#
+# The option to '--rlimit-nproc' must be numerical.
+stap -p1 --rlimit-nproc=12X -l begin

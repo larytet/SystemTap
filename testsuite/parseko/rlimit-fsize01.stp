@@ -1,0 +1,4 @@
+#!/bin/sh
+#
+# The option to '--rlimit-fsize' must be specified.
+stap -p1 --rlimit-fsize= -l begin

@@ -1,0 +1,4 @@
+#!/bin/sh
+#
+# The option to '--rlimit-cpu' must be numerical.
+stap -p1 --rlimit-cpu=12X -l begin

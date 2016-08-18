@@ -1316,10 +1316,23 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
 	case LONG_OPT_RLIMIT_AS:
 	  if(getrlimit(RLIMIT_AS, & our_rlimit))
-	    cerr << _F("Unable to obtain resource limits for rlimit_as : %s", strerror (errno)) << endl;
+	    cerr << _F("Unable to obtain resource limits for rlimit-as : %s", strerror (errno)) << endl;
+	  if (strlen(optarg) == 0) {
+	    cerr << _("An --rlimit-as option value must be specified.") << endl;
+	    return 1;
+	  }
 	  our_rlimit.rlim_max = our_rlimit.rlim_cur = strtoul (optarg, &num_endptr, 0);
-	  if(*num_endptr || setrlimit (RLIMIT_AS, & our_rlimit))
-	    cerr << _F("Unable to set resource limits for rlimit_as : %s", strerror (errno)) << endl;
+	  if(*num_endptr) {
+	    cerr << _F("Unable to convert rlimit-as resource limit '%s'.", optarg) << endl;
+	    return 1;
+	  }
+	  if(setrlimit (RLIMIT_AS, & our_rlimit)) {
+	    int saved_errno = errno;
+	    cerr << _F("Unable to set resource limits for rlimit-as : %s", strerror (errno)) << endl;
+	    if (saved_errno != EPERM)
+	      return 1;
+	  }
+
           /* Disable core dumps, since exhaustion results in uncaught bad_alloc etc. exceptions */
 	  our_rlimit.rlim_max = our_rlimit.rlim_cur = 0;
 	  (void) setrlimit (RLIMIT_CORE, & our_rlimit);
@@ -1327,26 +1340,63 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
 	case LONG_OPT_RLIMIT_CPU:
 	  if(getrlimit(RLIMIT_CPU, & our_rlimit))
-	    cerr << _F("Unable to obtain resource limits for rlimit_cpu : %s", strerror (errno)) << endl;
+	    cerr << _F("Unable to obtain resource limits for rlimit-cpu : %s", strerror (errno)) << endl;
+	  if (strlen(optarg) == 0) {
+	    cerr << _("An --rlimit-cpu option value must be specified.") << endl;
+	    return 1;
+	  }
 	  our_rlimit.rlim_max = our_rlimit.rlim_cur = strtoul (optarg, &num_endptr, 0);
-	  if(*num_endptr || setrlimit (RLIMIT_CPU, & our_rlimit))
-	    cerr << _F("Unable to set resource limits for rlimit_cpu : %s", strerror (errno)) << endl;
+	  if(*num_endptr) {
+	    cerr << _F("Unable to convert resource limit '%s' for rlimit-cpu", optarg) << endl;
+	    return 1;
+	  }
+	  if(setrlimit (RLIMIT_CPU, & our_rlimit)) {
+	    int saved_errno = errno;
+	    cerr << _F("Unable to set resource limits for rlimit-cpu : %s", strerror (errno)) << endl;
+	    if (saved_errno != EPERM)
+	      return 1;
+	  }
 	  break;
 
 	case LONG_OPT_RLIMIT_NPROC:
 	  if(getrlimit(RLIMIT_NPROC, & our_rlimit))
-	    cerr << _F("Unable to obtain resource limits for rlimit_nproc : %s", strerror (errno)) << endl;
+	    cerr << _F("Unable to obtain resource limits for rlimit-nproc : %s", strerror (errno)) << endl;
+	  if (strlen(optarg) == 0) {
+	    cerr << _("An --rlimit-nproc option value must be specified.") << endl;
+	    return 1;
+	  }
 	  our_rlimit.rlim_max = our_rlimit.rlim_cur = strtoul (optarg, &num_endptr, 0);
-	  if(*num_endptr || setrlimit (RLIMIT_NPROC, & our_rlimit))
-	    cerr << _F("Unable to set resource limits for rlimit_nproc : %s", strerror (errno)) << endl;
+	  if(*num_endptr) {
+	    cerr << _F("Unable to convert resource limit '%s' for rlimit-nproc", optarg) << endl;
+	    return 1;
+	  }
+	  if(setrlimit (RLIMIT_NPROC, & our_rlimit)) {
+	    int saved_errno = errno;
+	    cerr << _F("Unable to set resource limits for rlimit-nproc : %s", strerror (errno)) << endl;
+	    if (saved_errno != EPERM)
+	      return 1;
+	  }
 	  break;
 
 	case LONG_OPT_RLIMIT_STACK:
 	  if(getrlimit(RLIMIT_STACK, & our_rlimit))
-	    cerr << _F("Unable to obtain resource limits for rlimit_stack : %s", strerror (errno)) << endl;
+	    cerr << _F("Unable to obtain resource limits for rlimit-stack : %s", strerror (errno)) << endl;
+	  if (strlen(optarg) == 0) {
+	    cerr << _("An --rlimit-stack option value must be specified.") << endl;
+	    return 1;
+	  }
 	  our_rlimit.rlim_max = our_rlimit.rlim_cur = strtoul (optarg, &num_endptr, 0);
-	  if(*num_endptr || setrlimit (RLIMIT_STACK, & our_rlimit))
-	    cerr << _F("Unable to set resource limits for rlimit_stack : %s", strerror (errno)) << endl;
+	  if(*num_endptr) {
+	    cerr << _F("Unable to convert resource limit '%s' for rlimit-stack", optarg) << endl;
+	    return 1;
+	  }
+	  if(setrlimit (RLIMIT_STACK, & our_rlimit)) {
+	    int saved_errno = errno;
+	    cerr << _F("Unable to set resource limits for rlimit-stack : %s", strerror (errno)) << endl;
+	    if (saved_errno != EPERM)
+	      return 1;
+	  }
+
           /* Disable core dumps, since exhaustion results in SIGSEGV */
 	  our_rlimit.rlim_max = our_rlimit.rlim_cur = 0;
 	  (void) setrlimit (RLIMIT_CORE, & our_rlimit);
@@ -1354,10 +1404,22 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
 	case LONG_OPT_RLIMIT_FSIZE:
 	  if(getrlimit(RLIMIT_FSIZE, & our_rlimit))
-	    cerr << _F("Unable to obtain resource limits for rlimit_fsize : %s", strerror (errno)) << endl;
+	    cerr << _F("Unable to obtain resource limits for rlimit-fsize : %s", strerror (errno)) << endl;
+	  if (strlen(optarg) == 0) {
+	    cerr << _("An --rlimit-fsize option value must be specified.") << endl;
+	    return 1;
+	  }
 	  our_rlimit.rlim_max = our_rlimit.rlim_cur = strtoul (optarg, &num_endptr, 0);
-	  if(*num_endptr || setrlimit (RLIMIT_FSIZE, & our_rlimit))
-	    cerr << _F("Unable to set resource limits for rlimit_fsize : %s", strerror (errno)) << endl;
+	  if(*num_endptr) {
+	    cerr << _F("Unable to convert resource limit '%s' for rlimit-fsize", optarg) << endl;
+	    return 1;
+	  }
+	  if(setrlimit (RLIMIT_FSIZE, & our_rlimit)) {
+	    int saved_errno = errno;
+	    cerr << _F("Unable to set resource limits for rlimit-fsize : %s", strerror (errno)) << endl;
+	    if (saved_errno != EPERM)
+	      return 1;
+	  }
 	  break;
 
 	case LONG_OPT_SYSROOT:

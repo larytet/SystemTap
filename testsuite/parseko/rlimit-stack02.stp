@@ -1,0 +1,4 @@
+#!/bin/sh
+#
+# The option to '--rlimit-stack' must be numerical.
+stap -p1 --rlimit-stack=12X -l begin

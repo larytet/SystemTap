@@ -721,27 +721,23 @@ longer than <timeout> seconds.
 .TP
 .BI \-\-rlimit-as "=NUM"
 Specify the maximum size of the process's virtual memory (address space),
-in bytes. If nothing is specified, no limits are imposed.
+in bytes.
 
 .TP
 .BI \-\-rlimit-cpu "=NUM"
-Specify the CPU time limit, in seconds. If nothing is specified, no limits are
-imposed.
+Specify the CPU time limit, in seconds.
 
 .TP
 .BI \-\-rlimit-nproc "=NUM"
-Specify the maximum number of processes that can be created. If nothing is
-specified, no limits are imposed.
+Specify the maximum number of processes that can be created.
 
 .TP
 .BI \-\-rlimit-stack "=NUM"
-Specify the maximum size of the process stack, in bytes. If nothing is specified,
-no limits are imposed.
+Specify the maximum size of the process stack, in bytes.
 
 .TP
 .BI \-\-rlimit-fsize "=NUM"
-Specify the maximum size of files that the process may create, in bytes. If nothing is specified, no limits are
-imposed.
+Specify the maximum size of files that the process may create, in bytes.
 
 .TP
 .BI \-\-sysroot "=DIR"

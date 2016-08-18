@@ -1,0 +1,4 @@
+#!/bin/sh
+#
+# The option to '--rlimit-as' must be specified.
+stap -p1 --rlimit-as= -l begin

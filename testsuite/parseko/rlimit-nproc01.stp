@@ -1,0 +1,4 @@
+#!/bin/sh
+#
+# The option to '--rlimit-nproc' must be specified.
+stap -p1 --rlimit-nproc= -l begin
