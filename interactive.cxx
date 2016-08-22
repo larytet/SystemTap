@@ -712,7 +712,9 @@ public:
 	return false;
       }
 
-    string script = join(script_vec, "\n");
+    string script;
+    if (!script_vec.empty())
+      script = join(script_vec, "\n");
     f << script << endl;
     f.close();
     return false;
@@ -860,7 +862,7 @@ public:
 
     (void)fclose(fp);
     (void)unlink(temp_path);
-    if (auto_analyze)
+    if (auto_analyze && !script_vec.empty())
       (void)forked_semantic_pass(s, script_vec);
     return false;
   }
