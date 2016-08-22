@@ -10858,6 +10858,10 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
     else if (header_exists(s, "/fs/xfs/xfs_types.h"))
       they_live.push_back ("#include \"fs/xfs/xfs_types.h\"");
 
+    // Kernel 4.7 needs xfs_format.h.
+    if (header_exists(s, "/fs/xfs/libxfs/xfs_format.h"))
+      they_live.push_back ("#include \"fs/xfs/libxfs/xfs_format.h\"");
+
     // Sigh. xfs_types.h (no matter where it is), also needs
     // xfs_linux.h. But, on newer kernels, xfs_linux.h includes
     // xfs_types.h, but really needs a '-I' command to do so. So,
@@ -10900,6 +10904,7 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
     they_live.push_back ("struct nfs4_delegreturnargs;");
     they_live.push_back ("struct pnfs_layout_hdr;");
     they_live.push_back ("struct pnfs_layout_range;");
+    they_live.push_back ("struct pnfs_layout_segment;");
 
     // We need a definition of a 'stateid_t', which is a typedef of an
     // anonymous struct. So, we'll have to include the right kernel
