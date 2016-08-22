@@ -131,7 +131,11 @@ printscript(systemtap_session& s, ostream& o)
       // print probe name and variables if there
       for (map<string, set<derived_probe *> >::iterator it=probe_list.begin(); it!=probe_list.end(); ++it)
         {
-          o << it->first; // probe name or alias
+          // probe name or alias
+          if (s.dump_mode == systemtap_session::dump_matched_probes_vars)
+            o << s.colorize(it->first, "source");
+          else
+            o << it->first;
 
           // Print the locals and arguments for -L mode only
           if (s.dump_mode == systemtap_session::dump_matched_probes_vars)
