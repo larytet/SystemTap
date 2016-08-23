@@ -533,7 +533,8 @@ systemtap_session::usage (int exitcode)
      "Options (in %s/rc and on command line):\n"
      "   --         end of translator options, script options follow\n"
      "   -h --help  show help\n"
-     "   -V --version  show version\n"
+     "   -V --version\n"
+     "              show version\n"
      "   -p NUM     stop after pass NUM 1-5, instead of %d\n"
      "              (parse, elaborate, translate, compile, run)\n"
      "   -v         add verbosity to all passes\n"
@@ -550,7 +551,8 @@ systemtap_session::usage (int exitcode)
      "   -P         prologue-searching for function probes %s\n"
      "   -b         bulk (percpu file) mode %s\n"
 #ifdef HAVE_LIBREADLINE
-     "   -i         interactive mode %s\n"
+     "   -i --interactive\n"
+     "              interactive mode %s\n"
 #endif
      "   -s NUM     buffer size in megabytes, instead of %d\n"
      "   -I DIR     look in DIR for additional .stp script files", (unoptimized ? _(" [set]") : ""),
@@ -672,10 +674,6 @@ systemtap_session::usage (int exitcode)
 #if HAVE_MONITOR_LIBS
     "   --monitor=INTERVAL\n"
     "              enables monitor interfaces\n"
-#endif
-#ifdef HAVE_LIBREADLINE
-     "   --interactive\n"     
-     "             interactive mode \n"
 #endif
     , compatible.c_str()) << endl
   ;
