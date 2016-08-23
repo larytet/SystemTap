@@ -1786,8 +1786,10 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
 	}
       else if (*line_tmp)
 	add_history(line_tmp);
-      else
-	continue;
+      else {
+	cout << "Example commands: 'sample', 'add', 'run', 'help'" << endl;
+        continue;
+      }
 
       string line = string(line_tmp);
       free(line_tmp);
