@@ -149,6 +149,7 @@ public:
   virtual ~cmdopt() { }
   string name;				// command/option name 
   string usage;				// command usage (includes options)
+  vector<string> aliases;
 
   // help_text() returns the help text for a command/option
   virtual string help_text(size_t indent __attribute ((unused))) const
@@ -159,7 +160,21 @@ public:
   // handler() is the code associated with a command/option
   virtual bool handler(systemtap_session &s, vector<string> &tokens,
 		       string &input) = 0;
+
+  bool accept(const string& input) const;
 };
+
+bool cmdopt::accept(const string &input) const
+{
+  if (input == name)
+    return true;
+  for (auto it = aliases.begin(); it != aliases.end(); ++it)
+    {
+      if (input == *it)
+        return true;
+    }
+  return false;
+}
 
 typedef vector<cmdopt*> cmdopt_vector;
 typedef vector<cmdopt*>::const_iterator cmdopt_vector_const_iterator;
@@ -273,6 +288,7 @@ public:
   help_cmd()
   {
     name = usage = "help";
+    aliases = { "h", "?" };
     _help_text = "Print command list or description of a specific command.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
@@ -288,7 +304,7 @@ public:
     for (auto it = command_vec.begin();
 	 it != command_vec.end(); ++it)
       {
-        if (tokens[0] == (*it)->name) {
+        if ((*it)->accept(tokens[0])) {
 	  cout << (*it)->usage << ": " << (*it)->help_text((*it)->usage.size()) << endl;
           return false;
 	}
@@ -299,21 +315,13 @@ public:
   }
 };
 
-class help2_cmd: public help_cmd
-{
-public:
-  help2_cmd()
-  {
-    name = usage = "?";
-    _help_text = "Print command list or description of a specific command.";
-  }
-};
 class list_cmd : public cmdopt
 {
 public:
   list_cmd()
   {
     name = usage = "list";
+    aliases = { "l" };
     _help_text = "Display the current script.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
@@ -384,7 +392,7 @@ public:
     for (cmdopt_vector_iterator it = option_vec.begin();
 	 it != option_vec.end(); ++it)
       {
-	if (tokens[1] == (*it)->name)
+	if ((*it)->accept(tokens[1]))
 	{
 	  option_found = true;
 	  (*it)->handler(s, tokens, input);
@@ -434,7 +442,7 @@ public:
     for (cmdopt_vector_iterator it = option_vec.begin();
 	 it != option_vec.end(); ++it)
       {
-	if (tokens[1] == (*it)->name)
+	if ((*it)->accept(tokens[1]))
 	  {
 	    option_found = true;
 	    (*it)->handler(s, tokens, input);
@@ -455,6 +463,7 @@ public:
   quit_cmd()
   {
     name = usage = "quit";
+    aliases = { "q" };
     _help_text = "Quit systemtap.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
@@ -471,6 +480,7 @@ public:
   add_cmd()
   {
     name = usage = "add";
+    aliases = { "a" };
     _help_text = "Add a global, probe, or function.";
   }
   bool handler(systemtap_session &s,
@@ -544,6 +554,7 @@ public:
   delete_cmd()
   {
     name = "delete";
+    aliases = { "d" };
     usage = "delete LINE_NUM_RANGE";
     _help_text = "Delete script line(s) by line numbers. To delete a single line, specify LINE_NUM_RANGE as \"10\". To delete a range of lines, specify LINE_NUM_RANGE as \"12-20\". To delete the entire script, give no argument.";
   }
@@ -744,6 +755,7 @@ public:
   run_cmd()
   {
     name = usage = "run";
+    aliases = { "r" };
     _help_text = "Run the current script.";
   }
   bool handler(systemtap_session &s,
@@ -789,6 +801,7 @@ public:
   edit_cmd()
   {
     name = usage = "edit";
+    aliases = { "e" };
     _help_text = "Edit the current script. Uses EDITOR environment variable contents as editor (or ex as default).";
   }
   bool handler(systemtap_session &s,
@@ -1190,7 +1203,7 @@ interactive_usage ()
   // Print usage field and help text for each command.
   for (cmdopt_vector_const_iterator it = command_vec.begin();
        it != command_vec.end(); ++it)
-    { if ((*it)->usage != "?")
+    {
       cout << setw(width) << left << (*it)->usage << " -- "
 	   << (*it)->help_text(width + 4) << endl;
     }
@@ -1410,7 +1423,7 @@ interactive_completion(const char *text, int start,
       for (cmdopt_vector_const_iterator it = option_command_vec.begin();
 	   it != option_command_vec.end(); ++it)
       {
-	if ((*it)->name == tokens[0])
+	if ((*it)->accept(tokens[0]))
 	{
 	  matches = rl_completion_matches(text, option_generator);
 	  return matches;
@@ -1665,7 +1678,6 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   command_vec.push_back(new show_cmd);
   option_command_vec.push_back(command_vec.back());
   command_vec.push_back(new help_cmd);
-  command_vec.push_back(new help2_cmd);
   command_vec.push_back(new quit_cmd);
 
   // Set up set/show option list.
@@ -1805,7 +1817,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
 	  for (cmdopt_vector_iterator it = command_vec.begin();
 	       it != command_vec.end(); ++it)
 	    {
-	      if (tokens[0] == (*it)->name)
+	      if ((*it)->accept(tokens[0]))
 	        {
 		  input_handled = true;
 		  quit = (*it)->handler(s, tokens, line);
