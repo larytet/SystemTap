@@ -273,33 +273,41 @@ public:
   help_cmd()
   {
     name = usage = "help";
-    _help_text = "Print this command list.";
+    _help_text = "Print command list or description of a specific command.";
   }
   bool handler(systemtap_session &s __attribute ((unused)),
 	       vector<string> &tokens __attribute ((unused)),
 	       string &input __attribute ((unused)))
   {
-    interactive_usage();
+    tokens.erase(tokens.begin());
+    if (tokens.size() == 0) {
+        interactive_usage();
+        return false;
+    }
+
+    for (auto it = command_vec.begin();
+	 it != command_vec.end(); ++it)
+      {
+        if (tokens[0] == (*it)->name) {
+	  cout << (*it)->usage << ": " << (*it)->help_text((*it)->usage.size()) << endl;
+          return false;
+	}
+      }
+
+    cout <<"Undefined command \""<< tokens[0]<< "\". Try \"help\" or \"?\" for a full list of commands." << endl;
     return false;
   }
 };
 
-class help2_cmd: public cmdopt
+class help2_cmd: public help_cmd
 {
 public:
   help2_cmd()
   {
     name = usage = "?";
-    _help_text = "Print this command list.";
-  }
-  bool handler(systemtap_session &s __attribute ((unused)),
-	       vector<string> &tokens __attribute ((unused)),
-	       string &input __attribute ((unused)))
-  {interactive_usage();
-    return false;
+    _help_text = "Print command list or description of a specific command.";
   }
 };
-
 class list_cmd : public cmdopt
 {
 public:
@@ -367,8 +375,8 @@ public:
     bool option_found = false;
     if (tokens.size() < 3)
       {
-	cout << endl << "Invalid command" << endl;
-	interactive_usage();
+	cout  << "Invalid command" << endl;
+	cout << usage << ": " << help_text(0) <<endl;
 	return false;
       }
 
@@ -386,7 +394,7 @@ public:
     if (!option_found)
       {
 	cout << "Invalid option name" << endl;
-	interactive_usage();
+	cout << usage << ": " << help_text(0) <<endl;
       }
     return false;
   }
@@ -418,7 +426,7 @@ public:
     else if (tokens.size() != 2)
       {
 	cout << endl << "Invalid command" << endl;
-	interactive_usage();
+        cout << usage << ": " << help_text(0) <<endl;
 	return false;
       }
 
@@ -435,8 +443,7 @@ public:
       }
     if (!option_found)
       {
-	cout << "Invalid option name" << endl;
-	interactive_usage();
+	cout << "Invalid option name" << endl << "Use \"help set\" for a list of options." <<endl;
       }
     return false;
   }
@@ -477,8 +484,10 @@ public:
 
     // Skip past the add command itself by removing the 1st token.
     tokens.erase(tokens.begin());
-    if (tokens.size() == 0)
+    if (tokens.size() == 0) {
+      cout << name << ": " << _help_text << endl;
       return false;
+    }
 
     // Find the "add" command text and skip past it.  Note that we're
     // using the "raw" (not tokenized) input, so that if someone was
@@ -655,8 +664,8 @@ public:
   {
     if (tokens.size() != 2)
       {
-	cout << endl << "FILE must be specified." << endl;
-	interactive_usage();
+	cout << "FILE must be specified." << endl;
+        cout << usage << ": " << help_text(0) <<endl;
 	return false;
       }
 
@@ -706,8 +715,8 @@ public:
   {
     if (tokens.size() != 2)
       {
-	cout << endl << "FILE must be specified." << endl;
-	interactive_usage();
+	cout << "FILE must be specified." << endl;
+        cout << usage << ": " << help_text(0) <<endl;
 	return false;
       }
 
