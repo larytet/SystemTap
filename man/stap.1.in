@@ -225,6 +225,10 @@ Use bulk mode (percpu files) for kernel-to-user data transfer.  Use the
 .IR stap\-merge
 program to multiplex them back together later.
 .TP
+.B \-i \-\-interactive
+Interactive mode. Enable an interface to build the systemtap script
+incrementally and interactively.
+.TP
 .B \-t
 Collect timing information on the number of times probe executes
 and average amount of time spent in each probe-point. Also shows 
