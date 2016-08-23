@@ -1,0 +1,13 @@
+set test bz1269062
+
+# Only run on make installcheck
+if {! [installtest_p]} { untested "$test"; return }
+
+proc chk_rc {command} {
+    set rc [catch {eval exec "$command"} msg]
+    verbose -log "$msg"
+    if {$rc == 0} { pass "$command" } else { fail "$command" }
+}
+
+chk_rc "stap -c sync -e { probe ioscheduler.elv_add_request{ println(elevator_name) exit() } }"
+
