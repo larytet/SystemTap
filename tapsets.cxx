@@ -1391,6 +1391,59 @@ string path_remove_sysroot(const systemtap_session& sess, const string& path)
   return retval;
 }
 
+/*
+ * Convert 'Global Entry Point' to 'Local Entry Point'.
+ *
+ * if @gep contains next address after prologue, don't change it.
+ *
+ * For ELF ABI v2 on PPC64 LE, we need to adjust sym.st_value corresponding
+ * to the bits of sym.st_other. These bits will tell us what's the offset
+ * of the local entry point from the global entry point.
+ *
+ * st_other field is currently only used with ABIv2 on ppc64
+ */
+static Dwarf_Addr
+get_lep(dwarf_query *q, Dwarf_Addr gep)
+{
+  Dwarf_Addr bias;
+  Dwfl_Module *mod = q->dw.module;
+  Elf* elf = (dwarf_getelf (dwfl_module_getdwarf (mod, &bias))
+             ?: dwfl_module_getelf (mod, &bias));
+
+  GElf_Ehdr ehdr_mem;
+  GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
+  if (em == NULL)
+    throw SEMANTIC_ERROR (_("Couldn't get elf header"));
+
+  if (!(em->e_machine == EM_PPC64) || !((em->e_flags & EF_PPC64_ABI) == 2))
+    return gep;
+
+  int syments = dwfl_module_getsymtab(mod);
+  for (int i = 1; i < syments; ++i)
+    {
+      GElf_Sym sym;
+      GElf_Word section;
+      GElf_Addr addr;
+
+#if _ELFUTILS_PREREQ (0, 158)
+      dwfl_module_getsym_info (mod, i, &sym, &addr, &section, NULL, NULL);
+#else
+      dwfl_module_getsym (mod, i, &sym, &section);
+      addr = sym.st_value;
+#endif
+
+      /*
+       * Symbol table contains module_bias + offset. Substract module_bias
+       * to compare offset with gep.
+       */
+      if ((addr - bias) == gep && (GELF_ST_TYPE(sym.st_info) == STT_FUNC)
+          && sym.st_other)
+        return gep + PPC64_LOCAL_ENTRY_OFFSET(sym.st_other);
+    }
+
+  return gep;
+}
+
 void
 dwarf_query::add_probe_point(interned_string dw_funcname,
 			     interned_string filename,
@@ -1399,12 +1452,14 @@ dwarf_query::add_probe_point(interned_string dw_funcname,
 			     Dwarf_Addr addr)
 {
   interned_string reloc_section; // base section for relocation purposes
+  Dwarf_Addr orig_addr = addr;
   Dwarf_Addr reloc_addr; // relocated
   interned_string module = dw.module_name; // "kernel" or other
   interned_string funcname = dw_funcname;
 
   assert (! has_absolute); // already handled in dwarf_builder::build()
 
+  addr = get_lep(this, addr);
   reloc_addr = dw.relocate_address(addr, reloc_section);
 
   // If we originally used the linkage name, then let's call it that way
@@ -1470,7 +1525,10 @@ dwarf_query::add_probe_point(interned_string dw_funcname,
 
 	      symbol_table *sym_table = mi->sym_table;
 	      func_info *symbol = sym_table->get_func_containing_address(addr);
-	      Dwarf_Addr offset = addr - symbol->addr;
+
+	      // Do not use LEP to find offset here. When 'symbol_name'
+	      // is used to register probe, kernel itself will find LEP.
+	      Dwarf_Addr offset = orig_addr - symbol->addr;
 	      results.push_back (new dwarf_derived_probe(funcname, filename,
 							 line, module,
 							 reloc_section, addr,
