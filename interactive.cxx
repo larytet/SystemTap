@@ -660,6 +660,14 @@ public:
 	return false;
       }
 
+    if (!script_vec.empty())
+      {
+        if (query("Script exists. Overwrite existing script? ", no_default))
+          script_vec.clear();
+        else
+          return false;
+      }
+
     // Originally, we called stap's parser here to read in the
     // script. However, doing so discards comments, preprocessor
     // directives, and rearranges the script. So, let's just read the
