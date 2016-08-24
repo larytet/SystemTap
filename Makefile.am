@@ -356,6 +356,17 @@ installcheck-parallel:
 	fi;
 	$(MAKE) -C testsuite installcheck-parallel RUNTESTFLAGS="$(RUNTESTFLAGS)"
 
+list-unfinished:
+	if test \! -e $(DESTDIR)$(bindir)/stap; then \
+	  echo $(DESTDIR)$(bindir)/stap doesn\'t exist, run make install; \
+	  exit -1; \
+	fi; \
+	if test $(builddir)/stap -nt $(DESTDIR)$(bindir)/stap; then \
+	  echo "$(DESTDIR)$(bindir)/stap is not recent, run make install"; \
+	  exit -1; \
+	fi;
+	$(MAKE) -C testsuite list-unfinished RUNTESTFLAGS="$(RUNTESTFLAGS)"
+
 PHONIES += runcheck
 # All the variables are overridden by run-stap, but SYSTEMTAP_RUNTIME
 # is used by the testsuite scripts themselves.
