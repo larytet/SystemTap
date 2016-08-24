@@ -132,7 +132,7 @@ printscript(systemtap_session& s, ostream& o)
       for (map<string, set<derived_probe *> >::iterator it=probe_list.begin(); it!=probe_list.end(); ++it)
         {
           // probe name or alias
-          if (s.dump_mode == systemtap_session::dump_matched_probes_vars)
+          if (s.dump_mode == systemtap_session::dump_matched_probes_vars && isatty(STDOUT_FILENO))
             o << s.colorize(it->first, "source");
           else
             o << it->first;
