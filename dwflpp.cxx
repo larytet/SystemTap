@@ -129,6 +129,8 @@ dwflpp::~dwflpp()
     delete_map(*i->second);
   delete_map(cu_lines_cache);
 
+  delete_map(cu_entry_pc_cache);
+
   if (dwfl)
     dwfl_end(dwfl);
   // NB: don't "delete mod_info;", as that may be shared
@@ -4668,6 +4670,35 @@ dwflpp::add_module_build_id_to_hash (Dwfl_Module *m,
 }
 
 
+static int
+cu_entry_pc_caching_callback (Dwarf_Die *func, pair<dwflpp&, entry_pc_cache_t&> *data)
+{
+  auto& dw = data->first;
+  auto& cache = data->second;
+
+  Dwarf_Addr entry_pc;
+  if (dw.die_entrypc (func, &entry_pc))
+    cache.insert (entry_pc);
+  return DWARF_CB_OK;
+}
+
+bool
+dwflpp::check_cu_entry_pc (Dwarf_Die *cu, Dwarf_Addr pc)
+{
+  auto& entry_pcs = cu_entry_pc_cache[cu->addr];
+  if (!entry_pcs)
+    {
+      save_and_restore<Dwarf_Die*> saved_cu(&this->cu, cu);
+      entry_pcs = new entry_pc_cache_t;
+      pair<dwflpp&, entry_pc_cache_t&> data (*this, *entry_pcs);
+      int rc = iterate_over_functions (cu_entry_pc_caching_callback, &data, "*");
+      if (rc != DWARF_CB_OK)
+        return false;
+    }
+
+  return entry_pcs->count(pc) != 0;
+}
+
 
 // Perform PR15123 heuristic for given variable at given address.
 // Return alternate pc address to do location-list lookup at, or 0 if
@@ -4700,10 +4731,11 @@ dwflpp::pr15123_retry_addr (Dwarf_Addr pc, Dwarf_Die* die)
   if (getenv ("PR15123_DISABLE"))
     return 0;
 
+  Dwarf_Die cudie;
+  dwarf_diecu (die, &cudie, NULL, NULL);
+
   if (!getenv ("PR15123_ASSUME_MFENTRY")) {
-    Dwarf_Die cudie;
     string producer, version;
-    dwarf_diecu (die, &cudie, NULL, NULL);
     if (!is_gcc_producer(&cudie, producer, version))
       return 0;
     if (producer.find("-mfentry") == string::npos)
@@ -4715,13 +4747,7 @@ dwflpp::pr15123_retry_addr (Dwarf_Addr pc, Dwarf_Die* die)
   // is made tricker by this->function may not be
   // pointing at the right DIE (say e.g. stap encountered
   // the inlined copy first, so was focus_on_function'd).
-  vector<Dwarf_Die> scopes = getscopes(pc);
-  if (scopes.size() == 0)
-    return 0;
-
-  Dwarf_Die outer_function_die = scopes[0];
-  Dwarf_Addr entrypc;
-  if (!die_entrypc(& outer_function_die, &entrypc) || entrypc != pc)
+  if (!check_cu_entry_pc (&cudie, pc))
     return 0; // (will fail on retry, so we won't loop more than once)
 
   if (sess.architecture == "i386" ||

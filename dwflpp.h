@@ -24,6 +24,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // Old elf.h doesn't know about this machine type.
@@ -90,6 +91,10 @@ typedef std::unordered_map<std::string, lines_t*> srcfile_lines_cache_t;
 
 // cu die -> (srcfile -> Dwarf_Line[])
 typedef std::unordered_map<void*, srcfile_lines_cache_t*> cu_lines_cache_t;
+
+// cu die -> {entry pcs}
+typedef std::unordered_set<Dwarf_Addr> entry_pc_cache_t;
+typedef std::unordered_map<void*, entry_pc_cache_t*> cu_entry_pc_cache_t;
 
 typedef std::vector<base_func_info> base_func_info_map_t;
 typedef std::vector<func_info> func_info_map_t;
@@ -512,6 +517,10 @@ private:
 
   // Cache for cu lines sorted by lineno
   cu_lines_cache_t cu_lines_cache;
+
+  // Cache for all entry_pc in each cu
+  cu_entry_pc_cache_t cu_entry_pc_cache;
+  bool check_cu_entry_pc(Dwarf_Die *cu, Dwarf_Addr pc);
 
   Dwarf_Die* get_parent_scope(Dwarf_Die* die);
 
