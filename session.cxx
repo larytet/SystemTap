@@ -1696,11 +1696,6 @@ systemtap_session::check_options (int argc, char * const argv [])
     }
   // FIXME: we need to think through other options that shouldn't be
   // used with '-i'.
-  if (interactive_mode && have_script)
-    {
-      cerr << _("Cannot specify a script with -i") << endl;
-      usage(1);
-    }
 
 #if ! HAVE_NSS
   if (client_options)

@@ -1693,6 +1693,23 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   option_vec.push_back(new cmd_opt);
   option_vec.push_back(new auto_analyze_opt);
 
+  // Feed provided script into interactive buffer
+  if (!s.script_file.empty())
+    {
+      ifstream ifs(s.script_file);
+      string line;
+      while (getline(ifs, line))
+        script_vec.push_back(line);
+    }
+  else if (!s.cmdline_script.empty())
+    script_vec.push_back(s.cmdline_script);
+  for (auto it = s.additional_scripts.begin();
+       it != s.additional_scripts.end(); ++it)
+    script_vec.push_back(*it);
+  s.script_file.clear();
+  s.cmdline_script.clear();
+  s.additional_scripts.clear();
+
   // FIXME: It might be better to wait to get the list of probes and
   // aliases until they are needed.
 
