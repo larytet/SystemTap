@@ -5564,7 +5564,10 @@ c_unparser::visit_functioncall (functioncall* e)
 
   if (e->referents.back()->has_next)
     // check for aborted return from function; this could happen from non-overloaded ones too
-    o->newline() << "if (unlikely(c->next)) { c->last_error = \"all functions exhausted\"; goto out; }";
+    o->newline()
+      << "if (unlikely(c->next)) { "
+      << "c->last_stmt = " << lex_cast_qstring(*e->tok) << "; "
+      << "c->last_error = \"all functions exhausted\"; goto out; }";
 
   // return result from retvalue slot NB: this must be last, for the
   // enclosing statement-expression ({ ... }) to carry this value.
