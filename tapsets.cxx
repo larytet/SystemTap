@@ -11430,7 +11430,8 @@ tracepoint_query::handle_query_func(Dwarf_Die * func)
       if ((sess.architecture.substr(0,3) == "ppc" ||
            sess.architecture.substr(0,7) == "powerpc") &&
           (tracepoint_instance == "hcall_entry" ||
-           tracepoint_instance == "hcall_exit"))
+           tracepoint_instance == "hcall_exit" ||
+	   tracepoint_instance == "hash_fault"))
         {
           sess.print_warning(_F("tracepoint %s is blacklisted on architecture %s",
                                 tracepoint_instance.c_str(), sess.architecture.c_str()));
