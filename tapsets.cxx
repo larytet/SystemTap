@@ -11898,6 +11898,7 @@ register_standard_tapsets(systemtap_session & s)
   //perf event based probe
   register_tapset_perf(s);
   register_tapset_java(s);
+  register_tapset_python(s);
 }
 
 
@@ -11935,6 +11936,7 @@ all_session_groups(systemtap_session& s)
   DOONE(utrace);
   DOONE(itrace);
   DOONE(dynprobe);
+  DOONE(python);
   DOONE(task_finder);
 #undef DOONE
   return g;
