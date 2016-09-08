@@ -11,7 +11,7 @@ expect {
     timeout { fail "$test (timeout)" }
     eof { }
 }
-wait
+catch { close }; catch { wait }
 if {$ok == 14} {
     pass $test
 } else {

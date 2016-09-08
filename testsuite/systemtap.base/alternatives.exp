@@ -32,6 +32,7 @@ proc stap_run_alternatives {args} {
         eof { verbose -log "EOF" }
         timeout { verbose -log "TIMEOUT" }
     }
+    catch { close }
     set results [wait]
     verbose -log "wait results: $results"
     return $alternatives_found

@@ -47,7 +47,7 @@ foreach arch $arches {
       timeout { fail "$exe (timeout)" }
       eof { }
     }
-    wait
+    catch { close }; catch { wait }
 
     if {$ok == 3 && $warn == 0} {
       pass "$exe"

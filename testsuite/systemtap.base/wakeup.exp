@@ -18,7 +18,7 @@ expect {
     timeout { fail "$test (timeout)" }
     eof { }
 }
-wait
+catch { close }; catch { wait }
 
 # WARNINGs get collapsed, so only 1 expected ... plus the two from staprun re. the ERROR exits.
 if {$systems == 8 && $warns == 3 && $errors == 8 && $prints == 1} { pass "$test" } { fail "$test ($systems,$warns,$errors,$prints)" }

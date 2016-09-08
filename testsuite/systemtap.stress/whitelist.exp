@@ -354,6 +354,7 @@ proc runbenchs {} {
     			set donepos [lsearch $idlist $expect_out(spawn_id)]
     			set idlist [lreplace $idlist $donepos $donepos]
     			incr runningcount -1
+			catch { close -i $expect_out(spawn_id) }
                         wait -i $expect_out(spawn_id)
     		} timeout {
     			break

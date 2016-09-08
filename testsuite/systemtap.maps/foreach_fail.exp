@@ -21,6 +21,5 @@ foreach runtime [get_runtime_list] {
 	    fail "$testname unexpected EOF" }
 	-re "semantic error:" { pass "$testname correctly failed to compile" }
     }
-    close
-    wait
+    catch { close }; catch { wait }
 }

@@ -29,7 +29,7 @@ if {$rc != 0} {
 }
 
 set test "stap-tcl.stp compilation"
-verbose -log "spawn stap -DMAXSKIPPED=8024 -t -p4 $srcdir/$subdir/stap-tcl.stp tcl/install/bin/tclsh${tclreleasemajor} tcl/install/lib/libtcl${tclreleasemajor}.so"
+verbose -log "stap -DMAXSKIPPED=8024 -t -p4 $srcdir/$subdir/stap-tcl.stp tcl/install/bin/tclsh${tclreleasemajor} tcl/install/lib/libtcl${tclreleasemajor}.so"
 set rc [catch {exec stap -DMAXSKIPPED=8024 -t -p4 $srcdir/$subdir/stap-tcl.stp tcl/install/bin/tclsh${tclreleasemajor} tcl/install/lib/libtcl${tclreleasemajor}.so} out]
 clone_output $out
 if {$rc != 0} {

@@ -17,7 +17,7 @@ proc run {subtest pp} {
     }
     eof { if {$match == 0} { fail $subtest } }
   }
-  wait
+  catch { close }; catch { wait }
 }
 
 proc run_one_test {flags bits} {

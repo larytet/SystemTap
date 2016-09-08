@@ -9,6 +9,5 @@ expect {
     timeout { fail "$test (timeout)" }
     eof { }
 }
-#FIXME does not handle case of hanging symbols.stp correctly
-wait
+catch { kill -INT -[exp_pid] 2 }; catch { close }; catch { wait }
 if {$ok == 11} { pass "$test ($ok)" } { fail "$test ($ok)" }

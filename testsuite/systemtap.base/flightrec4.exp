@@ -17,7 +17,8 @@ expect {
   timeout { fail "$test (timeout)" }
   eof { }
 }
-wait; catch {close}
+# Notice we call close/wait at the end of this test.
+
 if {$pid == 0} {
   fail "$test (no pid)"
   return -1
@@ -52,6 +53,7 @@ if {[catch {exec rm $test.out.1}]} {
 }
 
 kill -TERM $pid 5
+catch { close }; catch { wait }
 
 # check switched output file
 if {[catch {exec rm $test.out.2 $test.out.3}]} {

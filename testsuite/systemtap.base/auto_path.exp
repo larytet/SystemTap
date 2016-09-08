@@ -31,6 +31,7 @@ expect {
       }
   }
 }
+catch { close }; catch { wait }
 if {$status == 1} {pass ${test}1} else {fail ${test}1}
 
 set status 0
@@ -45,6 +46,7 @@ expect {
     }
   }
 }
+catch { close }; catch { wait }
 if {$status == 1} {pass ${test}2} else {fail ${test}2}
 
 set status 0
@@ -59,6 +61,7 @@ expect {
     }
   }
 }
+catch { close }; catch { wait }
 if {$status == 1} {pass ${test}3} else {fail ${test}3}
 
 # cleanup

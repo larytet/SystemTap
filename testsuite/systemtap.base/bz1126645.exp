@@ -14,6 +14,6 @@ expect {
 	timeout { fail "$test (timeout)" }
 	eof { }
 }
-wait
+catch { close }; catch { wait }
 if {$ok == 1} then { pass "$test -p5" } else { fail "$test -p5 ($ok)" }
 

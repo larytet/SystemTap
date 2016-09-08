@@ -33,8 +33,7 @@ expect {
 
   timeout { fail "$test (timeout)" }
 }
-catch close
-wait
+catch { close }; catch { wait }
 
 # Set a small interval to insure the next stap call cleans the cache
 exec /bin/echo 1 > $local_systemtap_dir/cache/cache_clean_interval_s
@@ -52,8 +51,7 @@ expect {
 
   timeout { fail "$test (timeout)" }
 }
-catch close
-wait
+catch { close }; catch { wait }
 
 # Cleanup.
 exec /bin/rm -rf $local_systemtap_dir
