@@ -1318,29 +1318,27 @@ struct stat_decl_collector
     else
       i->second.stat_ops |= stat_op;
 
-      // The @variance operator for given stat S (i.e. call to _stp_stat_init())
-      // is optionally parametrizeable (@variance(S[, N]), where N is a bit shift
-      // (the default is N=0).  The bit_shift helps to improve precision if integer
-      // arithemtic, namely divisions ().
-      //
-      // Ref: https://en.wikipedia.org/wiki/Scale_factor_%28computer_science%29
-      //
-      if (e->tok->content != "@variance")
-        return;
-      else if ((i->second.bit_shift != 0) && (i->second.bit_shift != bit_shift))
-        {
-          // FIXME: Support multiple co-declared bit shifts
-          // (analogy to multiple co-declared histogram types)
-          semantic_error se(ERR_SRC, _F("multiple bit shifts declared on '%s' (%d, %d)",
-                                        sym->name.to_string().c_str(),
-                                        i->second.bit_shift, bit_shift),
-                            e->tok);
-          session.print_error (se);
-        }
-      else
-        {
-          i->second.bit_shift = bit_shift;
-	}
+    // The @variance operator for given stat S (i.e. call to _stp_stat_init())
+    // is optionally parametrizeable (@variance(S[, N]), where N is a bit shift
+    // (the default is N=0).  The bit_shift helps to improve precision if integer
+    // arithemtic, namely divisions ().
+    //
+    // Ref: https://en.wikipedia.org/wiki/Scale_factor_%28computer_science%29
+    //
+    if (e->tok->content != "@variance")
+      return;
+    else if ((i->second.bit_shift != 0) && (i->second.bit_shift != bit_shift))
+      {
+        // FIXME: Support multiple co-declared bit shifts
+        // (analogy to multiple co-declared histogram types)
+        throw SEMANTIC_ERROR (_F("conflicting bit shifts declared (previously %d)",
+                                 i->second.bit_shift),
+                              e->tok);
+      }
+    else
+      {
+        i->second.bit_shift = bit_shift;
+      }
   }
 
   void visit_assignment (assignment* e)
