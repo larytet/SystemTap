@@ -85,10 +85,11 @@ probe end {
   printf("\n")
   printf("irq taking processor from task %d\n", target())
 
-  printf("%6s %10s %10s %10s %10s\n", "irq", "count",
-      "min(us)", "avg(us)", "max(us)")
+  printf("%6s %10s %10s %10s %10s %10s\n", "irq", "count",
+      "min(us)", "avg(us)", "max(us)", "variance(us^2)")
   foreach (p in irq_thief-)
-    printf("%6d %10d %10d %10d %10d\n", p, @count(irq_thief[p]),
-      @min(irq_thief[p]), @avg(irq_thief[p]), @max(irq_thief[p]))
+    printf("%6d %10d %10d %10d %10d %10d\n", p, @count(irq_thief[p]),
+      @min(irq_thief[p]), @avg(irq_thief[p]), @max(irq_thief[p]),
+      @variance(irq_thief[p]))
 
 }

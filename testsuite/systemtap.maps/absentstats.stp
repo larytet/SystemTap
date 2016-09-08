@@ -11,6 +11,7 @@ probe begin { println(@sum(sc)) }
 probe begin { print(@max(sc)) }
 probe begin { print(@min(sc)) }
 probe begin { print(@avg(sc)) }
+probe begin { print(@variance(sc)) }
 probe begin { print(@hist_log(sc)) }
 probe begin { x=@hist_log(sc)[5]; print(x) }
 
@@ -21,6 +22,7 @@ probe begin { println(@sum(ry[4])) }
 probe begin { print(@max(ry[4])) }
 probe begin { print(@min(ry[4])) }
 probe begin { print(@avg(ry[4])) }
+probe begin { print(@variance(ry[4])) }
 probe begin { print(@hist_log(ry[4])) }
 probe begin { x=@hist_log(ry[4])[5]; print(x) }
 

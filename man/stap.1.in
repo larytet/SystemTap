@@ -1619,8 +1619,9 @@ that moment across all processors.
 Here is the set of extractor functions.  The first argument of each is
 the same style of lvalue used on the left hand side of the accumulate
 operation.  The
-.IR @count(v) ", " @sum(v) ", " @min(v) ", " @max(v) ", " @avg(v)
-extractor functions compute the number/total/minimum/maximum/average
+.IR @count(v) ", " @sum(v) ", " @min(v) ", " @max(v) ", " @avg(v) ", "
+@variance(v) extractor functions compute the
+number/total/minimum/maximum/average/variance
 of all accumulated values.  The resulting values are all simple
 integers.  Arrays containing aggregates may be sorted and iterated.
 See the

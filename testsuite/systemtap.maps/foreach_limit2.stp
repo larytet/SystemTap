@@ -77,20 +77,20 @@ probe begin
     printf("sorted (by values, decreasing):\n");
     foreach (key in agg_array-)
     {
-	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d\n", 
+	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d  variance:%d\n", 
 	       key, @count(agg_array[key]), @sum(agg_array[key]),
 	       @avg(agg_array[key]), @min(agg_array[key]),
-	       @max(agg_array[key]))
+	       @max(agg_array[key]), @variance(agg_array[key]))
     }
 
     # Print the sorted array (by value, increasing)
     printf("\nsorted (by values), increasing:\n");
     foreach (key in agg_array+)
     {
-	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d\n", 
+	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d  variance:%d\n", 
 	       key, @count(agg_array[key]), @sum(agg_array[key]),
 	       @avg(agg_array[key]), @min(agg_array[key]),
-	       @max(agg_array[key]))
+	       @max(agg_array[key]), @variance(agg_array[key]))
     }
 
     # Print the first 5 sorted array items (by value, decreasing)
@@ -98,10 +98,10 @@ probe begin
     i = 0
     foreach (key in agg_array- limit 5)
     {
-	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d\n", 
+	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d  variance:%d\n", 
 	       key, @count(agg_array[key]), @sum(agg_array[key]),
 	       @avg(agg_array[key]), @min(agg_array[key]),
-	       @max(agg_array[key]))
+	       @max(agg_array[key]), @variance(agg_array[key]))
 	i++;
     }
     printf("loop had %d iterations\n", i);
@@ -111,10 +111,10 @@ probe begin
     i = 0
     foreach (key in agg_array+ limit 5)
     {
-	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d\n", 
+	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d  variance:%d\n", 
 	       key, @count(agg_array[key]), @sum(agg_array[key]),
 	       @avg(agg_array[key]), @min(agg_array[key]),
-	       @max(agg_array[key]))
+	       @max(agg_array[key]), @variance(agg_array[key]))
 	i++;
     }
     printf("loop had %d iterations\n", i);
@@ -124,10 +124,10 @@ probe begin
     i = 0
     foreach (key+ in agg_array limit 5)
     {
-	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d\n", 
+	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d  variance:%d\n", 
 	       key, @count(agg_array[key]), @sum(agg_array[key]),
 	       @avg(agg_array[key]), @min(agg_array[key]),
-	       @max(agg_array[key]))
+	       @max(agg_array[key]), @variance(agg_array[key]))
 	i++;
     }
     printf("loop had %d iterations\n", i);
@@ -138,10 +138,10 @@ probe begin
     i = 0
     foreach (key in agg_array+ limit x)
     {
-	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d\n", 
+	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d  variance:%d\n", 
 	       key, @count(agg_array[key]), @sum(agg_array[key]),
 	       @avg(agg_array[key]), @min(agg_array[key]),
-	       @max(agg_array[key]))
+	       @max(agg_array[key]), @variance(agg_array[key]))
 	i++;
     }
     printf("loop had %d iterations\n", i);
@@ -152,10 +152,10 @@ probe begin
     i = 0
     foreach (key in agg_array+ limit x * 2)
     {
-	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d\n", 
+	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d  variance:%d\n", 
 	       key, @count(agg_array[key]), @sum(agg_array[key]),
 	       @avg(agg_array[key]), @min(agg_array[key]),
-	       @max(agg_array[key]))
+	       @max(agg_array[key]), @variance(agg_array[key]))
 	i++;
     }
     printf("loop had %d iterations\n", i);
@@ -165,10 +165,10 @@ probe begin
     i = 0
     foreach (key in agg_array+ limit ++x)
     {
-	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d\n", 
+	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d  variance:%d\n", 
 	       key, @count(agg_array[key]), @sum(agg_array[key]),
 	       @avg(agg_array[key]), @min(agg_array[key]),
-	       @max(agg_array[key]))
+	       @max(agg_array[key]), @variance(agg_array[key]))
 	i++;
     }
     printf("loop had %d iterations\n", i);
@@ -179,10 +179,10 @@ probe begin
     i = 0
     foreach (key in agg_array+ limit x++)
     {
-	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d\n", 
+	printf("agg_array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d  variance:%d\n", 
 	       key, @count(agg_array[key]), @sum(agg_array[key]),
 	       @avg(agg_array[key]), @min(agg_array[key]),
-	       @max(agg_array[key]))
+	       @max(agg_array[key]), @variance(agg_array[key]))
 	i++;
     }
     printf("loop had %d iterations\n", i);

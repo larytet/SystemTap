@@ -208,7 +208,7 @@ static int stp_session_init(void)
 	for (i = 0; i < STP_PROBE_COUNT; ++i) {
 		// NB: we don't check for null return here, but instead at
 		// passage to probe handlers and at final printing.
-		Stat st = _stp_stat_init(HIST_NONE);
+		Stat st = _stp_stat_init(STAT_OP_MIN, STAT_OP_MAX, STAT_OP_AVG, NULL);
 
 		// NB: allocate first, then dereference the session after, in case
 		// allocation-resizing causes the whole thing to move around.

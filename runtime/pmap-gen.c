@@ -145,42 +145,85 @@ static PMAP KEYSYM(_stp_pmap_new) (unsigned max_entries, int wrap)
 }
 #else
 /*
- * _stp_pmap_new_key1_key2...val (num, wrap, HIST_LINEAR, start, end, interval) 
- * _stp_pmap_new_key1_key2...val (num, wrap, HIST_LOG)
+ * _stp_pmap_new* () 
+ * @param max_entries (KEY_MAPENTRIES and associated parameter)
+ * @param wrap (KEY_STAT_WRAP)
+ * @param htype (KEY_HIST_TYPE and associated parameters)
+ * @param stat_ops (STAT_OP_* and associated parameter for STAT_OP_VARIANCE))
  */
 static PMAP
-KEYSYM(_stp_pmap_new) (unsigned max_entries, int wrap, int htype, ...)
+KEYSYM(_stp_pmap_new) (int first_arg, ...)
 {
-	int start=0, stop=0, interval=0;
+	int start=0, stop=0, interval=0, bit_shift=0;
+	int max_entries=0, wrap=0, stat_ops=0, htype=0;
+	int arg = first_arg;
 	PMAP pmap;
+	va_list ap;
 
-	if (htype == HIST_LINEAR) {
-		va_list ap;
-		va_start (ap, htype);
-		start = va_arg(ap, int);
-		stop = va_arg(ap, int);
-		interval = va_arg(ap, int);
-		va_end (ap);
-	}
+	va_start (ap, first_arg);
+	do {
+		switch (arg) {
+		case KEY_MAPENTRIES:
+			max_entries = va_arg(ap, int);
+			break;
+		case KEY_STAT_WRAP:
+			wrap = 1;
+			break;
+		case KEY_HIST_TYPE:
+			htype = va_arg(ap, int);
+			if (htype == HIST_LINEAR) {
+				start = va_arg(ap, int);
+				stop = va_arg(ap, int);
+				interval = va_arg(ap, int);
+			}
+			break;
+		case STAT_OP_COUNT:
+			stat_ops |= STAT_OP_COUNT;
+			break;
+		case STAT_OP_SUM:
+			stat_ops |= STAT_OP_SUM;
+			break;
+		case STAT_OP_MIN:
+			stat_ops |= STAT_OP_MIN;
+			break;
+		case STAT_OP_MAX:
+			stat_ops |= STAT_OP_MAX;
+			break;
+		case STAT_OP_AVG:
+			stat_ops |= STAT_OP_AVG;
+			break;
+		case STAT_OP_VARIANCE:
+			stat_ops |= STAT_OP_VARIANCE;
+			bit_shift = va_arg(ap, int);
+			break;
+		default:
+			_stp_warn ("Unknown argument %d\n", arg);
+		}
+		arg = va_arg(ap, int);
+	} while (arg);
+	va_end (ap);
 
 	switch (htype) {
 	case HIST_NONE:
 		pmap = _stp_pmap_new_hstat (max_entries, wrap,
-					    sizeof(struct KEYSYM(map_node)));
+		                            sizeof(struct KEYSYM(map_node)));
+		pmap->bit_shift = bit_shift;
+		pmap->stat_ops = stat_ops;
 		break;
 	case HIST_LOG:
 		pmap = _stp_pmap_new_hstat_log (max_entries, wrap,
-						sizeof(struct KEYSYM(map_node)));
+		                                sizeof(struct KEYSYM(map_node)));
 		break;
 	case HIST_LINEAR:
 		pmap = _stp_pmap_new_hstat_linear (max_entries, wrap,
-						   sizeof(struct KEYSYM(map_node)),
-						   start, stop, interval);
+		                                   sizeof(struct KEYSYM(map_node)),
+		                                   start, stop, interval);
 		break;
 	default:
 		_stp_warn ("Unknown histogram type %d\n", htype);
 		pmap = NULL;
 	}
+
 
 	return pmap;
 }
@@ -200,6 +243,8 @@ static int KEYSYM(_stp_pmap_add) (PMAP pmap, ALLKEYSD(key), VSTYPE val)
 {
 	int res;
 	MAP m = _stp_pmap_get_map (pmap, MAP_GET_CPU());
+	m->bit_shift = pmap->bit_shift;
+	m->stat_ops = pmap->stat_ops;
 	res = KEYSYM(__stp_map_set) (m, ALLKEYS(key), val, 1);
         MAP_PUT_CPU();
 	return res;

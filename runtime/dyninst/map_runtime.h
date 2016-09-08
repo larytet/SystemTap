@@ -17,6 +17,8 @@
 #define MAP_PUT_CPU()	STAT_PUT_CPU()
 
 struct pmap {
+	int bit_shift;    /* scale factor for integer arithmetic */
+	int stat_ops;     /* related statistical operators */
 	offptr_t oagg;    /* aggregation map */
 	offptr_t omap[];  /* per-cpu maps */
 };

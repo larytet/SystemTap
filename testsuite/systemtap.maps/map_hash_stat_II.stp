@@ -2054,8 +2054,8 @@ probe begin {
 
 probe end{
   foreach (key+ in array)
-    printf("array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d\n",
+    printf("array[%d]: count:%d  sum:%d  avg:%d  min:%d  max:%d  variance:%d\n",
             key, @count(array[key]), @sum(array[key]),
             @avg(array[key]), @min(array[key]),
-            @max(array[key]))
+            @max(array[key]), @variance(array[key]))
 }

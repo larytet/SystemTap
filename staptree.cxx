@@ -1100,6 +1100,10 @@ void stat_op::print (ostream& o) const
       o << "max(";
       break;
 
+    case sc_variance:
+      o << "variance(";
+      break;
+
     case sc_none:
       assert (0); // should not happen, as sc_none is only used in foreach sorts
       break;

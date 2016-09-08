@@ -15,6 +15,7 @@ probe begin
 	printf("min=%d\n", @min(agg))
 	printf("max=%d\n", @max(agg))
 	printf("avg=%d\n", @avg(agg))
+	printf("variance=%d\n", @variance(agg))
 
 	print(@hist_linear(agg, 1800, 2500, 100))
 	

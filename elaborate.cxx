@@ -1288,8 +1288,59 @@ struct stat_decl_collector
   void visit_stat_op (stat_op* e)
   {
     symbol *sym = get_symbol_within_expression (e->stat);
-    if (session.stat_decls.find(sym->name) == session.stat_decls.end())
-      session.stat_decls[sym->name] = statistic_decl();
+    statistic_decl new_stat = statistic_decl();
+    int bit_shift = (e->params.size() == 0) ? 0 : e->params[0];
+    int stat_op = STAT_OP_NONE;
+
+    // The following helps to track which statistical operators are being
+    // used with given global/local variable.  This information later helps
+    // to optimize the runtime behaviour.
+
+    if (e->ctype == sc_count)
+      stat_op = STAT_OP_COUNT;
+    else if (e->ctype == sc_sum)
+      stat_op = STAT_OP_SUM;
+    else if (e->ctype == sc_min)
+      stat_op = STAT_OP_MIN;
+    else if (e->ctype == sc_max)
+      stat_op = STAT_OP_MAX;
+    else if (e->ctype == sc_average)
+      stat_op = STAT_OP_AVG;
+    else if (e->ctype == sc_variance)
+      stat_op = STAT_OP_VARIANCE;
+
+    new_stat.bit_shift = bit_shift;
+    new_stat.stat_ops |= stat_op;
+
+    map<interned_string, statistic_decl>::iterator i = session.stat_decls.find(sym->name);
+    if (i == session.stat_decls.end())
+      session.stat_decls[sym->name] = new_stat;
+    else
+      i->second.stat_ops |= stat_op;
+
+      // The @variance operator for given stat S (i.e. call to _stp_stat_init())
+      // is optionally parametrizeable (@variance(S[, N]), where N is a bit shift
+      // (the default is N=0).  The bit_shift helps to improve precision if integer
+      // arithemtic, namely divisions ().
+      //
+      // Ref: https://en.wikipedia.org/wiki/Scale_factor_%28computer_science%29
+      //
+      if (e->tok->content != "@variance")
+        return;
+      else if ((i->second.bit_shift != 0) && (i->second.bit_shift != bit_shift))
+        {
+          // FIXME: Support multiple co-declared bit shifts
+          // (analogy to multiple co-declared histogram types)
+          semantic_error se(ERR_SRC, _F("multiple bit shifts declared on '%s' (%d, %d)",
+                                        sym->name.to_string().c_str(),
+                                        i->second.bit_shift, bit_shift),
+                            e->tok);
+          session.print_error (se);
+        }
+      else
+        {
+          i->second.bit_shift = bit_shift;
+	}
   }
 
   void visit_assignment (assignment* e)
@@ -2082,12 +2133,11 @@ static void gen_monitor_data(systemtap_session& s)
          "if (likely (probe_timing(STAP_ARG_index))) {\n"
          "struct stat_data *stats = _stp_stat_get (probe_timing(STAP_ARG_index), 0);\n"
          "if (stats->count) {\n"
-         "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);\n"
          "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
          "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %lld, "
          "\\\"min\\\": %lld, \\\"avg\\\": %lld, \\\"max\\\": %lld, \",\n"
          "p->index, p->cond_enabled ? \"on\" : \"off\", (long long) stats->count,\n"
-         "(long long) stats->min, (long long) avg, (long long) stats->max);\n"
+         "(long long) stats->min, (long long) stats->avg, (long long) stats->max);\n"
          "} else {\n"
          "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
          "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %d, "

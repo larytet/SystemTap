@@ -91,6 +91,12 @@ struct map_root {
 	/* when more than maxnum elements, wrap or discard? */
 	int wrap;
 
+        /* scale factor for integer arithmetic */
+        int bit_shift;
+
+	/* related statistical operators */
+	int stat_ops;
+
 #ifdef __KERNEL__
 	void *node_mem;
 #endif

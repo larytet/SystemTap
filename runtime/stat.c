@@ -22,18 +22,12 @@
  * to a probe updating the statistics of one cpu while another cpu attempts
  * to read the same data. This will also negatively impact performance.
  *
- * If you have a need to poll Stat data while probes are running, and
- * you want to be sure the data is accurate, you can do
- * @verbatim
-#define NEED_STAT_LOCKS
-@endverbatim
- * This will insert per-cpu spinlocks around all accesses to Stat data,
- * which will reduce performance some.
+ * Stats keep track of count, sum, min, max, avg, and variance.  Bit-shift
+ * can be optionally specified, scaling the numbers, in order to improve the
+ * accuracy of the integer arithmetics.
  *
- * Stats keep track of count, sum, min and max. Average is computed
- * from the sum and count when required. Histograms are optional.
- * If you want a histogram, you must set "type" to HIST_LOG
- * or HIST_LINEAR when you call _stp_stat_init().
+ * Histograms are optional. If you want a histogram, you must set "type"
+ * to HIST_LOG or HIST_LINEAR when you call _stp_stat_init().
  *
  * @{
  */
@@ -44,7 +38,7 @@
 /** Initialize a Stat.
  * Call this during probe initialization to create a Stat.
  *
- * @param type HIST_NONE, HIST_LOG, or HIST_LINEAR
+ * @param type (KEY_HIST_TYPE and associated parameters) 
  *
  * For HIST_LOG, the following additional parametrs are required:
  * @param buckets - An integer specifying the number of buckets.
@@ -53,47 +47,74 @@
  * @param start - An integer. The start of the histogram.
  * @param stop - An integer. The stopping value. Should be > start.
  * @param interval - An integer. The interval.
+ *
+ * @param stat_ops (STAT_OP_* and associated parameter bit_shift for STAT_OP_VARIANCE)
  */
-static Stat _stp_stat_init (int type, ...)
+static Stat _stp_stat_init (int first_arg, ...)
 {
-	int size, buckets=0, start=0, stop=0, interval=0;
+	int size, buckets=0, start=0, stop=0, interval=0, bit_shift=0;
+	int stat_ops=0, htype=0;
+	int arg = first_arg;
 	Stat st;
+	va_list ap;
 
-	if (type != HIST_NONE) {
-		va_list ap;
-		va_start (ap, type);
+	va_start (ap, first_arg);
+	do {
+		switch (arg) {
+		case KEY_HIST_TYPE:
+			htype = va_arg(ap, int);
+			if (htype == HIST_LINEAR) {
+				start = va_arg(ap, int);
+				stop = va_arg(ap, int);
+				interval = va_arg(ap, int);
 
-		if (type == HIST_LOG) {
-			buckets = HIST_LOG_BUCKETS;
-		} else {
-			start = va_arg(ap, int);
-			stop = va_arg(ap, int);
-			interval = va_arg(ap, int);
-
-			buckets = _stp_stat_calc_buckets(stop, start, interval);
-			if (!buckets) {
-				va_end (ap);
-				return NULL;
+				buckets = _stp_stat_calc_buckets(stop, start, interval);
+				if (!buckets) {
+					va_end (ap);
+					return NULL;
+				}
 			}
+			if (htype == HIST_LOG)
+				buckets = HIST_LOG_BUCKETS;
+				break;
+		case STAT_OP_COUNT:
+			stat_ops |= STAT_OP_COUNT;
+			break;
+		case STAT_OP_SUM:
+			stat_ops |= STAT_OP_SUM;
+			break;
+		case STAT_OP_MIN:
+			stat_ops |= STAT_OP_MIN;
+			break;
+		case STAT_OP_MAX:
+			stat_ops |= STAT_OP_MAX;
+			break;
+		case STAT_OP_AVG:
+			stat_ops |= STAT_OP_AVG;
+			break;
+		case STAT_OP_VARIANCE:
+			stat_ops |= STAT_OP_VARIANCE;
+			bit_shift = va_arg(ap, int);
+			break;
+		default:
+			_stp_warn ("Unknown argument %d\n", arg);
 		}
-		va_end (ap);
-	}
+		arg = va_arg(ap, int);
+	} while (arg);
+	va_end (ap);
 
 	size = buckets * sizeof(int64_t) + sizeof(stat_data);
 	st = _stp_stat_alloc (size);
 	if (st == NULL)
 		return NULL;
 
-	if (_stp_stat_initialize_locks(st) != 0) {
-		_stp_stat_free(st);
-		return NULL;
-	}
-
-	st->hist.type = type;
+	st->hist.type = htype;
 	st->hist.start = start;
 	st->hist.stop = stop;
 	st->hist.interval = interval;
 	st->hist.buckets = buckets;
+	st->hist.bit_shift = bit_shift;
+	st->hist.stat_ops = stat_ops;
 	return st;
 }
 
@@ -104,10 +125,8 @@ static Stat _stp_stat_init (int type, ...)
  */
 static void _stp_stat_del (Stat st)
 {
-	if (st) {
-		_stp_stat_destroy_locks(st);
+	if (st)
 		_stp_stat_free(st);
-	}
 }
 
 /** Add to a Stat.
@@ -130,6 +149,8 @@ static void _stp_stat_clear_data (Stat st, stat_data *sd)
 {
         int j;
         sd->count = sd->sum = sd->min = sd->max = 0;
+        sd->avg = sd->avg_s = sd->variance = sd->variance_s = 0;
+
         if (st->hist.type != HIST_NONE) {
                 for (j = 0; j < st->hist.buckets; j++)
                         sd->histogram[j] = 0;
@@ -147,15 +168,18 @@ static void _stp_stat_clear_data (Stat st, stat_data *sd)
 static stat_data *_stp_stat_get (Stat st, int clear)
 {
 	int i, j;
+	int64_t S1, S2;
 	stat_data *agg = _stp_stat_get_agg(st);
 	stat_data *sd;
 	STAT_LOCK(agg);
 	_stp_stat_clear_data (st, agg);
+	S1 = S2 = 0;
 
 	for_each_possible_cpu(i) {
 		stat_data *sd = _stp_stat_per_cpu_ptr (st, i);
 		STAT_LOCK(sd);
 		if (sd->count) {
+			agg->shift = sd->shift;
 			if (agg->count == 0) {
 				agg->min = sd->min;
 				agg->max = sd->max;
@@ -170,11 +194,39 @@ static stat_data *_stp_stat_get (Stat st, int clear)
 				for (j = 0; j < st->hist.buckets; j++)
 					agg->histogram[j] += sd->histogram[j];
 			}
-			if (clear)
-				_stp_stat_clear_data (st, sd);
 		}
 		STAT_UNLOCK(sd);
 	}
+
+	agg->avg_s = _stp_div64(NULL, agg->sum << agg->shift, agg->count);
+
+	/*
+	 * For aggregating variance over available CPUs, the Total Variance
+	 * formula is being used.  This formula is mentioned in following
+	 * paper: Niranjan Kamat, Arnab Nandi: A Closer Look at Variance
+	 * Implementations In Modern Database Systems: SIGMOD Record 2015.
+	 * Available at: http://web.cse.ohio-state.edu/~kamatn/variance.pdf
+	 */
+	for_each_possible_cpu(i) {
+		sd = _stp_stat_per_cpu_ptr (st, i);
+		STAT_LOCK(sd);
+		if (sd->count) {
+			S1 += sd->count * (sd->avg_s - agg->avg_s) * (sd->avg_s - agg->avg_s);
+			S2 += (sd->count - 1) * sd->variance_s;
+		}
+		if (clear)
+			_stp_stat_clear_data (st, sd);
+		STAT_UNLOCK(sd);
+	}
+
+	agg->variance_s = _stp_div64(NULL, (S1 + S2), (agg->count - 1));
+
+	/*
+	 * Setting agg->avg = agg->avg_s >> agg->shift; below would
+	 * introduce slight rounding errors.
+	 */
+	agg->avg = _stp_div64(NULL, agg->sum, agg->count);
+	agg->variance = agg->variance_s >> (2 * agg->shift);
 
 	/*
 	 * Originally this function returned the aggregate still

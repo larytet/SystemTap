@@ -28,6 +28,11 @@
   buffer of an exact length.  These functions can handle '\0' characters
   as well.  
 
+- New statistics @variance() operator using the Welford's online algorithm
+  for per-cpu computation, and the Total Variance formula authored by
+  Niranjan Kamat and Arnab Nandi from the Ohio State University for the
+  cross-cpu aggregation.
+
 * What's new in version 3.0, 2016-03-27
 
 - The new experimental "interactive" mode, specified by "stap -i",

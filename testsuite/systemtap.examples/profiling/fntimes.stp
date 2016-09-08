@@ -13,8 +13,8 @@ function check(t)   # t: elapsed time
 {
    if (@count(times[ppfunc()]) >= mincount
        && t >= @max(times[ppfunc()]) * note_percent / 100) {   # also consider @avg()
-     printf("function %s well over %s time (%d vs %d)\n",
-            ppfunc(), "maximum", t, @max(times[ppfunc()]))
+     printf("function %s well over %s time (%d vs %d), duration variance %d s^2\n",
+            ppfunc(), "maximum", t, @max(times[ppfunc()]), @variance(times[ppfunc()], 3))
      # also consider: print_backtrace()
    }
    times[ppfunc()] <<< t  # (increments @count, updates @max)

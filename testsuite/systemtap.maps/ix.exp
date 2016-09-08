@@ -2,43 +2,43 @@
 
 set test "ix"
 
-set ::result_string {foo[0]: count:3  sum:98  avg:32  min:-2  max:100
-foo[1]: count:3  sum:99  avg:33  min:-2  max:100
-foo[2]: count:3  sum:100  avg:33  min:-2  max:100
-foo[3]: count:3  sum:101  avg:33  min:-2  max:100
-foo[4]: count:3  sum:102  avg:34  min:-2  max:100
-foo[5]: count:3  sum:103  avg:34  min:-2  max:100
-foo[6]: count:3  sum:104  avg:34  min:-2  max:100
-foo[7]: count:3  sum:105  avg:35  min:-2  max:100
-foo[8]: count:3  sum:106  avg:35  min:-2  max:100
-foo[9]: count:3  sum:107  avg:35  min:-2  max:100
-foo[10]: count:3  sum:108  avg:36  min:-2  max:100
+set ::result_string {foo[0]: count:3  sum:98  avg:32  min:-2  max:100  variance:3410
+foo[1]: count:3  sum:99  avg:33  min:-2  max:100  variance:3429
+foo[2]: count:3  sum:100  avg:33  min:-2  max:100  variance:3355
+foo[3]: count:3  sum:101  avg:33  min:-2  max:100  variance:3348
+foo[4]: count:3  sum:102  avg:34  min:-2  max:100  variance:3276
+foo[5]: count:3  sum:103  avg:34  min:-2  max:100  variance:3297
+foo[6]: count:3  sum:104  avg:34  min:-2  max:100  variance:3226
+foo[7]: count:3  sum:105  avg:35  min:-2  max:100  variance:3249
+foo[8]: count:3  sum:106  avg:35  min:-2  max:100  variance:3180
+foo[9]: count:3  sum:107  avg:35  min:-2  max:100  variance:3176
+foo[10]: count:3  sum:108  avg:36  min:-2  max:100  variance:3108
 
 Now reverse order...
-foo[10]: count:3  sum:108  avg:36  min:-2  max:100
-foo[9]: count:3  sum:107  avg:35  min:-2  max:100
-foo[8]: count:3  sum:106  avg:35  min:-2  max:100
-foo[7]: count:3  sum:105  avg:35  min:-2  max:100
-foo[6]: count:3  sum:104  avg:34  min:-2  max:100
-foo[5]: count:3  sum:103  avg:34  min:-2  max:100
-foo[4]: count:3  sum:102  avg:34  min:-2  max:100
-foo[3]: count:3  sum:101  avg:33  min:-2  max:100
-foo[2]: count:3  sum:100  avg:33  min:-2  max:100
-foo[1]: count:3  sum:99  avg:33  min:-2  max:100
-foo[0]: count:3  sum:98  avg:32  min:-2  max:100
+foo[10]: count:3  sum:108  avg:36  min:-2  max:100  variance:3108
+foo[9]: count:3  sum:107  avg:35  min:-2  max:100  variance:3176
+foo[8]: count:3  sum:106  avg:35  min:-2  max:100  variance:3180
+foo[7]: count:3  sum:105  avg:35  min:-2  max:100  variance:3249
+foo[6]: count:3  sum:104  avg:34  min:-2  max:100  variance:3226
+foo[5]: count:3  sum:103  avg:34  min:-2  max:100  variance:3297
+foo[4]: count:3  sum:102  avg:34  min:-2  max:100  variance:3276
+foo[3]: count:3  sum:101  avg:33  min:-2  max:100  variance:3348
+foo[2]: count:3  sum:100  avg:33  min:-2  max:100  variance:3355
+foo[1]: count:3  sum:99  avg:33  min:-2  max:100  variance:3429
+foo[0]: count:3  sum:98  avg:32  min:-2  max:100  variance:3410
 
 Now adding 10 to each...
-foo[0]: count:4  sum:108  avg:27  min:-2  max:100
-foo[1]: count:4  sum:109  avg:27  min:-2  max:100
-foo[2]: count:4  sum:110  avg:27  min:-2  max:100
-foo[3]: count:4  sum:111  avg:27  min:-2  max:100
-foo[4]: count:4  sum:112  avg:28  min:-2  max:100
-foo[5]: count:4  sum:113  avg:28  min:-2  max:100
-foo[6]: count:4  sum:114  avg:28  min:-2  max:100
-foo[7]: count:4  sum:115  avg:28  min:-2  max:100
-foo[8]: count:4  sum:116  avg:29  min:-2  max:100
-foo[9]: count:4  sum:117  avg:29  min:-2  max:100
-foo[10]: count:4  sum:118  avg:29  min:-2  max:100
+foo[0]: count:4  sum:108  avg:27  min:-2  max:100  variance:2411
+foo[1]: count:4  sum:109  avg:27  min:-2  max:100  variance:2430
+foo[2]: count:4  sum:110  avg:27  min:-2  max:100  variance:2380
+foo[3]: count:4  sum:111  avg:27  min:-2  max:100  variance:2376
+foo[4]: count:4  sum:112  avg:28  min:-2  max:100  variance:2328
+foo[5]: count:4  sum:113  avg:28  min:-2  max:100  variance:2356
+foo[6]: count:4  sum:114  avg:28  min:-2  max:100  variance:2309
+foo[7]: count:4  sum:115  avg:28  min:-2  max:100  variance:2339
+foo[8]: count:4  sum:116  avg:29  min:-2  max:100  variance:2293
+foo[9]: count:4  sum:117  avg:29  min:-2  max:100  variance:2290
+foo[10]: count:4  sum:118  avg:29  min:-2  max:100  variance:2245
 
 Run a quick foreach without sorting...
 complete sum of foo:1243}

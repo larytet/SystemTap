@@ -24,7 +24,7 @@ probe kernel.trace("timer_expire_entry")
 
 function output()
 {
-  printf("%-7s %-50s %11s %9s\n", "#type", "function", "period(us)", "count")
+  printf("%-7s %-50s %15s %25s %9s\n", "#type", "function", "avg period(us)", "period variance(us^2)", "count")
   # print out the various timers firing
   foreach([timer] in period-) {
     fname = symname(funct[timer])
@@ -47,8 +47,8 @@ function output()
         fname = sprintf("%s@%s", symname(funct[timer]), fileline)
       type="kernel"
     }
-    printf("%-7s %-50.50s %11d %9d\n", type, fname,
-           @avg(period[timer]), @count(period[timer]))
+    printf("%-7s %-50.50s %15d %25d %9d\n", type, fname,
+           @avg(period[timer]), @variance(period[timer], 2), @count(period[timer]))
   }
 }
 
