@@ -76,7 +76,7 @@ static Stat _stp_stat_init (int first_arg, ...)
 			}
 			if (htype == HIST_LOG)
 				buckets = HIST_LOG_BUCKETS;
-				break;
+                        break;
 		case STAT_OP_COUNT:
 			stat_ops |= STAT_OP_COUNT;
 			break;
