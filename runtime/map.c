@@ -478,31 +478,31 @@ static int _new_map_copy_stat (MAP map, struct stat_data *sd1, struct stat_data 
 			sd1->min = sd2->min;
 		if (sd2->max > sd1->max)
 			sd1->max = sd2->max;
-			sd1->shift = sd2->shift;
 
-			sd1->avg_s = _stp_div64(NULL, sd1->sum << sd2->shift, sd1->count);
-			/*
-			 * A bit shift would certainly be faster below, but that would
-			 * introduce rounding errors.
-			 */
-			sd1->avg = _stp_div64(NULL, sd1->sum, sd1->count);
+                if (sd2->stat_ops & STAT_OP_VARIANCE) {
+                        sd1->shift = sd2->shift;
+                        sd1->avg_s = _stp_div64(NULL, sd1->sum << sd2->shift, sd1->count);
+                        /*
+                         * A bit shift would certainly be faster below, but that would
+                         * introduce rounding errors.
+                         */
+                        sd1->avg = _stp_div64(NULL, sd1->sum, sd1->count);
 
-			/*
-			 * For aggregating variance over available CPUs, the Total Variance
-			 * formula is being used.  This formula is mentioned in following
-			 * paper: Niranjan Kamat, Arnab Nandi: A Closer Look at Variance
-			 * Implementations In Modern Database Systems: SIGMOD Record 2015.
-			 * Available at: http://web.cse.ohio-state.edu/~kamatn/variance.pdf
-			 */
-			S11 = sd1_count * (sd1_avg_s - sd1->avg_s) * (sd1_avg_s - sd1->avg_s);
-			S12 = (sd1_count - 1) * sd1->variance_s;
+                        /*
+                         * For aggregating variance over available CPUs, the Total Variance
+                         * formula is being used.  This formula is mentioned in following
+                         * paper: Niranjan Kamat, Arnab Nandi: A Closer Look at Variance
+                         * Implementations In Modern Database Systems: SIGMOD Record 2015.
+                         * Available at: http://web.cse.ohio-state.edu/~kamatn/variance.pdf
+                         */
+                        S11 = sd1_count * (sd1_avg_s - sd1->avg_s) * (sd1_avg_s - sd1->avg_s);
+                        S12 = (sd1_count - 1) * sd1->variance_s;
+                        S21 = sd2->count * (sd2->avg_s - sd1->avg_s) * (sd2->avg_s - sd1->avg_s);
+                        S22 = (sd2->count - 1) * sd2->variance_s;
 
-			S21 = sd2->count * (sd2->avg_s - sd1->avg_s) * (sd2->avg_s - sd1->avg_s);
-			S22 = (sd2->count - 1) * sd2->variance_s;
-
-			sd1->variance_s = _stp_div64(NULL, (S11 + S12 + S21 + S22), (sd1->count - 1));
-
-			sd1->variance = sd1->variance_s >> (2 * sd2->shift);
+                        sd1->variance_s = _stp_div64(NULL, (S11 + S12 + S21 + S22), (sd1->count - 1));
+                        sd1->variance = sd1->variance_s >> (2 * sd2->shift);
+                }
 		if (st->type != HIST_NONE) {
 			int j;
 			for (j = 0; j < st->buckets; j++)
@@ -513,16 +513,17 @@ static int _new_map_copy_stat (MAP map, struct stat_data *sd1, struct stat_data 
 		sd1->sum = sd2->sum;
 		sd1->min = sd2->min;
 		sd1->max = sd2->max;
-		sd1->shift = sd2->shift;
-		sd1->avg_s = sd2->avg_s;
-
-		/*
-		 * Setting sd1->avg = sd2->avg_s >> sd2->shift; below would
-		 * introduce slight rounding issues.
-		 */
-		sd1->avg = _stp_div64(NULL, sd1->sum, sd1->count);
-		sd1->variance_s = sd2->variance_s;
-		sd1->variance = sd2->variance_s >> (2 * sd2->shift);;
+                if (sd2->stat_ops & STAT_OP_VARIANCE) {
+                        sd1->shift = sd2->shift;
+                        sd1->avg_s = sd2->avg_s;
+                        /*
+                         * Setting sd1->avg = sd2->avg_s >> sd2->shift; below would
+                         * introduce slight rounding issues.
+                         */
+                        sd1->avg = _stp_div64(NULL, sd1->sum, sd1->count);
+                        sd1->variance_s = sd2->variance_s;
+                        sd1->variance = sd2->variance_s >> (2 * sd2->shift);
+                }
 		if (st->type != HIST_NONE) {
 			int j;
 			for (j = 0; j < st->buckets; j++)
