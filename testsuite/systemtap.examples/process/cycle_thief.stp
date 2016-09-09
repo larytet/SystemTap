@@ -1,5 +1,5 @@
 #! /usr/bin/env stap
-# Copyright (C) 2010 Red Hat, Inc.
+# Copyright (C) 2010-2016 Red Hat, Inc.
 # Write by William Cohen <wcohen@redhat.com>
 #
 # cycle_thief provide the following information for the specified pid:

@@ -1,5 +1,5 @@
 #! /usr/bin/env stap
-# Copyright (C) 2011 Red Hat, Inc.
+# Copyright (C) 2011-2016 Red Hat, Inc.
 # Written by William Cohen <wcohen@redhat.com>
 #
 # This script give an idea what periodic things are running on

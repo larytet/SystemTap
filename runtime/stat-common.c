@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * common stats functions for aggragations and maps
- * Copyright (C) 2005, 2006, 2007, 2008 Red Hat Inc.
+ * Copyright (C) 2005-2016 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
