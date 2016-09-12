@@ -15,8 +15,8 @@ expect {
     -re {^WARNING: Number of errors: [0-9]*[^\r\n]*\r\n} { incr ok; exp_continue }
     eof { }
 }
+catch { close } ; catch { wait }
 if {$ok >= 2 && $ko == 0} then { pass $test } else { fail "$test ($ok $ko)" }
-catch { wait } ; catch { close }
 
 set test "pr13306 -t"
 spawn stap -t $srcdir/$subdir/pr13306.stp
@@ -31,8 +31,8 @@ expect {
     -re {^[^\r\n]*hits:[^\r\n]*cycles:[^\r\n]*from:[^\r\n]*\r\n} { exp_continue }
     -re {^----- refresh report:\r\n} { exp_continue }
 }
+catch { close } ; catch { wait }
 if {$ok >=3 && $ko == 0} then { pass $test } else { fail "$test ($ok $ko)" }
-catch { wait } ; catch { close }
 
 set test "pr13306 --suppress-handler-errors"
 spawn stap --suppress-handler-errors $srcdir/$subdir/pr13306.stp
@@ -45,8 +45,8 @@ expect {
     -re {^WARNING: Number of errors: [0-9]*[^\r\n]*\r\n} { incr ok; exp_continue }
     eof { }
 }
+catch { close } ; catch { wait }
 if {$ok == 1 && $ko == 0} then { pass $test } else { fail "$test ($ok $ko)" }
-catch { wait } ; catch { close }
 
 set test "pr13306 --suppress-handler-errors -t"
 spawn stap --suppress-handler-errors -t $srcdir/$subdir/pr13306.stp
@@ -61,5 +61,5 @@ expect {
     -re {^[^\r\n]*hits:[^\r\n]*cycles:[^\r\n]*from:[^\r\n]*\r\n} { exp_continue }
     -re {^----- refresh report:\r\n} { exp_continue }
 }
+catch { close } ; catch { wait }
 if {$ok >= 2 && $ko == 0} then { pass $test } else { fail "$test ($ok $ko)" }
-catch { wait } ; catch { close }

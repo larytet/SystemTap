@@ -13,8 +13,8 @@ expect {
     -re {^ERROR: [^\r\n]*\r\n} { incr ko; exp_continue }
     eof { }
 }
+catch { close }; catch { wait }
 if {$ko == 0} then { pass $test } else { fail "$test ($ko)" }
-catch { wait } ; catch { close }
 
 set test "pr14546 twice"
 spawn stap $srcdir/$subdir/pr14546.stp "println(backtrace()); println(backtrace())"
@@ -25,8 +25,8 @@ expect {
     -re {^ERROR: [^\r\n]*\r\n} { incr ko; exp_continue }
     eof { }
 }
+catch { close }; catch { wait }
 if {$ko == 0} then { pass $test } else { fail "$test ($ko)" }
-catch { wait } ; catch { close }
 
 set test "pr14546 thrice"
 spawn stap $srcdir/$subdir/pr14546.stp "println(backtrace()); println(backtrace()); println(backtrace())"
@@ -37,8 +37,8 @@ expect {
     -re {^ERROR: [^\r\n]*\r\n} { incr ko; exp_continue }
     eof { }
 }
+catch { close }; catch { wait }
 if {$ko == 0} then { pass $test } else { fail "$test ($ko)" }
-catch { wait } ; catch { close }
 
 set test "pr14546 followed by ubacktrace()"
 spawn stap $srcdir/$subdir/pr14546.stp "println(backtrace()); println(ubacktrace())"
@@ -49,5 +49,5 @@ expect {
     -re {^ERROR: [^\r\n]*\r\n} { incr ko; exp_continue }
     eof { }
 }
+catch { close }; catch { wait }
 if {$ko == 0} then { pass $test } else { fail "$test ($ko)" }
-catch { wait } ; catch { close }

@@ -18,6 +18,7 @@ expect {
     -re {^[^\n\r]+\r\n}
         {exp_continue}
 }
+catch { close }; catch { wait }
 if {$tst == 1} {
     pass "$test (non-guru)"
 } else {

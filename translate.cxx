@@ -1,5 +1,5 @@
 // translation pass
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2016 Red Hat Inc.
 // Copyright (C) 2005-2008 Intel Corporation.
 // Copyright (C) 2010 Novell Corporation.
 //
@@ -431,6 +431,25 @@ public:
       return u->c_globalname(name);
   }
 
+  string stat_op_tokens() const
+  {
+    string result = "";
+    if (sd.stat_ops & STAT_OP_COUNT)
+      result += "STAT_OP_COUNT, ";
+    if (sd.stat_ops & STAT_OP_SUM)
+      result += "STAT_OP_SUM, ";
+    if (sd.stat_ops & STAT_OP_MIN)
+      result += "STAT_OP_MIN, ";
+    if (sd.stat_ops & STAT_OP_MAX)
+      result += "STAT_OP_MAX, ";
+    if (sd.stat_ops & STAT_OP_AVG)
+      result += "STAT_OP_AVG, ";
+    if (sd.stat_ops & STAT_OP_VARIANCE)
+      result += "STAT_OP_VARIANCE, " + lex_cast(sd.bit_shift) + ", ";
+
+    return result;
+  }
+
   string value() const
   {
     if (declaration_needed)
@@ -480,31 +499,32 @@ public:
           if (local)
             throw SEMANTIC_ERROR(_F("unsupported local stats init for %s", value().c_str()));
 
-          string prefix = "global_set(" + c_name() + ", _stp_stat_init (";
+          string prefix = "global_set(" + c_name() + ", _stp_stat_init (" + stat_op_tokens();
           // Check for errors during allocation.
           string suffix = "if (" + value () + " == NULL) rc = -ENOMEM;";
 
           switch (sd.type)
             {
             case statistic_decl::none:
-              prefix += "HIST_NONE";
+              prefix += string("KEY_HIST_TYPE, HIST_NONE, ");
               break;
 
             case statistic_decl::linear:
-              prefix += string("HIST_LINEAR")
-                + ", " + lex_cast(sd.linear_low)
-                + ", " + lex_cast(sd.linear_high)
-                + ", " + lex_cast(sd.linear_step);
+              prefix += string("KEY_HIST_TYPE, HIST_LINEAR, ")
+                + lex_cast(sd.linear_low) + ", "
+                + lex_cast(sd.linear_high) + ", "
+                + lex_cast(sd.linear_step) + ", ";
               break;
 
             case statistic_decl::logarithmic:
-              prefix += string("HIST_LOG");
+              prefix += string("KEY_HIST_TYPE, HIST_LOG, ");
               break;
 
             default:
               throw SEMANTIC_ERROR(_F("unsupported stats type for %s", value().c_str()));
             }
 
+	  prefix += "NULL";
           prefix = prefix + ")); ";
           return string (prefix + suffix);
         }
@@ -702,6 +722,25 @@ struct mapvar
     return type() == pe_stats;
   }
 
+  string stat_op_tokens() const
+  {
+    string result = "";
+    if (sd.stat_ops & STAT_OP_COUNT)
+      result += "STAT_OP_COUNT, ";
+    if (sd.stat_ops & STAT_OP_SUM)
+      result += "STAT_OP_SUM, ";
+    if (sd.stat_ops & STAT_OP_MIN)
+      result += "STAT_OP_MIN, ";
+    if (sd.stat_ops & STAT_OP_MAX)
+      result += "STAT_OP_MAX, ";
+    if (sd.stat_ops & STAT_OP_AVG)
+      result += "STAT_OP_AVG, ";
+    if (sd.stat_ops & STAT_OP_VARIANCE)
+      result += "STAT_OP_VARIANCE, " + lex_cast(sd.bit_shift) + ", ";
+
+    return result;
+  }
+
   string calculate_aggregate() const
   {
     if (!is_parallel())
@@ -809,8 +848,9 @@ struct mapvar
 
     string prefix = "global_set(" + c_name() + ", ";
     prefix += function_keysym("new") + " ("
-      + (maxsize > 0 ? lex_cast(maxsize) : "MAXMAPENTRIES")
-      + ((wrap == true) ? ", 1" : ", 0");
+      + (is_parallel() ? stat_op_tokens() : "")
+      + "KEY_MAPENTRIES, " + (maxsize > 0 ? lex_cast(maxsize) : "MAXMAPENTRIES") + ", "
+      + ((wrap == true) ? "KEY_STAT_WRAP, " : "");
 
     // See also var::init().
 
@@ -822,22 +862,24 @@ struct mapvar
 	switch (sdecl().type)
 	  {
 	  case statistic_decl::none:
-	    prefix = prefix + ", HIST_NONE";
+	    prefix = prefix + "KEY_HIST_TYPE, HIST_NONE, ";
 	    break;
 
 	  case statistic_decl::linear:
 	    // FIXME: check for "reasonable" values in linear stats
-	    prefix = prefix + ", HIST_LINEAR"
-	      + ", " + lex_cast(sdecl().linear_low)
-	      + ", " + lex_cast(sdecl().linear_high)
-	      + ", " + lex_cast(sdecl().linear_step);
+	    prefix = prefix + "KEY_HIST_TYPE, HIST_LINEAR, "
+	      + lex_cast(sdecl().linear_low) + ", "
+	      + lex_cast(sdecl().linear_high) + ", "
+	      + lex_cast(sdecl().linear_step) + ", ";
 	    break;
 
 	  case statistic_decl::logarithmic:
-	    prefix = prefix + ", HIST_LOG";
+	    prefix = prefix + "KEY_HIST_TYPE, HIST_LOG, ";
 	    break;
 	  }
       }
+
+    prefix += "NULL";
 
     prefix = prefix + ")); ";
     return (prefix + suffix);
@@ -2218,14 +2260,13 @@ c_unparser::emit_module_exit ()
   o->newline() << "if (likely (probe_timing(i))) {"; // NB: check for null stat object
   o->newline(1) << "struct stat_data *stats = _stp_stat_get (probe_timing(i), 0);";
   o->newline() << "if (stats->count) {";
-  o->newline(1) << "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);";
   o->newline() << "_stp_printf (\"%s, (%s), hits: %lld, "
 	       << (!session->runtime_usermode_p() ? "cycles" : "nsecs")
 	       << ": %lldmin/%lldavg/%lldmax,%s, index: %d\\n\",";
   o->newline(2) << "p->pp, p->location, (long long) stats->count,";
-  o->newline() << "(long long) stats->min, (long long) avg, (long long) stats->max,";
+  o->newline() << "(long long) stats->min, (long long) stats->avg, (long long) stats->max,";
   o->newline() << "p->derivation, i);";
-  o->newline(-3) << "}";
+  o->newline(-2) << "}";
   o->newline() << "_stp_stat_del (probe_timing(i));";
   o->newline(-1) << "}";
   o->newline() << "#endif"; // STP_TIMING
@@ -2238,11 +2279,10 @@ c_unparser::emit_module_exit ()
       o->newline() << "if (likely (g_refresh_timing)) {";
       o->newline(1) << "struct stat_data *stats = _stp_stat_get (g_refresh_timing, 0);";
       o->newline() << "if (stats->count) {";
-      o->newline(1) << "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);";
       o->newline() << "_stp_printf (\"hits: %lld, cycles: %lldmin/%lldavg/%lldmax\\n\",";
       o->newline(2) << "(long long) stats->count, (long long) stats->min, ";
-      o->newline() <<  "(long long) avg, (long long) stats->max);";
-      o->newline(-3) << "}";
+      o->newline() <<  "(long long) stats->avg, (long long) stats->max);";
+      o->newline(-2) << "}";
       o->newline() << "_stp_stat_del (g_refresh_timing);";
       o->newline(-1) << "}";
       o->newline() << "#endif"; // STP_TIMING
@@ -5910,9 +5950,7 @@ c_unparser::visit_stat_op (stat_op* e)
       switch (e->ctype)
         {
         case sc_average:
-          c_assign(res, ("_stp_div64(NULL, " + agg.value() + "->sum, "
-                         + agg.value() + "->count)"),
-                   e->tok);
+          c_assign(res, agg.value() + "->avg", e->tok);
           break;
         case sc_count:
           c_assign(res, agg.value() + "->count", e->tok);
@@ -5925,6 +5963,9 @@ c_unparser::visit_stat_op (stat_op* e)
           break;
         case sc_max:
           c_assign(res, agg.value() + "->max", e->tok);
+          break;
+        case sc_variance:
+          c_assign(res, agg.value() + "->variance", e->tok);
           break;
         case sc_none:
           assert (0); // should not happen, as sc_none is only used in foreach sorts

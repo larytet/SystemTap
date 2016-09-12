@@ -701,45 +701,93 @@ static uint32_t KEYSYM(hash) (ALLKEYSD(key)) /* NB: unscaled! */
 
 
 #if VALUE_TYPE == INT64 || VALUE_TYPE == STRING
-static MAP KEYSYM(_stp_map_new) (unsigned max_entries, int wrap)
+/*
+ * _stp_map_new* ()
+ * @param max_entries (KEY_MAPENTRIES and associated parameter)
+ * @param wrap (KEY_STAT_WRAP)
+ */
+static MAP KEYSYM(_stp_map_new) (int first_arg, ...)
 {
-	MAP m = _stp_map_new (max_entries, wrap,
-			      sizeof(struct KEYSYM(map_node)), -1);
+	int max_entries=0, wrap=0;
+	int arg = first_arg;
+	MAP m;
+	va_list ap;
+
+	va_start (ap, first_arg);
+	do {
+		switch (arg) {
+		case KEY_MAPENTRIES:
+			max_entries = va_arg(ap, int);
+			break;
+		case KEY_STAT_WRAP:
+			wrap = 1;
+		break;
+		default:
+			_stp_warn ("Unknown argument %d\n", arg);
+		}
+		arg = va_arg(ap, int);
+	} while (arg);
+	va_end (ap);
+
+
+	m = _stp_map_new (max_entries, wrap,
+	                  sizeof(struct KEYSYM(map_node)), -1);
 	return m;
 }
 #else
 
 /*
  * _stp_map_new_key1_key2...val (num, wrap, HIST_LINEAR, start, end, interval)
- * _stp_map_new_key1_key2...val (num, wrap, HIST_LOG)
+ * @param num (KEY_MAPENTRIES and associated parameter)
+ * @param wrap (KEY_STAT_WRAP)
+ * @param htype (KEY_HIST_TYPE and associated parameters)
  */ 
-static MAP KEYSYM(_stp_map_new) (unsigned max_entries, int wrap, int htype, ...)
+static MAP KEYSYM(_stp_map_new) (int first_arg, ...)
 {
-	int start=0, stop=0, interval=0;
-	MAP m;
 
-	if (htype == HIST_LINEAR) {
-		va_list ap;
-		va_start (ap, htype);
-		start = va_arg(ap, int);
-		stop = va_arg(ap, int);
-		interval = va_arg(ap, int);
-		va_end (ap);
-	}
+	int start=0, stop=0, interval=0, bit_shift=0;
+	int max_entries=0, wrap=0, htype=0;
+	int arg = first_arg;
+	MAP m;
+	va_list ap;
+
+	va_start (ap, first_arg);
+	do {
+		switch (arg) {
+		case KEY_MAPENTRIES:
+			max_entries = va_arg(ap, int);
+			break;
+		case KEY_STAT_WRAP:
+			wrap = 1;
+			break;
+		case KEY_HIST_TYPE:
+			htype = va_arg(ap, int);
+			if (htype == HIST_LINEAR) {
+				start = va_arg(ap, int);
+				stop = va_arg(ap, int);
+				interval = va_arg(ap, int);
+			}
+			break;
+		default:
+			_stp_warn ("Unknown argument %d\n", arg);
+		}
+		arg = va_arg(ap, int);
+	} while (arg);
+	va_end (ap);
 
 	switch (htype) {
 	case HIST_NONE:
 		m = _stp_map_new_hstat (max_entries, wrap,
-					sizeof(struct KEYSYM(map_node)));
+		                        sizeof(struct KEYSYM(map_node)));
 		break;
 	case HIST_LOG:
 		m = _stp_map_new_hstat_log (max_entries, wrap,
-					    sizeof(struct KEYSYM(map_node)));
+		                            sizeof(struct KEYSYM(map_node)));
 		break;
 	case HIST_LINEAR:
 		m = _stp_map_new_hstat_linear (max_entries, wrap,
-					       sizeof(struct KEYSYM(map_node)),
-					       start, stop, interval);
+		                               sizeof(struct KEYSYM(map_node)),
+		                               start, stop, interval);
 		break;
 	default:
 		_stp_warn ("Unknown histogram type %d\n", htype);

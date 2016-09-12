@@ -16,8 +16,8 @@ probe $1.return
 }
 probe end
 {
-  printf("intervals min:%dus avg:%dus max:%dus count:%d\n",
+  printf("intervals min:%dus avg:%dus max:%dus count:%d variance:%d\n",
          @min(intervals), @avg(intervals), @max(intervals),
-         @count(intervals))
+         @count(intervals), @variance(intervals, 3))
   print(@hist_log(intervals));
 }

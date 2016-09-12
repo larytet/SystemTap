@@ -354,7 +354,7 @@ proc setup_server { args } {
     set res 0
     set listRes 1
     while { $listRes != 0 && $waited < 15 } {
-      exec sleep 1
+      catch exec sleep 1
       incr waited
       set res [catch { exec stap --list-servers=online,trusted,compatible >& stap-list-servers.out } seen_servers]
       set listRes [catch { exec grep "^ host" stap-list-servers.out } looksee]
@@ -666,6 +666,7 @@ proc stap_run_batch {filename args} {
         -re {[^\r\n]*\r\n} { exp_continue }
         eof { }
     }
+    catch { close }
     set results [wait]
     verbose -log "wait results: $results"
     if {[llength $results] >= 5} {

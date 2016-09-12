@@ -25,7 +25,8 @@ expect {
     timeout { fail "$test (timeout)" }
     eof { }
 }
-wait
+catch { close }; catch { wait }
+
 # There can be more than 3 "too many pending" messages in case
 # stap recovered quick enough and then overflowed again.
 if {$ok == 3 && $warn >= 3} {

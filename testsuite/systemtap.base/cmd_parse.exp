@@ -12,7 +12,7 @@ expect {
     timeout {fail "cmd_parse1: unexpected timeout"}
     eof {fail "cmd_parse1: unexpected EOF"}
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 spawn stap -c {echo "hello "\"world\"} -we {probe begin {}}
 expect {
@@ -21,7 +21,7 @@ expect {
     timeout {fail "cmd_parse2: unexpected timeout"}
     eof {fail "cmd_parse2: unexpected EOF"}
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 spawn stap -c {sh -c '(a="hello world"; echo $a)'} -we {probe begin {}}
 expect {
@@ -30,7 +30,7 @@ expect {
     timeout {fail "cmd_parse3: unexpected timeout"}
     eof {fail "cmd_parse3: unexpected EOF"}
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 spawn stap -c {sh -c '(a="hello "\"world\"; echo $a)'} -we {probe begin {}}
 expect {
@@ -39,7 +39,7 @@ expect {
     timeout {fail "cmd_parse4: unexpected timeout"}
     eof {fail "cmd_parse4: unexpected EOF"}
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 spawn stap -c {sh -c '(a="hello "world; echo $a)'} -we {probe begin {}}
 expect {
@@ -48,7 +48,7 @@ expect {
     timeout {fail "cmd_parse5: unexpected timeout"}
     eof {fail "cmd_parse5: unexpected EOF"}
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 spawn stap -c {bash -c '((a=42+7)); echo "The answer is $a"'} -we {probe begin {}}
 expect {
@@ -57,7 +57,7 @@ expect {
     timeout {fail "cmd_parse6: unexpected timeout"}
     eof {fail "cmd_parse6: unexpected EOF"}
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 spawn stap -c {sh -c '(echo "Hello World" 1>&2) > /dev/null'} -we {probe begin {}}
 expect {
@@ -66,7 +66,7 @@ expect {
     timeout {fail "cmd_parse7: unexpected timeout"}
     eof {fail "cmd_parse7: unexpected EOF"}
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 # slow test case; requires kernel tracepoint query modules
 spawn stap -l {vm.*}
@@ -77,7 +77,7 @@ expect {
     timeout {fail "cmd_parse8: unexpected timeout"}
     eof {fail "cmd_parse8: unexpected EOF"}
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 spawn stap -e {probe begin { printf("%d %s\n", argc, argv[$1]) exit() }} 1
 expect {
@@ -86,7 +86,7 @@ expect {
     timeout { fail "cmd_parse9 timeout" }
     eof { fail "cmd_parse9 eof" }
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 spawn stap -e {probe begin { printf("%d %s\n", argc, argv[$1]) exit() }} 5 a b c d
 expect {
@@ -95,7 +95,7 @@ expect {
     timeout { fail "cmd_parse10 timeout" }
     eof { fail "cmd_parse10 eof" }
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 spawn stap -e {probe begin { printf("%d %s\n", argc, argv[$1]) exit() }} 10 a b c d
 expect {
@@ -104,7 +104,7 @@ expect {
     timeout { fail "cmd_parse11 timeout" }
     eof { fail "cmd_parse11 eof" }
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 spawn stap -e {probe begin { printf("%d %s\n", argc, argv[0]) exit() }}
 expect {
@@ -113,7 +113,7 @@ expect {
     timeout { fail "cmd_parse12 timeout" }
     eof { fail "cmd_parse12 eof" }
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 spawn stap -L syscall.a*
 expect {
@@ -122,7 +122,7 @@ expect {
     timeout {fail "cmd_parse13: unexpected timeout"}
     eof {fail "cmd_parse13: unexpected EOF"}
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 if {![catch { exec sh -c "stap -v -v --vp 01020 -h 2>&1 | grep -q 'add per-pass verbosity .23242.'" }]} {
     pass "cmd_parse14"
@@ -147,7 +147,7 @@ expect {
     timeout { fail "cmd_parse15: timeout" }
     eof { fail "cmd_parse15: eof" }
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 set uname [exec uname -i]
 # normalize arch
@@ -162,7 +162,7 @@ expect {
     timeout { fail "cmd_parse16: timeout" }
     eof { fail "cmd_parse16: eof" }
 }
-wait;catch {close}
+catch { close }; catch { wait }
 
 # NB: when adding extra tests here, increment the ![installtest_p]
 # loop count too at the top.

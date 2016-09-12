@@ -7,6 +7,7 @@ system "rm -f flightlog.out*"
 set pid 0
 # check -S option
 spawn stap -F -o flightlog.out -S 1,3 $srcdir/$subdir/$test.stp
+set stap_id $spawn_id
 expect {
   -timeout 240
   -re {([0-9]+)\r\n} {
@@ -16,7 +17,7 @@ expect {
   timeout { fail "$test (timeout)"}
   eof { }
 }
-wait; catch {close}
+# Notice we call close/wait at the end of this test.
 if {$pid == 0} {
   fail "$test (no pid)"
   return -1
@@ -25,6 +26,7 @@ if {$pid == 0} {
 exec sleep 4
 set scnt 0
 set cnt1 0
+
 # wait for log files
 eval spawn stat -c %s [glob flightlog.out.*]
 expect {
@@ -35,9 +37,10 @@ expect {
       exp_continue}
   timeout { fail "$test (logfile timeout)"}
 }
-wait; catch {close}
+catch { close -i $spawn_id }; catch { wait -i $spawn_id }
 exec sleep 3
 set cnt2 0
+
 # wait for log files
 eval spawn stat -c %s [glob flightlog.out.*]
 expect {
@@ -48,21 +51,25 @@ expect {
       exp_continue}
   timeout { fail "$test (logfile timeout)"}
 }
-wait; catch {close}
+catch { close -i $spawn_id }; catch { wait -i $spawn_id }
+
 # check logfile number
 if {$cnt1 == 3 && $cnt2 == 3} {
     pass "$test (log file numbers limitation)"
 } else {
   fail "$test (log file numbers ($cnt1, $cnt2))"
 }
+
 # check logfile size
 if {$scnt == $cnt1 + $cnt2 } {
     pass "$test (log file size limitation)"
 } else {
   fail "$test (log file size ($scnt != $cnt1 + $cnt2))"
 }
+
 kill -TERM $pid
 # wait for exiting...
+catch { close -i $stap_id }; catch { wait -i $stap_id }
 exec sleep 1
 system "rm -f flightlog.out*"
 

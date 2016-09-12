@@ -25,9 +25,9 @@ probe begin {
 
 probe end {
       foreach (name in intervals) {
-              printf("intervals for %s -- min:%dus avg:%dus max:%dus count:%d\n",
+              printf("intervals for %s -- min:%dus avg:%dus max:%dus count:%d variance:%d\n",
                      name, @min(intervals[name]), @avg(intervals[name]),
-                     @max(intervals[name]), @count(intervals[name]))
+                     @max(intervals[name]), @count(intervals[name]), @variance(intervals[name], 3))
               print(@hist_log(intervals[name]))
       }
 }

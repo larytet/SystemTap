@@ -1,5 +1,5 @@
 // parse tree functions
-// Copyright (C) 2005-2015 Red Hat Inc.
+// Copyright (C) 2005-2016 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -1098,6 +1098,10 @@ void stat_op::print (ostream& o) const
 
     case sc_max:
       o << "max(";
+      break;
+
+    case sc_variance:
+      o << "variance(";
       break;
 
     case sc_none:

@@ -26,7 +26,7 @@ expect {
     timeout { fail "$test (timeout)" }
     eof { }
 }
-wait
+catch { close }; catch { wait }
 
 if {$errs == 1} {
     pass "$test ($errs)"
@@ -58,7 +58,7 @@ expect {
     timeout { fail "$test (timeout)" }
     eof { }
 }
-wait
+catch { close }; catch { wait }
 
 if {$ok == 1 && $errs == 0} {
     pass "$test (cuname: $ok, $errs)"

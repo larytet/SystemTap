@@ -37,7 +37,7 @@ expect {
     timeout { fail "$test (timeout)" }
     eof { }
 }
-wait
+catch { close }; catch { wait }
 
 if {$ok == 1 && $logs == 2} {
     pass "$test ($ok, $logs)"

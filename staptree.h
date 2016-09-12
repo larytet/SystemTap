@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2015 Red Hat Inc.
+// Copyright (C) 2005-2016 Red Hat Inc.
 // Copyright (C) 2006 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -538,12 +538,14 @@ enum stat_component_type
     sc_min,
     sc_max,
     sc_none,
+    sc_variance,
   };
 
 struct stat_op: public expression
 {
   stat_component_type ctype;
   expression* stat;
+  std::vector<int64_t> params;
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };

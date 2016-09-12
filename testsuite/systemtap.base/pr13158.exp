@@ -59,7 +59,8 @@ set firstpid [exp_pid -i $firstid]
 set secondpid [exp_pid -i $secondid]
 kill -INT $firstpid
 kill -INT $secondpid
-catch { wait -i $firstid; wait -i $secondid; close }
+catch { close -i $firstid }; catch { wait -i $firstid };
+catch { close -i $secondid }; catch { wait -i $secondid }
 if {$failed} {
     fail "$test"
 } else {

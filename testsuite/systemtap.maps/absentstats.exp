@@ -28,7 +28,7 @@ foreach runtime [get_runtime_list] {
     wait
     
     # As of stap 1.5, @count and @sum are allowed, the rest fail
-    if {$ok == 4 && $ko == 11} {
+    if {$ok == 4 && $ko == 13} {
 	pass $testname
     } else {
 	fail "$testname ($ok $ko)"
@@ -54,7 +54,7 @@ foreach runtime [get_runtime_list] {
     wait
     
     # In stap <= 1.4, only @count is allowed, the rest fail
-    if {$ok == 2 && $ko == 13} {
+    if {$ok == 2 && $ko == 15} {
 	pass "$testname 1.4"
     } else {
 	fail "$testname 1.4 ($ok $ko)"

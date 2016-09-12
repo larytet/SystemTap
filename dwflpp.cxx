@@ -3711,7 +3711,9 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
                                  type_name.c_str(),
                                  decl_source.c_str(),
                                  a_member.c_str()),
-                              e->components[e->components.size()-1].tok);
+                              (e->components.size() > 0 ?
+                               (e->components[e->components.size()-1].tok) :
+                               (e->tok)));
       }
       break;
 

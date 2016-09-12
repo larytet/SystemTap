@@ -20,7 +20,7 @@ expect {
     eof { }
     timeout { fail "$test (timeout)" }
 }
-catch { close }; wait
+catch { close }; catch { wait }
 if {$ok == 3 && $ok2 >= $ok} then { pass "$test ($ok $ok2)" } else { fail "$test ($ok $ok2)" }
 
 
@@ -43,7 +43,7 @@ expect {
     eof { }
     timeout { fail "$test (timeout)" }
 }
-catch { close }; wait
+catch { close }; catch { wait }
 if {$ok == 3 && $ok2 >= $ok} then { pass "$test ($ok $ok2)" } else { fail "$test ($ok $ok2)" }
 
 set test "self-unwind-ensure-exact"
@@ -63,6 +63,6 @@ expect {
     eof { }
     timeout { fail "$test (timeout)" }
 }
-catch { close }; wait
+catch { close }; catch { wait }
 if {$ok == 0} then { pass "$test ($ok)" } else { fail "$test ($ok)" }
 

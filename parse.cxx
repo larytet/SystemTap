@@ -1,5 +1,5 @@
 // recursive descent parser for systemtap scripts
-// Copyright (C) 2005-2015 Red Hat Inc.
+// Copyright (C) 2005-2016 Red Hat Inc.
 // Copyright (C) 2006 Intel Corporation.
 // Copyright (C) 2007 Bull S.A.S
 // Copyright (C) 2014 Peter Kjellstrom <cap@nsc.liu.se>
@@ -1436,8 +1436,6 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s, bool cc):
       // proposed macro names without building a string with that prefix.
       atwords.insert("cast");
       atwords.insert("defined");
-      if (has_version("3.1"))
-        atwords.insert("const");
       atwords.insert("entry");
       atwords.insert("perf");
       atwords.insert("var");
@@ -1448,6 +1446,11 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s, bool cc):
       atwords.insert("max");
       atwords.insert("hist_linear");
       atwords.insert("hist_log");
+      if (has_version("3.1"))
+        {
+          atwords.insert("const");
+          atwords.insert("variance");
+        }
     }
 }
 
@@ -3159,6 +3162,7 @@ parser::parse_foreach_loop ()
       else if (t->content == "@max") s->sort_aggr = sc_max;
       else if (t->content == "@count") s->sort_aggr = sc_count;
       else if (t->content == "@sum") s->sort_aggr = sc_sum;
+      else if (t->content == "@variance") s->sort_aggr = sc_variance;
       else throw PARSE_ERROR(_("expected statistical operation"));
       swallow();
 
@@ -3784,6 +3788,7 @@ expression* parser::parse_symbol ()
   hist_op *hop = NULL;
   symbol *sym = NULL;
   interned_string name;
+  unsigned max_params = 0;
   const token *t = parse_hist_op_or_bare_name(hop, name);
 
   if (!hop)
@@ -3811,6 +3816,8 @@ expression* parser::parse_symbol ()
 	  stat_op *sop = new stat_op;
 	  if (name == "@avg")
 	    sop->ctype = sc_average;
+	  else if (name == "@variance")
+	    sop->ctype = sc_variance, max_params = 1;
 	  else if (name == "@count")
 	    sop->ctype = sc_count;
 	  else if (name == "@sum")
@@ -3825,7 +3832,28 @@ expression* parser::parse_symbol ()
 	  expect_op("(");
 	  sop->tok = t;
 	  sop->stat = parse_expression ();
-	  expect_op(")");
+
+	  while(1)
+	    {
+	      t = next ();
+	      if (t && t->type == tok_operator && t->content == ")")
+	        {
+	          swallow ();
+	          break;
+	        }
+	        else if (t && t->type == tok_operator && t->content == ",")
+	        {
+	          if (sop->params.size() >= max_params)
+	            throw PARSE_ERROR(_NF("not more than %d parameter allowed",
+	                                  "not more than %d parameters allowed",
+	                                  max_params+1, max_params+1), t);
+
+	          swallow ();
+	          int64_t tnum;
+	          expect_number (tnum);
+	          sop->params.push_back (tnum);
+	        }
+	    }
 	  return sop;
 	}
 

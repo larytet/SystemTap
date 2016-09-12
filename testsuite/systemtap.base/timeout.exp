@@ -8,4 +8,5 @@ expect {
   -timeout 20
   -re "terminated" {incr success}
 }
+catch { close }; catch { wait }
 if {$success == 1} {pass $test} {fail $test}

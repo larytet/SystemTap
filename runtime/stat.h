@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * Statistics Header
- * Copyright (C) 2005, 2012 Red Hat Inc.
+ * Copyright (C) 2005-2016 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -20,22 +20,36 @@
 #define HIST_LOG_BUCKETS 128
 #define HIST_LOG_BUCKET0 64
 
+/* statistical operations used with a global */
+#define STAT_OP_COUNT     1 << 1
+#define STAT_OP_SUM       1 << 2
+#define STAT_OP_MIN       1 << 3
+#define STAT_OP_MAX       1 << 4
+#define STAT_OP_AVG       1 << 5
+#define STAT_OP_VARIANCE  1 << 6
+
+/** other defines used for passing translator information to the runtime
+    values must not collide with the above statistical operations defines */
+#define KEY_MAPENTRIES    1 << 7
+#define KEY_STAT_WRAP     1 << 8
+#define KEY_HIST_TYPE     1 << 9
+
 /** histogram type */
 enum histtype { HIST_NONE, HIST_LOG, HIST_LINEAR };
 
 /** Statistics are stored in this struct.  This is per-cpu or per-node data 
     and is variable length due to the unknown size of the histogram. */
 struct stat_data {
+	int shift;
+	int stat_ops;
 	int64_t count;
 	int64_t sum;
 	int64_t min, max;
-#ifdef NEED_STAT_LOCKS
-#ifdef __KERNEL__
-	spinlock_t lock;
-#else  /* !__KERNEL__ */
-	pthread_mutex_t lock;
-#endif	/* !__KERNEL__ */
-#endif
+	int64_t avg;
+	int64_t avg_s;
+	int64_t _M2;
+	int64_t variance;
+	int64_t variance_s;
 	int64_t histogram[];
 };
 typedef struct stat_data stat_data;
@@ -49,6 +63,8 @@ struct _Hist {
 	int stop;
 	int interval;
 	int buckets;
+	int bit_shift;
+	int stat_ops;
 };
 typedef struct _Hist *Hist;
 

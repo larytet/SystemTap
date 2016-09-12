@@ -6,8 +6,7 @@ expect {
 	timeout { fail "$test (timeout1)" }
 	eof { fail "$test (eof)" }
 }
-
-wait
+catch { close }; catch { wait }
 
 set test "debugpath-good"
 set uname [exec /bin/uname -r]
@@ -27,5 +26,4 @@ expect {
 	timeout { fail "$test (timeout2)" }
 	eof { fail "$test (eof)" }
 }
-
-wait
+catch { close }; catch { wait }
