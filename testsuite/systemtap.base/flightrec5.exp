@@ -17,7 +17,10 @@ expect {
   timeout { fail "$test (timeout)" }
   eof { }
 }
-# Notice we call close/wait at the end of the test.
+# Here we're waiting on the parent stap process to finish. Stapio will
+# still be running in the background.
+catch { close }; catch { wait }
+
 if {$pid == 0} {
   fail "$test (no pid)"
   return -1
@@ -32,7 +35,7 @@ exec sleep 2
 eval set outfile {[glob -nocomplain $test.out_cpu*.0]}
 if {$outfile == ""} {
   fail "$test (no output file) $outfile"
-  kill -TERM $pid
+  kill -TERM $pid 5
   return -1
 } else {
   pass "$test (output file)"
@@ -46,8 +49,9 @@ exec sleep 2
 kill -USR2 $pid
 
 exec sleep 2
+
+# Kill the background stapio process.
 kill -TERM $pid 5
-catch { close }; catch { wait }
 
 # check switched output file
 exec sleep 2
@@ -68,5 +72,5 @@ if {$outfile == ""} {
 } else {
   pass "$test (switch output file)"
 }
-eval exec rm $outfile
+eval exec rm -f $outfile
 
