@@ -98,6 +98,9 @@
 /* Define to 1 if you have the `ppoll' function. */
 #undef HAVE_PPOLL
 
+/* Define to 1 to enable python probe support in systemtap. */
+#undef HAVE_PYTHON
+
 /* Define to 1 if you have the SELinux libraries. */
 #undef HAVE_SELINUX
 

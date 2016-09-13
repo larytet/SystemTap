@@ -262,6 +262,7 @@ python_builder::build(systemtap_session & sess, probe * base,
 void
 register_tapset_python(systemtap_session& s)
 {
+#ifdef HAVE_PYTHON
   match_node* root = s.pattern_root;
   derived_probe_builder *builder = new python_builder();
 
@@ -280,6 +281,9 @@ register_tapset_python(systemtap_session& s)
 	->bind_privilege(pr_all)
 	->bind(builder);
     }
+#else
+  (void) s;
+#endif
 }
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

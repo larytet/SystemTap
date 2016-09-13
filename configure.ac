@@ -36,6 +36,7 @@ AC_CHECK_FUNCS(ppoll)
 AC_CHECK_FUNCS(openat)
 AM_GNU_GETTEXT(external)
 AM_GNU_GETTEXT_VERSION([0.19.4])
+AM_PATH_PYTHON
 
 if test "x$GMSGFMT" = "x:"; then
    AC_MSG_ERROR([missing gnu /usr/bin/msgfmt])
@@ -581,6 +582,22 @@ dnl See if we have enough libraries and tools to build the virt server
   fi		       
 fi
 AM_CONDITIONAL([BUILD_VIRT], [test "${have_libvirt}" == "yes" -a "${have_libxml2}" == "yes" -a "$enable_virt" != "no"])
+
+dnl Handle the option to build python support
+AC_ARG_WITH([python],
+  AS_HELP_STRING([--without-python],
+    [Disable building python support, even if it is available]))
+AS_IF([test "x$with_python" != "xno"],
+  [AC_CHECK_HEADERS([python$PYTHON_VERSION/Python.h],
+    [have_python_support=yes], [have_python_support=no])],
+  [have_python_support=no])
+AS_IF([test "x$have_python_support" = "xyes"],
+  [AC_DEFINE([HAVE_PYTHON], [1],
+    [Define to 1 to enable python probe support in systemtap.])],
+  [AS_IF([test "x$with_python" = "xyes"],
+    [AC_MSG_ERROR([python support requested but not found])])
+])
+AM_CONDITIONAL([HAVE_PYTHON], [test "x$have_python_support" = "xyes"])
 
 dnl Check for presence of json-c and ncurses for use in monitor mode
 PKG_CHECK_MODULES([jsonc], [json-c], [have_jsonc=yes], [have_jsonc=no])
