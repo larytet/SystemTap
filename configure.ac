@@ -583,21 +583,21 @@ dnl See if we have enough libraries and tools to build the virt server
 fi
 AM_CONDITIONAL([BUILD_VIRT], [test "${have_libvirt}" == "yes" -a "${have_libxml2}" == "yes" -a "$enable_virt" != "no"])
 
-dnl Handle the option to build python support
-AC_ARG_WITH([python],
-  AS_HELP_STRING([--without-python],
-    [Disable building python support, even if it is available]))
-AS_IF([test "x$with_python" != "xno"],
+dnl Handle the option to build python2 support
+AC_ARG_WITH([python2],
+  AS_HELP_STRING([--without-python2],
+    [Disable building python version 2 support, even if it is available]))
+AS_IF([test "x$with_python2" != "xno"],
   [AC_CHECK_HEADERS([python$PYTHON_VERSION/Python.h],
-    [have_python_support=yes], [have_python_support=no])],
-  [have_python_support=no])
-AS_IF([test "x$have_python_support" = "xyes"],
-  [AC_DEFINE([HAVE_PYTHON], [1],
-    [Define to 1 to enable python probe support in systemtap.])],
-  [AS_IF([test "x$with_python" = "xyes"],
-    [AC_MSG_ERROR([python support requested but not found])])
+    [have_python2_support=yes], [have_python2_support=no])],
+  [have_python2_support=no])
+AS_IF([test "x$have_python2_support" = "xyes"],
+  [AC_DEFINE([HAVE_PYTHON2], [1],
+    [Define to 1 to enable python version 2 probe support in systemtap.])],
+  [AS_IF([test "x$with_python2" = "xyes"],
+    [AC_MSG_ERROR([python version 2 support requested but not found])])
 ])
-AM_CONDITIONAL([HAVE_PYTHON], [test "x$have_python_support" = "xyes"])
+AM_CONDITIONAL([HAVE_PYTHON2], [test "x$have_python2_support" = "xyes"])
 
 dnl Check for presence of json-c and ncurses for use in monitor mode
 PKG_CHECK_MODULES([jsonc], [json-c], [have_jsonc=yes], [have_jsonc=no])

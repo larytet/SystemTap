@@ -262,15 +262,19 @@ python_builder::build(systemtap_session & sess, probe * base,
 void
 register_tapset_python(systemtap_session& s)
 {
-#ifdef HAVE_PYTHON
+#if defined(HAVE_PYTHON2) || defined(HAVE_PYTHON3)
   match_node* root = s.pattern_root;
   derived_probe_builder *builder = new python_builder();
 
   vector<match_node*> roots;
+#if defined(HAVE_PYTHON2)
   roots.push_back(root->bind(TOK_PYTHON));
   //roots.push_back(root->bind_num(TOK_PYTHON));
+#endif
+#if defined(HAVE_PYTHON3)
   roots.push_back(root->bind(TOK_PYTHON3));
   //roots.push_back(root->bind_num(TOK_PYTHON3));
+#endif
 
   for (unsigned i = 0; i < roots.size(); ++i)
     {

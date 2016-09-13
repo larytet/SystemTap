@@ -648,8 +648,8 @@ ncurses_LIBS
 ncurses_CFLAGS
 jsonc_LIBS
 jsonc_CFLAGS
-HAVE_PYTHON_FALSE
-HAVE_PYTHON_TRUE
+HAVE_PYTHON2_FALSE
+HAVE_PYTHON2_TRUE
 BUILD_VIRT_FALSE
 BUILD_VIRT_TRUE
 HAVE_LIBXML2_FALSE
@@ -882,7 +882,7 @@ with_python3
 with_elfutils
 with_dyninst
 enable_virt
-with_python
+with_python2
 with_selinux
 with_java
 with_extra_version
@@ -1587,8 +1587,8 @@ Optional Packages:
                           find elfutils source code in DIRECTORY
   --with-dyninst=DIRECTORY
                           find dyninst headers/libraries in DIRECTORY
-  --without-python        Disable building python support, even if it is
-                          available
+  --without-python2       Disable building python version 2 support, even if
+                          it is available
   --without-selinux       Do not use libselinux even if present
   --with-java=DIRECTORY   Specify JDK directory to compile libHelperSDT.so
                           against (default is /usr/lib/jvm/java)
@@ -12160,12 +12160,12 @@ fi
 
 
 
-# Check whether --with-python was given.
-if test "${with_python+set}" = set; then :
-  withval=$with_python;
+# Check whether --with-python2 was given.
+if test "${with_python2+set}" = set; then :
+  withval=$with_python2;
 fi
 
-if test "x$with_python" != "xno"; then :
+if test "x$with_python2" != "xno"; then :
   for ac_header in python$PYTHON_VERSION/Python.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
@@ -12174,32 +12174,32 @@ if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
   cat >>confdefs.h <<_ACEOF
 #define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
 _ACEOF
- have_python_support=yes
+ have_python2_support=yes
 else
-  have_python_support=no
+  have_python2_support=no
 fi
 
 done
 
 else
-  have_python_support=no
+  have_python2_support=no
 fi
-if test "x$have_python_support" = "xyes"; then :
+if test "x$have_python2_support" = "xyes"; then :
 
-$as_echo "#define HAVE_PYTHON 1" >>confdefs.h
+$as_echo "#define HAVE_PYTHON2 1" >>confdefs.h
 
 else
-  if test "x$with_python" = "xyes"; then :
-  as_fn_error $? "python support requested but not found" "$LINENO" 5
+  if test "x$with_python2" = "xyes"; then :
+  as_fn_error $? "python version 2 support requested but not found" "$LINENO" 5
 fi
 
 fi
- if test "x$have_python_support" = "xyes"; then
-  HAVE_PYTHON_TRUE=
-  HAVE_PYTHON_FALSE='#'
+ if test "x$have_python2_support" = "xyes"; then
+  HAVE_PYTHON2_TRUE=
+  HAVE_PYTHON2_FALSE='#'
 else
-  HAVE_PYTHON_TRUE='#'
-  HAVE_PYTHON_FALSE=
+  HAVE_PYTHON2_TRUE='#'
+  HAVE_PYTHON2_FALSE=
 fi
 
 
@@ -12993,8 +12993,8 @@ if test -z "${BUILD_VIRT_TRUE}" && test -z "${BUILD_VIRT_FALSE}"; then
   as_fn_error $? "conditional \"BUILD_VIRT\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
-if test -z "${HAVE_PYTHON_TRUE}" && test -z "${HAVE_PYTHON_FALSE}"; then
-  as_fn_error $? "conditional \"HAVE_PYTHON\" was never defined.
+if test -z "${HAVE_PYTHON2_TRUE}" && test -z "${HAVE_PYTHON2_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_PYTHON2\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_MONITOR_LIBS_TRUE}" && test -z "${HAVE_MONITOR_LIBS_FALSE}"; then
