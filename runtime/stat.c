@@ -149,7 +149,7 @@ static void _stp_stat_clear_data (Stat st, stat_data *sd)
 {
         int j;
         sd->count = sd->sum = sd->min = sd->max = 0;
-        sd->avg = sd->avg_s = sd->variance = sd->variance_s = 0;
+        sd->avg_s = sd->variance = sd->variance_s = 0;
 
         if (st->hist.type != HIST_NONE) {
                 for (j = 0; j < st->hist.buckets; j++)
@@ -220,12 +220,6 @@ static stat_data *_stp_stat_get (Stat st, int clear)
 	}
 
 	agg->variance_s = _stp_div64(NULL, (S1 + S2), (agg->count - 1));
-
-	/*
-	 * Setting agg->avg = agg->avg_s >> agg->shift; below would
-	 * introduce slight rounding errors.
-	 */
-	agg->avg = _stp_div64(NULL, agg->sum, agg->count);
 	agg->variance = agg->variance_s >> (2 * agg->shift);
 
 	/*

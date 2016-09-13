@@ -173,8 +173,8 @@ static int _stp_cmp (struct mlist_head *h1, struct mlist_head *h2,
 			b = sd2->max;
 			break;
 		case SORT_AVG:
-			a = sd1->avg;
-			b = sd2->avg;
+			a = _stp_div64 (NULL, sd1->sum, sd1->count);
+			b = _stp_div64 (NULL, sd2->sum, sd2->count);
 			break;
 		default:
 			/* should never happen */
@@ -482,11 +482,6 @@ static int _new_map_copy_stat (MAP map, struct stat_data *sd1, struct stat_data 
                 if (sd2->stat_ops & STAT_OP_VARIANCE) {
                         sd1->shift = sd2->shift;
                         sd1->avg_s = _stp_div64(NULL, sd1->sum << sd2->shift, sd1->count);
-                        /*
-                         * A bit shift would certainly be faster below, but that would
-                         * introduce rounding errors.
-                         */
-                        sd1->avg = _stp_div64(NULL, sd1->sum, sd1->count);
 
                         /*
                          * For aggregating variance over available CPUs, the Total Variance
@@ -516,11 +511,6 @@ static int _new_map_copy_stat (MAP map, struct stat_data *sd1, struct stat_data 
                 if (sd2->stat_ops & STAT_OP_VARIANCE) {
                         sd1->shift = sd2->shift;
                         sd1->avg_s = sd2->avg_s;
-                        /*
-                         * Setting sd1->avg = sd2->avg_s >> sd2->shift; below would
-                         * introduce slight rounding issues.
-                         */
-                        sd1->avg = _stp_div64(NULL, sd1->sum, sd1->count);
                         sd1->variance_s = sd2->variance_s;
                         sd1->variance = sd2->variance_s >> (2 * sd2->shift);
                 }

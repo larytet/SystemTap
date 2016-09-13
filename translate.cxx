@@ -2260,13 +2260,14 @@ c_unparser::emit_module_exit ()
   o->newline() << "if (likely (probe_timing(i))) {"; // NB: check for null stat object
   o->newline(1) << "struct stat_data *stats = _stp_stat_get (probe_timing(i), 0);";
   o->newline() << "if (stats->count) {";
+  o->newline(1) << "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);";
   o->newline() << "_stp_printf (\"%s, (%s), hits: %lld, "
 	       << (!session->runtime_usermode_p() ? "cycles" : "nsecs")
 	       << ": %lldmin/%lldavg/%lldmax,%s, index: %d\\n\",";
   o->newline(2) << "p->pp, p->location, (long long) stats->count,";
-  o->newline() << "(long long) stats->min, (long long) stats->avg, (long long) stats->max,";
+  o->newline() << "(long long) stats->min, (long long) avg, (long long) stats->max,";
   o->newline() << "p->derivation, i);";
-  o->newline(-2) << "}";
+  o->newline(-3) << "}";
   o->newline() << "_stp_stat_del (probe_timing(i));";
   o->newline(-1) << "}";
   o->newline() << "#endif"; // STP_TIMING
@@ -2279,10 +2280,11 @@ c_unparser::emit_module_exit ()
       o->newline() << "if (likely (g_refresh_timing)) {";
       o->newline(1) << "struct stat_data *stats = _stp_stat_get (g_refresh_timing, 0);";
       o->newline() << "if (stats->count) {";
+      o->newline(1) << "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);";
       o->newline() << "_stp_printf (\"hits: %lld, cycles: %lldmin/%lldavg/%lldmax\\n\",";
       o->newline(2) << "(long long) stats->count, (long long) stats->min, ";
-      o->newline() <<  "(long long) stats->avg, (long long) stats->max);";
-      o->newline(-2) << "}";
+      o->newline() <<  "(long long) avg, (long long) stats->max);";
+      o->newline(-3) << "}";
       o->newline() << "_stp_stat_del (g_refresh_timing);";
       o->newline(-1) << "}";
       o->newline() << "#endif"; // STP_TIMING
@@ -5950,7 +5952,9 @@ c_unparser::visit_stat_op (stat_op* e)
       switch (e->ctype)
         {
         case sc_average:
-          c_assign(res, agg.value() + "->avg", e->tok);
+          c_assign(res, ("_stp_div64(NULL, " + agg.value() + "->sum, "
+                         + agg.value() + "->count)"),
+                   e->tok);
           break;
         case sc_count:
           c_assign(res, agg.value() + "->count", e->tok);

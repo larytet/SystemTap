@@ -45,7 +45,6 @@ struct stat_data {
 	int64_t count;
 	int64_t sum;
 	int64_t min, max;
-	int64_t avg;
 	int64_t avg_s;
 	int64_t _M2;
 	int64_t variance;
