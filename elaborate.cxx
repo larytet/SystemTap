@@ -1382,7 +1382,12 @@ struct stat_decl_collector
 	if (!(old_stat == new_stat))
 	  {
 	    if (old_stat.type == statistic_decl::none)
-	      i->second = new_stat;
+	      {
+	        i->second.type = new_stat.type;
+		i->second.linear_low = new_stat.linear_low;
+		i->second.linear_high = new_stat.linear_high;
+		i->second.linear_step = new_stat.linear_step;
+	      }
 	    else
 	      {
 		// FIXME: Support multiple co-declared histogram types
