@@ -46,7 +46,8 @@ extern "C" {
 // vmlinux for 2.6.31.4-83.fc12.x86_64).
 // A larger value was recently found in a libxul.so build.
 // ... and yet again in libxul.so, PR15162
-#define MAX_UNWIND_TABLE_SIZE (16 * 1024 * 1024)
+// ... and yet again w.r.t. oracle db in private communication, 25289196
+#define MAX_UNWIND_TABLE_SIZE (32 * 1024 * 1024)
 
 #define STAP_T_01 _("\"Array overflow, check ")
 #define STAP_T_02 _("\"MAXNESTING exceeded\";")
