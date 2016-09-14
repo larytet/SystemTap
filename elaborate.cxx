@@ -1292,6 +1292,11 @@ struct stat_decl_collector
     int bit_shift = (e->params.size() == 0) ? 0 : e->params[0];
     int stat_op = STAT_OP_NONE;
 
+    if ((bit_shift < 0) || (bit_shift > 62))
+      throw SEMANTIC_ERROR (_F("bit shift (%d) out of range <0..62>",
+                               bit_shift),
+			    e->tok);
+
     // The following helps to track which statistical operators are being
     // used with given global/local variable.  This information later helps
     // to optimize the runtime behaviour.
