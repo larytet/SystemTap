@@ -36,10 +36,70 @@ AC_CHECK_FUNCS(ppoll)
 AC_CHECK_FUNCS(openat)
 AM_GNU_GETTEXT(external)
 AM_GNU_GETTEXT_VERSION([0.19.4])
-AM_PATH_PYTHON
 
 if test "x$GMSGFMT" = "x:"; then
    AC_MSG_ERROR([missing gnu /usr/bin/msgfmt])
+fi
+
+# We want the 'PYTHON' varible to be python version 2. We also want
+# our custom 'PYTHON3' varible to be python version 3.
+#
+# First, figure out what version of python is in the executable named
+# 'python'. On most systems that is python version 2, but on arch
+# linux that is python version 3.
+AC_PATH_PROG([PYTHON_UNKNOWN], [python], [no])
+if test "x$PYTHON_UNKNOWN" != "xno"; then
+   # OK, we found 'python'. What version is it?
+   AC_CACHE_CHECK([whether $PYTHON_UNKNOWN is version 2 or 3],
+		 [ac_cv_python_unknown_version],
+		 [ac_cv_python_unknown_version=`$PYTHON_UNKNOWN -c "import sys; sys.stdout.write(sys.version[[:3]][[0]])"`])
+fi
+  
+# Now we'll update the _AM_PYTHON_INTERPRETER_LIST variable (which
+# AM_PATH_PYTHON uses) to only be version 2 versions of python. Note
+# that the m4_define happens when autoconf is run, but the
+# FIRST_PYTHON_INTERPRETER variable expansion will happen when the
+# user runs configure.
+if test "x$PYTHON_UNKNOWN" != "xno" -a "x$ac_cv_python_unknown_version" = "x2"; then
+   FIRST_PYTHON_INTERPRETER=python
+else
+   FIRST_PYTHON_INTERPRETER=python2
+fi
+m4_define([_AM_PYTHON_INTERPRETER_LIST],
+	  [$FIRST_PYTHON_INTERPRETER python2 python2.7 python2.6])
+
+# Now we can call AM_PATH_PYTHON to find python version 2.6+ (and
+# version 2 only).
+AM_PATH_PYTHON([2.6], [], [:])
+
+# Now let's try to find python version 3.
+if test "x$PYTHON_UNKNOWN" != "xno" -a "x$python_unknown_version" = "x3"; then
+   AC_PATH_PROG([PYTHON3], [python])
+else
+   AC_PATH_PROGS([PYTHON3],
+		 [python3 python3.5 python3.4 python3.3 python3.2 python3.1 python3.0])
+fi
+
+# If we found python version 3, set up the other variables for python
+# version 3 that AM_PATH_PYTHON sets up for python version 2.
+if test -n "$PYTHON3"; then
+   AC_CACHE_CHECK([for python3 version], [ac_cv_python3_version],
+   		  [ac_cv_python3_version=`$PYTHON3 -c "import sys; sys.stdout.write(sys.version[[:3]])"`])
+   AC_SUBST([PYTHON3_VERSION], [$python3_version])
+   AC_SUBST([PYTHON3_PREFIX], ['${prefix}'])
+   AC_SUBST([PYTHON3_EXEC_PREFIX], ['${exec_prefix}'])
+   AC_CACHE_CHECK([for python3 platform], [ac_cv_python3_platform],
+		  [ac_cv_python3_platform=`$PYTHON3 -c "import sys; sys.stdout.write(sys.platform)"`])
+   AC_SUBST([PYTHON3_PLATFORM], [$ac_cv_python3_platform])
+
+   AC_CACHE_CHECK([for python3 script directory], [ac_cv_python3_dir],
+		  [ac_cv_python3_dir=`$PYTHON3 -c "import distutils.sysconfig; print(distutils.sysconfig.get_python_lib(0,0,prefix='$PYTHON3_PREFIX'))"`])
+   AC_SUBST([python3dir], [$am_cv_python3_dir])
+
+   AC_CACHE_CHECK([for python3 extension module directory],
+   		  [ac_cv_py3execdir],
+		  [ac_cv_py3execdir=`$PYTHON3 -c "import distutils.sysconfig; print(distutils.sysconfig.get_python_lib(1,0,prefix='$PYTHON3_EXEC_PREFIX'))"`])
+   AC_SUBST([py3execdir], [$am_cv_py3execdir])
 fi
 
 dnl Handle the prologues option.
@@ -436,8 +496,12 @@ dnl Allow user to choose python3 for /usr/bin/dtrace
 AC_ARG_WITH([python3],
   AS_HELP_STRING([--with-python3],[prefer /usr/bin/python3]))
 AS_IF([test "x$with_python3" = "xyes"],
-      [AC_SUBST(python,[python3])],
-      [AC_SUBST(python,[python])])
+      [AS_IF([test -z "$PYTHON3"],
+             [AC_MSG_ERROR([python version 3 is required])],
+	     [AC_SUBST(preferred_python,[$PYTHON3])])],
+      [AS_IF([test "x$PYTHON" = "x:"],
+             [AC_MSG_ERROR([python version 2 is required])],
+	     [AC_SUBST(preferred_python,[$PYTHON])])])
       
 dnl Handle elfutils.  If '--with-elfutils=DIR' wasn't specified, used
 dnl the system's elfutils.
