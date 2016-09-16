@@ -91,6 +91,15 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
+
+# Why aren't we putting stap-resolve-module-function.py into
+# pkglibexecpython_SCRIPTS? stap-resolve-module-function.py is a
+# python script, but it will be run by the translator as either a
+# python version 2 or python version 3 script. So, it doesn't need to
+# be executable (since we'll be calling "python
+# stap-resolve-module-function.py ARGS" or "python3
+# stap-resolve-module-function.y ARGS."
+@HAVE_PYTHON_PROBES_TRUE@am__append_1 = stap-resolve-module-function.py
 subdir = python
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
@@ -231,10 +240,14 @@ PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 POSUB = @POSUB@
 PYTHON = @PYTHON@
 PYTHON3 = @PYTHON3@
+PYTHON3_CONFIG = @PYTHON3_CONFIG@
+PYTHON3_CPPFLAGS = @PYTHON3_CPPFLAGS@
 PYTHON3_EXEC_PREFIX = @PYTHON3_EXEC_PREFIX@
 PYTHON3_PLATFORM = @PYTHON3_PLATFORM@
 PYTHON3_PREFIX = @PYTHON3_PREFIX@
 PYTHON3_VERSION = @PYTHON3_VERSION@
+PYTHON_CONFIG = @PYTHON_CONFIG@
+PYTHON_CPPFLAGS = @PYTHON_CPPFLAGS@
 PYTHON_EXEC_PREFIX = @PYTHON_EXEC_PREFIX@
 PYTHON_PLATFORM = @PYTHON_PLATFORM@
 PYTHON_PREFIX = @PYTHON_PREFIX@
@@ -345,15 +358,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = subdir-objects
-
-# Why aren't we putting stap-resolve-module-function.py into
-# pkglibexecpython_SCRIPTS? stap-resolve-module-function.py is a
-# python script, but it will be run by the translator as either a
-# python version 2 or python version 3 script. So, it doesn't need to
-# be executable (since we'll be calling "python
-# stap-resolve-module-function.py ARGS" or "python3
-# stap-resolve-module-function.y ARGS."
-pkglibexecpython_DATA = stap-resolve-module-function.py
+pkglibexecpython_DATA = $(am__append_1)
 pkglibexecpythondir = $(pkglibexecdir)/python
 all: all-am
 

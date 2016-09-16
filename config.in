@@ -99,7 +99,13 @@
 #undef HAVE_PPOLL
 
 /* Define to 1 to enable python version 2 probe support in systemtap. */
-#undef HAVE_PYTHON2
+#undef HAVE_PYTHON2_PROBES
+
+/* Define to 1 to enable python version 3 probe support in systemtap. */
+#undef HAVE_PYTHON3_PROBES
+
+/* Define to 1 if you have the <Python.h> header file. */
+#undef HAVE_PYTHON_H
 
 /* Define to 1 if you have the SELinux libraries. */
 #undef HAVE_SELINUX

@@ -85,7 +85,7 @@ fi
 if test -n "$PYTHON3"; then
    AC_CACHE_CHECK([for python3 version], [ac_cv_python3_version],
    		  [ac_cv_python3_version=`$PYTHON3 -c "import sys; sys.stdout.write(sys.version[[:3]])"`])
-   AC_SUBST([PYTHON3_VERSION], [$python3_version])
+   AC_SUBST([PYTHON3_VERSION], [$ac_cv_python3_version])
    AC_SUBST([PYTHON3_PREFIX], ['${prefix}'])
    AC_SUBST([PYTHON3_EXEC_PREFIX], ['${exec_prefix}'])
    AC_CACHE_CHECK([for python3 platform], [ac_cv_python3_platform],
@@ -647,21 +647,73 @@ dnl See if we have enough libraries and tools to build the virt server
 fi
 AM_CONDITIONAL([BUILD_VIRT], [test "${have_libvirt}" == "yes" -a "${have_libxml2}" == "yes" -a "$enable_virt" != "no"])
 
-dnl Handle the option to build python2 support
-AC_ARG_WITH([python2],
-  AS_HELP_STRING([--without-python2],
-    [Disable building python version 2 support, even if it is available]))
-AS_IF([test "x$with_python2" != "xno"],
-  [AC_CHECK_HEADERS([python$PYTHON_VERSION/Python.h],
-    [have_python2_support=yes], [have_python2_support=no])],
-  [have_python2_support=no])
+dnl Handle the option to build python2 probe support
+AC_ARG_WITH([python2-probes],
+  AS_HELP_STRING([--without-python2-probes],
+    [Disable building python version 2 probe support, even if it is available]))
+have_python2_support=no
+AS_IF([test "x$with_python2_probes" != "xno"],
+  [dnl First, check to make sure we have the 'python-config' script.
+   pathless_python=$(basename "$PYTHON")
+   AC_PATH_PROG([PYTHON_CONFIG], [${pathless_python}-config], [no])
+   AS_IF([test "x$PYTHON_CONFIG" != "xno"],
+	 [dnl Use the 'python-config' script to find the python
+	  dnl include directories.
+	  PYTHON_CPPFLAGS=`$PYTHON_CONFIG --includes 2> /dev/null`
+	  AC_SUBST([PYTHON_CPPFLAGS], [$PYTHON_CPPFLAGS])
+	  save_CPPFLAGS="$CPPFLAGS"
+	  CPPFLAGS="$PYTHON_CPPFLAGS $CPPFLAGS"
+	  dnl Now make sure we can find the python 2 Python.h file. We
+	  dnl need to clear the cached result, since this might be a
+	  dnl cached result from the python 3 header file (since they
+	  dnl share the same name).
+	  AS_UNSET([ac_cv_header_Python_h])
+	  AC_CHECK_HEADERS([Python.h], [have_python2_support=yes])
+	  CPPFLAGS="$save_CPPFLAGS"])])
 AS_IF([test "x$have_python2_support" = "xyes"],
-  [AC_DEFINE([HAVE_PYTHON2], [1],
+  [AC_DEFINE([HAVE_PYTHON2_PROBES], [1],
     [Define to 1 to enable python version 2 probe support in systemtap.])],
-  [AS_IF([test "x$with_python2" = "xyes"],
-    [AC_MSG_ERROR([python version 2 support requested but not found])])
+  [AS_IF([test "x$with_python2_probes" = "xyes"],
+    [AC_MSG_ERROR([python version 2 probe support requested but not found])])
 ])
-AM_CONDITIONAL([HAVE_PYTHON2], [test "x$have_python2_support" = "xyes"])
+AM_CONDITIONAL([HAVE_PYTHON2_PROBES], [test "x$have_python2_support" = "xyes"])
+
+dnl Handle the option to build python3 probe support
+AC_ARG_WITH([python3-probes],
+  AS_HELP_STRING([--without-python3-probes],
+    [Disable building python version 3 probe support, even if it is available]))
+have_python3_support=no
+AS_IF([test "x$with_python3_probes" != "xno"],
+  [dnl First, check to make sure we have the 'python3-config' script.
+   pathless_python3=$(basename "$PYTHON3")
+   AC_PATH_PROG([PYTHON3_CONFIG], [${pathless_python3}-config], [no])
+   AS_IF([test "x$PYTHON3_CONFIG" != "xno"],
+	 [dnl Use the 'python3-config' script to find the python
+	  dnl include directories.
+	  PYTHON3_CPPFLAGS=`$PYTHON3_CONFIG --includes 2> /dev/null`
+	  AC_SUBST([PYTHON3_CPPFLAGS], [$PYTHON3_CPPFLAGS])
+	  save_CPPFLAGS="$CPPFLAGS"
+	  CPPFLAGS="$PYTHON3_CPPFLAGS $CPPFLAGS"
+	  dnl Now make sure we can find the python 3 Python.h
+	  dnl file. However, we've got a problem. AC_CHECK_HEADERS
+	  dnl was called above for the python 2 version of
+	  dnl Python.h. But, autoconf doesn't really know the
+	  dnl difference between the two files, since they both have
+	  dnl the same name. So, we'll unset the cache variable.
+	  AS_UNSET([ac_cv_header_Python_h])
+	  AC_CHECK_HEADERS([Python.h], [have_python3_support=yes])
+	  CPPFLAGS="$save_CPPFLAGS"])])
+AS_IF([test "x$have_python3_support" = "xyes"],
+  [AC_DEFINE([HAVE_PYTHON3_PROBES], [1],
+    [Define to 1 to enable python version 3 probe support in systemtap.])],
+  [AS_IF([test "x$with_python3_probes" = "xyes"],
+    [AC_MSG_ERROR([python version 3 probe support requested but not found])])
+])
+AM_CONDITIONAL([HAVE_PYTHON3_PROBES], [test "x$have_python3_support" = "xyes"])
+
+dnl We want either (or both) python probe support.
+AM_CONDITIONAL([HAVE_PYTHON_PROBES],
+  [test "x$have_python2_support" = "xyes" -o "x$have_python3_support" = "xyes"])
 
 dnl Check for presence of json-c and ncurses for use in monitor mode
 PKG_CHECK_MODULES([jsonc], [json-c], [have_jsonc=yes], [have_jsonc=no])

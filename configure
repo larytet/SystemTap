@@ -648,8 +648,16 @@ ncurses_LIBS
 ncurses_CFLAGS
 jsonc_LIBS
 jsonc_CFLAGS
-HAVE_PYTHON2_FALSE
-HAVE_PYTHON2_TRUE
+HAVE_PYTHON_PROBES_FALSE
+HAVE_PYTHON_PROBES_TRUE
+HAVE_PYTHON3_PROBES_FALSE
+HAVE_PYTHON3_PROBES_TRUE
+PYTHON3_CPPFLAGS
+PYTHON3_CONFIG
+HAVE_PYTHON2_PROBES_FALSE
+HAVE_PYTHON2_PROBES_TRUE
+PYTHON_CPPFLAGS
+PYTHON_CONFIG
 BUILD_VIRT_FALSE
 BUILD_VIRT_TRUE
 HAVE_LIBXML2_FALSE
@@ -890,7 +898,8 @@ with_python3
 with_elfutils
 with_dyninst
 enable_virt
-with_python2
+with_python2_probes
+with_python3_probes
 with_selinux
 with_java
 with_extra_version
@@ -1595,8 +1604,12 @@ Optional Packages:
                           find elfutils source code in DIRECTORY
   --with-dyninst=DIRECTORY
                           find dyninst headers/libraries in DIRECTORY
-  --without-python2       Disable building python version 2 support, even if
-                          it is available
+  --without-python2-probes
+                          Disable building python version 2 probe support,
+                          even if it is available
+  --without-python3-probes
+                          Disable building python version 3 probe support,
+                          even if it is available
   --without-selinux       Do not use libselinux even if present
   --with-java=DIRECTORY   Specify JDK directory to compile libHelperSDT.so
                           against (default is /usr/lib/jvm/java)
@@ -9850,7 +9863,7 @@ else
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_python3_version" >&5
 $as_echo "$ac_cv_python3_version" >&6; }
-   PYTHON3_VERSION=$python3_version
+   PYTHON3_VERSION=$ac_cv_python3_version
 
    PYTHON3_PREFIX='${prefix}'
 
@@ -12450,46 +12463,193 @@ fi
 
 
 
-# Check whether --with-python2 was given.
-if test "${with_python2+set}" = set; then :
-  withval=$with_python2;
+# Check whether --with-python2-probes was given.
+if test "${with_python2_probes+set}" = set; then :
+  withval=$with_python2_probes;
 fi
 
-if test "x$with_python2" != "xno"; then :
-  for ac_header in python$PYTHON_VERSION/Python.h
+have_python2_support=no
+if test "x$with_python2_probes" != "xno"; then :
+     pathless_python=$(basename "$PYTHON")
+   # Extract the first word of "${pathless_python}-config", so it can be a program name with args.
+set dummy ${pathless_python}-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PYTHON_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PYTHON_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PYTHON_CONFIG="$PYTHON_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PYTHON_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_PYTHON_CONFIG" && ac_cv_path_PYTHON_CONFIG="no"
+  ;;
+esac
+fi
+PYTHON_CONFIG=$ac_cv_path_PYTHON_CONFIG
+if test -n "$PYTHON_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PYTHON_CONFIG" >&5
+$as_echo "$PYTHON_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+   if test "x$PYTHON_CONFIG" != "xno"; then :
+  	  	  PYTHON_CPPFLAGS=`$PYTHON_CONFIG --includes 2> /dev/null`
+	  PYTHON_CPPFLAGS=$PYTHON_CPPFLAGS
+
+	  save_CPPFLAGS="$CPPFLAGS"
+	  CPPFLAGS="$PYTHON_CPPFLAGS $CPPFLAGS"
+	  	  	  	  	  { ac_cv_header_Python_h=; unset ac_cv_header_Python_h;}
+	  for ac_header in Python.h
 do :
-  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
-ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
-if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  ac_fn_c_check_header_mongrel "$LINENO" "Python.h" "ac_cv_header_Python_h" "$ac_includes_default"
+if test "x$ac_cv_header_Python_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
-#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+#define HAVE_PYTHON_H 1
 _ACEOF
  have_python2_support=yes
-else
-  have_python2_support=no
 fi
 
 done
 
-else
-  have_python2_support=no
+	  CPPFLAGS="$save_CPPFLAGS"
+fi
 fi
 if test "x$have_python2_support" = "xyes"; then :
 
-$as_echo "#define HAVE_PYTHON2 1" >>confdefs.h
+$as_echo "#define HAVE_PYTHON2_PROBES 1" >>confdefs.h
 
 else
-  if test "x$with_python2" = "xyes"; then :
-  as_fn_error $? "python version 2 support requested but not found" "$LINENO" 5
+  if test "x$with_python2_probes" = "xyes"; then :
+  as_fn_error $? "python version 2 probe support requested but not found" "$LINENO" 5
 fi
 
 fi
  if test "x$have_python2_support" = "xyes"; then
-  HAVE_PYTHON2_TRUE=
-  HAVE_PYTHON2_FALSE='#'
+  HAVE_PYTHON2_PROBES_TRUE=
+  HAVE_PYTHON2_PROBES_FALSE='#'
 else
-  HAVE_PYTHON2_TRUE='#'
-  HAVE_PYTHON2_FALSE=
+  HAVE_PYTHON2_PROBES_TRUE='#'
+  HAVE_PYTHON2_PROBES_FALSE=
+fi
+
+
+
+# Check whether --with-python3-probes was given.
+if test "${with_python3_probes+set}" = set; then :
+  withval=$with_python3_probes;
+fi
+
+have_python3_support=no
+if test "x$with_python3_probes" != "xno"; then :
+     pathless_python3=$(basename "$PYTHON3")
+   # Extract the first word of "${pathless_python3}-config", so it can be a program name with args.
+set dummy ${pathless_python3}-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PYTHON3_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PYTHON3_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PYTHON3_CONFIG="$PYTHON3_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PYTHON3_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_PYTHON3_CONFIG" && ac_cv_path_PYTHON3_CONFIG="no"
+  ;;
+esac
+fi
+PYTHON3_CONFIG=$ac_cv_path_PYTHON3_CONFIG
+if test -n "$PYTHON3_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PYTHON3_CONFIG" >&5
+$as_echo "$PYTHON3_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+   if test "x$PYTHON3_CONFIG" != "xno"; then :
+  	  	  PYTHON3_CPPFLAGS=`$PYTHON3_CONFIG --includes 2> /dev/null`
+	  PYTHON3_CPPFLAGS=$PYTHON3_CPPFLAGS
+
+	  save_CPPFLAGS="$CPPFLAGS"
+	  CPPFLAGS="$PYTHON3_CPPFLAGS $CPPFLAGS"
+	  	  	  	  	  	  	  { ac_cv_header_Python_h=; unset ac_cv_header_Python_h;}
+	  for ac_header in Python.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "Python.h" "ac_cv_header_Python_h" "$ac_includes_default"
+if test "x$ac_cv_header_Python_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PYTHON_H 1
+_ACEOF
+ have_python3_support=yes
+fi
+
+done
+
+	  CPPFLAGS="$save_CPPFLAGS"
+fi
+fi
+if test "x$have_python3_support" = "xyes"; then :
+
+$as_echo "#define HAVE_PYTHON3_PROBES 1" >>confdefs.h
+
+else
+  if test "x$with_python3_probes" = "xyes"; then :
+  as_fn_error $? "python version 3 probe support requested but not found" "$LINENO" 5
+fi
+
+fi
+ if test "x$have_python3_support" = "xyes"; then
+  HAVE_PYTHON3_PROBES_TRUE=
+  HAVE_PYTHON3_PROBES_FALSE='#'
+else
+  HAVE_PYTHON3_PROBES_TRUE='#'
+  HAVE_PYTHON3_PROBES_FALSE=
+fi
+
+
+ if test "x$have_python2_support" = "xyes" -o "x$have_python3_support" = "xyes"; then
+  HAVE_PYTHON_PROBES_TRUE=
+  HAVE_PYTHON_PROBES_FALSE='#'
+else
+  HAVE_PYTHON_PROBES_TRUE='#'
+  HAVE_PYTHON_PROBES_FALSE=
 fi
 
 
@@ -13283,8 +13443,16 @@ if test -z "${BUILD_VIRT_TRUE}" && test -z "${BUILD_VIRT_FALSE}"; then
   as_fn_error $? "conditional \"BUILD_VIRT\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
-if test -z "${HAVE_PYTHON2_TRUE}" && test -z "${HAVE_PYTHON2_FALSE}"; then
-  as_fn_error $? "conditional \"HAVE_PYTHON2\" was never defined.
+if test -z "${HAVE_PYTHON2_PROBES_TRUE}" && test -z "${HAVE_PYTHON2_PROBES_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_PYTHON2_PROBES\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_PYTHON3_PROBES_TRUE}" && test -z "${HAVE_PYTHON3_PROBES_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_PYTHON3_PROBES\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_PYTHON_PROBES_TRUE}" && test -z "${HAVE_PYTHON_PROBES_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_PYTHON_PROBES\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_MONITOR_LIBS_TRUE}" && test -z "${HAVE_MONITOR_LIBS_FALSE}"; then
