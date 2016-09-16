@@ -448,7 +448,8 @@ read from or written to the cache.
 This option treats files in the cache directory as invalid.  No files will be
 read from the cache, but resulting files from this run will still be written to
 the cache.  This is meant as a troubleshooting aid when stap's cached behavior
-seems to be misbehaving.
+seems to be misbehaving.  If it helped, there is a probably a bug in systemtap
+that the developers would like you to report.
 
 .TP
 \fB\-\-privilege\fR[=\fIstapusr\fR | =\fIstapsys\fR | =\fIstapdev\fR]
