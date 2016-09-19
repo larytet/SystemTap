@@ -1,0 +1,77 @@
+#! stap -p4
+
+# Test the uconversions tapset.
+
+probe begin {
+  print (user_string(2342))
+  print (user_string(2342,"foobar"))
+  print (user_string_warn(2342))
+  print (user_string_warn(2342, "foobar"))
+  print (user_string_quoted (2342))
+
+  print (user_string_n(2342, 5))
+  print (user_string_n(2342, 5, "foobar"))
+  print (user_string_n_warn(2342, 5))
+  print (user_string_n_warn(2342, 5, "foobar"))
+  print (user_string_n_quoted(2342, 5))
+  print (user_string_n_quoted(2342, 5, 128))
+
+  print (user_string_utf32(2342))
+  print (user_string_utf32(2342, "foobar"))
+  print (user_string_quoted_utf32(2342))
+
+  print (user_string_utf16(2342))
+  print (user_string_utf16(2342, "foobar"))
+  print (user_string_quoted_utf16(2342))
+
+  print (user_char_error(2342))
+  print (user_char(2342))
+  print (user_char_warn(2342))
+
+  print (user_short_error(2342))
+  print (user_short(2342))
+  print (user_short_warn(2342))
+
+  print (user_ushort_error(2342))
+  print (user_ushort(2342))
+  print (user_ushort_warn(2342))
+
+  print (user_int_error(2342))
+  print (user_int(2342))
+  print (user_int_warn(2342))
+
+  print (user_long_error(2342))
+  print (user_long(2342))
+  print (user_long_warn(2342))
+
+  print (user_ulong_error(2342))
+  print (user_ulong(2342))
+  print (user_ulong_warn(2342))
+
+  print (user_int8_error(2342))
+  print (user_int8(2342))
+
+  print (user_uint8_error(2342))
+  print (user_uint8(2342))
+
+  print (user_int16_error(2342))
+  print (user_int16(2342))
+
+  print (user_uint16_error(2342))
+  print (user_uint16(2342))
+
+  print (user_int32_error(2342))
+  print (user_int32(2342))
+
+  print (user_uint32_error(2342))
+  print (user_uint32(2342))
+
+  print (user_int64_error(2342))
+  print (user_int64(2342))
+
+  print (user_uint64_error(2342))
+  print (user_uint64(2342))
+
+  print (user_buffer_quoted(2342, 10, 128))
+  print (user_buffer_quoted_error(2342, 10, 128))
+}

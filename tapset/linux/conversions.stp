@@ -364,7 +364,7 @@ function kernel_buffer_quoted:string (addr:long, inlen:long, outlen:long)
     return;
   if ( _stp_text_str(STAP_RETVALUE, (char *)(uintptr_t)STAP_ARG_addr,
 		     STAP_ARG_inlen, outlen, 1, 0, 1) < 0)
-    snprintf(STAP_RETVALUE, STAP_ARG_outlen, "0x%lx",
+    snprintf(STAP_RETVALUE, outlen, "0x%lx",
 	     (unsigned long)(void *)(uintptr_t)STAP_ARG_addr);
 %}
 
