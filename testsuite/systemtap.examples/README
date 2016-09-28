@@ -52,7 +52,8 @@ examples.  Discussions take place on the
   below are meaningful enough and used by the index-generator, so
   a .meta file can be quite small.  The generator script
       perl examples-index-gen.pl
-  should be run whenever .meta/.txt files are modified.
+  should be run whenever .meta/.txt files are modified.  Note, this
+  will require perl DBI.
 
 @ title: Descriptive title for the script (required)
 @ name: the file name for the script, e.g. iotime.stp (required)

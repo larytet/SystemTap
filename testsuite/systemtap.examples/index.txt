@@ -892,6 +892,19 @@ keywords: nfs statistics
   # stap nfsdtop.stp -T 1
 
 
+network/packet_contents.stp - Network packet contents
+keywords: network traffic
+
+  The packet_contents.stp script displays the length of each network
+  packet and its contents in both hexadecimal and ASCII. Systemtap
+  strings are MAXSTRINGLEN in length by default which may not be enough
+  for larger packets. In order to print larger packets, this limit can
+  be increased by passing in the "-DMAXSTRINGLEN=65536" command line
+  option.
+
+  # stap packet_contents.stp -T 1
+
+
 network/sk_stream_wait_memory.stp - Track Start and Stop of Processes Due to Network Buffer Space
 keywords: network tcp process
 

@@ -60,7 +60,7 @@
 <li><a href="#virtualization/kvm_service_time.stp">virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons</a></li>
 </ul>
 
-<h2>All 156 Examples</h2>
+<h2>All 157 Examples</h2>
 <ul>
 <li><a name="general/alias_suffixes.stp"></a><a href="#general/alias_suffixes.stp">&para;</a> <a href="general/alias_suffixes.stp">general/alias_suffixes.stp</a> - Count I/O Syscalls using Alias Suffixes<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
@@ -306,6 +306,9 @@ keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#D
 </li><li><a name="network/nfsdtop.stp"></a><a href="#network/nfsdtop.stp">&para;</a> <a href="network/nfsdtop.stp">network/nfsdtop.stp</a> - Keep track of NFS server statistics<br>
 keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
 <p>The nfsdtop.stp script gathers and displays NFS lookups,</p><p><font size="-2"><pre># stap nfsdtop.stp -T 1</pre></font></p>
+</li><li><a name="network/packet_contents.stp"></a><a href="#network/packet_contents.stp">&para;</a> <a href="network/packet_contents.stp">network/packet_contents.stp</a> - Network packet contents<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
+<p>The packet_contents.stp script displays the length of each network packet and its contents in both hexadecimal and ASCII. Systemtap strings are MAXSTRINGLEN in length by default which may not be enough for larger packets. In order to print larger packets, this limit can be increased by passing in the &quot;-DMAXSTRINGLEN=65536&quot; command line option.</p><p><i><a href="network/packet_contents.txt">sample usage in network/packet_contents.txt</i></font></p>
 </li><li><a name="network/sk_stream_wait_memory.stp"></a><a href="#network/sk_stream_wait_memory.stp">&para;</a> <a href="network/sk_stream_wait_memory.stp">network/sk_stream_wait_memory.stp</a> - Track Start and Stop of Processes Due to Network Buffer Space<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
 <p>The sk_stream-wait_memory.stp prints a time stamp, executable, and pid each time a process blocks due to the send buffer being full. A similar entry is printed each time a process continues because there is room in the buffer.</p><p><font size="-2"><pre># stap sk_stream_wait_memory.stp -T 1</pre></font></p>

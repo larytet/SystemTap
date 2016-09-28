@@ -12,6 +12,7 @@ AM_CPPFLAGS = -DBINDIR='"$(bindir)"' \
 	      -DPKGDATADIR='"$(pkgdatadir)"' \
 	      -DPKGLIBDIR='"$(pkglibexecdir)"' \
 	      -DLOCALEDIR='"$(localedir)"' \
+              -DDOCDIR='"$(docdir)"' \
 	      -I$(srcdir)/includes -I$(builddir)/includes/sys
 
 AM_CFLAGS = -D_GNU_SOURCE -fexceptions -Wall -Wextra -Werror -Wunused -Wformat=2 -W
