@@ -1,0 +1,85 @@
+/*
+ * Analogy to optim_stats1.stp, but for pmaps.  See optim_stats1.stp for comments.
+ */
+
+@define RANDCNT %( 200000 %)
+@define RANDMAX %( 1000 %)
+@define ITERS %( 1500 %)
+
+@define feed(agg, tagg)
+%(
+    t = time()
+    foreach(k in randvals)
+	@agg <<< k
+    @tagg += time() - t
+%)
+
+global x, tx = 0, y, ty = 0
+global a, ta = 0, b, tb = 0
+global randvals[@RANDCNT]
+
+function time() { return gettimeofday_us() }
+
+probe begin
+{
+    /* TEST 1 */
+
+    for (i=0; i<@ITERS; i++)
+    {
+
+	for (j=0; j<@RANDCNT; j++)
+	    randvals[j] = randint(@RANDMAX)
+
+	if(i%2)
+	{
+	    @feed(x[1], tx)
+	    @feed(y[1], ty)
+	}
+	else
+	{
+	    @feed(y[1], ty)
+	    @feed(x[1], tx)
+	}
+    }
+
+    printdln(" ", "IGNORE", @count(x[1]))
+    printdln(" ", "IGNORE", @count(y[1]), @sum(y[1]), @min(y[1]), @max(y[1]))
+
+    shrinkage = (ty-tx)*100/ty
+
+    treshold = 0
+
+    printf("%s test1 (%d)\n", ((shrinkage >= treshold) ? "PASS" : "FAIL"), shrinkage)
+
+
+    /* TEST 2 */
+
+    for (i=0; i<(@ITERS / 4); i++)
+    {
+
+	for (j=0; j<@RANDCNT; j++)
+	    randvals[j] = randint(@RANDMAX)
+
+	if(i%2)
+	{
+	    @feed(a[1], ta)
+	    @feed(b[1], tb)
+	}
+	else
+	{
+	    @feed(b[1], tb)
+	    @feed(a[1], ta)
+	}
+    }
+
+    printdln(" ", "IGNORE", @count(a[1]))
+    printdln(" ", "IGNORE", @variance(b[1]))
+
+    shrinkage = (tb-ta)*100/tb
+
+    treshold = 20
+
+    printf("%s test2 (%d)\n", ((shrinkage >= treshold) ? "PASS" : "FAIL"), shrinkage)
+
+    exit()
+}

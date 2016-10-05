@@ -1,0 +1,31 @@
+# This is a test for stat run time optimizations.
+# See corresponding .stp file for details.
+
+set test "optim_stats"
+
+if {![installtest_p]} {
+    untested $test
+    return
+}
+
+for {set i 1} {$i <= 2} {incr i} {
+    foreach runtime [get_runtime_list] {
+	if {$runtime != ""} {
+	    spawn stap --runtime=$runtime -g --suppress-time-limits $srcdir/$subdir/$test$i.stp
+	} else {
+	    spawn stap -g --suppress-time-limits $srcdir/$subdir/$test$i.stp
+	}
+
+	expect {
+	    -timeout 300
+	    -re {^IGNORE[^\r\n]+\r\n} { exp_continue }
+	    -re {^PASS test1[^\r\n]+\r\n} { pass "$test$i.stp subtest1 $runtime"; exp_continue }
+	    -re {^PASS test2[^\r\n]+\r\n} { pass "$test$i.stp subtest2 $runtime"; exp_continue }
+	    -re {^FAIL test1[^\r\n]+\r\n} { fail "$test$i.stp subtest1 $runtime"; exp_continue }
+	    -re {^FAIL test2[^\r\n]+\r\n} { fail "$test$i.stp subtest2 $runtime"; exp_continue }
+	    timeout {fail "$test: unexpected timeout"}
+	    eof { }
+	}
+	catch {close}; catch {wait}
+    }
+}

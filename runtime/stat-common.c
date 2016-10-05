@@ -288,15 +288,13 @@ static void _stp_stat_print_histogram(Hist st, stat_data *sd)
 	_stp_print_flush();
 }
 
-static void __stp_stat_add(Hist st, stat_data *sd, int64_t val)
+static inline void __stp_stat_add(Hist st, stat_data *sd, int64_t val,
+                                  int stat_op_count, int stat_op_sum, int stat_op_min,
+				  int stat_op_max, int stat_op_variance)
 {
 	int n;
 	int delta = 0;
 
-	/*
-	 * Below, we use Welford's online algorithm for computing variance.
-	 * https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-	 */
 	sd->shift = st->bit_shift;
 	sd->stat_ops = st->stat_ops;
 	if (sd->count == 0) {
@@ -305,20 +303,19 @@ static void __stp_stat_add(Hist st, stat_data *sd, int64_t val)
 		sd->avg_s = val << sd->shift;
 		sd->_M2 = 0;
 	} else {
-		sd->count++;
-		sd->sum += val;
-		if (val > sd->max)
+		if(stat_op_count)
+			sd->count++;
+		if(stat_op_sum)
+			sd->sum += val;
+		if (stat_op_min && (val > sd->max))
 			sd->max = val;
-		if (val < sd->min)
+		if (stat_op_max && (val < sd->min))
 			sd->min = val;
 		/*
-		 * Following is an optimization that improves performance
-		 * in case @variance() isn't used with given global.
-		 *
-		 * Note that this doesn't affect computing of @avg(), which
-		 * happens within the per-CPU aggregation functions.
+		 * Below, we use Welford's online algorithm for computing variance.
+		 * https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
 		 */
-		if (sd->stat_ops & STAT_OP_VARIANCE) {
+		if (stat_op_variance) {
 		    delta = (val << sd->shift) - sd->avg_s;
 		    sd->avg_s += _stp_div64(NULL, delta, sd->count);
 		    sd->_M2 += delta * ((val << sd->shift) - sd->avg_s);

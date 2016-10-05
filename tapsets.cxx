@@ -269,7 +269,8 @@ common_probe_entryfn_epilogue (systemtap_session& s,
     }
 
   s.op->newline() << "#ifdef STP_TIMING";
-  s.op->newline() << "if (likely (stat)) _stp_stat_add(stat, cycles_elapsed);";
+  // STP_TIMING requires min, max, avg (and thus count and sum), but not variance.
+  s.op->newline() << "if (likely (stat)) _stp_stat_add(stat, cycles_elapsed, 1, 1, 1, 1, 0);";
   s.op->newline() << "#endif";
 
   if (overload_processing && !s.runtime_usermode_p())

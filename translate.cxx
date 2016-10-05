@@ -742,6 +742,17 @@ struct mapvar
     return result;
   }
 
+  string stat_op_parms() const
+  {
+    string result = "";
+    result += (sd.stat_ops & (STAT_OP_COUNT|STAT_OP_AVG|STAT_OP_VARIANCE)) ? "1, " : "0, ";
+    result += (sd.stat_ops & (STAT_OP_SUM|STAT_OP_AVG|STAT_OP_VARIANCE)) ? "1, " : "0, ";
+    result += (sd.stat_ops & STAT_OP_MIN) ? "1, " : "0, ";
+    result += (sd.stat_ops & STAT_OP_MAX) ? "1, " : "0, ";
+    result += (sd.stat_ops & STAT_OP_VARIANCE) ? "1" : "0";
+    return result;
+  }
+
   string calculate_aggregate() const
   {
     if (!is_parallel())
@@ -793,7 +804,7 @@ struct mapvar
 
     // impedance matching: empty strings -> NULL
     if (type() == pe_stats)
-      res += (call_prefix("add", indices) + ", " + val.value() + ")");
+      res += (call_prefix("add", indices) + ", " + val.value() + ", " + stat_op_parms() + ")");
     else
       throw SEMANTIC_ERROR(_("adding a value of an unsupported map type"));
 
@@ -2128,7 +2139,8 @@ c_unparser::emit_module_refresh ()
       o->newline(1) << "? ((int32_t)cycles_atend - (int32_t)cycles_atstart)";
       o->newline() << ": (~(int32_t)0) - (int32_t)cycles_atstart + (int32_t)cycles_atend + 1;";
       o->indent(-1);
-      o->newline() << "_stp_stat_add(g_refresh_timing, cycles_elapsed);";
+      // STP_TIMING requires min, max, avg (and thus count and sum), but not variance.
+      o->newline() << "_stp_stat_add(g_refresh_timing, cycles_elapsed, 1, 1, 1, 1, 0);";
       o->newline(-1) << "}";
       o->newline() << "#endif";
     }
@@ -3390,10 +3402,20 @@ c_unparser_assignment::c_assignop(tmpvar & res,
     }
   else if (op == "<<<")
     {
+      int stat_op_count = lval.sdecl().stat_ops & (STAT_OP_COUNT|STAT_OP_AVG|STAT_OP_VARIANCE);
+      int stat_op_sum = lval.sdecl().stat_ops & (STAT_OP_SUM|STAT_OP_AVG|STAT_OP_VARIANCE);
+      int stat_op_min = lval.sdecl().stat_ops & STAT_OP_MIN;
+      int stat_op_max = lval.sdecl().stat_ops & STAT_OP_MAX;
+      int stat_op_variance = lval.sdecl().stat_ops & STAT_OP_VARIANCE;
+
       assert(lval.type() == pe_stats);
       assert(rval.type() == pe_long);
       assert(res.type() == pe_long);
-      o->newline() << "_stp_stat_add (" << lval << ", " << rval << ");";
+
+      o->newline() << "_stp_stat_add (" << lval << ", " << rval << ", " <<
+                      stat_op_count << ", " <<  stat_op_sum << ", " <<
+                      stat_op_min << ", " << stat_op_max << ", " <<
+                      stat_op_variance << ");";
       res = rval;
     }
   else if (res.type() == pe_long)

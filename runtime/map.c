@@ -436,7 +436,7 @@ static int _new_map_set_str (MAP map, char *dst, char *val, int add)
 	return 0;
 }
 
-static int _new_map_set_stat (MAP map, struct stat_data *sd, int64_t val, int add)
+static int _new_map_set_stat (MAP map, struct stat_data *sd, int64_t val, int add, int s1, int s2, int s3, int s4, int s5)
 {
 	if (!add) {
 		Hist st = &map->hist;
@@ -449,7 +449,7 @@ static int _new_map_set_stat (MAP map, struct stat_data *sd, int64_t val, int ad
 	}
 	(&map->hist)->bit_shift = map->bit_shift;
 	(&map->hist)->stat_ops = map->stat_ops;
-	__stp_stat_add (&map->hist, sd, val);
+	__stp_stat_add (&map->hist, sd, val, s1, s2, s3, s4, s5);
 	return 0;
 }
 
