@@ -28,13 +28,16 @@ if HAVE_PYTHON2_PROBES
          --verbose)
 endif
 if HAVE_PYTHON3_PROBES
-# FIXME: Shared library module doesn't build with python3 yet.
-#	(cd $(srcdir); $(PYTHON3) setup.py build \
-#         --build-base $(shell readlink -f $(builddir))/py3build \
-#         --verbose)
+	(cd $(srcdir); $(PYTHON3) setup.py build \
+         --build-base $(shell readlink -f $(builddir))/py3build \
+         --verbose)
 endif
 
 
+# Note that the we're rebuilding here, then installing. This is
+# necessary since only the build command has the '--build-base'
+# directory option and we need to keep separate build directories for
+# python 2 and 3.
 install-exec-local:
 if HAVE_PYTHON2_PROBES
 	(cd $(srcdir); $(PYTHON) setup.py build \
@@ -45,7 +48,12 @@ if HAVE_PYTHON2_PROBES
          --verbose)
 endif
 if HAVE_PYTHON3_PROBES
-# FIXME: Shared library module doesn't build with python3 yet.
+	(cd $(srcdir); $(PYTHON) setup.py build \
+         --build-base $(shell readlink -f $(builddir))/py3build \
+	 install --prefix $(DESTDIR)$(prefix) \
+	 --single-version-externally-managed \
+	 --record $(shell readlink -f $(builddir))/py3build/install_files.txt \
+         --verbose)
 endif
 
 clean-local:

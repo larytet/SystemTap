@@ -606,11 +606,14 @@ uninstall-am: uninstall-pkglibexecpythonDATA \
 @HAVE_PYTHON2_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	(cd $(srcdir); $(PYTHON) setup.py build \
 @HAVE_PYTHON2_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@         --build-base $(shell readlink -f $(builddir))/py2build \
 @HAVE_PYTHON2_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@         --verbose)
-# FIXME: Shared library module doesn't build with python3 yet.
-#	(cd $(srcdir); $(PYTHON3) setup.py build \
-#         --build-base $(shell readlink -f $(builddir))/py3build \
-#         --verbose)
+@HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	(cd $(srcdir); $(PYTHON3) setup.py build \
+@HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@         --build-base $(shell readlink -f $(builddir))/py3build \
+@HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@         --verbose)
 
+# Note that the we're rebuilding here, then installing. This is
+# necessary since only the build command has the '--build-base'
+# directory option and we need to keep separate build directories for
+# python 2 and 3.
 @HAVE_PYTHON_PROBES_TRUE@install-exec-local:
 @HAVE_PYTHON2_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	(cd $(srcdir); $(PYTHON) setup.py build \
 @HAVE_PYTHON2_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@         --build-base $(shell readlink -f $(builddir))/py2build \
@@ -618,7 +621,12 @@ uninstall-am: uninstall-pkglibexecpythonDATA \
 @HAVE_PYTHON2_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	 --single-version-externally-managed \
 @HAVE_PYTHON2_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	 --record $(shell readlink -f $(builddir))/py2build/install_files.txt \
 @HAVE_PYTHON2_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@         --verbose)
-# FIXME: Shared library module doesn't build with python3 yet.
+@HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	(cd $(srcdir); $(PYTHON) setup.py build \
+@HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@         --build-base $(shell readlink -f $(builddir))/py3build \
+@HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	 install --prefix $(DESTDIR)$(prefix) \
+@HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	 --single-version-externally-managed \
+@HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	 --record $(shell readlink -f $(builddir))/py3build/install_files.txt \
+@HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@         --verbose)
 
 @HAVE_PYTHON_PROBES_TRUE@clean-local:
 @HAVE_PYTHON_PROBES_TRUE@	rm -rf py2build py3build
