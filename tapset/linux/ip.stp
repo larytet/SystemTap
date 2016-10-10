@@ -132,12 +132,13 @@ function __get_skb_iphdr:long(skb:long)
 %{ /* pure */
 	struct sk_buff *skb;
 	skb = (struct sk_buff *)(long)STAP_ARG_skb;
-	/* as done by skb_network_header() */
-	#ifdef NET_SKBUFF_DATA_USES_OFFSET
-		STAP_RETVALUE = (long)(kread(&(skb->head)) + kread(&(skb->network_header)));
-	#else
-		STAP_RETVALUE = (long)kread(&(skb->network_header));
-	#endif
+
+	/* We used to have our own version of skb_network_header()
+	 * here, but it has changed too much over time to keep up with
+	 * it. So, instead we'll make sure the entire skb is safe to
+	 * read, then call the real skb_network_header(). */
+	kderef_buffer(NULL, skb, sizeof(struct sk_buff));
+	STAP_RETVALUE = (long)skb_network_header(skb);
 	CATCH_DEREF_FAULT();
 %}
 %)

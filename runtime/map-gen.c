@@ -48,8 +48,8 @@
 #define VALN s
 #define VALSTOR char value[MAP_STRING_LENGTH]
 #define MAP_GET_VAL(node) ((node)->value)
-#define MAP_SET_VAL(map,node,val,add) _new_map_set_str(map,MAP_GET_VAL(node),val,add)
-#define MAP_COPY_VAL(map,node,val,add) MAP_SET_VAL(map,node,val,add)
+#define MAP_SET_VAL(map,node,val,add,s1,s2,s3,s4,s5) _new_map_set_str(map,MAP_GET_VAL(node),val,add)
+#define MAP_COPY_VAL(map,node,val,add) MAP_SET_VAL(map,node,val,add,0,0,0,0,0)
 #define NULLRET ""
 #elif VALUE_TYPE == INT64
 #define VALTYPE int64_t
@@ -58,8 +58,8 @@
 #define VALN i
 #define VALSTOR int64_t value
 #define MAP_GET_VAL(node) ((node)->value)
-#define MAP_SET_VAL(map,node,val,add) _new_map_set_int64(map,&MAP_GET_VAL(node),val,add)
-#define MAP_COPY_VAL(map,node,val,add) MAP_SET_VAL(map,node,val,add)
+#define MAP_SET_VAL(map,node,val,add,s1,s2,s3,s4,s5) _new_map_set_int64(map,&MAP_GET_VAL(node),val,add)
+#define MAP_COPY_VAL(map,node,val,add) MAP_SET_VAL(map,node,val,add,0,0,0,0,0)
 #define NULLRET (int64_t)0
 #elif VALUE_TYPE == STAT
 #define VALTYPE stat_data*
@@ -68,7 +68,7 @@
 #define VALN x
 #define VALSTOR stat_data value
 #define MAP_GET_VAL(node) (&(node)->value)
-#define MAP_SET_VAL(map,node,val,add) _new_map_set_stat(map,MAP_GET_VAL(node),val,add)
+#define MAP_SET_VAL(map,node,val,add,s1,s2,s3,s4,s5) _new_map_set_stat(map,MAP_GET_VAL(node),val,add,s1,s2,s3,s4,s5)
 #define MAP_COPY_VAL(map,node,val,add) _new_map_copy_stat(map,MAP_GET_VAL(node),val,add)
 #define NULLRET (stat_data*)0
 #else
@@ -799,7 +799,7 @@ static MAP KEYSYM(_stp_map_new) (int first_arg, ...)
 
 #endif /* VALUE_TYPE */
 
-static int KEYSYM(__stp_map_set) (MAP map, ALLKEYSD(key), VSTYPE val, int add)
+static inline int KEYSYM(__stp_map_set) (MAP map, ALLKEYSD(key), VSTYPE val, int add, int s1, int s2, int s3, int s4, int s5)
 {
 	unsigned int hv;
 	struct mhlist_head *head;
@@ -817,7 +817,7 @@ static int KEYSYM(__stp_map_set) (MAP map, ALLKEYSD(key), VSTYPE val, int add)
 
 	mhlist_for_each_entry(n, e, head, node.hnode) {
 		if (KEY_EQ_P(n)) {
-			return MAP_SET_VAL(map, n, val, add);
+			return MAP_SET_VAL(map, n, val, add, s1, s2, s3, s4, s5);
 		}
 	}
 	/* key not found */
@@ -825,17 +825,17 @@ static int KEYSYM(__stp_map_set) (MAP map, ALLKEYSD(key), VSTYPE val, int add)
 	if (n == NULL)
 		return -1;
 	KEYCPY(n);
-	return MAP_SET_VAL(map, n, val, 0);
+	return MAP_SET_VAL(map, n, val, 0, s1, s2, s3, s4, s5);
 }
 
 static int KEYSYM(_stp_map_set) (MAP map, ALLKEYSD(key), VSTYPE val)
 {
-	return KEYSYM(__stp_map_set) (map, ALLKEYS(key), val, 0);
+	return KEYSYM(__stp_map_set) (map, ALLKEYS(key), val, 0, 1, 1, 1, 1, 1);
 }
 
 static int KEYSYM(_stp_map_add) (MAP map, ALLKEYSD(key), VSTYPE val)
 {
-	return KEYSYM(__stp_map_set) (map, ALLKEYS(key), val, 1);
+	return KEYSYM(__stp_map_set) (map, ALLKEYS(key), val, 1, 1, 1, 1, 1, 1);
 }
 
 

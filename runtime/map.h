@@ -179,7 +179,7 @@ static void _stp_pmap_del(PMAP pmap);
 static MAP _stp_pmap_agg (PMAP pmap, map_update_fn update, map_cmp_fn cmp);
 static struct map_node *_stp_new_agg(MAP agg, struct mhlist_head *ahead,
 				     struct map_node *ptr, map_update_fn update);
-static int _new_map_set_stat (MAP map, struct stat_data *dst, int64_t val, int add);
+static int _new_map_set_stat (MAP map, struct stat_data *dst, int64_t val, int add, int s1, int s2, int s3, int s4, int s5);
 static int _new_map_copy_stat (MAP map, struct stat_data *dst, struct stat_data *src, int add);
 static void _stp_map_sort (MAP map, int keynum, int dir, map_get_key_fn get_key);
 static void _stp_map_sortn(MAP map, int n, int keynum, int dir, map_get_key_fn get_key);

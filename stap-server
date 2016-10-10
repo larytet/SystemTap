@@ -503,7 +503,7 @@ prepare_stat_dir () {
 prepare_certs () {
     if [ "$USER" != "`id -un`" ]; then
         if ! runuser -s /bin/bash - $USER -c 'test -f $HOME/.systemtap/ssl/server/stap.cert'; then
-            runuser -s /bin/bash - $USER -c %{_libexecdir}/systemtap/stap-gen-cert >/dev/null
+            runuser -s /bin/bash - $USER -c ${PKGLIBEXECDIR}stap-gen-cert >/dev/null
         fi
     else
         if ! test -f $HOME/.systemtap/ssl/server/stap.cert; then

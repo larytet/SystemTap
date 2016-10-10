@@ -16,6 +16,7 @@ use File::Find;
 use File::Path;
 use Text::Wrap;
 use HTML::Entities;
+use DBI;
 
 my $inputdir;
 if ($#ARGV >= 0) {
@@ -40,6 +41,15 @@ if ($#ARGV >= 1) {
 }
 $outputdir = abs_path($outputdir);
 
+our $driver   = "SQLite";
+our $database = "metadatabase.db";
+our $dsn = "DBI:$driver:dbname=$database";
+our $dbh = DBI->connect($dsn, "", "", { RaiseError => 1 })
+                        or die $DBI::errstr;
+
+my $sqlcmd = $dbh->prepare('DELETE FROM meta');
+$sqlcmd->execute();
+
 my %scripts = ();
 print "Parsing .meta files in $inputdir...\n";
 find(\&parse_meta_files, $inputdir);
@@ -47,6 +57,8 @@ find(\&parse_meta_files, $inputdir);
 my $meta;
 my $keyword;
 my %keywords;
+
+$dbh->disconnect();
 
 # Adds a formatted meta entry to a given file handle as text.
 sub add_meta_txt(*;$) {
@@ -255,6 +267,8 @@ sub parse_meta_files {
     my $file = $_;
     my $filename = $File::Find::name;
 
+    my $sqlcmd = $dbh->prepare('INSERT INTO meta (title, name, keywords, description, path) VALUES (?,?,?,?,?)');
+
     if (-f $file && $file =~ /\.meta$/) {
 	open FILE, $file or die "couldn't open '$file': $!\n";
 
@@ -287,6 +301,9 @@ sub parse_meta_files {
 	# The subdir without the inputdir prefix, nor any slashes.
 	my $subdir = substr $File::Find::dir, (length $inputdir);
 	$subdir =~ s/^\///;
+
+        $sqlcmd->execute($title,$name,$keywords,$description,$subdir);
+
 	if ($subdir ne "") {
 	    $name = "$subdir/$name";
 	}

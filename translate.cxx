@@ -46,7 +46,8 @@ extern "C" {
 // vmlinux for 2.6.31.4-83.fc12.x86_64).
 // A larger value was recently found in a libxul.so build.
 // ... and yet again in libxul.so, PR15162
-#define MAX_UNWIND_TABLE_SIZE (16 * 1024 * 1024)
+// ... and yet again w.r.t. oracle db in private communication, 25289196
+#define MAX_UNWIND_TABLE_SIZE (32 * 1024 * 1024)
 
 #define STAP_T_01 _("\"Array overflow, check ")
 #define STAP_T_02 _("\"MAXNESTING exceeded\";")
@@ -741,6 +742,17 @@ struct mapvar
     return result;
   }
 
+  string stat_op_parms() const
+  {
+    string result = "";
+    result += (sd.stat_ops & (STAT_OP_COUNT|STAT_OP_AVG|STAT_OP_VARIANCE)) ? "1, " : "0, ";
+    result += (sd.stat_ops & (STAT_OP_SUM|STAT_OP_AVG|STAT_OP_VARIANCE)) ? "1, " : "0, ";
+    result += (sd.stat_ops & STAT_OP_MIN) ? "1, " : "0, ";
+    result += (sd.stat_ops & STAT_OP_MAX) ? "1, " : "0, ";
+    result += (sd.stat_ops & STAT_OP_VARIANCE) ? "1" : "0";
+    return result;
+  }
+
   string calculate_aggregate() const
   {
     if (!is_parallel())
@@ -792,7 +804,7 @@ struct mapvar
 
     // impedance matching: empty strings -> NULL
     if (type() == pe_stats)
-      res += (call_prefix("add", indices) + ", " + val.value() + ")");
+      res += (call_prefix("add", indices) + ", " + val.value() + ", " + stat_op_parms() + ")");
     else
       throw SEMANTIC_ERROR(_("adding a value of an unsupported map type"));
 
@@ -2127,7 +2139,8 @@ c_unparser::emit_module_refresh ()
       o->newline(1) << "? ((int32_t)cycles_atend - (int32_t)cycles_atstart)";
       o->newline() << ": (~(int32_t)0) - (int32_t)cycles_atstart + (int32_t)cycles_atend + 1;";
       o->indent(-1);
-      o->newline() << "_stp_stat_add(g_refresh_timing, cycles_elapsed);";
+      // STP_TIMING requires min, max, avg (and thus count and sum), but not variance.
+      o->newline() << "_stp_stat_add(g_refresh_timing, cycles_elapsed, 1, 1, 1, 1, 0);";
       o->newline(-1) << "}";
       o->newline() << "#endif";
     }
@@ -2260,13 +2273,14 @@ c_unparser::emit_module_exit ()
   o->newline() << "if (likely (probe_timing(i))) {"; // NB: check for null stat object
   o->newline(1) << "struct stat_data *stats = _stp_stat_get (probe_timing(i), 0);";
   o->newline() << "if (stats->count) {";
+  o->newline(1) << "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);";
   o->newline() << "_stp_printf (\"%s, (%s), hits: %lld, "
 	       << (!session->runtime_usermode_p() ? "cycles" : "nsecs")
 	       << ": %lldmin/%lldavg/%lldmax,%s, index: %d\\n\",";
   o->newline(2) << "p->pp, p->location, (long long) stats->count,";
-  o->newline() << "(long long) stats->min, (long long) stats->avg, (long long) stats->max,";
+  o->newline() << "(long long) stats->min, (long long) avg, (long long) stats->max,";
   o->newline() << "p->derivation, i);";
-  o->newline(-2) << "}";
+  o->newline(-3) << "}";
   o->newline() << "_stp_stat_del (probe_timing(i));";
   o->newline(-1) << "}";
   o->newline() << "#endif"; // STP_TIMING
@@ -2279,10 +2293,11 @@ c_unparser::emit_module_exit ()
       o->newline() << "if (likely (g_refresh_timing)) {";
       o->newline(1) << "struct stat_data *stats = _stp_stat_get (g_refresh_timing, 0);";
       o->newline() << "if (stats->count) {";
+      o->newline(1) << "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);";
       o->newline() << "_stp_printf (\"hits: %lld, cycles: %lldmin/%lldavg/%lldmax\\n\",";
       o->newline(2) << "(long long) stats->count, (long long) stats->min, ";
-      o->newline() <<  "(long long) stats->avg, (long long) stats->max);";
-      o->newline(-2) << "}";
+      o->newline() <<  "(long long) avg, (long long) stats->max);";
+      o->newline(-3) << "}";
       o->newline() << "_stp_stat_del (g_refresh_timing);";
       o->newline(-1) << "}";
       o->newline() << "#endif"; // STP_TIMING
@@ -3387,10 +3402,20 @@ c_unparser_assignment::c_assignop(tmpvar & res,
     }
   else if (op == "<<<")
     {
+      int stat_op_count = lval.sdecl().stat_ops & (STAT_OP_COUNT|STAT_OP_AVG|STAT_OP_VARIANCE);
+      int stat_op_sum = lval.sdecl().stat_ops & (STAT_OP_SUM|STAT_OP_AVG|STAT_OP_VARIANCE);
+      int stat_op_min = lval.sdecl().stat_ops & STAT_OP_MIN;
+      int stat_op_max = lval.sdecl().stat_ops & STAT_OP_MAX;
+      int stat_op_variance = lval.sdecl().stat_ops & STAT_OP_VARIANCE;
+
       assert(lval.type() == pe_stats);
       assert(rval.type() == pe_long);
       assert(res.type() == pe_long);
-      o->newline() << "_stp_stat_add (" << lval << ", " << rval << ");";
+
+      o->newline() << "_stp_stat_add (" << lval << ", " << rval << ", " <<
+                      stat_op_count << ", " <<  stat_op_sum << ", " <<
+                      stat_op_min << ", " << stat_op_max << ", " <<
+                      stat_op_variance << ");";
       res = rval;
     }
   else if (res.type() == pe_long)
@@ -5950,7 +5975,9 @@ c_unparser::visit_stat_op (stat_op* e)
       switch (e->ctype)
         {
         case sc_average:
-          c_assign(res, agg.value() + "->avg", e->tok);
+          c_assign(res, ("_stp_div64(NULL, " + agg.value() + "->sum, "
+                         + agg.value() + "->count)"),
+                   e->tok);
           break;
         case sc_count:
           c_assign(res, agg.value() + "->count", e->tok);

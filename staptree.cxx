@@ -1109,6 +1109,10 @@ void stat_op::print (ostream& o) const
       break;
     }
   stat->print(o);
+
+  if (ctype == sc_variance && params.size() == 1)
+    o << ", " << params[0];
+
   o << ")";
 }
 

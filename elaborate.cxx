@@ -1292,6 +1292,11 @@ struct stat_decl_collector
     int bit_shift = (e->params.size() == 0) ? 0 : e->params[0];
     int stat_op = STAT_OP_NONE;
 
+    if ((bit_shift < 0) || (bit_shift > 62))
+      throw SEMANTIC_ERROR (_F("bit shift (%d) out of range <0..62>",
+                               bit_shift),
+			    e->tok);
+
     // The following helps to track which statistical operators are being
     // used with given global/local variable.  This information later helps
     // to optimize the runtime behaviour.
@@ -1382,7 +1387,12 @@ struct stat_decl_collector
 	if (!(old_stat == new_stat))
 	  {
 	    if (old_stat.type == statistic_decl::none)
-	      i->second = new_stat;
+	      {
+	        i->second.type = new_stat.type;
+		i->second.linear_low = new_stat.linear_low;
+		i->second.linear_high = new_stat.linear_high;
+		i->second.linear_step = new_stat.linear_step;
+	      }
 	    else
 	      {
 		// FIXME: Support multiple co-declared histogram types
@@ -2131,11 +2141,12 @@ static void gen_monitor_data(systemtap_session& s)
          "if (likely (probe_timing(STAP_ARG_index))) {\n"
          "struct stat_data *stats = _stp_stat_get (probe_timing(STAP_ARG_index), 0);\n"
          "if (stats->count) {\n"
+         "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);\n"
          "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
          "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %lld, "
          "\\\"min\\\": %lld, \\\"avg\\\": %lld, \\\"max\\\": %lld, \",\n"
          "p->index, p->cond_enabled ? \"on\" : \"off\", (long long) stats->count,\n"
-         "(long long) stats->min, (long long) stats->avg, (long long) stats->max);\n"
+         "(long long) stats->min, (long long) avg, (long long) stats->max);\n"
          "} else {\n"
          "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
          "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %d, "

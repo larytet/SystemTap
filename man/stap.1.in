@@ -1,4 +1,4 @@
-.\" t       -*- nroff -*-
+.\" te       -*- nroff -*-
 .TH STAP 1 
 .SH NAME
 stap \- systemtap script translator/driver
@@ -448,7 +448,8 @@ read from or written to the cache.
 This option treats files in the cache directory as invalid.  No files will be
 read from the cache, but resulting files from this run will still be written to
 the cache.  This is meant as a troubleshooting aid when stap's cached behavior
-seems to be misbehaving.
+seems to be misbehaving.  If it helped, there is a probably a bug in systemtap
+that the developers would like you to report.
 
 .TP
 \fB\-\-privilege\fR[=\fIstapusr\fR | =\fIstapsys\fR | =\fIstapdev\fR]
@@ -1620,7 +1621,7 @@ Here is the set of extractor functions.  The first argument of each is
 the same style of lvalue used on the left hand side of the accumulate
 operation.  The
 .IR @count(v) ", " @sum(v) ", " @min(v) ", " @max(v) ", " @avg(v) ", "
-@variance(v) extractor functions compute the
+@variance(v[, b]) extractor functions compute the
 number/total/minimum/maximum/average/variance
 of all accumulated values.  The resulting values are all simple
 integers.  Arrays containing aggregates may be sorted and iterated.
@@ -1628,6 +1629,52 @@ See the
 .BR foreach
 construct above.
 .PP
+
+Variance uses Welford's online algorithm.  The calculations are based
+on integer arithmetic, and so may suffer from low precision and overflow.
+To improve this, @variance(v[, b]) accepts an optional parameter b, the
+bit-shift, ranging from 0 (default) to 62, for internal scaling.  Only one
+value of bit-shift may be used with given global variable.  A larger bitshift
+value increases precision, but increases the likelihood of overflow.
+
+.SAMPLE
+$ stap -e \\
+> 'global x probe oneshot { for(i=1;i<=5;i++) x<<<i println(@variance(x)) }'
+12
+$ stap -e \\
+> 'global x probe oneshot { for(i=1;i<=5;i++) x<<<i println(@variance(x,1)) }'
+2
+$ python3 -c 'import statistics; print(statistics.variance([1, 2, 3, 4, 5]))'
+2.5
+$
+.ESAMPLE
+
+Overflow (from internal multiplication of large numbers) may occur and
+may cause a negative variance result.  Consider normalizing your input
+data.  Adding or subtracting a fixed value from all variance inputs
+preserves the original variance.  Dividing the variance inputs by a fixed
+value shrinks the original variance by that value squared. 
+
+\" the following is a more mathy rendering, but gnu nroff can't show them properly :-(
+.ig
+
+If 
+.EQ
+variance( v sub 1 , v sub 2 , ... , v sub N ) = V
+.EN
+
+Then
+.EQ
+variance ( {v sub 1} over X , {v sub 2} over X, ... , {v sub N} over X ) = V over {X sup 2}
+.EN
+
+and
+.EQ
+variance ( v sub 1 - Y, v sub 2 - Y, ... , v sub N - Y ) = V
+.EN
+
+..
+
 Histograms are also available, but are more complicated because they
 have a vector rather than scalar value.
 .I @hist_linear(v,start,stop,interval)

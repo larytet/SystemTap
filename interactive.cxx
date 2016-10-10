@@ -32,6 +32,10 @@ extern "C" {
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <ctype.h>
+
+#if HAVE_LIBSQLITE3
+  #include <sqlite3.h>
+#endif
 }
 
 // FIXME: these declarations don't really belong here.
@@ -51,6 +55,14 @@ forked_semantic_pass (systemtap_session &s, vector<string> &script);
 // Ask user a y-or-n question and return 1 iff answer is yes.  The
 // prompt argument should end in "? ". Note that this is a simplified
 // version of gdb's defaulted_query() function.
+#if HAVE_LIBSQLITE3
+struct metafile {
+  string name;
+  string title;
+  string description;
+  string path;
+};
+#endif
 
 enum query_default { no_default,	// There isn't a default.
 		     default_yes,	// The default is "yes".
@@ -898,6 +910,135 @@ public:
   }
 };
 
+#if HAVE_LIBSQLITE3
+class sample_cmd: public cmdopt
+{
+public:
+  sample_cmd()
+  {
+    name = "sample";
+    usage = "sample KEYWORD";
+    _help_text = "Search and load an example script related to KEYWORD.";
+  }
+  bool handler (systemtap_session &s __attribute ((unused)),
+                vector<string> &tokens __attribute ((unused)),
+                string &input __attribute ((unused)))
+  {
+    tokens.erase(tokens.begin());
+    if (tokens.size() != 1)
+      {
+        cout << usage << ": " << _help_text << endl;
+        return false;
+      }
+
+    sqlite3* db;
+    int rc;
+    vector <metafile>  metalist;
+
+    string dirstr = DOCDIR;
+    dirstr.append("/examples/");
+
+    rc = sqlite3_open((dirstr + "metadatabase.db").c_str(), &db);
+    if (rc)
+      {
+	cout << "Error connecting to meta database. RC: " << rc << endl;
+	return false;
+      }
+
+    string sqlstr = "SELECT name, title, description, path FROM meta WHERE (title" \
+    " || name || description || keywords || path) LIKE '%'||?||'%';";
+    sqlite3_stmt* sqlstmt;
+
+    rc = sqlite3_prepare_v2(db, sqlstr.c_str(), sqlstr.size() + tokens[0].size(), &sqlstmt, NULL);
+    if (rc)
+      {
+	cout << "Error preparing SQL statement. RC: " << rc << endl;
+	return false;
+      }
+
+    rc = sqlite3_bind_text(sqlstmt, 1, tokens[0].c_str(), tokens[0].size(), 0);
+    if (rc)
+      {
+	cout << "Error binding SQL statement. RC: " << rc << endl;
+	return false;
+      }
+
+    metafile file;
+    while (1)
+      {
+	rc = sqlite3_step(sqlstmt);
+	if (rc == SQLITE_ROW)
+	  {
+	    file.name = (char*)sqlite3_column_text(sqlstmt,0);
+            file.title = (char*)sqlite3_column_text(sqlstmt,1);
+            file.description = (char*)sqlite3_column_text(sqlstmt,2);
+            file.path = (char*)sqlite3_column_text(sqlstmt,3);
+            metalist.push_back(file);
+	  }
+	else if (rc == SQLITE_DONE)
+	  break;
+	else
+	  {
+            cout << "Error executing statement. RC: " << rc << endl;
+	    return false;
+	  }
+      }
+    sqlite3_finalize(sqlstmt);
+
+    if (metalist.size() == 0)
+      {
+        cout << "No sample scripts related to \"" << tokens[0] << "\"." << endl;
+        return false;
+      }
+
+    cout << "Enter a script name for a description or use q to quit:" << endl;
+    for (unsigned it=0; it < metalist.size();it++)
+      cout << "  " << metalist[it].name << endl;
+
+    char* response;
+    metafile selection;
+    while (selection.name == "")
+      {
+	response = readline(_F("%s","stap>> ").c_str());
+
+	if (*response == '\0')
+	   continue;
+
+        if (*response == 'q')
+           return false;
+
+       for (unsigned i=0; i < metalist.size();i++)
+	 {
+	   if (metalist[i].name.find(response) != string::npos)
+	     selection = metalist[i];
+         }
+         if (selection.name == "")
+	   {
+            cout << "Unknown selection." << endl;
+	    continue;
+           }
+	 cout << endl << "Title: " << selection.title << endl << "Name: " << selection.name << endl;
+	 cout << "Description: " << selection.description << endl;
+         if (!query("Would you like to open this script for editing and running? ", no_default))
+	   {
+	     selection.name = "";
+	    if (!query("Would you like to select another related script? ",no_default))
+	      return false;
+	    else
+	      cout << "Enter a script name for a description or use q to quit:" << endl;
+           }
+      }
+
+    auto load = new load_cmd;
+    tokens.push_back(dirstr + selection.path + "/" + selection.name);
+    load -> handler(s, tokens, input);
+
+    sqlite3_close(db);
+    return false;
+  }
+};
+#endif
+
 //
 // Supported options for the "set" and "show" commands.
 // 
@@ -1673,6 +1814,9 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   command_vec.push_back(new load_cmd);
   command_vec.push_back(new save_cmd);
   command_vec.push_back(new run_cmd);
+  #if HAVE_LIBSQLITE3
+    command_vec.push_back(new sample_cmd);
+  #endif
   command_vec.push_back(new set_cmd);
   option_command_vec.push_back(command_vec.back());
   command_vec.push_back(new show_cmd);
@@ -1815,10 +1959,11 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
 	}
       else if (*line_tmp)
 	add_history(line_tmp);
-      else {
-	cout << "Example commands: 'sample', 'add', 'run', 'help'" << endl;
-        continue;
-      }
+      else
+	{
+	  cout << "Example commands: 'sample', 'add', 'run', 'help'" << endl;
+          continue;
+        }
 
       string line = string(line_tmp);
       free(line_tmp);

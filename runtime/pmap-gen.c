@@ -234,18 +234,18 @@ static int KEYSYM(_stp_pmap_set) (PMAP pmap, ALLKEYSD(key), VSTYPE val)
 {
 	int res;
 	MAP m = _stp_pmap_get_map (pmap, MAP_GET_CPU());
-	res = KEYSYM(__stp_map_set) (m, ALLKEYS(key), val, 0);
+	res = KEYSYM(__stp_map_set) (m, ALLKEYS(key), val, 0, 1, 1, 1, 1, 1);
         MAP_PUT_CPU();
 	return res;
 }
 
-static int KEYSYM(_stp_pmap_add) (PMAP pmap, ALLKEYSD(key), VSTYPE val)
+static inline int KEYSYM(_stp_pmap_add) (PMAP pmap, ALLKEYSD(key), VSTYPE val, int s1, int s2, int s3, int s4, int s5)
 {
 	int res;
 	MAP m = _stp_pmap_get_map (pmap, MAP_GET_CPU());
 	m->bit_shift = pmap->bit_shift;
 	m->stat_ops = pmap->stat_ops;
-	res = KEYSYM(__stp_map_set) (m, ALLKEYS(key), val, 1);
+	res = KEYSYM(__stp_map_set) (m, ALLKEYS(key), val, 1, s1, s2, s3, s4, s5);
         MAP_PUT_CPU();
 	return res;
 }

@@ -208,8 +208,16 @@ missing_rpm_list_print (systemtap_session &sess, const char* rpm_type)
   if (sess.rpms_to_install.size() > 0 && ! sess.suppress_warnings) {
 
     if(strcmp(rpm_type,"-devel")==0)
-	cerr << _("Incorrect version or missing kernel-devel package, use: yum install ");
+    {
+	// We default to using 'yum' as the package manager, unless we
+	// can find 'dnf'.
+	string pkg_mgr = "yum";
+	string dnf_path = find_executable("dnf");
 
+	if (is_fully_resolved(dnf_path, "", sess.sysenv))
+	    pkg_mgr = "dnf";
+	cerr << _F("Incorrect version or missing kernel-devel package, use: %s install ", pkg_mgr.c_str());
+    }
     else if(strcmp(rpm_type,"-debuginfo")==0)
 	cerr << _("Missing separate debuginfos, use: debuginfo-install ");
 

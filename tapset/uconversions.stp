@@ -1047,10 +1047,13 @@ function user_uint64:long (addr:long) {
  */
 function user_buffer_quoted:string (addr:long, inlen:long, outlen:long)
 %{
-  if ( _stp_text_str(STAP_RETVALUE,
-                       (char *)(uintptr_t)STAP_ARG_addr,
-	                STAP_ARG_inlen, STAP_ARG_outlen, 1, 1, 1) < 0)
-			snprintf(STAP_RETVALUE, STAP_ARG_outlen, "0x%x",(unsigned int) STAP_ARG_addr);
+  size_t outlen = (size_t)clamp_t(int, STAP_ARG_outlen, 0, MAXSTRINGLEN);
+  if (outlen == 0)
+    return;
+  if ( _stp_text_str(STAP_RETVALUE, (char *)(uintptr_t)STAP_ARG_addr,
+	             STAP_ARG_inlen, outlen, 1, 1, 1) < 0)
+    snprintf(STAP_RETVALUE, outlen, "0x%lx",
+	     (unsigned long)(void *)(uintptr_t)STAP_ARG_addr);
 %}
 
 /**
@@ -1069,8 +1072,11 @@ function user_buffer_quoted:string (addr:long, inlen:long, outlen:long)
  */
 function user_buffer_quoted_error:string (addr:long, inlen:long, outlen:long)
 %{
-  if (_stp_text_str(STAP_RETVALUE,
-                        (char *) (uintptr_t) STAP_ARG_addr,
-			 STAP_ARG_inlen, STAP_ARG_outlen, 1, 1, 1) < 0)
-			 STAP_ERROR("Unable to access user space data");
+  size_t outlen = (size_t)clamp_t(int, STAP_ARG_outlen, 0, MAXSTRINGLEN);
+  if (outlen == 0
+      || _stp_text_str(STAP_RETVALUE,
+		       (char *) (uintptr_t) STAP_ARG_addr,
+		       STAP_ARG_inlen, outlen, 1, 1, 1) < 0)
+    STAP_ERROR("Unable to access user space data at 0x%lx",
+	       (unsigned long)(void *)(uintptr_t)STAP_ARG_addr);
 %}
