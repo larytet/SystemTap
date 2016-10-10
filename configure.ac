@@ -44,6 +44,10 @@ fi
 # We want the 'PYTHON' varible to be python version 2. We also want
 # our custom 'PYTHON3' varible to be python version 3.
 #
+# Note that the python2/python3 code was inspired by code in the
+# 'abrt' configure:
+#   <https://github.com/abrt/abrt/blob/master/configure.ac>
+#
 # First, figure out what version of python is in the executable named
 # 'python'. On most systems that is python version 2, but on arch
 # linux that is python version 3.
