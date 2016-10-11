@@ -1953,7 +1953,11 @@ probe syscall.rt_sigreturn.return =
 	kernel.function("sys32_rt_sigreturn").return ?
 {
 	name = "rt_sigreturn"
+%( arch == "mips" %?
+	retstr = "void"
+%:
 	retstr = return_str(1, $return)
+%)
 }
 
 # rt_sigsuspend ______________________________________________
@@ -3965,7 +3969,11 @@ probe syscall.sigreturn.return = kernel.function("sys_sigreturn").return ?,
                                  kernel.function("sys32_sigreturn").return ?
 {
 	name = "sigreturn"
+%( arch == "mips" && CONFIG_TRAD_SIGNALS == "y" %?
+	retstr = "void"
+%:
 	retstr = return_str(1, $return)
+%)
 }
 
 # sigsuspend _________________________________________________
@@ -3983,7 +3991,11 @@ probe syscall.sigsuspend = kernel.function("sys_sigsuspend").call ?,
 	kernel.function("compat_sys_sigsuspend").call ?
 {
 	name = "sigsuspend"
+%( arch == "mips" && CONFIG_TRAD_SIGNALS == "y" %?
+	mask = __ulong($uset)
+%:
 	mask = __ulong($mask)
+%)
 	argstr = sprintf("%s", _stp_sigmask_str(mask))
 }
 probe syscall.sigsuspend.return = kernel.function("sys_sigsuspend").return ?,
