@@ -6275,6 +6275,77 @@ sdt_uprobe_var_expanding_visitor::build_dwarf_registers ()
     DRI ("x29", 29, DI); DRI ("w29", 29, SI);
     DRI ("x30", 30, DI); DRI ("w30", 30, SI);
     DRI ("sp", 31, DI);
+  } else if (elf_machine == EM_MIPS) {
+    Dwarf_Addr bias;
+    Elf* elf = (dwfl_module_getelf (dw.mod_info->mod, &bias));
+    enum regwidths mips_reg_width =
+        (gelf_getclass (elf) == ELFCLASS32) ? SI : DI;
+    DRI ("$zero", 0, mips_reg_width);
+    DRI ("$at", 1, mips_reg_width);
+    DRI ("$v0", 2, mips_reg_width);
+    DRI ("$v1", 3, mips_reg_width);
+    DRI ("$a0", 4, mips_reg_width);
+    DRI ("$a1", 5, mips_reg_width);
+    DRI ("$a2", 6, mips_reg_width);
+    DRI ("$a3", 7, mips_reg_width);
+    DRI ("$a4", 8, mips_reg_width);
+    DRI ("$a5", 9, mips_reg_width);
+    DRI ("$a6", 10, mips_reg_width);
+    DRI ("$a7", 11, mips_reg_width);
+    DRI ("$t0", 12, mips_reg_width);
+    DRI ("$t1", 13, mips_reg_width);
+    DRI ("$t2", 14, mips_reg_width);
+    DRI ("$t3", 15, mips_reg_width);
+    DRI ("$s0", 16, mips_reg_width);
+    DRI ("$s1", 17, mips_reg_width);
+    DRI ("$s2", 18, mips_reg_width);
+    DRI ("$s3", 19, mips_reg_width);
+    DRI ("$s4", 20, mips_reg_width);
+    DRI ("$s5", 21, mips_reg_width);
+    DRI ("$s6", 22, mips_reg_width);
+    DRI ("$s7", 23, mips_reg_width);
+    DRI ("$t8", 24, mips_reg_width);
+    DRI ("$t9", 25, mips_reg_width);
+    DRI ("$k0", 26, mips_reg_width);
+    DRI ("$k1", 27, mips_reg_width);
+    DRI ("$gp", 28, mips_reg_width);
+    DRI ("$sp", 29, mips_reg_width);
+    DRI ("$s8", 30, mips_reg_width);
+    DRI ("$fp", 30, mips_reg_width);
+    DRI ("$ra", 31, mips_reg_width);
+
+    DRI ("$0", 0, mips_reg_width);
+    DRI ("$1", 1, mips_reg_width);
+    DRI ("$2", 2, mips_reg_width);
+    DRI ("$3", 3, mips_reg_width);
+    DRI ("$4", 4, mips_reg_width);
+    DRI ("$5", 5, mips_reg_width);
+    DRI ("$6", 6, mips_reg_width);
+    DRI ("$7", 7, mips_reg_width);
+    DRI ("$8", 8, mips_reg_width);
+    DRI ("$9", 9, mips_reg_width);
+    DRI ("$10", 10, mips_reg_width);
+    DRI ("$11", 11, mips_reg_width);
+    DRI ("$12", 12, mips_reg_width);
+    DRI ("$13", 13, mips_reg_width);
+    DRI ("$14", 14, mips_reg_width);
+    DRI ("$15", 15, mips_reg_width);
+    DRI ("$16", 16, mips_reg_width);
+    DRI ("$17", 17, mips_reg_width);
+    DRI ("$18", 18, mips_reg_width);
+    DRI ("$19", 19, mips_reg_width);
+    DRI ("$20", 20, mips_reg_width);
+    DRI ("$21", 21, mips_reg_width);
+    DRI ("$22", 22, mips_reg_width);
+    DRI ("$23", 23, mips_reg_width);
+    DRI ("$24", 24, mips_reg_width);
+    DRI ("$25", 25, mips_reg_width);
+    DRI ("$26", 26, mips_reg_width);
+    DRI ("$27", 27, mips_reg_width);
+    DRI ("$28", 28, mips_reg_width);
+    DRI ("$29", 29, mips_reg_width);
+    DRI ("$30", 30, mips_reg_width);
+    DRI ("$31", 31, mips_reg_width);
   } else if (arg_count) {
     /* permit this case; just fall back to dwarf */
   }
@@ -6287,6 +6358,10 @@ sdt_uprobe_var_expanding_visitor::build_dwarf_registers ()
     {
       string regname = ri->first;
       assert (regname != "");
+      // for register names starting with '$' convert the dollar to a
+      // '\$' as otherwise the regexp tries to match end-of-line
+      if (regname[0]=='$')
+        regname = string("\\")+regname;
       regnames += string("|")+regname;
       if (regname[0]=='%')
         percent_regnames += string("|")+regname;
@@ -6428,7 +6503,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_literal (target_symbol *e,
   vector<string> matches;
   string regexp;
 
-  if (elf_machine == EM_AARCH64) {
+  if (elf_machine == EM_AARCH64 || elf_machine == EM_MIPS) {
     regexp = "^([-]?[0-9][0-9]*)$";
   } else {
     regexp = "^[i\\$#]([-]?[0-9][0-9]*)$";
@@ -6821,6 +6896,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
       // s390   N       %rR 0(rR)    N(r15)
       // arm    #N      rR  [rR]     [rR, #N]
       // arm64  N       rR  [rR]     [rR, N]
+      // mips   N       $r           N($r)
 
       expression* argexpr = 0; // filled in in case of successful parse
 
