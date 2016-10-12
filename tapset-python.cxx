@@ -51,32 +51,33 @@ struct python_derived_probe: public derived_probe
 			int python_version, interned_string module,
 			interned_string function, bool has_return);
   void join_group (systemtap_session& s);
+  unsigned int flags();
+  string break_definition();
 };
 
 
 struct python_derived_probe_group: public generic_dpg<python_derived_probe>
 {
 private:
-  vector<python_derived_probe* > probes;
+  vector<python_derived_probe* > python2_probes;
+  vector<python_derived_probe* > python3_probes;
 
 public:
   python_derived_probe_group () {}
 
   void enroll (python_derived_probe* probe);
-  void emit_kernel_module_init (systemtap_session& ) {
-    throw SEMANTIC_ERROR (_("python probe code generation isn't implemented yet"));
+  void emit_kernel_module_init (systemtap_session& s) {
+      s.op->newline() << "// XX KERNEL_MODULE_INIT: "
+		      << python2_probes.size() << python3_probes.size();
   }
-  void emit_kernel_module_exit (systemtap_session& ) {
-    throw SEMANTIC_ERROR (_("python probe code generation isn't implemented yet"));
+  void emit_kernel_module_exit (systemtap_session& s) {
+      s.op->newline() << "// XX KERNEL_MODULE_EXIT: " << probes.size();
   }
-  void emit_module_decls (systemtap_session& ) {
-    throw SEMANTIC_ERROR (_("python probe code generation isn't implemented yet"));
-  }
-  void emit_module_init (systemtap_session& ) {
-    throw SEMANTIC_ERROR (_("python probe code generation isn't implemented yet"));
-  }
-  void emit_module_exit (systemtap_session& ) {
-    throw SEMANTIC_ERROR (_("python probe code generation isn't implemented yet"));
+  void emit_module_decls (systemtap_session& s);
+  void emit_module_init (systemtap_session& s);
+  void emit_module_exit (systemtap_session& s) {
+      s.op->newline() << "// XX MODULE_EXIT: "
+		      << python2_probes.size() << python3_probes.size();
   }
 };
 
@@ -89,9 +90,12 @@ private:
 	      interned_string module,
 	      interned_string function,
 	      vector<python_probe_info *> &results);
+  bool python2_procfs_probe_derived_p;
+  bool python3_procfs_probe_derived_p;
 
 public:
-  python_builder() {}
+  python_builder() : python2_procfs_probe_derived_p(false),
+		     python3_procfs_probe_derived_p(false) {}
 
   void build(systemtap_session & sess, probe * base,
 	     probe_point * location,
@@ -128,12 +132,88 @@ python_derived_probe::join_group (systemtap_session &s)
 }
 
 
+unsigned int
+python_derived_probe::flags ()
+{
+    return this->has_return ? 1 : 0;
+}
+
+
+string
+python_derived_probe::break_definition ()
+{
+    stringstream outstr;
+    outstr << this->module << "|" << this->function << "|"
+	   << hex << this->flags() << dec;
+    return outstr.str();
+}
+
+
 void
 python_derived_probe_group::enroll (python_derived_probe* p)
 {
-  probes.push_back(p);
+  if (p->python_version == 2)
+    python2_probes.push_back(p);
+  else if (p->python_version == 3)
+    python3_probes.push_back(p);
+  else
+    throw SEMANTIC_ERROR(_F("Unknown python version: %d", p->python_version));
 }
 
+
+void
+python_derived_probe_group::emit_module_decls (systemtap_session& s)
+{
+  if (python2_probes.empty() && python3_probes.empty())
+    return;
+
+  s.op->newline();
+  s.op->newline() << "/* ---- python probes ---- */";
+  if (python2_probes.size())
+    {
+      s.op->newline() << "static const char python2_probe_info[] =";
+      s.op->indent(1);
+      for (auto iter = python2_probes.begin(); iter != python2_probes.end();
+	   iter++)
+        {
+	  s.op->newline() << "\"b " << (*iter)->break_definition() << "\\n\"";
+	}
+      s.op->line() << ";";
+      s.op->indent(-1);
+    }
+  else
+    {
+      s.op->newline() << "static const char python2_probe_info[] = \"\";";
+    }
+  if (python3_probes.size())
+    {
+      s.op->newline() << "static const char python3_probe_info[] =";
+      s.op->indent(1);
+      for (auto iter = python3_probes.begin(); iter != python3_probes.end();
+	   iter++)
+        {
+	  s.op->newline() << "\"b " << (*iter)->break_definition() << "\\n\"";
+	}
+      s.op->line() << ";";
+      s.op->indent(-1);
+    }
+  else
+    {
+      s.op->newline() << "static const char python3_probe_info[] = \"\";";
+    }
+  s.op->newline() << "#include \"python.c\"";
+}
+
+
+void
+python_derived_probe_group::emit_module_init (systemtap_session& s)
+{
+  if (python2_probes.empty() && python3_probes.empty())
+    return;
+
+  // FIXME: emit procfs stuff here
+  s.op->newline();
+}
 
 int
 python_builder::resolve(systemtap_session& s,
@@ -255,6 +335,35 @@ python_builder::build(systemtap_session & sess, probe * base,
       // Delete the item and go on to the next item in the vector.
       delete *iter;
       iter = results.erase(iter);
+    }
+
+  if (python_version == 2 && !python2_procfs_probe_derived_p)
+    {
+      python2_procfs_probe_derived_p = true;
+      stringstream code;
+      const token* tok = base->body->tok;
+      // FIXME: Yuck, we have to add the synthetic procfs probe before
+      // we know all the python probes, which means we don't really
+      // know the maxsize.
+      code << "probe procfs(\"python2_probes\").read.maxsize(2048) { while (1) { try { $value .= __stp_next_python2_probe_info() } catch { break } } }" << endl;
+      probe* new_procfs_probe = parse_synthetic_probe (sess, code, tok);
+      if (!new_procfs_probe)
+        throw SEMANTIC_ERROR (_("can't create python procfs probe"), tok);
+      derive_probes(sess, new_procfs_probe, finished_results);
+    }
+  if (python_version == 3 && !python3_procfs_probe_derived_p)
+    {
+      python3_procfs_probe_derived_p = true;
+      stringstream code;
+      const token* tok = base->body->tok;
+      // FIXME: Yuck, we have to add the synthetic procfs probe before
+      // we know all the python probes, which means we don't really
+      // know the maxsize.
+      code << "probe procfs(\"python3_probes\").read.maxsize(2048) { while (1) { try { $value .= __stp_next_python3_probe_info() } catch { break } } }" << endl;
+      probe* new_procfs_probe = parse_synthetic_probe (sess, code, tok);
+      if (!new_procfs_probe)
+        throw SEMANTIC_ERROR (_("can't create python procfs probe"), tok);
+      derive_probes(sess, new_procfs_probe, finished_results);
     }
 }
 
