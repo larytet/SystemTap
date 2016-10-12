@@ -379,7 +379,7 @@ procfs_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->indent(-1);
 
   s.op->newline() << "_spp_init(spp);";
-  s.op->newline() << "rc = _stp_create_procfs(spp->path, i, &_stp_proc_fops, spp->permissions, spp);";
+  s.op->newline() << "rc = _stp_create_procfs(spp->path, &_stp_proc_fops, spp->permissions, spp);";
 
   s.op->newline() << "if (rc) {";
   s.op->newline(1) << "_stp_close_procfs();";

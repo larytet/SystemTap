@@ -186,18 +186,15 @@ static struct proc_dir_entry *_stp_procfs_lookup(const char *dir, struct proc_di
 #endif	/* _STP_ALLOW_PROCFS_PATH_SUBDIRS */
 
 
-static int _stp_create_procfs(const char *path, int num,
+static int _stp_create_procfs(const char *path,
 			      const struct file_operations *fops, int perm,
 			      void *data) 
 {  
 	const char *p; char *next;
 	struct proc_dir_entry *last_dir, *de;
 
-	if (num >= STP_MAX_PROCFS_FILES) {
-		_stp_error("Requested file number %d is larger than max (%d)\n", 
-			   num, STP_MAX_PROCFS_FILES);
-		return -1;
-	}
+	if (_stp_num_pde >= STP_MAX_PROCFS_FILES)
+		goto too_many;
 
 	last_dir = _stp_proc_root;
 
