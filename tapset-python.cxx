@@ -66,19 +66,11 @@ public:
   python_derived_probe_group () {}
 
   void enroll (python_derived_probe* probe);
-  void emit_kernel_module_init (systemtap_session& s) {
-      s.op->newline() << "// XX KERNEL_MODULE_INIT: "
-		      << python2_probes.size() << python3_probes.size();
-  }
-  void emit_kernel_module_exit (systemtap_session& s) {
-      s.op->newline() << "// XX KERNEL_MODULE_EXIT: " << probes.size();
-  }
+  void emit_kernel_module_init (systemtap_session& s);
+  void emit_kernel_module_exit (systemtap_session& s);
   void emit_module_decls (systemtap_session& s);
   void emit_module_init (systemtap_session& s);
-  void emit_module_exit (systemtap_session& s) {
-      s.op->newline() << "// XX MODULE_EXIT: "
-		      << python2_probes.size() << python3_probes.size();
-  }
+  void emit_module_exit (systemtap_session& s);
 };
 
 
@@ -162,6 +154,33 @@ python_derived_probe_group::enroll (python_derived_probe* p)
 
 
 void
+python_derived_probe_group::emit_kernel_module_init (systemtap_session& s)
+{
+  if (python2_probes.empty() && python3_probes.empty())
+    return;
+  // Note that we're OK here, since _stp_mkdir_proc_module() can be
+  // called twice without issue (in case the script also contains real
+  // procfs probes).
+  s.op->newline() << "rc = _stp_mkdir_proc_module();";
+}
+
+
+void
+python_derived_probe_group::emit_kernel_module_exit (systemtap_session& s)
+{
+  if (python2_probes.empty() && python3_probes.empty())
+    return;
+
+  // If we're using the original transport, it uses the
+  // '/proc/systemtap/{module_name}' directory to store control
+  // files. Let the transport layer clean up that directory.
+  s.op->newline() << "#if (STP_TRANSPORT_VERSION != 1)";
+  s.op->newline() << "_stp_rmdir_proc_module();";
+  s.op->newline() << "#endif";
+}
+
+
+void
 python_derived_probe_group::emit_module_decls (systemtap_session& s)
 {
   if (python2_probes.empty() && python3_probes.empty())
@@ -169,6 +188,27 @@ python_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   s.op->newline();
   s.op->newline() << "/* ---- python probes ---- */";
+  // We're reusing the procfs probe buffer machinery.
+  s.op->newline() << "#include \"procfs.c\"";
+  s.op->newline() << "#include \"procfs-probes.c\"";
+
+  // The procfs probe buffer machinery emits 2 functions. We're not
+  // going to use them, but runtime/procfs-probes.c wants a definition
+  // of them. So, if we don't have any procfs probes, we'll have to
+  // emit those functions ourselves.
+  if (!s.runtime_usermode_p() && s.procfs_derived_probes == NULL)
+    {
+      s.op->newline() << "static int _stp_proc_fill_read_buffer(struct stap_procfs_probe *spp) {";
+      s.op->indent(1);
+      s.op->newline() << "return 0;";
+      s.op->newline(-1) << "}";
+      s.op->newline() << "static int _stp_process_write_buffer(struct stap_procfs_probe *spp, const char __user *buf, size_t count) {";
+      s.op->indent(1);
+      s.op->newline() << "return 0;";
+      s.op->newline(-1) << "}";
+    }  
+
+  // Output the probe info buffer.
   if (python2_probes.size())
     {
       s.op->newline() << "static const char python2_probe_info[] =";
@@ -180,10 +220,6 @@ python_derived_probe_group::emit_module_decls (systemtap_session& s)
 	}
       s.op->line() << ";";
       s.op->indent(-1);
-    }
-  else
-    {
-      s.op->newline() << "static const char python2_probe_info[] = \"\";";
     }
   if (python3_probes.size())
     {
@@ -197,11 +233,31 @@ python_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->line() << ";";
       s.op->indent(-1);
     }
-  else
+
+  // Output the procfs file information.
+  s.op->newline() << "static struct stap_procfs_probe stap_python_procfs_probes[] = {";
+  s.op->indent(1);
+  if (python2_probes.size())
     {
-      s.op->newline() << "static const char python3_probe_info[] = \"\";";
+      s.op->newline() << "{";
+      s.op->line() << " .path=\"_stp_python2_probes\",";
+      s.op->line() << " .buffer=(char *)python2_probe_info,";
+      s.op->line() << " .bufsize=sizeof(python2_probe_info),";
+      s.op->line() << " .count=(sizeof(python2_probe_info) - 1),";
+      s.op->line() << " .permissions=0444,";
+      s.op->line() << " },";
     }
-  s.op->newline() << "#include \"python.c\"";
+  if (python3_probes.size())
+    {
+      s.op->newline() << "{";
+      s.op->line() << " .path=\"_stp_python3_probes\",";
+      s.op->line() << " .buffer=(char *)python3_probe_info,";
+      s.op->line() << " .bufsize=(sizeof(python3_probe_info) - 1),";
+      s.op->line() << " .count=(sizeof(python3_probe_info) - 1),";
+      s.op->line() << " .permissions=0444,";
+      s.op->line() << " },";
+    }
+  s.op->newline(-1) << "};";
 }
 
 
@@ -211,9 +267,57 @@ python_derived_probe_group::emit_module_init (systemtap_session& s)
   if (python2_probes.empty() && python3_probes.empty())
     return;
 
-  // FIXME: emit procfs stuff here
-  s.op->newline();
+  if (!s.runtime_usermode_p())
+    {
+      // FIXME: We've got a problem here. We need to add code
+      // somewhere so that the user can't create procfs probes
+      // with the same filenames. (If he did, we'd just error out
+      // at startup I believe, so it isn't a real big problem.)
+      s.op->newline() << "for (i = 0; i < ARRAY_SIZE(stap_python_procfs_probes); i++) {";
+      s.op->newline(1) << "struct stap_procfs_probe *spp = &stap_python_procfs_probes[i];";
+
+      // FIXME: This really isn't right, but it is the best we have at
+      // the moment.
+      s.op->newline() << "probe_point = spp->path;";
+
+      s.op->newline() << "_spp_init(spp);";
+      s.op->newline() << "rc = _stp_create_procfs(spp->path, &_stp_proc_fops, spp->permissions, spp);";
+      s.op->newline() << "if (rc) {";
+      s.op->newline(1) << "_stp_close_procfs();";
+
+      // FIXME: The problem here is that if there are any "real"
+      // procfs probes that have already been created,
+      // _stp_close_procfs() above will clean them up, but
+      // _spp_shutdown() won't get called. Now that isn't the end of
+      // the world, since _spp_shutdown() just calls mutex_destroy()
+      // which doesn't do any deallocation.
+      s.op->newline() << "for (i = 0; i < ARRAY_SIZE(stap_python_procfs_probes); i++) {";
+      s.op->newline(1) << "spp = &stap_python_procfs_probes[i];";
+      s.op->newline() << "_spp_shutdown(spp);";
+      s.op->newline(-1) << "}";
+      s.op->newline() << "break;";
+      s.op->newline(-1) << "}";
+      s.op->newline(-1) << "}"; // for loop
+    }
 }
+
+
+void
+python_derived_probe_group::emit_module_exit (systemtap_session& s)
+{
+  if (python2_probes.empty() && python3_probes.empty())
+    return;
+
+  if (!s.runtime_usermode_p())
+    {
+      s.op->newline() << "_stp_close_procfs();";
+      s.op->newline() << "for (i = 0; i < ARRAY_SIZE(stap_python_procfs_probes); i++) {";
+      s.op->newline(1) << "struct stap_procfs_probe *spp = &stap_python_procfs_probes[i];";
+      s.op->newline() << "_spp_shutdown(spp);";
+      s.op->newline(-1) << "}";
+    }
+}
+
 
 int
 python_builder::resolve(systemtap_session& s,
@@ -337,34 +441,13 @@ python_builder::build(systemtap_session & sess, probe * base,
       iter = results.erase(iter);
     }
 
-  if (python_version == 2 && !python2_procfs_probe_derived_p)
-    {
-      python2_procfs_probe_derived_p = true;
-      stringstream code;
-      const token* tok = base->body->tok;
-      // FIXME: Yuck, we have to add the synthetic procfs probe before
-      // we know all the python probes, which means we don't really
-      // know the maxsize.
-      code << "probe procfs(\"python2_probes\").read.maxsize(2048) { while (1) { try { $value .= __stp_next_python2_probe_info() } catch { break } } }" << endl;
-      probe* new_procfs_probe = parse_synthetic_probe (sess, code, tok);
-      if (!new_procfs_probe)
-        throw SEMANTIC_ERROR (_("can't create python procfs probe"), tok);
-      derive_probes(sess, new_procfs_probe, finished_results);
-    }
-  if (python_version == 3 && !python3_procfs_probe_derived_p)
-    {
-      python3_procfs_probe_derived_p = true;
-      stringstream code;
-      const token* tok = base->body->tok;
-      // FIXME: Yuck, we have to add the synthetic procfs probe before
-      // we know all the python probes, which means we don't really
-      // know the maxsize.
-      code << "probe procfs(\"python3_probes\").read.maxsize(2048) { while (1) { try { $value .= __stp_next_python3_probe_info() } catch { break } } }" << endl;
-      probe* new_procfs_probe = parse_synthetic_probe (sess, code, tok);
-      if (!new_procfs_probe)
-        throw SEMANTIC_ERROR (_("can't create python procfs probe"), tok);
-      derive_probes(sess, new_procfs_probe, finished_results);
-    }
+  // FIXME: We'd really like to just derive some synthetic procfs
+  // probes here and then modify a couple of the fields in the new
+  // procfs_derived_probe, but we really can't do that easily. It
+  // might be possible to create a new virtual function in
+  // derived_probe (which procfs_derived_probe inherits from), that
+  // the procfs_derived_probe class would implement to do the
+  // modification for us.
 }
 
 

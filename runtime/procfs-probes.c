@@ -1,3 +1,14 @@
+/* -*- linux-c -*-
+ *
+ * /proc probe support functions
+ * Copyright (C) 2010-2016 Red Hat Inc.
+ *
+ * This file is part of systemtap, and is free software.  You can
+ * redistribute it and/or modify it under the terms of the GNU General
+ * Public License (GPL); either version 2, or (at your option) any
+ * later version.
+ */
+
 #ifndef _STP_PROCFS_PROBES_C_
 #define _STP_PROCFS_PROBES_C_
 
@@ -5,15 +16,7 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 
-#if 0
-// Currently we have to output _stp_procfs_data early in the
-// translation process.  It really should go here.
-struct _stp_procfs_data {
-	char *buffer;
-	size_t bufsize;
-	size_t count;
-};
-#endif
+#include "procfs-probes.h"
 
 struct stap_procfs_probe {
 	const char *path;
@@ -93,7 +96,8 @@ _stp_proc_open_file(struct inode *inode, struct file *filp)
 	if (likely(res == 0)) {
 		spp->opencount++;
 		filp->private_data = spp;
-		if ((filp->f_flags & O_ACCMODE) == O_RDONLY) {
+		if ((filp->f_flags & O_ACCMODE) == O_RDONLY
+		    && spp->read_probe != NULL) {
 			spp->buffer[0] = '\0';
 			spp->count = 0;
 			spp->needs_fill = 1;
@@ -129,9 +133,7 @@ _stp_proc_read_file(struct file *file, char __user *buf, size_t count,
 	struct stap_procfs_probe *spp = file->private_data;
 	ssize_t retval = 0;
 
-	/* If we don't have a probe read function, just return 0 to
-	 * indicate there isn't any data here. */
-	if (spp == NULL || spp->read_probe == NULL) {
+	if (spp == NULL || spp->buffer == NULL) {
 		goto out;
 	}
 

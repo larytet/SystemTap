@@ -1,5 +1,5 @@
 // tapset for procfs
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2016 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -114,14 +114,7 @@ procfs_derived_probe::join_group (systemtap_session& s)
       // Make sure 'struct _stp_procfs_data' is defined early.
       embeddedcode *ec = new embeddedcode;
       ec->tok = NULL;
-      ec->code = string("struct _stp_procfs_data {\n")
-	  + string("  char *buffer;\n")
-	  + string("  size_t bufsize;\n")
-	  + string("  size_t count;\n")
-	  + string("};\n")
-	  + string("#ifndef STP_PROCFS_BUFSIZE\n")
-	  + string("#define STP_PROCFS_BUFSIZE MAXSTRINGLEN\n")
-	  + string("#endif\n");
+      ec->code = string("#include \"procfs-probes.h\"");
       s.embeds.push_back(ec);
     }
   s.procfs_derived_probes->enroll (this);
