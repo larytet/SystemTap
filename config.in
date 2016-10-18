@@ -152,6 +152,12 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* Base name of the python3 interpreter binary. */
+#undef PYTHON3_BASENAME
+
+/* Base name of the python2 interpreter binary. */
+#undef PYTHON_BASENAME
+
 /* extra stap version code */
 #undef STAP_EXTRA_VERSION
 

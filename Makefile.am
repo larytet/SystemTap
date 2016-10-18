@@ -13,6 +13,8 @@ AM_CPPFLAGS = -DBINDIR='"$(bindir)"' \
 	      -DPKGLIBDIR='"$(pkglibexecdir)"' \
 	      -DLOCALEDIR='"$(localedir)"' \
               -DDOCDIR='"$(docdir)"' \
+              -DPYEXECDIR='"$(pyexecdir)"' \
+              -DPY3EXECDIR='"$(py3execdir)"' \
 	      -I$(srcdir)/includes -I$(builddir)/includes/sys
 
 AM_CFLAGS = -D_GNU_SOURCE -fexceptions -Wall -Wextra -Werror -Wunused -Wformat=2 -W

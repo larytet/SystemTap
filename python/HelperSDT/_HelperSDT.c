@@ -26,28 +26,28 @@ trace_callback(PyObject *self, PyObject *args)
     case PyTrace_CALL:
 #define _PyTrace_CALL PyTrace_CALL
 #undef PyTrace_CALL
-	STAP_PROBE2(stap_pybridge, PyTrace_CALL, frame_obj, arg_obj);
+	STAP_PROBE2(HelperSDT, PyTrace_CALL, frame_obj, arg_obj);
 #define PyTrace_CALL _PyTrace_CALL
 #undef _PyTrace_CALL
 	break;
     case PyTrace_EXCEPTION:
 #define _PyTrace_EXCEPTION PyTrace_EXCEPTION
 #undef PyTrace_EXCEPTION
-	STAP_PROBE2(stap_pybridge, PyTrace_EXCEPTION, frame_obj, arg_obj);
+	STAP_PROBE2(HelperSDT, PyTrace_EXCEPTION, frame_obj, arg_obj);
 #define PyTrace_EXCEPTION _PyTrace_EXCEPTION
 #undef _PyTrace_EXCEPTION
 	break;
     case PyTrace_LINE:
 #define _PyTrace_LINE PyTrace_LINE
 #undef PyTrace_LINE
-	STAP_PROBE2(stap_pybridge, PyTrace_LINE, frame_obj, arg_obj);
+	STAP_PROBE2(HelperSDT, PyTrace_LINE, frame_obj, arg_obj);
 #define PyTrace_LINE _PyTrace_LINE
 #undef _PyTrace_LINE
 	break;
     case PyTrace_RETURN:
 #define _PyTrace_RETURN PyTrace_RETURN
 #undef PyTrace_RETURN
-	STAP_PROBE2(stap_pybridge, PyTrace_RETURN, frame_obj, arg_obj);
+	STAP_PROBE2(HelperSDT, PyTrace_RETURN, frame_obj, arg_obj);
 #define PyTrace_RETURN _PyTrace_RETURN
 #undef _PyTrace_RETURN
 	break;

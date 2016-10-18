@@ -22,6 +22,7 @@ static const string TOK_PYTHON("python");
 static const string TOK_PYTHON3("python3");
 static const string TOK_MODULE("module");
 static const string TOK_FUNCTION("function");
+static const string TOK_CALL("call");
 static const string TOK_RETURN("return");
 
 
@@ -46,10 +47,12 @@ struct python_derived_probe: public derived_probe
   interned_string module;
   interned_string function;
   bool has_return;
+  bool has_call;
 
   python_derived_probe (systemtap_session &, probe* p, probe_point* l,
 			int python_version, interned_string module,
-			interned_string function, bool has_return);
+			interned_string function, bool has_return,
+			bool has_call);
   void join_group (systemtap_session& s);
   unsigned int flags();
   string break_definition();
@@ -84,10 +87,22 @@ private:
 	      vector<python_probe_info *> &results);
   bool python2_procfs_probe_derived_p;
   bool python3_procfs_probe_derived_p;
+  probe* python2_call_probe;
+  probe* python2_line_probe;
+  probe* python2_return_probe;
+  probe* python3_call_probe;
+  probe* python3_line_probe;
+  probe* python3_return_probe;
 
 public:
   python_builder() : python2_procfs_probe_derived_p(false),
-		     python3_procfs_probe_derived_p(false) {}
+		     python3_procfs_probe_derived_p(false),
+		     python2_call_probe(NULL),
+		     python2_line_probe(NULL),
+		     python2_return_probe(NULL),
+		     python3_call_probe(NULL),
+		     python3_line_probe(NULL),
+		     python3_return_probe(NULL) {}
 
   void build(systemtap_session & sess, probe * base,
 	     probe_point * location,
@@ -102,9 +117,11 @@ python_derived_probe::python_derived_probe (systemtap_session &, probe* p,
 					    int pv,
 					    interned_string m,
 					    interned_string f,
-					    bool hr):
+					    bool hr,
+					    bool hc):
   derived_probe (p, l, true /* .components soon rewritten */ ),
-  python_version(pv), module(m), function(f), has_return(hr)
+  python_version(pv), module(m), function(f), has_return(hr),
+  has_call(hc)
 {
   return;
 }
@@ -127,7 +144,7 @@ python_derived_probe::join_group (systemtap_session &s)
 unsigned int
 python_derived_probe::flags ()
 {
-    return this->has_return ? 1 : 0;
+    return (this->has_call ? 2 : (this->has_return ? 1 : 0));
 }
 
 
@@ -393,6 +410,7 @@ python_builder::build(systemtap_session & sess, probe * base,
   bool has_module = get_param (parameters, TOK_MODULE, module);
   bool has_function = get_param (parameters, TOK_FUNCTION, function);
   bool has_return = has_null_param (parameters, TOK_RETURN);
+  bool has_call = has_null_param (parameters, TOK_CALL);
 
   if (!has_module || module == "")
     throw SEMANTIC_ERROR(_("The python module name must be specified."));
@@ -434,7 +452,123 @@ python_builder::build(systemtap_session & sess, probe * base,
 							  python_version,
 							  (*iter)->module,
 							  (*iter)->function,
-							  has_return));
+							  has_return,
+							  has_call));
+
+      if (python_version == 2)
+        {
+	  if (has_return && python2_return_probe == NULL)
+	    {
+	      stringstream code;
+	      const token* tok = base->body->tok;
+	      code << "probe process(\"" << PYTHON_BASENAME
+		   << "\").library(\"" << PYEXECDIR
+		   << "/HelperSDT/_HelperSDT.so\")"
+		   << ".provider(\"HelperSDT\").mark(\"PyTrace_RETURN\") {"
+		   << endl;
+	      // FIXME: Placeholder...
+	      code << "  printf(\"PyTrace_RETURN\")" << endl;
+	      code << "}" << endl;
+	      python2_return_probe = parse_synthetic_probe (sess, code, tok);
+	      if (!python2_return_probe)
+		throw SEMANTIC_ERROR (_("can't create python2 return probe"),
+				      tok);
+	      derive_probes(sess, python2_return_probe, finished_results);
+	    }
+	  else if (has_call && python2_call_probe == NULL)
+	    {
+	      stringstream code;
+	      const token* tok = base->body->tok;
+	      code << "probe process(\"" << PYTHON_BASENAME
+		   << "\").library(\"" << PYEXECDIR
+		   << "/HelperSDT/_HelperSDT.so\")"
+		   << ".provider(\"HelperSDT\").mark(\"PyTrace_CALL\") {"
+		   << endl;
+	      // FIXME: Placeholder...
+	      code << "  printf(\"PyTrace_CALL\")" << endl;
+	      code << "}" << endl;
+	      python2_call_probe = parse_synthetic_probe (sess, code, tok);
+	      if (!python2_call_probe)
+		throw SEMANTIC_ERROR (_("can't create python2 return probe"),
+				      tok);
+	      derive_probes(sess, python2_call_probe, finished_results);
+	    }
+	  else if (python2_line_probe == NULL)
+	    {
+	      stringstream code;
+	      const token* tok = base->body->tok;
+	      code << "probe process(\"" << PYTHON_BASENAME
+		   << "\").library(\"" << PYEXECDIR
+		   << "/HelperSDT/_HelperSDT.so\")"
+		   << ".provider(\"HelperSDT\").mark(\"PyTrace_LINE\") {"
+		   << endl;
+	      // FIXME: Placeholder...
+	      code << "  printf(\"PyTrace_LINE\")" << endl;
+	      code << "}" << endl;
+	      python2_line_probe = parse_synthetic_probe (sess, code, tok);
+	      if (!python2_line_probe)
+		throw SEMANTIC_ERROR (_("can't create python2 return probe"),
+				      tok);
+	      derive_probes(sess, python2_line_probe, finished_results);
+	    }
+	}
+      else
+        {
+	  if (has_return && python3_return_probe == NULL)
+	    {
+	      stringstream code;
+	      const token* tok = base->body->tok;
+	      code << "probe process(\"" << PYTHON3_BASENAME
+		   << "\").library(\"" << PY3EXECDIR
+		   << "/HelperSDT/_HelperSDT.so\")"
+		   << ".provider(\"HelperSDT\").mark(\"PyTrace_RETURN\") {"
+		   << endl;
+	      // FIXME: Placeholder...
+	      code << "  printf(\"PyTrace_RETURN\")" << endl;
+	      code << "}" << endl;
+	      python3_return_probe = parse_synthetic_probe (sess, code, tok);
+	      if (!python3_return_probe)
+		throw SEMANTIC_ERROR (_("can't create python3 return probe"),
+				      tok);
+	      derive_probes(sess, python3_return_probe, finished_results);
+	    }
+	  else if (has_call && python3_call_probe == NULL)
+	    {
+	      stringstream code;
+	      const token* tok = base->body->tok;
+	      code << "probe process(\"" << PYTHON3_BASENAME
+		   << "\").library(\"" << PY3EXECDIR
+		   << "/HelperSDT/_HelperSDT.so\")"
+		   << ".provider(\"HelperSDT\").mark(\"PyTrace_CALL\") {"
+		   << endl;
+	      // FIXME: Placeholder...
+	      code << "  printf(\"PyTrace_CALL\")" << endl;
+	      code << "}" << endl;
+	      python3_call_probe = parse_synthetic_probe (sess, code, tok);
+	      if (!python3_call_probe)
+		throw SEMANTIC_ERROR (_("can't create python3 return probe"),
+				      tok);
+	      derive_probes(sess, python3_call_probe, finished_results);
+	    }
+	  else if (python3_line_probe == NULL)
+	    {
+	      stringstream code;
+	      const token* tok = base->body->tok;
+	      code << "probe process(\"" << PYTHON3_BASENAME
+		   << "\").library(\"" << PY3EXECDIR
+		   << "/HelperSDT/_HelperSDT.so\")"
+		   << ".provider(\"HelperSDT\").mark(\"PyTrace_LINE\") {"
+		   << endl;
+	      // FIXME: Placeholder...
+	      code << "  printf(\"PyTrace_LINE\")" << endl;
+	      code << "}" << endl;
+	      python3_line_probe = parse_synthetic_probe (sess, code, tok);
+	      if (!python3_line_probe)
+		throw SEMANTIC_ERROR (_("can't create python3 return probe"),
+				      tok);
+	      derive_probes(sess, python3_line_probe, finished_results);
+	    }
+	}
 
       // Delete the item and go on to the next item in the vector.
       delete *iter;
@@ -471,6 +605,9 @@ register_tapset_python(systemtap_session& s)
   for (unsigned i = 0; i < roots.size(); ++i)
     {
       roots[i]->bind_str(TOK_MODULE)->bind_str(TOK_FUNCTION)
+	->bind_privilege(pr_all)
+	->bind(builder);
+      roots[i]->bind_str(TOK_MODULE)->bind_str(TOK_FUNCTION)->bind(TOK_CALL)
 	->bind_privilege(pr_all)
 	->bind(builder);
       roots[i]->bind_str(TOK_MODULE)->bind_str(TOK_FUNCTION)->bind(TOK_RETURN)

@@ -134,7 +134,7 @@ class Dispatcher:
             return self.pytrace_dispatch
         elif event == 'line':
             if self._bplist.break_here(frame, event):
-                sys.stdout.write("LINE: %s %s\n"
+                sys.stdout.write("LINE: %s %s %d\n"
                                  % (frame.f_code.co_filename,
                                     frame.f_code.co_name, frame.f_lineno))
                 _HelperSDT.trace_callback(0, frame, arg)

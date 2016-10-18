@@ -74,6 +74,9 @@ m4_define([_AM_PYTHON_INTERPRETER_LIST],
 # Now we can call AM_PATH_PYTHON to find python version 2.6+ (and
 # version 2 only).
 AM_PATH_PYTHON([2.6], [], [:])
+python_basename=$(basename "$PYTHON")
+AC_DEFINE_UNQUOTED([PYTHON_BASENAME], "${python_basename}",
+		   [Base name of the python2 interpreter binary.])
 
 # Now let's try to find python version 3.
 if test "x$PYTHON_UNKNOWN" != "xno" -a "x$python_unknown_version" = "x3"; then
@@ -82,6 +85,9 @@ else
    AC_PATH_PROGS([PYTHON3],
 		 [python3 python3.5 python3.4 python3.3 python3.2 python3.1 python3.0])
 fi
+python3_basename=$(basename "$PYTHON3")
+AC_DEFINE_UNQUOTED([PYTHON3_BASENAME], "${python3_basename}",
+		   [Base name of the python3 interpreter binary.])
 
 # If we found python version 3, set up the other variables for python
 # version 3 that AM_PATH_PYTHON sets up for python version 2.

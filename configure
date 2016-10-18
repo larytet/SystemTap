@@ -9036,6 +9036,12 @@ $as_echo "$am_cv_python_pyexecdir" >&6; }
   fi
 
 
+python_basename=$(basename "$PYTHON")
+
+cat >>confdefs.h <<_ACEOF
+#define PYTHON_BASENAME "${python_basename}"
+_ACEOF
+
 
 # Now let's try to find python version 3.
 if test "x$PYTHON_UNKNOWN" != "xno" -a "x$python_unknown_version" = "x3"; then
@@ -9126,6 +9132,12 @@ fi
 done
 
 fi
+python3_basename=$(basename "$PYTHON3")
+
+cat >>confdefs.h <<_ACEOF
+#define PYTHON3_BASENAME "${python3_basename}"
+_ACEOF
+
 
 # If we found python version 3, set up the other variables for python
 # version 3 that AM_PATH_PYTHON sets up for python version 2.
