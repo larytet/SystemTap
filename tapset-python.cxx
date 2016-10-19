@@ -350,9 +350,9 @@ python_builder::resolve(systemtap_session& s,
   assert_no_interrupts();
 
   if (python_ver == 2)
-      args.push_back("python");
+      args.push_back(PYTHON_BASENAME);
   else
-      args.push_back("python3");
+      args.push_back(PYTHON3_BASENAME);
   args.push_back(string(PKGLIBDIR)
 		 + "/python/stap-resolve-module-function.py");
   if (s.verbose > 2)
