@@ -1793,6 +1793,11 @@ c_unparser::emit_module_init ()
       o->newline() << "const char* version = UTS_VERSION;";
       o->newline() << "#endif";
 
+      // The systemtap_module_init() function must be run in
+      // non-atomic context, since several functions might need to
+      // sleep.
+      o->newline() << "might_sleep();";
+
       // NB: This UTS_RELEASE compile-time macro directly checks only that
       // the compile-time kbuild tree matches the compile-time debuginfo/etc.
       // It does not check the run time kernel value.  However, this is

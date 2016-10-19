@@ -45,6 +45,7 @@ static int stap_uprobe_change_plus (struct task_struct *tsk, unsigned long reloc
        stap_uprobes[] array to allocate a free spot, but then we can
        unlock and do the register_*probe subsequently. */
 
+    might_sleep();
     mutex_lock (& stap_uprobes_lock);
     for (i=0; i<MAXUPROBES; i++) { /* XXX: slow linear search */
       sup = & stap_uprobes[i];
@@ -118,6 +119,7 @@ static int stap_uprobe_change_plus (struct task_struct *tsk, unsigned long reloc
         _stp_warn ("u*probe failed %s[%d] '%s' addr %p rc %d\n", tsk->comm, tsk->tgid, sups->probe->pp, (void*)(relocation + sups->address), rc);
 	/* NB: we need to release this slot,
 	   so we need to borrow the mutex temporarily. */
+	might_sleep();
         mutex_lock (& stap_uprobes_lock);
         sup->spec_index = -1;
 	sup->sdt_sem_address = 0;
@@ -204,6 +206,7 @@ static int stap_uprobe_change_minus (struct task_struct *tsk, unsigned long relo
     struct stap_uprobe_spec *sups;
     if (sup->spec_index < 0) continue; /* skip free uprobes slot */
     sups = (struct stap_uprobe_spec*) & stap_uprobe_specs[sup->spec_index];
+    might_sleep();
     mutex_lock (& stap_uprobes_lock);
 
     /* PR6829, PR9940:

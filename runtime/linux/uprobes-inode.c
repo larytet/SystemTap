@@ -235,6 +235,7 @@ stapiu_unregister (struct inode* inode, struct stapiu_consumer* c)
 static inline void
 stapiu_target_lock(struct stapiu_target *target)
 {
+	might_sleep();
 	mutex_lock(&target->inode_lock);
 }
 
