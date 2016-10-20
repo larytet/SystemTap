@@ -53,15 +53,26 @@ def _stapre_name_has_wildcard(pattern):
     return False
 
 
+def _get_default_search_path():
+    path = sys.path
+    # The first element of sys.path is the directory of this
+    # script, which for us is down in libexec (and not very
+    # useful). Replace it with the current working directory,
+    # which should let us find scripts in the current directory
+    # and scripts with relative paths to the current directory.
+    path[0] = os.getcwd()
+    return path
+
+
 def _find_wildcarded_modules(modpattern, path=None):
     """Version of imp.find_module() that handles hierarchical module
     names and wildcards.
 
-    Try to find the module name. If path is omitted or None, the list
-    of directory names given by sys.path is searched. Otherwise, path
-    must be a list of directory names; each directory is searched for
-    files. Invalid names in the list are silently ignored (but all
-    list items must be strings).
+    Try to find the module name. If path is omitted or None, the
+    default search path is used. Otherwise, path must be a list of
+    directory names; each directory is searched for files. Invalid
+    names in the list are silently ignored (but all list items must be
+    strings).
 
     If search is successful, the return value is a 4-element tuple
     (modname, file, pathname, description):
@@ -81,7 +92,7 @@ def _find_wildcarded_modules(modpattern, path=None):
     global _verbose
     results = []
     if path is None:
-        path = sys.path
+        path = _get_default_search_path()
 
     # Convert '.' to '/', since 'foo.bar' gets loaded from
     # 'foo/bar.py'.
@@ -99,10 +110,10 @@ def _find_wildcarded_modules(modpattern, path=None):
                 path_prefix = ''
             if _verbose:
                 _eprint("globbing '%s'" % (path_prefix + mp_path + '.py'))
-            # FIXME: We're going to be searching directories in
-            # sys.path multiple times. To speed things up, we could
-            # cache full directory results, then do matching against
-            # the cached results.
+            # FIXME: We're going to be searching directories in the
+            # path multiple times. To speed things up, we could cache
+            # full directory results, then do matching against the
+            # cached results.
             pathname = path_prefix + mp_path + '.py'
             glob_results = glob(pathname)
             if len(glob_results) > 0:
@@ -148,10 +159,10 @@ def _find_wildcarded_modules(modpattern, path=None):
                 path_prefix = ''
             if _verbose:
                 _eprint("looking for '%s'" % (path_prefix + mp_path + '.py'))
-            # FIXME: We're going to be searching directories in
-            # sys.path multiple times. To speed things up, we could
-            # cache full directory results, then do matching against
-            # the cached results.
+            # FIXME: We're going to be searching directories in the
+            # path multiple times. To speed things up, we could cache
+            # full directory results, then do matching against the
+            # cached results.
             pathname = path_prefix + mp_path + '.py'
             if os.path.isfile(pathname):
                 if _verbose:
@@ -288,16 +299,14 @@ def resolve_patterns(module_pattern, function_pattern):
     if filename:
         filename_list = []
         # If we've got an absolute path, we don't need to search
-        # sys.path.
+        # for the file.
         if os.path.isabs(filename):
             if _stapre_name_has_wildcard(filename):
                 filename_list = glob(filename)
             elif os.path.isfile(filename):
                 filename_list.append(filename)
         else:
-            # FIXME: is this correct? If we have a non-absolute path,
-            # should we just look in the currenct directory?
-            for component in sys.path:
+            for component in _get_default_search_path():
                 if len(component):
                     path_prefix = component + '/'
                 else:
@@ -445,7 +454,6 @@ class _ModuleInfo(object):
 
     def add_function(self, funcname, linelist):
         self.functions.append((funcname, linelist))
-        pass
 
     def add_linelist(self, linelist):
         self.lines = linelist
