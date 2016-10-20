@@ -70,6 +70,8 @@ public:
 
   void enroll (python_derived_probe* probe);
   void emit_module_decls (systemtap_session& s);
+  void emit_module_init (systemtap_session& ) { }
+  void emit_module_exit (systemtap_session& ) { }
 };
 
 
@@ -90,7 +92,6 @@ private:
 
   // python3 related synthetic probes
   derived_probe* python3_procfs_probe;
-  probe* python3_procfs_probe;
   probe* python3_call_probe;
   probe* python3_line_probe;
   probe* python3_return_probe;
@@ -131,8 +132,6 @@ python_derived_probe::python_derived_probe (systemtap_session &, probe* p,
 void
 python_derived_probe::join_group (systemtap_session &s)
 {
-// FIXME: Hmm, we'll need to handle python probes by putting uprobes
-// on our custom python module's tracepoints.
   if (! s.python_derived_probes)
     {
       s.python_derived_probes = new python_derived_probe_group ();
