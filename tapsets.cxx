@@ -11928,7 +11928,13 @@ all_session_groups(systemtap_session& s)
   DOONE(hwbkpt);
   DOONE(perf);
   DOONE(hrtimer);
+
+  // Another "order is important" item. Python probes create synthetic
+  // procfs probes and the python probes' emit_module_decls() needs to
+  // be called first.
+  DOONE(python);
   DOONE(procfs);
+
   DOONE(netfilter);
 
   // Another "order is important" item.  We want to make sure we
@@ -11937,7 +11943,6 @@ all_session_groups(systemtap_session& s)
   DOONE(utrace);
   DOONE(itrace);
   DOONE(dynprobe);
-  DOONE(python);
   DOONE(task_finder);
 #undef DOONE
   return g;

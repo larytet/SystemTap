@@ -40,10 +40,15 @@ struct procfs_derived_probe: public derived_probe
   bool target_symbol_seen;
   int64_t maxsize_val;
   int64_t umask; 
+  string variable_name;
 
 
   procfs_derived_probe (systemtap_session &, probe* p, probe_point* l, string ps, bool w, int64_t m, int64_t umask); 
   void join_group (systemtap_session& s);
+
+  // Set up this procfs probe to use a static C variable as input
+  // instead using the probe body.
+  void use_internal_buffer(const std::string& var);
 };
 
 
@@ -119,6 +124,15 @@ procfs_derived_probe::join_group (systemtap_session& s)
     }
   s.procfs_derived_probes->enroll (this);
   this->group = s.procfs_derived_probes;
+}
+
+
+void
+procfs_derived_probe::use_internal_buffer(const std::string& var)
+{
+    // We're going to mangle this procfs probe to read from an
+    // internal buffer instead of executing the probe body.
+    variable_name = var;
 }
 
 
@@ -226,30 +240,46 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline() << "{";
       s.op->line() << " .path=" << lex_cast_qstring (it->first) << ",";
 
-      if (pset->read_probe != NULL)
-        s.op->line() << " .read_probe=" << common_probe_init (pset->read_probe) << ",";
-
-      if (pset->write_probe != NULL)
-        s.op->line() << " .write_probe=" << common_probe_init (pset->write_probe) << ",";
-
-      s.op->line() << " .buffer=stap_procfs_probe_buffers.buf_" << buf_index++ << ",";
-      if (pset->read_probe != NULL)
-	{
-	  if (pset->read_probe->maxsize_val == 0)
-	    s.op->line() << " .bufsize=STP_PROCFS_BUFSIZE,";
-	  else
-	    s.op->line() << " .bufsize="
-			 << pset->read_probe->maxsize_val << ",";
+      if (pset->read_probe && !pset->read_probe->variable_name.empty())
+        {
+	  s.op->line() << " .buffer=(char *)"
+		       << pset->read_probe->variable_name << ",";
+	  s.op->line() << " .bufsize=sizeof("
+		       << pset->read_probe->variable_name << "),";
+	  s.op->line() << " .count=(sizeof("
+		       << pset->read_probe->variable_name << ") - 1),";
+	  s.op->line() << " .permissions=0444,";
 	}
       else
-	s.op->line() << " .bufsize=MAXSTRINGLEN,";
+        {
+	  if (pset->read_probe != NULL)
+	    s.op->line() << " .read_probe="
+			 << common_probe_init (pset->read_probe) << ",";
 
-       s.op->line() << " .permissions=" << (((pset->read_probe ? 0444 : 0) 
-					 | (pset->write_probe ? 0222 : 0)) &~ 
-					   ((pset->read_probe ? pset->read_probe->umask : 0) 
-					 | (pset->write_probe ? pset->write_probe->umask : 0))) 
-					<< ",";
+	  if (pset->write_probe != NULL)
+	    s.op->line() << " .write_probe=" 
+			 << common_probe_init (pset->write_probe) << ",";
 
+	  s.op->line() << " .buffer=stap_procfs_probe_buffers.buf_"
+		       << buf_index++ << ",";
+	  if (pset->read_probe != NULL)
+	    {
+	      if (pset->read_probe->maxsize_val == 0)
+		s.op->line() << " .bufsize=STP_PROCFS_BUFSIZE,";
+	      else
+		s.op->line() << " .bufsize="
+			     << pset->read_probe->maxsize_val << ",";
+	    }
+	  else
+	    s.op->line() << " .bufsize=MAXSTRINGLEN,";
+
+	  s.op->line() << " .permissions="
+		       << (((pset->read_probe ? 0444 : 0) 
+			    | (pset->write_probe ? 0222 : 0)) &~ 
+			   ((pset->read_probe ? pset->read_probe->umask : 0) 
+			    | (pset->write_probe ? pset->write_probe->umask : 0))) 
+		       << ",";
+	}
       s.op->line() << " },";
     }
   s.op->newline(-1) << "};";
@@ -367,8 +397,10 @@ procfs_derived_probe_group::emit_module_init (systemtap_session& s)
 
   s.op->newline() << "if (spp->read_probe)";
   s.op->newline(1) << "probe_point = spp->read_probe->pp;";
-  s.op->newline(-1) << "else";
+  s.op->newline(-1) << "else if (spp->write_probe)";
   s.op->newline(1) << "probe_point = spp->write_probe->pp;";
+  s.op->newline(-1) << "else";
+  s.op->newline(1) << "probe_point = \"internal buffer\";";
   s.op->indent(-1);
 
   s.op->newline() << "_spp_init(spp);";

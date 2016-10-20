@@ -236,6 +236,8 @@ public:
   // List of other derived probes whose conditions may be affected by
   // this probe.
   std::set<derived_probe*> probes_with_affected_conditions;
+
+  virtual void use_internal_buffer(const std::string&) {}
 };
 
 // ------------------------------------------------------------------------
