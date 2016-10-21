@@ -358,6 +358,7 @@ def resolve_patterns(module_pattern, function_pattern):
             _eprint('_find_wildcarded_modules() returned %s' % results)
         ret_list = []
         ret_list_format = '%s %s@%s:%d'
+        ret_list_flag_format = '%s %s@%s:%d %s'
         for (module, f, filename, descr) in results:
             if _verbose:
                 _eprint("Loading source for module '%s'" % module)
@@ -390,11 +391,12 @@ def resolve_patterns(module_pattern, function_pattern):
                     bare_func = func[len(module) + 1:]
                     # No line numbers were specified. So, report the
                     # function definition line (the # first line
-                    # number).
+                    # number). Add the 'call' specifier so that
+                    # systemtap knows what's going on.
                     if lineno_type is None and lineno is None:
-                        ret_list.append(ret_list_format
+                        ret_list.append(ret_list_flag_format
                                         % (module, bare_func,
-                                           modinfo.path, lines[0]))
+                                           modinfo.path, lines[0], 'call'))
                         continue
 
                     # We do line matching here. First, handle wildcard.

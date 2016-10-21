@@ -35,9 +35,10 @@ struct python_probe_info
 {
     interned_string module;
     interned_string function;
-
-    python_probe_info (interned_string m, interned_string f)
-	: module(m), function(f) {}
+    bool has_call;
+    
+    python_probe_info (interned_string m, interned_string f, bool hc = false)
+	: module(m), function(f), has_call(hc) {}
 };
 
 
@@ -245,25 +246,24 @@ python_builder::resolve(systemtap_session& s,
     }
 
   // Read stdout from the child. Each line should contain 'MODULE
-  // FUNCTION'
+  // FUNCTION [FLAG]'
   stdio_filebuf<char> buf(child_out, ios_base::in);
   istream in(&buf);
   string line;
   while (getline(in, line))
     {
-      size_t space_pos;
-      interned_string module;
-      interned_string function;
+      vector<string> tokens;
 
       if (line.empty())
 	continue;
-      space_pos = line.find(" ");
-      if (space_pos == string::npos)
-	continue;
-	  
-      module = line.substr(0, space_pos);
-      function = line.substr(space_pos + 1);
-      results.push_back(new python_probe_info(module, function));
+      tokenize(line, tokens);
+      if (tokens.size() == 2)
+	results.push_back(new python_probe_info(tokens[0], tokens[1]));
+      else if (tokens.size() == 3)
+	results.push_back(new python_probe_info(tokens[0], tokens[1],
+						tokens[2] == "call"));
+      else
+	throw SEMANTIC_ERROR(_F("Unknown output from stap-resolve-module-function.py: %s", line));
     }
   buf.close();
 
@@ -281,7 +281,7 @@ python_builder::build(systemtap_session & sess, probe * base,
   bool has_module = get_param (parameters, TOK_MODULE, module);
   bool has_function = get_param (parameters, TOK_FUNCTION, function);
   bool has_return = has_null_param (parameters, TOK_RETURN);
-  bool has_call = has_null_param (parameters, TOK_CALL);
+  bool has_call_token = has_null_param (parameters, TOK_CALL);
 
   if (!has_module || module == "")
     throw SEMANTIC_ERROR(_("The python module name must be specified."));
@@ -294,7 +294,8 @@ python_builder::build(systemtap_session & sess, probe * base,
 
   auto iter = results.begin();
   while (iter != results.end())
-      {
+    {
+      bool has_call = (has_call_token || ((*iter)->has_call && !has_return));
       assert_no_interrupts();
       assert (location->components.size() >= 3);
       assert (location->components[1]->functor == TOK_MODULE);
@@ -317,6 +318,13 @@ python_builder::build(systemtap_session & sess, probe * base,
 					true /* from_glob */);
       ppc->tok = location->components[2]->tok;
       pp->components[2] = ppc;
+
+      // If needed, create a new 'call' component.
+      if (has_call && !has_call_token)
+      {
+	  ppc = new probe_point::component (TOK_CALL);
+	  pp->components.push_back(ppc);
+      }
 
       probe* new_probe = new probe (base, pp);
       finished_results.push_back(new python_derived_probe(sess, new_probe, pp,
@@ -503,14 +511,6 @@ python_builder::build(systemtap_session & sess, probe * base,
       delete *iter;
       iter = results.erase(iter);
     }
-
-  // FIXME: We'd really like to just derive some synthetic procfs
-  // probes here and then modify a couple of the fields in the new
-  // procfs_derived_probe, but we really can't do that easily. It
-  // might be possible to create a new virtual function in
-  // derived_probe (which procfs_derived_probe inherits from), that
-  // the procfs_derived_probe class would implement to do the
-  // modification for us.
 }
 
 
