@@ -118,7 +118,7 @@ query (const char *prompt, query_default qdefault)
 
       response = readline(_F("%s(%s or %s) ", prompt, y_string,
 			     n_string).c_str());
-      if (response == NULL)		// C-d
+      if (response == NULL)		// EOF
 	{
 	  clog << _F("EOF [assumed %c]\n", def_answer);
 	  retval = def_value;
@@ -537,7 +537,7 @@ public:
 	  {
 	    char *response;
 	    response = readline("stap>>> ");
-	    if (response == NULL)		// C-d
+	    if (response == NULL)		// EOF
 	      {
 		clog << endl;
 		break;
@@ -999,13 +999,15 @@ public:
     metafile selection;
     while (selection.name == "")
       {
-	response = readline(_F("%s","stap>> ").c_str());
+	response = readline(_F("%s","stap sample>> ").c_str());
 
-	if (*response == '\0')
-	   continue;
-
+        if (response == NULL) // EOF
+          {
+            cout << endl;
+            return false;
+          }
         if (*response == 'q')
-           return false;
+          return false;
 
        for (unsigned i=0; i < metalist.size();i++)
 	 {
