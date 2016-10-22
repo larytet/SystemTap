@@ -7,6 +7,12 @@
   process("foo").function("NAME") expands to process("/usr/bin/foo").function("NAME")
   when placed in $prefix/share/systemtap/tapset/PATH/usr/bin/
 
+  This is intended to help write more reusable tapsets for userspace binaries.
+
+- The implementation of "var <<< X" for each aggregate variable is now
+  specially compiled to compute only the script-requested @op(var) values,
+  not all potential ones.  This speeds up the <<< operations.
+
 - Netfilter tapsets now provide variables data_hex and data_str to display packet
   contents in hexadecimal and ASCII respectively.
 
