@@ -263,7 +263,7 @@ python_builder::resolve(systemtap_session& s,
 	results.push_back(new python_probe_info(tokens[0], tokens[1],
 						tokens[2] == "call"));
       else
-	throw SEMANTIC_ERROR(_F("Unknown output from stap-resolve-module-function.py: %s", line));
+	throw SEMANTIC_ERROR(_F("Unknown output from stap-resolve-module-function.py: %s", line.c_str()));
     }
   buf.close();
 
