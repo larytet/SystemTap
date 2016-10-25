@@ -25,7 +25,7 @@ import _HelperSDT
 
 class _Breakpoint:
     def __init__(self, index, filename, funcname, lineno=None,
-                 returnp=None):
+                 returnp=False):
         # We've got to have a filename and funcname with an optional
         # lineno or returnp.
         if not filename:
@@ -150,25 +150,31 @@ class Dispatcher(cmd.Cmd):
 
     def pytrace_dispatch(self, frame, event, arg):
         if event == 'call':
-            if self._bplist.break_here(frame, event):
-                sys.stdout.write("CALL: %s %s\n"
-                                 % (frame.f_code.co_filename,
-                                    frame.f_code.co_name))
-                _HelperSDT.trace_callback(0, frame, arg)
+            bplist = self._bplist.break_here(frame, event)
+            if bplist:
+                for bp in bplist:
+                    sys.stdout.write("CALL: %s %s\n"
+                                     % (frame.f_code.co_filename,
+                                        frame.f_code.co_name))
+                    _HelperSDT.trace_callback(0, frame, arg)
             return self.pytrace_dispatch
         elif event == 'line':
-            if self._bplist.break_here(frame, event):
-                sys.stdout.write("LINE: %s %s %d\n"
-                                 % (frame.f_code.co_filename,
-                                    frame.f_code.co_name, frame.f_lineno))
-                _HelperSDT.trace_callback(0, frame, arg)
+            bplist = self._bplist.break_here(frame, event)
+            if bplist:
+                for bp in bplist:
+                    sys.stdout.write("LINE: %s %s %d\n"
+                                     % (frame.f_code.co_filename,
+                                        frame.f_code.co_name, frame.f_lineno))
+                    _HelperSDT.trace_callback(2, frame, arg)
             return self.pytrace_dispatch
         elif event == 'return':
-            if self._bplist.break_here(frame, event):
-                sys.stdout.write("RETURN: %s %s %d"
-                                 % (frame.f_code.co_filename,
-                                    frame.f_code.co_name, frame.f_lineno))
-                _HelperSDT.trace_callback(0, frame, arg)
+            bplist = self._bplist.break_here(frame, event)
+            if bplist:
+                for bp in bplist:
+                    sys.stdout.write("RETURN: %s %s %d\n"
+                                     % (frame.f_code.co_filename,
+                                        frame.f_code.co_name, frame.f_lineno))
+                    _HelperSDT.trace_callback(3, frame, arg)
             return self.pytrace_dispatch
         return self.pytrace_dispatch
 
@@ -219,7 +225,12 @@ class Dispatcher(cmd.Cmd):
                              len(parts))
             return
         filename = parts[0]
-        lineno = parts[1]
+        try:
+            lineno = int(parts[1])
+        except:
+            sys.stderr.write("Invalid breakpoint format: %s\n" % arg)
+            sys.stderr.write("Invalid line number value (%s)\n" % parts[1])
+            return
 
         # Decode flags.
         returnp = False
@@ -228,6 +239,11 @@ class Dispatcher(cmd.Cmd):
             # from line number breaks by the lack of a line number.
             lineno = None
         if flags & 0x1:
+            sys.stderr.write("found returnp\n")
+            # The breakpoint class distinguishes function return
+            # breaks from line number breaks by the lack of a line
+            # number.
+            lineno = None
             returnp = True
 
         # Actually add the breakpoint.

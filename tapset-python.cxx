@@ -375,7 +375,7 @@ python_builder::build(systemtap_session & sess, probe * base,
 		   << ".provider(\"HelperSDT\").mark(\"PyTrace_RETURN\") {"
 		   << endl;
 	      // FIXME: Placeholder...
-	      code << "  printf(\"PyTrace_RETURN\")" << endl;
+	      code << "  printf(\"PyTrace_RETURN\\n\")" << endl;
 	      code << "}" << endl;
 	      python2_return_probe = parse_synthetic_probe (sess, code, tok);
 	      if (!python2_return_probe)
@@ -393,7 +393,7 @@ python_builder::build(systemtap_session & sess, probe * base,
 		   << ".provider(\"HelperSDT\").mark(\"PyTrace_CALL\") {"
 		   << endl;
 	      // FIXME: Placeholder...
-	      code << "  printf(\"PyTrace_CALL\")" << endl;
+	      code << "  printf(\"PyTrace_CALL\\n\")" << endl;
 	      code << "}" << endl;
 	      python2_call_probe = parse_synthetic_probe (sess, code, tok);
 	      if (!python2_call_probe)
@@ -411,7 +411,7 @@ python_builder::build(systemtap_session & sess, probe * base,
 		   << ".provider(\"HelperSDT\").mark(\"PyTrace_LINE\") {"
 		   << endl;
 	      // FIXME: Placeholder...
-	      code << "  printf(\"PyTrace_LINE\")" << endl;
+	      code << "  printf(\"PyTrace_LINE\\n\")" << endl;
 	      code << "}" << endl;
 	      python2_line_probe = parse_synthetic_probe (sess, code, tok);
 	      if (!python2_line_probe)
