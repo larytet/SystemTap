@@ -371,10 +371,11 @@ keywords: process diagram
 io/deviceseeks.stp - Histograms of Seek Behavior for Each Device
 keywords: disk
 
-  The deviceseeks.stp script generates a histogram showing the
-  frequency of different sized seeks (in sectors) on each device.
+  The deviceseeks.stp script generates a periodic histogram showing the
+  frequency of different sized seeks (in sectors) on each device, or
+  optional given device-name regexp
 
-  # stap deviceseeks.stp -T 1
+  # stap deviceseeks.stp -T 1 sda
 
 
 io/disktop.stp - Summarize Disk Read/Write Traffic

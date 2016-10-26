@@ -136,7 +136,7 @@ keywords: <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <a href="keyword-
 <p>The Linux kernel function smp_call_function causes expensive inter-processor interrupts (IPIs). The scf.stp script tallies the processes and backtraces causing the interprocessor interrupts to identify the cause of the expensive IPI. On exit the script prints the tallies in descending frequency.</p><p><font size="-2"><pre># stap scf.stp -T 1</pre></font></p>
 </li><li><a name="io/deviceseeks.stp"></a><a href="#io/deviceseeks.stp">&para;</a> <a href="io/deviceseeks.stp">io/deviceseeks.stp</a> - Histograms of Seek Behavior for Each Device<br>
 keywords: <a href="keyword-index.html#DISK">DISK</a> <br>
-<p>The deviceseeks.stp script generates a histogram showing the frequency of different sized seeks (in sectors) on each device.</p><p><font size="-2"><pre># stap deviceseeks.stp -T 1</pre></font></p>
+<p>The deviceseeks.stp script generates a periodic histogram showing the frequency of different sized seeks (in sectors) on each device, or optional given device-name regexp</p><p><i><a href="io/deviceseeks.txt">sample usage in io/deviceseeks.txt</i></font></p>
 </li><li><a name="io/disktop.stp"></a><a href="#io/disktop.stp">&para;</a> <a href="io/disktop.stp">io/disktop.stp</a> - Summarize Disk Read/Write Traffic<br>
 keywords: <a href="keyword-index.html#DISK">DISK</a> <br>
 <p>Get the status of reading/writing disk every 5 seconds, output top ten entries during that period.</p><p><font size="-2"><pre># stap disktop.stp -T 1</pre></font></p>
