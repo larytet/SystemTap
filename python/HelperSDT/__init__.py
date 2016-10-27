@@ -156,7 +156,8 @@ class Dispatcher(cmd.Cmd):
                     sys.stdout.write("CALL: %s %s\n"
                                      % (frame.f_code.co_filename,
                                         frame.f_code.co_name))
-                    _HelperSDT.trace_callback(0, frame, arg)
+                    _HelperSDT.trace_callback(_HelperSDT.PyTrace_CALL,
+                                              frame, arg)
             return self.pytrace_dispatch
         elif event == 'line':
             bplist = self._bplist.break_here(frame, event)
@@ -165,7 +166,8 @@ class Dispatcher(cmd.Cmd):
                     sys.stdout.write("LINE: %s %s %d\n"
                                      % (frame.f_code.co_filename,
                                         frame.f_code.co_name, frame.f_lineno))
-                    _HelperSDT.trace_callback(2, frame, arg)
+                    _HelperSDT.trace_callback(_HelperSDT.PyTrace_LINE,
+                                              frame, arg)
             return self.pytrace_dispatch
         elif event == 'return':
             bplist = self._bplist.break_here(frame, event)
@@ -174,7 +176,8 @@ class Dispatcher(cmd.Cmd):
                     sys.stdout.write("RETURN: %s %s %d\n"
                                      % (frame.f_code.co_filename,
                                         frame.f_code.co_name, frame.f_lineno))
-                    _HelperSDT.trace_callback(3, frame, arg)
+                    _HelperSDT.trace_callback(_HelperSDT.PyTrace_RETURN,
+                                              frame, arg)
             return self.pytrace_dispatch
         return self.pytrace_dispatch
 

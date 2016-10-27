@@ -21,35 +21,31 @@ trace_callback(PyObject *self, PyObject *args)
 
     /* We want to name the probes with the same name as the
      * define. This is tricky, so, we'll just save the define,
-     * undefine it, call the STAP_PROBE2 macro, then redfine it. */
+     * undefine it, call the STAP_PROBE macro, then redfine it. */
     switch (what) {
     case PyTrace_CALL:
-#define _PyTrace_CALL PyTrace_CALL
+#pragma push_macro("PyTrace_CALL")
 #undef PyTrace_CALL
 	STAP_PROBE2(HelperSDT, PyTrace_CALL, frame_obj, arg_obj);
-#define PyTrace_CALL _PyTrace_CALL
-#undef _PyTrace_CALL
+#pragma pop_macro("PyTrace_CALL")
 	break;
     case PyTrace_EXCEPTION:
-#define _PyTrace_EXCEPTION PyTrace_EXCEPTION
+#pragma push_macro("PyTrace_EXCEPTION")
 #undef PyTrace_EXCEPTION
 	STAP_PROBE2(HelperSDT, PyTrace_EXCEPTION, frame_obj, arg_obj);
-#define PyTrace_EXCEPTION _PyTrace_EXCEPTION
-#undef _PyTrace_EXCEPTION
+#pragma pop_macro("PyTrace_EXCEPTION")
 	break;
     case PyTrace_LINE:
-#define _PyTrace_LINE PyTrace_LINE
+#pragma push_macro("PyTrace_LINE")
 #undef PyTrace_LINE
 	STAP_PROBE2(HelperSDT, PyTrace_LINE, frame_obj, arg_obj);
-#define PyTrace_LINE _PyTrace_LINE
-#undef _PyTrace_LINE
+#pragma pop_macro("PyTrace_LINE")
 	break;
     case PyTrace_RETURN:
-#define _PyTrace_RETURN PyTrace_RETURN
+#pragma push_macro("PyTrace_RETURN")
 #undef PyTrace_RETURN
 	STAP_PROBE2(HelperSDT, PyTrace_RETURN, frame_obj, arg_obj);
-#define PyTrace_RETURN _PyTrace_RETURN
-#undef _PyTrace_RETURN
+#pragma pop_macro("PyTrace_RETURN")
 	break;
     // FIXME: What about PyTrace_C_CALL, PyTrace_C_EXCEPTION,
     // PyTrace_C_RETURN? Fold them into their non-'_C_' versions or
@@ -122,11 +118,20 @@ init_HelperSDT(void)
     module = PyModule_Create(&moduledef);
     if (module == NULL)
 	return NULL;
-    return module;
 #else
     module = Py_InitModule3("_HelperSDT", HelperSDT_methods,
 			    HelperSDT_doc);
     if (module == NULL)
 	return;
+#endif
+
+    // Add constants for the PyTrace_* values we use.
+    PyModule_AddIntMacro(module, PyTrace_CALL);
+    PyModule_AddIntMacro(module, PyTrace_EXCEPTION);
+    PyModule_AddIntMacro(module, PyTrace_LINE);
+    PyModule_AddIntMacro(module, PyTrace_RETURN);
+
+#if PY_MAJOR_VERSION >= 3
+    return module;
 #endif
 }
