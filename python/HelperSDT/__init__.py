@@ -24,19 +24,13 @@ import _HelperSDT
 
 
 class _Breakpoint:
-    def __init__(self, index, filename, funcname, lineno=None,
-                 returnp=False):
-        # We've got to have a filename and funcname with an optional
-        # lineno or returnp.
-        if not filename:
-            pass
-        if not funcname:
-            pass
+    def __init__(self, index, filename, funcname, lineno, returnp, key):
         self.index = index
         self.filename = filename
         self.funcname = funcname
         self.lineno = lineno
         self.returnp = returnp
+        self.key = key
 
     def dump(self, out=None):
         if out is None:
@@ -50,7 +44,8 @@ class _Breakpoint:
             disp = self.funcname
         else:
             disp = '%s.return' % self.funcname
-        return '%-4dbreakpoint at %s:%s' % (self.index, self.filename, disp)
+        return '%-4dbreakpoint at %s:%s %d' % (self.index, self.filename,
+                                               disp, self.key)
 
 
 class _BreakpointList:
@@ -65,8 +60,9 @@ class _BreakpointList:
         self._byfunc = {}  	# indexed by (file, function) tuple
         self._byfuncret = {}    # indexed by (file, function) tuple
 
-    def add(self, filename, funcname, lineno=None, returnp=None):
-        bp = _Breakpoint(self._index, filename, funcname, lineno, returnp)
+    def add(self, filename, funcname, lineno, returnp, key):
+        bp = _Breakpoint(self._index, filename, funcname, lineno,
+                         returnp, key)
         self._index += 1
         self._bynumber.append(bp)
         if bp.lineno:
@@ -157,7 +153,7 @@ class Dispatcher(cmd.Cmd):
                                      % (frame.f_code.co_filename,
                                         frame.f_code.co_name))
                     _HelperSDT.trace_callback(_HelperSDT.PyTrace_CALL,
-                                              frame, arg)
+                                              frame, arg, bp.key)
             return self.pytrace_dispatch
         elif event == 'line':
             bplist = self._bplist.break_here(frame, event)
@@ -167,7 +163,7 @@ class Dispatcher(cmd.Cmd):
                                      % (frame.f_code.co_filename,
                                         frame.f_code.co_name, frame.f_lineno))
                     _HelperSDT.trace_callback(_HelperSDT.PyTrace_LINE,
-                                              frame, arg)
+                                              frame, arg, bp.key)
             return self.pytrace_dispatch
         elif event == 'return':
             bplist = self._bplist.break_here(frame, event)
@@ -177,7 +173,7 @@ class Dispatcher(cmd.Cmd):
                                      % (frame.f_code.co_filename,
                                         frame.f_code.co_name, frame.f_lineno))
                     _HelperSDT.trace_callback(_HelperSDT.PyTrace_RETURN,
-                                              frame, arg)
+                                              frame, arg, bp.key)
             return self.pytrace_dispatch
         return self.pytrace_dispatch
 
@@ -187,7 +183,7 @@ class Dispatcher(cmd.Cmd):
 
     def do_b(self, arg):
         # Breakpoint command:
-        #   b [ MODULE|FUNCTION@FILENAME:LINENO|FLAGS ]
+        #   b [ MODULE|FUNCTION@FILENAME:LINENO|FLAGS|KEY ]
         if not arg:
             self._bplist.dump()
             return
@@ -199,10 +195,11 @@ class Dispatcher(cmd.Cmd):
         filename = None
         lineno = None
         flags = None
+        key = None
         parts = arg.split('|')
-        if len(parts) != 3:
+        if len(parts) != 4:
             sys.stderr.write("Invalid breakpoint format: %s\n" % arg)
-            sys.stderr.write("Wrong number of major parts (%d vs. 3)\n" %
+            sys.stderr.write("Wrong number of major parts (%d vs. 4)\n" %
                              len(parts))
             return
         #  module = parts[0]
@@ -212,6 +209,12 @@ class Dispatcher(cmd.Cmd):
         except:
             sys.stderr.write("Invalid breakpoint format: %s\n" % arg)
             sys.stderr.write("Invalid flags value (%s)\n" % parts[2])
+            return
+        try:
+            key = int(parts[3])
+        except:
+            sys.stderr.write("Invalid breakpoint format: %s\n" % arg)
+            sys.stderr.write("Invalid key value (%s)\n" % parts[3])
             return
         parts = filename_arg.split('@')
         if len(parts) != 2:
@@ -250,7 +253,7 @@ class Dispatcher(cmd.Cmd):
             returnp = True
 
         # Actually add the breakpoint.
-        self._bplist.add(filename, funcname, lineno, returnp)
+        self._bplist.add(filename, funcname, lineno, returnp, key)
 
 
 def run():

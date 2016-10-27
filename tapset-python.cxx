@@ -183,24 +183,28 @@ python_derived_probe_group::emit_module_decls (systemtap_session& s)
   // Output the probe info buffer.
   if (python2_probes.size())
     {
+      unsigned index = 0;
       s.op->newline() << "static const char python2_probe_info[] =";
       s.op->indent(1);
       for (auto iter = python2_probes.begin(); iter != python2_probes.end();
 	   iter++)
         {
-	  s.op->newline() << "\"b " << (*iter)->break_definition() << "\\n\"";
+	  s.op->newline() << "\"b " << (*iter)->break_definition()
+			  << "|" << index++ << "\\n\"";
 	}
       s.op->line() << ";";
       s.op->indent(-1);
     }
   if (python3_probes.size())
     {
+      unsigned index = 0;
       s.op->newline() << "static const char python3_probe_info[] =";
       s.op->indent(1);
       for (auto iter = python3_probes.begin(); iter != python3_probes.end();
 	   iter++)
         {
-	  s.op->newline() << "\"b " << (*iter)->break_definition() << "\\n\"";
+	  s.op->newline() << "\"b " << (*iter)->break_definition()
+			  << "|" << index++ << "\\n\"";
 	}
       s.op->line() << ";";
       s.op->indent(-1);

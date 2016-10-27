@@ -12,11 +12,12 @@
 static PyObject *
 trace_callback(PyObject *self, PyObject *args)
 {
-    int what;
+    unsigned int what;
     PyObject *frame_obj, *arg_obj;
+    unsigned int key;
 
     /* Parse the input tuple */
-    if (!PyArg_ParseTuple(args, "iOO", &what, &frame_obj, &arg_obj))
+    if (!PyArg_ParseTuple(args, "IOOI", &what, &frame_obj, &arg_obj, &key))
 	return NULL;
 
     /* We want to name the probes with the same name as the
@@ -26,25 +27,25 @@ trace_callback(PyObject *self, PyObject *args)
     case PyTrace_CALL:
 #pragma push_macro("PyTrace_CALL")
 #undef PyTrace_CALL
-	STAP_PROBE2(HelperSDT, PyTrace_CALL, frame_obj, arg_obj);
+	STAP_PROBE3(HelperSDT, PyTrace_CALL, frame_obj, arg_obj, key);
 #pragma pop_macro("PyTrace_CALL")
 	break;
     case PyTrace_EXCEPTION:
 #pragma push_macro("PyTrace_EXCEPTION")
 #undef PyTrace_EXCEPTION
-	STAP_PROBE2(HelperSDT, PyTrace_EXCEPTION, frame_obj, arg_obj);
+	STAP_PROBE3(HelperSDT, PyTrace_EXCEPTION, frame_obj, arg_obj, key);
 #pragma pop_macro("PyTrace_EXCEPTION")
 	break;
     case PyTrace_LINE:
 #pragma push_macro("PyTrace_LINE")
 #undef PyTrace_LINE
-	STAP_PROBE2(HelperSDT, PyTrace_LINE, frame_obj, arg_obj);
+	STAP_PROBE3(HelperSDT, PyTrace_LINE, frame_obj, arg_obj, key);
 #pragma pop_macro("PyTrace_LINE")
 	break;
     case PyTrace_RETURN:
 #pragma push_macro("PyTrace_RETURN")
 #undef PyTrace_RETURN
-	STAP_PROBE2(HelperSDT, PyTrace_RETURN, frame_obj, arg_obj);
+	STAP_PROBE3(HelperSDT, PyTrace_RETURN, frame_obj, arg_obj, key);
 #pragma pop_macro("PyTrace_RETURN")
 	break;
     // FIXME: What about PyTrace_C_CALL, PyTrace_C_EXCEPTION,
