@@ -3,7 +3,7 @@
 %{!?with_htmldocs: %global with_htmldocs 0}
 %{!?with_monitor: %global with_monitor 1}
 # crash is not available
-%ifarch ppc ppc64 %{sparc} aarch64 ppc64le
+%ifarch ppc ppc64 %{sparc} aarch64 ppc64le %{mips}
 %{!?with_crash: %global with_crash 0}
 %else
 %{!?with_crash: %global with_crash 1}
