@@ -37,6 +37,7 @@ extern "C" {
 using namespace std;
 
 
+class parser;
 class lexer
 {
 public:
@@ -46,7 +47,7 @@ public:
   bool check_compatible; // whether to gate features on session.compatible
 
   token* scan ();
-  lexer (istream&, const string&, systemtap_session&, bool);
+  lexer (istream&, const string&, systemtap_session&, bool, parser *);
   void set_current_file (stapfile* f);
   void set_current_token_chain (const token* tok);
   inline bool has_version (const char* v) const;
@@ -54,6 +55,7 @@ public:
   unordered_set<interned_string> keywords;
   static unordered_set<string> atwords;
 private:
+  parser *p;
   inline int input_get ();
   inline int input_peek (unsigned n=0);
   void input_put (const string&, const token*);
@@ -107,6 +109,8 @@ private:
   bool user_file;
   bool auto_path;
   parse_context context;
+  vector<bool> used_session_args;
+  friend class lexer;
 
   // preprocessing subordinate, first pass (macros)
   struct pp1_activation {
@@ -285,15 +289,20 @@ parse_synthetic_probe (systemtap_session &s, istream& i, const token* tok)
 // ------------------------------------------------------------------------
 
 parser::parser (systemtap_session& s, const string &n, istream& i, unsigned flags):
-  session (s), input_name (n), input (i, input_name, s, !(flags & pf_no_compatible)),
+  session (s), input_name (n), input (i, input_name, s, !(flags & pf_no_compatible), this),
   errs_as_warnings(flags & pf_squash_errors), privileged (flags & pf_guru),
   user_file (flags & pf_user_file), auto_path (flags & pf_auto_path),
   context(con_unknown), systemtap_v_seen(0), last_t (0), next_t (0), num_errors (0)
 {
+  used_session_args.resize(s.args.size(), false);
 }
 
 parser::~parser()
 {
+  if (user_file)
+    for (unsigned i = 0; i<used_session_args.size(); i++)
+      if (! used_session_args[i])
+        session.print_warning (_F("unused command line option $%u/@%u", i+1, i+1) /* generally at EOF */);
 }
 
 static string
@@ -1385,8 +1394,8 @@ parser::peek_kw (string const & kw)
 
 
 
-lexer::lexer (istream& input, const string& in, systemtap_session& s, bool cc):
-  ate_comment(false), ate_whitespace(false), saw_tokens(false), check_compatible(cc),
+lexer::lexer (istream& input, const string& in, systemtap_session& s, bool cc, parser *p):
+  ate_comment(false), ate_whitespace(false), saw_tokens(false), check_compatible(cc), p(p),
   input_name (in), input_pointer (0), input_end (0), cursor_suspend_count(0),
   cursor_suspend_line (1), cursor_suspend_column (1), cursor_line (1),
   cursor_column (1), session(s), current_file (0), current_token_chain (0)
@@ -1623,6 +1632,7 @@ skip:
           n->make_junk(tok_junk_invalid_arg);
           return n;
         }
+      p->used_session_args[idx-1] = true;
       const string& arg = session.args[idx-1];
       input_put ((c == '$') ? arg : lex_cast_qstring (arg), n);
       token_str.clear();

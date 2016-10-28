@@ -13,6 +13,9 @@
   specially compiled to compute only the script-requested @op(var) values,
   not all potential ones.  This speeds up the <<< operations.
 
+- Systemtap now warns if script arguments given on the command line are unused,
+  instead of mentioned by the script with $n/@n.
+
 - Netfilter tapsets now provide variables data_hex and data_str to display packet
   contents in hexadecimal and ASCII respectively.
 
