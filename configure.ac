@@ -103,12 +103,12 @@ if test -n "$PYTHON3"; then
 
    AC_CACHE_CHECK([for python3 script directory], [ac_cv_python3_dir],
 		  [ac_cv_python3_dir=`$PYTHON3 -c "import distutils.sysconfig; print(distutils.sysconfig.get_python_lib(0,0,prefix='$PYTHON3_PREFIX'))"`])
-   AC_SUBST([python3dir], [$am_cv_python3_dir])
+   AC_SUBST([python3dir], [$ac_cv_python3_dir])
 
    AC_CACHE_CHECK([for python3 extension module directory],
    		  [ac_cv_py3execdir],
 		  [ac_cv_py3execdir=`$PYTHON3 -c "import distutils.sysconfig; print(distutils.sysconfig.get_python_lib(1,0,prefix='$PYTHON3_EXEC_PREFIX'))"`])
-   AC_SUBST([py3execdir], [$am_cv_py3execdir])
+   AC_SUBST([py3execdir], [$ac_cv_py3execdir])
 fi
 
 dnl Handle the prologues option.

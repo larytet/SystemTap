@@ -621,7 +621,7 @@ uninstall-am: uninstall-pkglibexecpythonDATA \
 @HAVE_PYTHON2_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	 --single-version-externally-managed \
 @HAVE_PYTHON2_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	 --record $(shell readlink -f $(builddir))/py2build/install_files.txt \
 @HAVE_PYTHON2_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@         --verbose)
-@HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	(cd $(srcdir); $(PYTHON) setup.py build \
+@HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	(cd $(srcdir); $(PYTHON3) setup.py build \
 @HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@         --build-base $(shell readlink -f $(builddir))/py3build \
 @HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	 install --prefix $(DESTDIR)$(prefix) \
 @HAVE_PYTHON3_PROBES_TRUE@@HAVE_PYTHON_PROBES_TRUE@	 --single-version-externally-managed \

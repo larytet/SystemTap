@@ -48,7 +48,7 @@ if HAVE_PYTHON2_PROBES
          --verbose)
 endif
 if HAVE_PYTHON3_PROBES
-	(cd $(srcdir); $(PYTHON) setup.py build \
+	(cd $(srcdir); $(PYTHON3) setup.py build \
          --build-base $(shell readlink -f $(builddir))/py3build \
 	 install --prefix $(DESTDIR)$(prefix) \
 	 --single-version-externally-managed \

@@ -20,8 +20,10 @@ import cmd
 import os.path
 import sys
 
-import _HelperSDT
-
+if sys.version_info[0] == 2:
+    import _HelperSDT
+else:
+    from . import _HelperSDT
 
 class _Breakpoint:
     def __init__(self, index, filename, funcname, lineno, returnp, key):
@@ -122,12 +124,13 @@ class Dispatcher(cmd.Cmd):
         # Read the breakpoints from a file.
         lines = []
         if 'SYSTEMTAP_MODULE' in os.environ:
-            envModule = os.environ['SYSTEMTAP_MODULE']
-            bpFileName = "/proc/systemtap/%s/%s" % (envModule, bpFileBase)
+            self.envModule = os.environ['SYSTEMTAP_MODULE']
+            bpFileName = "/proc/systemtap/%s/%s" % (self.envModule,
+                                                    bpFileBase)
             try:
                 bpFile = open(bpFileName)
             except IOError:
-                sys.stderr.write("Error: the '%s' file could not be opened"
+                sys.stderr.write("Error: the '%s' file could not be opened\n"
                                  % bpFileName)
                 sys.exit(1)
             else:
@@ -135,7 +138,7 @@ class Dispatcher(cmd.Cmd):
                 bpFile.close()
         else:
             sys.stderr.write("Error: the 'SYSTEMTAP_MODULE' environment"
-                             " variable does not exist")
+                             " variable does not exist\n")
             sys.exit(1)
 
         # Now handle each command
@@ -153,7 +156,8 @@ class Dispatcher(cmd.Cmd):
                                      % (frame.f_code.co_filename,
                                         frame.f_code.co_name))
                     _HelperSDT.trace_callback(_HelperSDT.PyTrace_CALL,
-                                              frame, arg, bp.key)
+                                              frame, arg, self.envModule,
+                                              bp.key)
             return self.pytrace_dispatch
         elif event == 'line':
             bplist = self._bplist.break_here(frame, event)
@@ -163,7 +167,8 @@ class Dispatcher(cmd.Cmd):
                                      % (frame.f_code.co_filename,
                                         frame.f_code.co_name, frame.f_lineno))
                     _HelperSDT.trace_callback(_HelperSDT.PyTrace_LINE,
-                                              frame, arg, bp.key)
+                                              frame, arg, self.envModule,
+                                              bp.key)
             return self.pytrace_dispatch
         elif event == 'return':
             bplist = self._bplist.break_here(frame, event)
@@ -173,7 +178,8 @@ class Dispatcher(cmd.Cmd):
                                      % (frame.f_code.co_filename,
                                         frame.f_code.co_name, frame.f_lineno))
                     _HelperSDT.trace_callback(_HelperSDT.PyTrace_RETURN,
-                                              frame, arg, bp.key)
+                                              frame, arg, self.envModule,
+                                              bp.key)
             return self.pytrace_dispatch
         return self.pytrace_dispatch
 
@@ -245,7 +251,6 @@ class Dispatcher(cmd.Cmd):
             # from line number breaks by the lack of a line number.
             lineno = None
         if flags & 0x1:
-            sys.stderr.write("found returnp\n")
             # The breakpoint class distinguishes function return
             # breaks from line number breaks by the lack of a line
             # number.
@@ -260,7 +265,7 @@ def run():
     # Now that we're attached, run the real python file.
     mainpyfile = sys.argv[1]
     if not os.path.exists(mainpyfile):
-        sys.stderr.write("Error: '%s' does not exist" % mainpyfile)
+        sys.stderr.write("Error: '%s' does not exist\n" % mainpyfile)
         sys.exit(1)
 
     del sys.argv[0]         # Hide this module from the argument list

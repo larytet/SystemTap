@@ -85,27 +85,19 @@ private:
 	      interned_string function,
 	      vector<python_probe_info *> &results);
 
-  // python2 related synthetic probes
+  // python2-related info
   derived_probe* python2_procfs_probe;
-  probe* python2_call_probe;
-  probe* python2_line_probe;
-  probe* python2_return_probe;
+  unsigned python2_key;
 
-  // python3 related synthetic probes
+  // python3-related info
   derived_probe* python3_procfs_probe;
-  probe* python3_call_probe;
-  probe* python3_line_probe;
-  probe* python3_return_probe;
+  unsigned python3_key;
 
 public:
   python_builder() : python2_procfs_probe(NULL),
-		     python2_call_probe(NULL),
-		     python2_line_probe(NULL),
-		     python2_return_probe(NULL),
+		     python2_key(0),
 		     python3_procfs_probe(NULL),
-		     python3_call_probe(NULL),
-		     python3_line_probe(NULL),
-		     python3_return_probe(NULL) {}
+		     python3_key(0) {}
 
   void build(systemtap_session & sess, probe * base,
 	     probe_point * location,
@@ -294,7 +286,7 @@ python_builder::build(systemtap_session & sess, probe * base,
 
   vector<python_probe_info *> results;
   if (resolve(sess, python_version, module, function, results) != 0)
-      throw SEMANTIC_ERROR(_("The python module/function name cannot be resolved."));
+    throw SEMANTIC_ERROR(_("The python module/function name cannot be resolved."));
 
   auto iter = results.begin();
   while (iter != results.end())
@@ -325,191 +317,146 @@ python_builder::build(systemtap_session & sess, probe * base,
 
       // If needed, create a new 'call' component.
       if (has_call && !has_call_token)
-      {
+        {
 	  ppc = new probe_point::component (TOK_CALL);
 	  pp->components.push_back(ppc);
+	}
+
+      // Create (if necessary) the python 2 procfs probe which the
+      // HelperSDT python module reads to get probe information.
+      if (python_version == 2 && python2_procfs_probe == NULL)
+        {
+	  stringstream code;
+	  const token* tok = base->body->tok;
+
+	  // Notice this synthetic probe has no body. That's OK,
+	  // since we'll point it at our internal buffer.
+	  code << "probe procfs(\"_stp_python2_probes\").read {" << endl;
+	  code << "}" << endl;
+	  probe *base_probe = parse_synthetic_probe (sess, code, tok);
+	  if (!base_probe)
+	    throw SEMANTIC_ERROR (_("can't create python2 procfs probe"),
+				  tok);
+	  vector<derived_probe *> results;
+	  derive_probes(sess, base_probe, results);
+	  if (results.size() != 1)
+	    throw SEMANTIC_ERROR (_F("wrong number of probes derived (%d),"
+				     " should be 1", results.size()));
+	  python2_procfs_probe = results[0];
+	  finished_results.push_back(results[0]);
+	      
+	  // Now that we've got our procfs derived probe, point it
+	  // at our internal buffer that we're going to output in
+	  // python_derived_probe_group::emit_module_decls().
+	  python2_procfs_probe->use_internal_buffer("python2_probe_info");
+	}
+
+      // Create (if necessary) the python 3 procfs probe which the
+      // HelperSDT python module reads to get probe information.
+      else if (python_version == 3 && python3_procfs_probe == NULL)
+        {
+	  stringstream code;
+	  const token* tok = base->body->tok;
+
+	  // Notice this synthetic probe has no body. That's OK,
+	  // since we'll point it at our internal buffer.
+	  code << "probe procfs(\"_stp_python3_probes\").read {" << endl;
+	  code << "}" << endl;
+	  probe *base_probe = parse_synthetic_probe (sess, code, tok);
+	  if (!base_probe)
+	    throw SEMANTIC_ERROR (_("can't create python3 procfs probe"),
+				  tok);
+	  vector<derived_probe *> results;
+	  derive_probes(sess, base_probe, results);
+	  if (results.size() != 1)
+	    throw SEMANTIC_ERROR (_F("wrong number of probes derived (%d),"
+				     " should be 1", results.size()));
+	  python3_procfs_probe = results[0];
+	  finished_results.push_back(results[0]);
+	      
+	  // Now that we've got our procfs derived probe, point it
+	  // at our internal buffer that we're going to output in
+	  // python_derived_probe_group::emit_module_decls().
+	  python3_procfs_probe->use_internal_buffer("python3_probe_info");
       }
 
+      stringstream code;
+      const token* tok = base->body->tok;
+      code << "probe process(\""
+	   << (python_version == 2 ? PYTHON_BASENAME : PYTHON3_BASENAME)
+	   << "\").library(\""
+	   << (python_version == 2 ? PYEXECDIR : PY3EXECDIR)
+	  // For python2, the name of the .so file is '_HelperSDT.so'. For
+	  // python3, the name varies based on the python3 version number
+	  // and architecture. On i686, the name of the .so file is
+	  // '_HelperSDT.cpython-35m-i386-linux-gnu.so'. So, we'll use
+	  // a wildcard to find it.
+	   << (python_version == 2 ? "/HelperSDT/_HelperSDT.so\")"
+	       : "/HelperSDT/_HelperSDT.*.so\")")
+	   << ".provider(\"HelperSDT\").mark(\""
+	   << (has_return ? "PyTrace_RETURN"
+	       : (has_call ? "PyTrace_CALL" : "PyTrace_LINE"))
+	   << "\") {" << endl;
+
+      // Make sure we're in the right probe. To do this, we have to
+      // make sure that this method has some cool properties:
+      //
+      // - It must be unique system-wide, to avoid collisions between
+      //   concurrent users of python probes.
+      //
+      // - It must be unique within a particular systemtap script, so
+      //   that distinct probe handlers get run.
+      //
+      // - It must be computable from systemtap at run-time (since
+      //   compile-time can't be unique enough)
+      //
+      // - It must be passable to the HelperSDT python module, so that
+      //   we can get it back when the mark probe hits.
+      //
+      // So, the method we use is by checking the module name (which
+      // is unique system-wide and computed at run-time) and the probe
+      // 'key' (which is unique to this script and computed at
+      // compile-time).
+      //
+      // The 'key' (which is just an index) is passed down to the
+      // HelperSDT python module via the procfs file. When the
+      // HelperSDT module sees an event (function call, function line
+      // number, or function return) that we're interested in, it
+      // calls down into the _HelperSDT C python extension that
+      // contains SDT markers. The last 2 arguments to the markers are
+      // the module name and key.
+      //
+      // The 'key' values aren't unique system wide (and just start at
+      // 0), but the combination of module name and key is unique
+      // system-wide.
+      code << "  if ($arg4 != "
+	   << (python_version == 2 ? python2_key++ : python3_key++)
+	   << " || user_string($arg3) != module_name()) { next }";
+      code << "}" << endl;
+
+      probe *mark_probe = parse_synthetic_probe (sess, code, tok);
+      if (!mark_probe)
+	throw SEMANTIC_ERROR (_("can't create python call mark probe"),
+			      tok);
+
+      // Link this main probe back to the original base, with an
+      // additional probe intermediate to catch probe listing.
+      mark_probe->base = new probe(base, location);
+
+      // Splice base->body in after the parsed body
+      mark_probe->body = new block(mark_probe->body, base->body);
+      derive_probes(sess, mark_probe, finished_results);
+
+      // Create a python_derived_probe, but don't return it in
+      // 'finished_results'. Instead just add it to the
+      // group, so that its information will be added to the
+      // procfs file.
       probe* new_probe = new probe (base, pp);
-      finished_results.push_back(new python_derived_probe(sess, new_probe, pp,
-							  python_version,
-							  (*iter)->module,
-							  (*iter)->function,
-							  has_return,
-							  has_call));
-
-      if (python_version == 2)
-        {
-	  // Create (if necessary) the python 2 procfs probe which the
-	  // HelperSDT python module reads to get probe information.
-	  if (python2_procfs_probe == NULL)
-	  {
-	      stringstream code;
-	      const token* tok = base->body->tok;
-
-	      // Notice this synthetic probe has no body. That's OK,
-	      // since we'll point it at our internal buffer.
-	      code << "probe procfs(\"_stp_python2_probes\").read {" << endl;
-	      code << "}" << endl;
-	      probe *base_probe = parse_synthetic_probe (sess, code, tok);
-	      if (!base_probe)
-		throw SEMANTIC_ERROR (_("can't create python2 procfs probe"),
-				      tok);
-	      vector<derived_probe *> results;
-	      derive_probes(sess, base_probe, results);
-	      if (results.size() != 1)
-		  throw SEMANTIC_ERROR (_F("wrong number of probes derived (%d), should be 1",
-					   results.size()));
-	      python2_procfs_probe = results[0];
-	      finished_results.push_back(results[0]);
-	      
-	      // Now that we've got our procfs derived probe, point it
-	      // at our internal buffer that we're going to output in
-	      // python_derived_probe_group::emit_module_decls().
-	      python2_procfs_probe->use_internal_buffer("python2_probe_info");
-	  }
-
-	  if (has_return && python2_return_probe == NULL)
-	    {
-	      stringstream code;
-	      const token* tok = base->body->tok;
-	      code << "probe process(\"" << PYTHON_BASENAME
-		   << "\").library(\"" << PYEXECDIR
-		   << "/HelperSDT/_HelperSDT.so\")"
-		   << ".provider(\"HelperSDT\").mark(\"PyTrace_RETURN\") {"
-		   << endl;
-	      // FIXME: Placeholder...
-	      code << "  printf(\"PyTrace_RETURN\\n\")" << endl;
-	      code << "}" << endl;
-	      python2_return_probe = parse_synthetic_probe (sess, code, tok);
-	      if (!python2_return_probe)
-		throw SEMANTIC_ERROR (_("can't create python2 return probe"),
-				      tok);
-	      derive_probes(sess, python2_return_probe, finished_results);
-	    }
-	  else if (has_call && python2_call_probe == NULL)
-	    {
-	      stringstream code;
-	      const token* tok = base->body->tok;
-	      code << "probe process(\"" << PYTHON_BASENAME
-		   << "\").library(\"" << PYEXECDIR
-		   << "/HelperSDT/_HelperSDT.so\")"
-		   << ".provider(\"HelperSDT\").mark(\"PyTrace_CALL\") {"
-		   << endl;
-	      // FIXME: Placeholder...
-	      code << "  printf(\"PyTrace_CALL\\n\")" << endl;
-	      code << "}" << endl;
-	      python2_call_probe = parse_synthetic_probe (sess, code, tok);
-	      if (!python2_call_probe)
-		throw SEMANTIC_ERROR (_("can't create python2 return probe"),
-				      tok);
-	      derive_probes(sess, python2_call_probe, finished_results);
-	    }
-	  else if (python2_line_probe == NULL)
-	    {
-	      stringstream code;
-	      const token* tok = base->body->tok;
-	      code << "probe process(\"" << PYTHON_BASENAME
-		   << "\").library(\"" << PYEXECDIR
-		   << "/HelperSDT/_HelperSDT.so\")"
-		   << ".provider(\"HelperSDT\").mark(\"PyTrace_LINE\") {"
-		   << endl;
-	      // FIXME: Placeholder...
-	      code << "  printf(\"PyTrace_LINE\\n\")" << endl;
-	      code << "}" << endl;
-	      python2_line_probe = parse_synthetic_probe (sess, code, tok);
-	      if (!python2_line_probe)
-		throw SEMANTIC_ERROR (_("can't create python2 return probe"),
-				      tok);
-	      derive_probes(sess, python2_line_probe, finished_results);
-	    }
-	}
-      else
-        {
-	  // Create (if necessary) the python 3 procfs probe which the
-	  // HelperSDT python module reads to get probe information.
-	  if (python3_procfs_probe == NULL)
-	  {
-	      stringstream code;
-	      const token* tok = base->body->tok;
-
-	      // Notice this synthetic probe has no body. That's OK,
-	      // since we'll point it at our internal buffer.
-	      code << "probe procfs(\"_stp_python3_probes\").read {" << endl;
-	      code << "}" << endl;
-	      probe *base_probe = parse_synthetic_probe (sess, code, tok);
-	      if (!base_probe)
-		throw SEMANTIC_ERROR (_("can't create python3 procfs probe"),
-				      tok);
-	      vector<derived_probe *> results;
-	      derive_probes(sess, base_probe, results);
-	      if (results.size() != 1)
-		  throw SEMANTIC_ERROR (_F("wrong number of probes derived (%d), should be 1",
-					   results.size()));
-	      python3_procfs_probe = results[0];
-	      finished_results.push_back(results[0]);
-	      
-	      // Now that we've got our procfs derived probe, point it
-	      // at our internal buffer that we're going to output in
-	      // python_derived_probe_group::emit_module_decls().
-	      python3_procfs_probe->use_internal_buffer("python3_probe_info");
-	  }
-
-	  if (has_return && python3_return_probe == NULL)
-	    {
-	      stringstream code;
-	      const token* tok = base->body->tok;
-	      code << "probe process(\"" << PYTHON3_BASENAME
-		   << "\").library(\"" << PY3EXECDIR
-		   << "/HelperSDT/_HelperSDT.so\")"
-		   << ".provider(\"HelperSDT\").mark(\"PyTrace_RETURN\") {"
-		   << endl;
-	      // FIXME: Placeholder...
-	      code << "  printf(\"PyTrace_RETURN\")" << endl;
-	      code << "}" << endl;
-	      python3_return_probe = parse_synthetic_probe (sess, code, tok);
-	      if (!python3_return_probe)
-		throw SEMANTIC_ERROR (_("can't create python3 return probe"),
-				      tok);
-	      derive_probes(sess, python3_return_probe, finished_results);
-	    }
-	  else if (has_call && python3_call_probe == NULL)
-	    {
-	      stringstream code;
-	      const token* tok = base->body->tok;
-	      code << "probe process(\"" << PYTHON3_BASENAME
-		   << "\").library(\"" << PY3EXECDIR
-		   << "/HelperSDT/_HelperSDT.so\")"
-		   << ".provider(\"HelperSDT\").mark(\"PyTrace_CALL\") {"
-		   << endl;
-	      // FIXME: Placeholder...
-	      code << "  printf(\"PyTrace_CALL\")" << endl;
-	      code << "}" << endl;
-	      python3_call_probe = parse_synthetic_probe (sess, code, tok);
-	      if (!python3_call_probe)
-		throw SEMANTIC_ERROR (_("can't create python3 return probe"),
-				      tok);
-	      derive_probes(sess, python3_call_probe, finished_results);
-	    }
-	  else if (python3_line_probe == NULL)
-	    {
-	      stringstream code;
-	      const token* tok = base->body->tok;
-	      code << "probe process(\"" << PYTHON3_BASENAME
-		   << "\").library(\"" << PY3EXECDIR
-		   << "/HelperSDT/_HelperSDT.so\")"
-		   << ".provider(\"HelperSDT\").mark(\"PyTrace_LINE\") {"
-		   << endl;
-	      // FIXME: Placeholder...
-	      code << "  printf(\"PyTrace_LINE\")" << endl;
-	      code << "}" << endl;
-	      python3_line_probe = parse_synthetic_probe (sess, code, tok);
-	      if (!python3_line_probe)
-		throw SEMANTIC_ERROR (_("can't create python3 return probe"),
-				      tok);
-	      derive_probes(sess, python3_line_probe, finished_results);
-	    }
-	}
+      python_derived_probe *pdp;
+      pdp = new python_derived_probe(sess, new_probe, pp, python_version,
+				     (*iter)->module, (*iter)->function,
+				     has_return, has_call);
+      pdp->join_group(sess);
 
       // Delete the item and go on to the next item in the vector.
       delete *iter;

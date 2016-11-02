@@ -9178,7 +9178,7 @@ else
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_python3_dir" >&5
 $as_echo "$ac_cv_python3_dir" >&6; }
-   python3dir=$am_cv_python3_dir
+   python3dir=$ac_cv_python3_dir
 
 
    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for python3 extension module directory" >&5
@@ -9190,7 +9190,7 @@ else
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_py3execdir" >&5
 $as_echo "$ac_cv_py3execdir" >&6; }
-   py3execdir=$am_cv_py3execdir
+   py3execdir=$ac_cv_py3execdir
 
 fi
 
