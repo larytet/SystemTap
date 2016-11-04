@@ -167,6 +167,7 @@ public:
   int include_arg_start;
   std::vector<std::string> c_macros;
   std::vector<std::string> args;
+  std::vector<bool> used_args;
   std::vector<std::string> kbuildflags; // -B var=val
   std::vector<std::string> globalopts; // -G var=val
   std::vector<std::string> modinfos; // --modinfo tag=value

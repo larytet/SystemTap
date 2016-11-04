@@ -38,6 +38,7 @@
 
 #include <cstdlib>
 #include <thread>
+#include <algorithm>
 
 extern "C" {
 #include <glob.h>
@@ -480,6 +481,9 @@ passes_0_4 (systemtap_session &s)
   // PASS 1a: PARSING LIBRARY SCRIPTS
   PROBE1(stap, pass1a__start, &s);
 
+  // prep this array for tapset $n use too ... although we will reset once again for user scripts
+  s.used_args.resize(s.args.size(), false);
+  
   if (! s.pass_1a_complete)
     {
       // We need to handle the library scripts first because this pass
@@ -744,6 +748,10 @@ passes_0_4 (systemtap_session &s)
   // PASS 1b: PARSING USER SCRIPT
   PROBE1(stap, pass1b__start, &s);
 
+  // reset for user scripts -- it's their use of $* we care about
+  // except that tapsets like argv.stp can consume $parms
+  fill(s.used_args.begin(), s.used_args.end(), false);
+
   // Only try to parse a user script if the user provided one, or if we have to
   // make one (as is the case for listing mode). Otherwise, s.user_script
   // remains NULL.
@@ -936,6 +944,23 @@ passes_0_4 (systemtap_session &s)
 
   missing_rpm_list_print(s, "-debuginfo");
 
+  // Check for unused command line parameters.  But - if the argv
+  // tapset was selected for inclusion, then the user-script need not
+  // use $* directly, so we want to suppress the warning in this case.
+  // This is hacky, but we don't have a formal way of tracking tokens
+  // that came from command line arguments so as to do set-subtraction
+  // at this point.
+  //
+  bool argc_found=false, argv_found=false;
+  for (unsigned i = 0; i<s.globals.size(); i++) {
+    if (s.globals[i]->name == "argc") argc_found = true;
+    if (s.globals[i]->name == "argv") argv_found = true;
+  }
+  if (!argc_found && !argv_found)
+    for (unsigned i = 0; i<s.used_args.size(); i++)
+      if (! s.used_args[i])
+        s.print_warning (_F("unused command line option $%u/@%u", i+1, i+1));
+  
   if (rc && !s.dump_mode && !s.try_server ())
     cerr << _("Pass 2: analysis failed.  [man error::pass2]") << endl;
 

@@ -9,7 +9,9 @@
 
 global argc = $#
 global argv[32]
-
+  // NB: for unused $param warning suppression, the global variable
+  // names in this tapset are hard-coded in the main.cxx.
+  
 // individual argv[N] slots may be overridden at run time:
 // stap FOO.stp -G argc=2 -G argv_1="hello" -G argv_2="world"
 
