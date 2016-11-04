@@ -99,7 +99,7 @@ Build steps:
   To run a simple test.
   # stap -v -e 'probe vfs.read {printf("read performed\n"); exit()}'
 
-  To run the full test suite from the build tree.
+  To run the full test suite from the build tree, install dejagnu, then:
   # make installcheck
 
   For the prototype dyninst pure-userspace backend, run "stap" as any user.
