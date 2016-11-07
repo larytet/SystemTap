@@ -14,6 +14,10 @@ the <systemtap@sourceware.org> mailing list.
   access.  Other contributors should simply pack up the goods into a
   plain text email message to the mailing list.
 
+  It is not necessary to include machine-generated files like
+  autoconf*, sample-script indexes, etc. in patches posted for
+  review.
+
 - obvious changes
 
   Trivial, obvious patches may be posted or committed without other
