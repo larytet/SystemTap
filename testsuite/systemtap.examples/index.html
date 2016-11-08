@@ -60,7 +60,7 @@
 <li><a href="#virtualization/kvm_service_time.stp">virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons</a></li>
 </ul>
 
-<h2>All 158 Examples</h2>
+<h2>All 159 Examples</h2>
 <ul>
 <li><a name="general/alias_suffixes.stp"></a><a href="#general/alias_suffixes.stp">&para;</a> <a href="general/alias_suffixes.stp">general/alias_suffixes.stp</a> - Count I/O Syscalls using Alias Suffixes<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
@@ -327,6 +327,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li><li><a name="network/tcp_init_cwnd.stp"></a><a href="#network/tcp_init_cwnd.stp">&para;</a> <a href="network/tcp_init_cwnd.stp">network/tcp_init_cwnd.stp</a> - Increase Initial TCP Congestion Window to 10<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>Run the tcp_init_cwnd.stp script in the background to override a kernel&#39;s default tcp cwnd value to 10, which has been found to improve latency for web server type workloads.  The script prints a count of cwnd value changes when it is stopped.</p><p><font size="-2"><pre># stap -g tcp_init_cwnd.stp -T 1</pre></font></p>
+</li><li><a name="network/tcp_retransmission.stp"></a><a href="#network/tcp_retransmission.stp">&para;</a> <a href="network/tcp_retransmission.stp">network/tcp_retransmission.stp</a> - print tcp retransmission packet<br>
+keywords: <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#RETRANSMISSION">RETRANSMISSION</a> <br>
+<p>The tcp_retransmission.stp prints out a line for each tcp retransmission packet</p><p><font size="-2"><pre># stap tcp_retransmission.stp -T 1</pre></font></p>
 </li><li><a name="network/tcp_trace.stp"></a><a href="#network/tcp_trace.stp">&para;</a> <a href="network/tcp_trace.stp">network/tcp_trace.stp</a> - TCP Connection Tracing Utility<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACE">TRACE</a> <br>
 <p>This scripts traces a given TCP connection based on the filter parameters given by the user. The indexing is done by the 4 tuples local address, remote address, local port, remote port.</p><p><i><a href="network/tcp_trace.txt">sample usage in network/tcp_trace.txt</i></font></p>

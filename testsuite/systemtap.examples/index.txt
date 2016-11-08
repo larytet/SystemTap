@@ -974,6 +974,15 @@ keywords: network tcp socket guru
   # stap -g tcp_init_cwnd.stp -T 1
 
 
+network/tcp_retransmission.stp - print tcp retransmission packet
+keywords: tcp retransmission
+
+  The tcp_retransmission.stp prints out a line for each tcp
+  retransmission packet
+
+  # stap tcp_retransmission.stp -T 1
+
+
 network/tcp_trace.stp - TCP Connection Tracing Utility
 keywords: network trace
 
