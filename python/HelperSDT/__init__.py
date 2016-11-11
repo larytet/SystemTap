@@ -152,9 +152,6 @@ class Dispatcher(cmd.Cmd):
             bplist = self._bplist.break_here(frame, event)
             if bplist:
                 for bp in bplist:
-                    sys.stdout.write("CALL: %s %s\n"
-                                     % (frame.f_code.co_filename,
-                                        frame.f_code.co_name))
                     _HelperSDT.trace_callback(_HelperSDT.PyTrace_CALL,
                                               frame, arg, self.envModule,
                                               bp.key)
@@ -163,9 +160,6 @@ class Dispatcher(cmd.Cmd):
             bplist = self._bplist.break_here(frame, event)
             if bplist:
                 for bp in bplist:
-                    sys.stdout.write("LINE: %s %s %d\n"
-                                     % (frame.f_code.co_filename,
-                                        frame.f_code.co_name, frame.f_lineno))
                     _HelperSDT.trace_callback(_HelperSDT.PyTrace_LINE,
                                               frame, arg, self.envModule,
                                               bp.key)
@@ -174,9 +168,6 @@ class Dispatcher(cmd.Cmd):
             bplist = self._bplist.break_here(frame, event)
             if bplist:
                 for bp in bplist:
-                    sys.stdout.write("RETURN: %s %s %d\n"
-                                     % (frame.f_code.co_filename,
-                                        frame.f_code.co_name, frame.f_lineno))
                     _HelperSDT.trace_callback(_HelperSDT.PyTrace_RETURN,
                                               frame, arg, self.envModule,
                                               bp.key)
