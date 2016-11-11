@@ -76,6 +76,18 @@ public:
 };
 
 
+struct python_functioncall_expanding_visitor: public update_visitor
+{
+  python_functioncall_expanding_visitor (systemtap_session& s, int pv)
+    : sess(s), python_version(pv) {}
+
+  systemtap_session& sess;
+  int python_version;
+
+  void visit_functioncall (functioncall* e);
+};
+
+
 struct python_builder: public derived_probe_builder
 {
 private:
@@ -201,6 +213,41 @@ python_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->line() << ";";
       s.op->indent(-1);
     }
+}
+
+
+void
+python_functioncall_expanding_visitor::visit_functioncall (functioncall* e)
+{
+  // If it isn't one of the functions we're interested in, we're done.
+  if (e->function != "python_print_backtrace"
+      && e->function != "python_sprint_backtrace")
+    {
+      provide (e);
+      return;
+    }
+
+  // Construct a new function call that replaces the generic python
+  // backtrace function call with a python version specific call with
+  // the right argument.
+  target_symbol *tsym = new target_symbol;
+  tsym->tok = e->tok;
+  tsym->name = "$arg1";
+
+  functioncall *fcall = new functioncall;
+  fcall->tok = e->tok;
+  if (python_version == 2)
+    fcall->function = (e->function == "python_print_backtrace"
+		       ? "python2_print_backtrace"
+		       : "python2_sprint_backtrace");
+  else
+    fcall->function = (e->function == "python_print_backtrace"
+		       ? "python3_print_backtrace"
+		       : "python3_sprint_backtrace");
+  fcall->type = e->type;
+  fcall->type_details = e->type_details;
+  fcall->args.push_back (tsym);
+  provide (fcall);
 }
 
 
@@ -442,6 +489,10 @@ python_builder::build(systemtap_session & sess, probe * base,
       // Link this main probe back to the original base, with an
       // additional probe intermediate to catch probe listing.
       mark_probe->base = new probe(base, location);
+
+      // Expand python backtrace requests in the probe body.
+      python_functioncall_expanding_visitor v (sess, python_version);
+      v.replace (base->body);
 
       // Splice base->body in after the parsed body
       mark_probe->body = new block(mark_probe->body, base->body);
