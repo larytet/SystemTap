@@ -2705,6 +2705,18 @@ keywords: network trace traffic simple
 
 = SOCKET =
 
+general/socket-events.stp - Trace Socket Activity of a Process
+keywords: socket syscall
+
+  Prints the life cycle of all sockets associated with a process. This
+  includes bytes and timing. The timing information that is tracked
+  includes event completion relative to the start of said event and the
+  end of the previous event. Currently tracks read, write, recv, send,
+  connect and close.
+
+  # stap socket-events.stp
+
+
 lwtools/accept2close-nd.stp - Show socket lifespan, from accept() to close() (non-debuginfo)
 keywords: network socket
 
@@ -2940,6 +2952,18 @@ keywords: network statistics
 
 
 = SYSCALL =
+
+general/socket-events.stp - Trace Socket Activity of a Process
+keywords: socket syscall
+
+  Prints the life cycle of all sockets associated with a process. This
+  includes bytes and timing. The timing information that is tracked
+  includes event completion relative to the start of said event and the
+  end of the previous event. Currently tracks read, write, recv, send,
+  connect and close.
+
+  # stap socket-events.stp
+
 
 io/iotime.stp - Trace Time Spent in Read and Write for Files 
 keywords: profiling syscall io file

@@ -1,0 +1,137 @@
+#! /usr/bin/env stap
+
+global socketstart, starttime, lastevent, lasttime, sendtofd 
+global writestart, writestop, readstart, readstop, sendstart, sendstop, recvstart, recvstop
+
+probe begin {
+  if (target() == 0) {
+      println("No PID specified.  Use -c or -x.  See man stap for more information.")
+      exit()
+  }
+  starttime = gettimeofday_us()
+}
+
+function finish (fd:long, event:string, bytes:long, length:long, timediff:long) {
+  printf("Socket %d %s %d byte(s) successfully completed in %d us %d us after previous %s\n", fd, event, bytes, length, timediff, lastevent[fd])
+  lastevent[fd] = event
+  lasttime[fd] = timediff + lasttime[fd]
+}
+
+probe syscall.socket.return {
+  if (!target_set_pid(pid()))
+	  next
+  socketstart[$return] = gettimeofday_us()
+  lastevent[$return] = "connect"
+  lasttime[$return] = socketstart[$return]
+  printf("Socket %d connected %d us after script start\n", $return, gettimeofday_us() - starttime)
+}
+
+probe syscall.close.return {
+  if (!target_set_pid(pid()))
+	  next
+  if (socketstart[$fd] != 0) {
+    printf("Socket %d closed %d us after last %s and %d us after initial connection\n", $fd, gettimeofday_us() - lasttime[$fd], lastevent[$fd], gettimeofday_us() - socketstart[$fd])
+    delete socketstart[$fd]
+  }
+}
+
+probe syscall.send, syscall.sendmsg, syscall.sendto {
+  if (!target_set_pid(pid()))
+	  next
+  if (socketstart[s] != 0 && sendstart[s] == 0)
+	  sendstart[s] = gettimeofday_us()
+}
+
+probe syscall.sendto {
+  if (!target_set_pid(pid()))
+	  next
+  if (socketstart[s] !=0 && sendstart[s] == 0) {
+         sendstart[s] = gettimeofday_us()
+	 sendtofd[tid()] = s
+  }
+}
+
+probe __syscall.send.return, __syscall.sendmsg.return {
+  if (!target_set_pid(pid()))
+	  next
+  if (socketstart[$fd] != 0 && $return >= 0) {
+      sendstop[$fd] = gettimeofday_us()
+      finish( $fd, "send", $return, sendstop[$fd] - sendstart[$fd], sendstop[$fd] - lasttime[$fd])
+      delete sendstart[$fd]
+      delete sendstop[$fd]
+  }
+}
+
+probe syscall.sendto.return {
+  if (!target_set_pid(pid()))
+	  next
+  fd = sendtofd[tid()]
+  if (socketstart[fd] != 0 && $return >=0) { 
+          sendstop[fd] = gettimeofday_us()
+	 finish(fd, "send", $return, sendstop[fd] - sendstart[fd], sendstop[fd] - lasttime[fd])
+	  delete sendstart[sendtofd[tid()]]
+	  delete sendstop[sendtofd[tid()]]
+  }
+}
+
+probe syscall.recv, syscall.recvfrom, syscall.recvmsg {
+  if (!target_set_pid(pid()))
+	  next
+  if (socketstart[s] != 0 && recvstart[s] == 0)
+      recvstart[s] = gettimeofday_us()
+}
+
+probe __syscall.recv.return, __syscall.recvfrom.return, __syscall.recvmsg.return {
+  if (!target_set_pid(pid()))
+	  next
+  if (socketstart[$fd] != 0 && $return >= 0) {
+      recvstop[$fd] = gettimeofday_us()
+      finish($fd, "recv", $return, recvstop[$fd] - recvstart[$fd], recvstop[$fd] - lasttime[$fd])
+      delete recvstart[$fd]
+      delete recvstop[$fd]
+  }
+}
+
+probe syscall.write, syscall.writev {
+  if (!target_set_pid(pid()))
+	  next
+  if (socketstart[fd] != 0 && writestart[fd] == 0)
+      writestart[fd] = gettimeofday_us()
+}
+
+probe syscall.write.return, syscall.writev.return {
+  if (!target_set_pid(pid()))
+	  next
+  if (socketstart[$fd] != 0 && $return >= 0) {
+      writestop[$fd] = gettimeofday_us()
+      finish($fd, "write", $return, writestop[$fd] - writestart[$fd], writestop[$fd] - lasttime[$fd])
+      delete writestart[$fd] 
+      delete writestop[$fd] 
+  }
+}
+
+probe syscall.read, syscall.readv {
+  if (!target_set_pid(pid()))
+	  next
+  if (socketstart[fd] != 0 && readstart[fd] == 0) {
+      readstart[fd] = gettimeofday_us()
+  }
+}	
+
+probe syscall.read.return, syscall.readv.return {
+  if (!target_set_pid(pid()))
+	  next
+  if (socketstart[$fd] != 0 && $return >= 0) {
+      readstop[$fd] = gettimeofday_us()
+      finish($fd, "read", $return, readstop[$fd] - readstart[$fd], readstop[$fd] - lasttime[$fd]) 
+      delete readstart[$fd]
+      delete readstop[$fd]
+  }
+}
+
+probe end {
+  println("Complete")
+  foreach([fd] in socketstart) {
+    printf("Socket %d still active\n", fd)
+  }
+}
