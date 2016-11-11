@@ -18,7 +18,7 @@
 using namespace std;
 using namespace __gnu_cxx;
 
-static const string TOK_PYTHON("python");
+static const string TOK_PYTHON2("python2");
 static const string TOK_PYTHON3("python3");
 static const string TOK_MODULE("module");
 static const string TOK_FUNCTION("function");
@@ -320,7 +320,7 @@ python_builder::build(systemtap_session & sess, probe * base,
 		      vector<derived_probe *> & finished_results)
 {
   interned_string module, function;
-  unsigned python_version = has_null_param (parameters, TOK_PYTHON) ? 2 : 3;
+  unsigned python_version = has_null_param (parameters, TOK_PYTHON2) ? 2 : 3;
   bool has_module = get_param (parameters, TOK_MODULE, module);
   bool has_function = get_param (parameters, TOK_FUNCTION, function);
   bool has_return = has_null_param (parameters, TOK_RETURN);
@@ -525,8 +525,8 @@ register_tapset_python(systemtap_session& s)
 
   vector<match_node*> roots;
 #if defined(HAVE_PYTHON2_PROBES)
-  roots.push_back(root->bind(TOK_PYTHON));
-  //roots.push_back(root->bind_num(TOK_PYTHON));
+  roots.push_back(root->bind(TOK_PYTHON2));
+  //roots.push_back(root->bind_num(TOK_PYTHON2));
 #endif
 #if defined(HAVE_PYTHON3_PROBES)
   roots.push_back(root->bind(TOK_PYTHON3));
