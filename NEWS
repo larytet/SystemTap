@@ -42,6 +42,9 @@
   Niranjan Kamat and Arnab Nandi from the Ohio State University for the
   cross-cpu aggregation.
 
+- New command within interactive mode, sample.  Allows you to search through
+  all included example scripts to load for further editing or running.
+
 * What's new in version 3.0, 2016-03-27
 
 - The new experimental "interactive" mode, specified by "stap -i",
