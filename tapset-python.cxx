@@ -88,6 +88,18 @@ struct python_functioncall_expanding_visitor: public update_visitor
 };
 
 
+struct python_var_expanding_visitor: public var_expanding_visitor
+{
+  python_var_expanding_visitor(systemtap_session& s, int pv)
+    : sess(s), python_version(pv) {}
+
+  systemtap_session& sess;
+  int python_version;
+
+  void visit_target_symbol (target_symbol* e);
+};
+
+
 struct python_builder: public derived_probe_builder
 {
 private:
@@ -248,6 +260,45 @@ python_functioncall_expanding_visitor::visit_functioncall (functioncall* e)
   fcall->type_details = e->type_details;
   fcall->args.push_back (tsym);
   provide (fcall);
+}
+
+
+void
+python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
+{
+    // Convert '$$parms', '$$locals', and '$$vars' references to a
+    // function call.
+    if (e->name == "$$parms" || e->name == "$$locals" || e->name == "$$vars")
+    {
+	clog << "*** found " << e->name << "***" << endl;
+	int flags = (e->name == "$$parms"
+		     ? 0 : (e->name == "$$locals" ? 1 : 2));
+
+	functioncall* fcall = new functioncall;
+	fcall->tok = e->tok;
+	fcall->function = (python_version == 2
+			   ? "python2_get_locals" : "python3_get_locals");
+	fcall->type = pe_string;
+
+	target_symbol *tsym = new target_symbol;
+	tsym->tok = e->tok;
+	tsym->name = "$arg1";
+	fcall->args.push_back(tsym);
+
+	literal_number* ln = new literal_number(flags);
+	ln->tok = e->tok;
+	fcall->args.push_back(ln);
+
+	provide (fcall);
+	return;
+    }
+    // FIXME: Later, we'll support grabbing individual python target variables.
+    provide (e);o
+
+    // FIXME 2: Will this work in return probes?
+
+    // FIXME 3: We probably need to prevent assigning to individual
+    // python target variables.
 }
 
 
@@ -490,6 +541,10 @@ python_builder::build(systemtap_session & sess, probe * base,
       // additional probe intermediate to catch probe listing.
       mark_probe->base = new probe(base, location);
 
+      // Expand python variable requests in the probe body.
+      python_var_expanding_visitor pvev (sess, python_version);
+      pvev.replace (base->body);
+      
       // Expand python backtrace requests in the probe body.
       python_functioncall_expanding_visitor v (sess, python_version);
       v.replace (base->body);

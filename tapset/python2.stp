@@ -21,6 +21,25 @@
 #define Py2_TPFLAGS_DICT_SUBCLASS        (1L<<29)
 #define Py2_TPFLAGS_BASE_EXC_SUBCLASS    (1L<<30)
 #define Py2_TPFLAGS_TYPE_SUBCLASS        (1L<<31)
+
+/*
+ * Defines borrowed from code.h.
+ */
+
+/* Masks for co_flags above */
+#define Py2_CO_OPTIMIZED	0x0001
+#define Py2_CO_NEWLOCALS	0x0002
+#define Py2_CO_VARARGS		0x0004
+#define Py2_CO_VARKEYWORDS	0x0008
+#define Py2_CO_NESTED		0x0010
+#define Py2_CO_GENERATOR	0x0020
+/* The Py2_CO_NOFREE flag is set if there are no free or cell variables.
+   This information is redundant, but it allows a single flag test
+   to determine whether there is any extra work to be done when the
+   call frame it setup.
+*/
+#define Py2_CO_NOFREE		0x0040
+
 %}
 
 #
@@ -134,6 +153,47 @@
     @Py2Type_FastSubclass(@Py2_TYPE(@op), %{ Py2_TPFLAGS_INT_SUBCLASS %})
 %)
 
+@define Py2Int_AS_LONG(op) %(
+    @Py2IntObject(@op)->ob_ival
+%)
+
+#
+# Systemtap macros based on C macros in dictobject.h.
+#
+
+@define Py2Dict_Check(op) %(
+    @Py2Type_FastSubclass(@Py2_TYPE(@op), %{ Py2_TPFLAGS_DICT_SUBCLASS %})
+%)
+
+#
+# Systemtap macros based on C macros in tupleobject.h.
+#
+
+@define Py2Tuple_Check(op) %(
+    @Py2Type_FastSubclass(@Py2_TYPE(@op), %{ Py2_TPFLAGS_TUPLE_SUBCLASS %})
+%)
+
+#
+# Systemtap macros based on C macros in listobject.h.
+#
+
+@define Py2List_Check(op) %(
+    @Py2Type_FastSubclass(@Py2_TYPE(@op), %{ Py2_TPFLAGS_LIST_SUBCLASS %})
+%)
+
+#
+# Systemtap functions based on C functions in intobject.c.
+#
+
+private function Py2Int_AsLong:long(op:long)
+{
+    if (op && @Py2Int_Check(op))
+	return @Py2Int_AS_LONG(op)
+    error(sprintf("Py2Int_AsLong called on %s object at %p\n",
+		  python2_get_typename(op), op))
+    return -1
+}
+
 #
 # Systemtap functions based on C functions in stringobject.c.
 #
@@ -216,6 +276,111 @@ private function Py2Frame_GetLineNumber:long(frame:long)
 				 @Py2FrameObject(frame)->f_lasti)
 }
 
+#
+# Systemtap functions based on C functions in tupleobject.c.
+#
+
+private function Py2Tuple_GetItem:long(op:long, i:long)
+{
+    if (!@Py2Tuple_Check(op)) {
+	error(sprintf("Py2Tuple_GetItem called on %s object at %p\n",
+		      python2_get_typename(op), op))
+	return 0
+    }
+    if (i < 0 || i >= @Py2_SIZE(op)) {
+        error(sprintf("tuple index %d out of range (%d)", i, @Py2_SIZE(op)))
+        return 0
+    }
+    return @Py2TupleObject(op)->ob_item[i]
+}
+
+private function Py2Tuple_Repr:string(object:long)
+{
+    if (!@Py2Tuple_Check(object)) {
+	error(sprintf("Py2Tuple_Repr called on %s object at %p\n",
+		      python2_get_typename(object), object))
+	return ""
+    }
+    n = @Py2_SIZE(object)
+    if (n == 0)
+	return "()"
+
+    retstr = "("
+    first = 1
+    for (i = 0; i < n; i++) {
+	if (! first)
+	    retstr .= " "
+	first = 0
+	retstr .= Py2Object_Repr(Py2Tuple_GetItem(object, i))
+    }
+    retstr .= ")"
+    return retstr
+}
+
+#
+# Systemtap functions based on C functions in listobject.c.
+#
+
+private function Py2List_GetItem:long(op:long, i:long)
+{
+    if (!@Py2List_Check(op)) {
+	error(sprintf("Py2List_GetItem called on %s object at %p\n",
+		      python2_get_typename(op), op))
+        return 0
+    }
+    if (i < 0 || i >= @Py2_SIZE(op)) {
+        error(sprintf("tuple index %d out of range (%d)", i, @Py2_SIZE(op)))
+        return 0
+    }
+    return @Py2ListObject(op)->ob_item[i];
+}
+
+private function Py2List_Repr:string(object:long)
+{
+    if (!@Py2List_Check(object)) {
+	error(sprintf("Py2List_Repr called on %s object at %p\n",
+		      python2_get_typename(object), object))
+	return ""
+    }
+    n = @Py2_SIZE(object)
+    if (n == 0)
+	return "[]"
+
+    retstr = "["
+    first = 1
+    for (i = 0; i < n; i++) {
+	if (! first)
+	    retstr .= " "
+	first = 0
+	retstr .= Py2Object_Repr(Py2List_GetItem(object, i))
+    }
+    retstr .= "]"
+    return retstr
+}
+
+#
+# Systemtap functions based on C functions in object.c.
+#
+
+private function Py2Object_Repr:string(object:long)
+{
+    if (object == 0)
+	return "<NULL>"
+    if (@Py2String_Check(object))
+	return sprintf("\"%s\"", Py2String_AsString(object))
+    if (@Py2Int_Check(object))
+    	return sprintf("%#x", Py2Int_AsLong(object))
+    if (@Py2Tuple_Check(object))
+	return sprintf("%s", Py2Tuple_Repr(object))
+    if (@Py2List_Check(object))
+	return sprintf("%s", Py2List_Repr(object))
+    return sprintf("<%s object at %p>", python2_get_typename(object), object)
+}
+
+#
+# Systemtap support functions for python 2.
+#
+
 /*
  * python2_print_backtrace - Print python backtrace
  *
@@ -278,6 +443,81 @@ function python2_sprint_backtrace:string(frame:long)
 			  lineno, name)
 
 	frame = @Py2FrameObject(frame)->f_back
+    }
+    return retstr
+}
+
+/*
+ * python2_get_typename - Get python object type name
+ *
+ * Description: This function returns a string describing the type of
+ * a python object.
+ */
+private function python2_get_typename:string(obj:long)
+{
+    if (obj == 0)
+	return ""
+    return user_string(@Py2_TYPE(obj)->tp_name)
+}
+
+/*
+ * python2_get_locals - Get python local variables
+ *
+ * Description: This function returns a list of python local variables
+ * from a frame.
+ *
+ * frame: python frame object pointer
+ * flags: 0: function parameters only ($$parms), 1: locals only
+ * ($$locals), 2: all local vars, parameters and locals ($$vars)
+ *
+ * Note that users shouldn't call this directly, they should refer to
+ * '$$parms', '$$locals', and '$$vars' in a python probe and the
+ * translator will generate code that calls this function with the
+ * correct arguments.
+ */
+function python2_get_locals:string(frame:long, flags:long)
+{
+    code = @Py2FrameObject(frame)->f_code
+	
+    # flags == 2: get all variables
+    if (flags == 2) {		
+	i = 0
+	n = code->co_nlocals
+    }
+    else {
+	n = code->co_argcount
+	if (code->co_flags & %{ Py2_CO_VARARGS %})
+	    n++
+	if (code->co_flags & %{ Py2_CO_VARKEYWORDS %})
+	    n++
+
+	# flags == 0 (parms only): 0 to n (argcount)
+	if (flags == 0)
+	    i = 0
+	# flags == 1 (locals only): n (argcount) to max
+	else if (flags == 1) {
+	    i = n
+	    n = code->co_nlocals
+	}
+    }
+    if (i < 0 || i > n) {
+        error(sprintf("python2_get_locals: invalid indicies (%d-%d)", i, n))
+        return ""
+    }
+	    
+    # Each element in co_varnames is a tuple of strings. The values
+    # are in f_localsplus.
+    p = code->co_varnames
+    localsplus = @Py2FrameObject(frame)->f_localsplus
+    first = 1
+    for (; i < n; i++) {
+	if (! first)
+	    retstr .= " "
+	first = 0
+	key_obj = Py2Tuple_GetItem(p, i)
+	value_obj = user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
+	retstr .= sprintf("%s=%s", Py2String_AsString(key_obj),
+			  Py2Object_Repr(value_obj))
     }
     return retstr
 }
