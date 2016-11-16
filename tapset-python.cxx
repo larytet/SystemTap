@@ -293,7 +293,7 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 	return;
     }
     // FIXME: Later, we'll support grabbing individual python target variables.
-    provide (e);o
+    provide (e);
 
     // FIXME 2: Will this work in return probes?
 
