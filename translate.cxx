@@ -8076,6 +8076,9 @@ translate_pass (systemtap_session& s)
   s.op = 0;
   s.up = 0;
 
+ for (unsigned i=0; i<s.auxiliary_outputs.size(); i++)
+   s.auxiliary_outputs[i]->close();
+  
   return rc + s.num_errors();
 }
 

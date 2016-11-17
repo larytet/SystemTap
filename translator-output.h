@@ -31,6 +31,8 @@ public:
   translator_output (const std::string& filename, size_t bufsize = 8192);
   ~translator_output ();
 
+  void close ();
+  
   std::ostream& newline (int indent = 0);
   void indent (int indent = 0);
   void assert_0_indent () { o << std::flush; assert (tablevel == 0); }

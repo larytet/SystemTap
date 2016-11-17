@@ -31,6 +31,13 @@ translator_output::translator_output (const string& filename, size_t bufsize):
   o2->rdbuf()->pubsetbuf(buf, bufsize);
 }
 
+void
+translator_output::close()
+{
+  if (o2)
+    o2->close();
+}
+
 
 translator_output::~translator_output ()
 {
