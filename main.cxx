@@ -921,7 +921,8 @@ passes_0_4 (systemtap_session &s)
   // Dump the whole script if requested, or if we stop at 2
   else if (s.dump_mode == systemtap_session::dump_matched_probes ||
            s.dump_mode == systemtap_session::dump_matched_probes_vars ||
-           (rc == 0 && s.last_pass == 2))
+           (rc == 0 && s.last_pass == 2) ||
+           (rc != 0 && s.verbose > 2))
     printscript(s, cout);
 
   times (& tms_after);

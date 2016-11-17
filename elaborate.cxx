@@ -6297,6 +6297,10 @@ typeresolution_info::visit_perf_op (perf_op* e)
     invalid (e->tok, t);
 
   e->type = pe_long;
+  // XXX: ... but but but ... ::visit_defined_op interprets this ->type
+  // as meaning that @defined(@perf("JUNK JUNK JUNK")) is valid.
+  // The dwarf_var_expanding_visitor::visit_perf_op() code that validates
+  // the JUNK parameter is not even called in time.
 
   // (There is no real need to visit our operand - by parser
   // construction, it's always a string literal, with its type already

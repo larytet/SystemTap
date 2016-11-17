@@ -1,5 +1,5 @@
 // tapset resolution
-// Copyright (C) 2005-2015 Red Hat Inc.
+// Copyright (C) 2005-2016 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -3004,7 +3004,7 @@ var_expanding_visitor::visit_defined_op (defined_op* e)
     // Successes have to result in an attempted rewrite of the
     // target_symbol (via provide()).
     //
-    // Edna Mode: "no capes".  fche: "no exceptions".
+    // Edna Mode: "no capes".  fche: "no exceptions".  reality: not that simple
 
     // dwarf stuff: success: rewrites to a function; failure: retains target_symbol, sets saved_conversion_error
     //
@@ -3018,6 +3018,9 @@ var_expanding_visitor::visit_defined_op (defined_op* e)
     // utrace: success: rewrites to function; failure: semantic_error
     //
     // procfs: success: rewrites to function; failure: semantic_error
+    //
+    // ... but @defined() can nest other types of expressions too, for better or for worse,
+    // which can result in semantic_error. 
 
     target_symbol* tsym = dynamic_cast<target_symbol*> (e->operand);
     if (tsym && tsym->saved_conversion_error) // failing
@@ -3034,7 +3037,8 @@ var_expanding_visitor::visit_defined_op (defined_op* e)
     else // resolved, rewritten to some other expression type
       resolved = true;
   } catch (const semantic_error& e) {
-    assert (0); // should not happen
+    // some uncooperative value like @perf("NO_SUCH_VALUE")
+    resolved = false;
   }
   defined_ops.pop ();
 
@@ -3784,12 +3788,12 @@ dwarf_var_expanding_visitor::visit_target_symbol_saved_return (target_symbol* e)
   // Attempt the expansion directly first, so if there's a problem with the
   // variable we won't have a bogus entry probe lying around.  Like in
   // saveargs(), we pretend for a moment that we're not in a .return.
-  bool saved_has_return = q.has_return;
-  q.has_return = false;
   expression *repl = e;
-  replace (repl);
-  q.has_return = saved_has_return;
-
+  {
+    save_and_restore<bool> temp_return (& q.has_return, false);
+    replace (repl);
+  }
+  
   // If it's still a target_symbol, then it couldn't be resolved.  It may
   // not have a saved_conversion_error yet, e.g. for null_die(scope_die),
   // but we know it's not worth making that bogus entry anyway.
@@ -4425,6 +4429,9 @@ void
 dwarf_var_expanding_visitor::visit_entry_op (entry_op *e)
 {
   expression *repl = e;
+  bool defined_being_checked = (defined_ops.size() > 0 && (defined_ops.top()->operand == e));
+  // In this mode, we avoid hiding errors or generating extra code such as for .return saved $vars
+
   if (q.has_return)
     {
       // NB: don't expand the operand here, as if it weren't a return
@@ -4433,43 +4440,34 @@ dwarf_var_expanding_visitor::visit_entry_op (entry_op *e)
       // If we were to expand it here, we may e.g. map @perf("...") to
       // __perf_read_... prematurely & incorrectly.  PR20416
 
-      // First off, check whether e->operand is defined.  Mimic the
-      // var_expanding_visitor::visit_defined_op operation.  This is
-      // to make @defined(@entry($ex->pr)) a valid construct.  PR14924.
-      expression * const old_operand = e->operand;
-      bool resolved = true;
-      try {
-        q.has_return = false;
-	replace (e->operand);
-	q.has_return = true;
-
-	target_symbol* tsym = dynamic_cast<target_symbol*> (e->operand);
-	if (tsym && tsym->saved_conversion_error) // failing
-	  resolved = false;
-
-      } catch (const semantic_error& e) {
-        assert (0); // should not happen
-      }
-
-      if(resolved)
+      // NB: but ... we sort of want to do a trial-expansion, just to
+      // see if the contents are rejected, e.g. with a $var-undefined
+      // error, so that the failure can propagate back up to a containing
+      // @defined().  PR20821
+      
+      if (defined_being_checked)
         {
-	  // Return the entry-saved val
-	  e->operand = old_operand;
-	  // XXX it would be nice to use gen_kretprobe_saved_return when available,
-	  // but it requires knowing the types already, which is problematic for
-	  // arbitrary expressons.
-	  repl = gen_mapped_saved_return (e->operand, "entry");
-	  provide (repl);
-	  return;
-	}
+          save_and_restore<bool> temp_return (& q.has_return, false);
+          replace (e->operand); // don't generate any @entry machinery!
+
+          // propagate the replaced operand upward; it may be a
+          // target_symbol and have a saved_conversion_error; we
+          // also don't want to expand @defined(@entry(...)) into
+          // a full synthetic probe goo.
+          repl = e->operand;
+        }
       else
         {
-          // Provide the undefined bit
-	  provide (e->operand);
-	  return;
+          // XXX it would be nice to use gen_kretprobe_saved_return when available,
+          // but it requires knowing the types already, which is problematic for
+          // arbitrary expressons.
+
+          repl = gen_mapped_saved_return (e->operand, "entry");
         }
     }
+  provide (repl);
 }
+
 
 void
 dwarf_var_expanding_visitor::visit_perf_op (perf_op *e)
@@ -5214,10 +5212,9 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
           assert (q.has_return && !q.has_call);
 
           // We temporarily replace q.base_probe.
-          statement* old_body = q.base_probe->body;
-          q.base_probe->body = v.add_call_probe;
-          q.has_return = false;
-          q.has_call = true;
+          save_and_restore<statement*> tmp_body (&q.base_probe->body, v.add_call_probe);
+          save_and_restore<bool> tmp_return (&q.has_return, false);
+          save_and_restore<bool> tmp_call (&q.has_call, true);
 
           // NB: any moved @entry(EXPR) bits will be expanded during this
           // nested *derived_probe ctor for the synthetic .call probe.
@@ -5246,10 +5243,6 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
           saved_strings = entry_handler->saved_strings = v.saved_strings;
 
           q.results.push_back (entry_handler);
-
-          q.has_return = true;
-          q.has_call = false;
-          q.base_probe->body = old_body;
         }
       // Save the local variables for listing mode. If the scope_die is null,
       // local vars aren't accessible, so no need to invoke saveargs (PR10820).
