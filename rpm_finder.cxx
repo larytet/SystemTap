@@ -216,10 +216,11 @@ missing_rpm_list_print (systemtap_session &sess, const char* rpm_type)
 
 	if (is_fully_resolved(dnf_path, "", sess.sysenv))
 	    pkg_mgr = "dnf";
-	cerr << _F("Incorrect version or missing kernel-devel package, use: %s install ", pkg_mgr.c_str());
+	cerr << sess.colorize(_F("Incorrect version or missing kernel-devel package, use: %s install ", pkg_mgr.c_str()),
+                              "error");
     }
     else if(strcmp(rpm_type,"-debuginfo")==0)
-	cerr << _("Missing separate debuginfos, use: debuginfo-install ");
+      cerr << sess.colorize(_("Missing separate debuginfos, use: debuginfo-install "), "error");
 
     else{
         cerr << _("Incorrect parameter passed, please report this error.") << endl;
@@ -229,7 +230,7 @@ missing_rpm_list_print (systemtap_session &sess, const char* rpm_type)
     for (set<std::string>::iterator it=sess.rpms_to_install.begin();
 	 it !=sess.rpms_to_install.end(); it++)
     {
-      cerr <<  *it << " ";
+      cerr << sess.colorize(*it,"error") << " ";
     }
     cerr << endl;
   }
