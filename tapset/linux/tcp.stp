@@ -532,11 +532,11 @@ probe tcp.recvmsg = kernel.function("tcp_recvmsg") {
 probe tcp.recvmsg.return = kernel.function("tcp_recvmsg").return {
 	name = "tcp.recvmsg"
 	size = $return
-	family  = __ip_sock_family($sk)
-	saddr   = format_ipaddr(__ip_sock_saddr($sk), __ip_sock_family($sk))
-	daddr   = format_ipaddr(__ip_sock_daddr($sk), __ip_sock_family($sk))
-	sport = __tcp_sock_sport($sk)
-	dport = __tcp_sock_dport($sk)
+	family  = __ip_sock_family(@entry($sk))
+	saddr   = format_ipaddr(__ip_sock_saddr(@entry($sk)), __ip_sock_family(@entry($sk)))
+	daddr   = format_ipaddr(__ip_sock_daddr(@entry($sk)), __ip_sock_family(@entry($sk)))
+	sport = __tcp_sock_sport(@entry($sk))
+	dport = __tcp_sock_dport(@entry($sk))
 }
 
 /**

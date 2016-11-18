@@ -404,25 +404,25 @@ probe __vm.kmalloc.kp = kernel.function("kmem_cache_alloc_notrace").return !,
 	// Note that 'bytes_req' could be wrong.  By the time
 	// kmem_cache_alloc* gets called the requested size could have
 	// rounded up to the nearest cache alloc size.
-	if (@defined($s)) {
-		bytes_req = $s->size
-		bytes_alloc = $s->size
+	if (@defined(@entry($s))) {
+		bytes_req = @entry($s->size)
+		bytes_alloc = bytes_req
 	}
-	else if (@defined($cachep->buffer_size)) {
-		bytes_req = $cachep->buffer_size
-		bytes_alloc = $cachep->buffer_size
-	}
-	else {
-		bytes_req = $cachep->objsize
-		bytes_alloc = $cachep->objsize
-	}
-	if (@defined($gfpflags)) {
-		gfp_flags = $gfpflags
-		gfp_flag_name = __gfp_flag_str($gfpflags)
+	else if (@defined(@entry($cachep->buffer_size))) {
+		bytes_req = @entry($cachep->buffer_size)
+		bytes_alloc = bytes_req
 	}
 	else {
-		gfp_flags = $flags
-		gfp_flag_name = __gfp_flag_str($flags)
+		bytes_req = @entry($cachep->objsize)
+		bytes_alloc = bytes_req
+	}
+	if (@defined(@entry($gfpflags))) {
+		gfp_flags = @entry($gfpflags)
+		gfp_flag_name = __gfp_flag_str(gfp_flags)
+	}
+	else {
+		gfp_flags = @entry($flags)
+		gfp_flag_name = __gfp_flag_str(gfp_flags)
 	}
 	ptr = $return
 }
@@ -463,25 +463,25 @@ probe __vm.kmem_cache_alloc.kp = kernel.function("kmem_cache_alloc").return
 	// Note that 'bytes_req' could be wrong.  By the time
 	// kmem_cache_alloc* gets called the requested size could have
 	// rounded up to the nearest cache alloc size.
-	if (@defined($s)) {
-		bytes_req = $s->size
-		bytes_alloc = $s->size
+	if (@defined(@entry($s))) {
+		bytes_req = @entry($s->size)
+		bytes_alloc = bytes_req
 	}
-	else if (@defined($cachep->buffer_size)) {
-		bytes_req = $cachep->buffer_size
-		bytes_alloc = $cachep->buffer_size
-	}
-	else {
-		bytes_req = $cachep->objsize
-		bytes_alloc = $cachep->objsize
-	}
-	if (@defined($gfpflags)) {
-		gfp_flags = $gfpflags
-		gfp_flag_name = __gfp_flag_str($gfpflags)
+	else if (@defined(@entry($cachep->buffer_size))) {
+		bytes_req = @entry($cachep->buffer_size)
+		bytes_alloc = bytes_req
 	}
 	else {
-		gfp_flags = $flags
-		gfp_flag_name = __gfp_flag_str($flags)
+		bytes_req = @entry($cachep->objsize)
+		bytes_alloc = bytes_req
+	}
+	if (@defined(@entry($gfpflags))) {
+		gfp_flags = @entry($gfpflags)
+		gfp_flag_name = __gfp_flag_str(gfp_flags)
+	}
+	else {
+		gfp_flags = @entry($flags)
+		gfp_flag_name = __gfp_flag_str(gfp_flags)
 	}
 	ptr = $return
 }
@@ -570,17 +570,17 @@ probe __vm.kmem_cache_alloc_node.kp =
 	// Note that 'bytes_req' could be wrong.  By the time
 	// kmem_cache_alloc* gets called the requested size could have
 	// rounded up to the nearest cache alloc size.
-	if (@defined($s)) {
-		bytes_req = $s->size
-		bytes_alloc = $s->size
+	if (@defined(@entry($s))) {
+		bytes_req = @entry($s->size)
+		bytes_alloc = bytes_req
 	}
-	else if (@defined($cachep->buffer_size)) {
-		bytes_req = $cachep->buffer_size
-		bytes_alloc = $cachep->buffer_size
+	else if (@defined(@entry($cachep->buffer_size))) {
+		bytes_req = @entry($cachep->buffer_size)
+		bytes_alloc = bytes_req
 	}
 	else {
-		bytes_req = $cachep->objsize
-		bytes_alloc = $cachep->objsize
+		bytes_req = @entry($cachep->objsize)
+		bytes_alloc = bytes_req
 	}
 
 	// kmem_cache_alloc_node() doesn't get a flags argument.  But,
@@ -619,7 +619,7 @@ probe __vm.kfree.kp = kernel.function("kfree").return
 {
 	call_site = 0
 	caller_function = "unknown"
-	ptr = @choose_defined($x, $objp)
+	ptr = @entry(@choose_defined($x, $objp))
 }
 
 /**
@@ -645,7 +645,7 @@ probe __vm.kmem_cache_free.kp = kernel.function("kmem_cache_free").return
 {
 	call_site = 0
 	caller_function = "unknown"
-	ptr = @choose_defined($x, $objp)
+	ptr = @entry(@choose_defined($x, $objp))
 }
 
 /**

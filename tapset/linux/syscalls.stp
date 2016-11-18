@@ -80,7 +80,7 @@ probe __syscall.socketcall.accept.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_ACCEPT")) next;
+	if (@entry($call) != @const("SYS_ACCEPT")) next;
 }
 
 # accept4 ____________________________________________________
@@ -137,7 +137,7 @@ probe __syscall.socketcall.accept4.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_ACCEPT4")) next;
+	if (@entry($call) != @const("SYS_ACCEPT4")) next;
 }
 
 # access _____________________________________________________
@@ -313,7 +313,7 @@ probe __syscall.socketcall.bind.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_BIND")) next;
+	if (@entry($call) != @const("SYS_BIND")) next;
 }
 
 # bpf ________________________________________________________
@@ -834,7 +834,7 @@ probe __syscall.socketcall.connect.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_CONNECT")) next;
+	if (@entry($call) != @const("SYS_CONNECT")) next;
 }
 
 # copy_file_range ___________________________________________
@@ -966,7 +966,7 @@ probe syscall.epoll_create = kernel.function("sys_epoll_create1").call !,
 probe syscall.epoll_create.return = kernel.function("sys_epoll_create1").return !,
                                     kernel.function("sys_epoll_create").return ?
 {
-	flags = __int32(@choose_defined($flags, 0));
+	flags = __int32(@entry(@choose_defined($flags, 0)));
 	name = (flags == 0) ? "epoll_create" : "epoll_create1";
 	retstr = return_str(1, $return)
 }
@@ -2266,7 +2266,7 @@ probe __syscall.socketcall.getpeername.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_GETPEERNAME")) next;
+	if (@entry($call) != @const("SYS_GETPEERNAME")) next;
 }
 
 # getpgid ____________________________________________________
@@ -2556,7 +2556,7 @@ probe __syscall.socketcall.getsockname.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_GETSOCKNAME")) next;
+	if (@entry($call) != @const("SYS_GETSOCKNAME")) next;
 }
 
 # getsockopt _________________________________________________
@@ -2618,7 +2618,7 @@ probe __syscall.socketcall.getsockopt.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_GETSOCKOPT")) next;
+	if (@entry($call) != @const("SYS_GETSOCKOPT")) next;
 }
 
 # gettid _____________________________________________________
@@ -3310,7 +3310,7 @@ probe __syscall.socketcall.listen.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_LISTEN")) next;
+	if (@entry($call) != @const("SYS_LISTEN")) next;
 }
 
 # listxattr __________________________________________________
@@ -4222,7 +4222,7 @@ probe syscall.compat_sys_msgctl.return =
 probe __syscall.compat_ipc.msgctl.return =
 	kernel.function("compat_sys_ipc").return ?
 {
-	if (($call & 0xffff) != @const("MSGCTL")) next;
+	if ((@entry($call) & 0xffff) != @const("MSGCTL")) next;
 }
 
 # msgget _____________________________________________________
@@ -4325,7 +4325,7 @@ probe syscall.compat_sys_msgrcv.return =
 probe __syscall.compat_ipc.msgrcv.return =
 	kernel.function("compat_sys_ipc").return ?
 {
-	if (($call & 0xffff) != @const("MSGRCV")) next;
+	if ((@entry($call) & 0xffff) != @const("MSGRCV")) next;
 }
 
 # msgsnd _____________________________________________________
@@ -4393,7 +4393,7 @@ probe syscall.compat_sys_msgsnd.return =
 probe __syscall.compat_ipc.msgsnd.return =
 	kernel.function("compat_sys_ipc").return ?
 {
-	if (($call & 0xffff) != @const("MSGSND")) next;
+	if ((@entry($call) & 0xffff) != @const("MSGSND")) next;
 }
 
 # msync ______________________________________________________

@@ -98,7 +98,7 @@ function tcpmib_remote_port:long(sk:long)
 probe
 tcpmib.ActiveOpens = kernel.function("tcp_connect").return
 {
-	sk = $sk;
+	sk = @entry($sk);
 	op = 1;
 	if ( $return ) next;
         // definition in tcpipstat.stp
@@ -342,7 +342,7 @@ probe
 tcpmib.OutSegs=kernel.function("ip_queue_xmit").return
 {
 	if ( $return < 0 ) next;
-	sk = $skb->sk;
+	sk = @entry($skb->sk);
 	op = 1;
 	
         //  Only count the events with protocol IPPROTO_TCP,6.
@@ -385,7 +385,7 @@ tcpmib.PassiveOpens=kernel.function("tcp_v4_syn_recv_sock").return
 probe
 tcpmib.RetransSegs=kernel.function("tcp_retransmit_skb").return
 {
-	sk = $sk;
+	sk = @entry($sk);
 	op = 1;
 	if ( $return ) next;
 	key = tcpmib_filter_key($sk,op);

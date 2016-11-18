@@ -177,14 +177,14 @@ probe generic.fop.llseek.return = kernel.function("generic_file_llseek").return
 {
 	name = "generic_file_llseek"
 	retstr = sprintf("%d", $return)
-	file = $file
-        pathname = fullpath_struct_file(task_current(), $file)
-	offset = $offset
+	file = @entry($file)
+        pathname = fullpath_struct_file(task_current(), @entry($file))
+	offset = @entry($offset)
 %(systemtap_v < "2.3" %?
-	origin = @choose_defined($whence, $origin)
+	origin = @entry(@choose_defined($whence, $origin))
 %)
-	whence = @choose_defined($whence, $origin)
-	whence_str = _seek_whence_str(@choose_defined($whence, $origin))
+	whence = @entry(@choose_defined($whence, $origin))
+	whence_str = @entry(_seek_whence_str(@choose_defined($whence, $origin)))
 
 	error = $return < 0 ? $return : 0
 	error_str = error ? errno_str(error) : ""
@@ -213,9 +213,9 @@ probe generic.fop.aio_read.return =
 	kernel.function("__generic_file_aio_read").return !,
 	kernel.function("generic_file_aio_read").return ?
 {
-	file = $iocb->ki_filp
-        pathname = fullpath_struct_file(task_current(), $iocb->ki_filp)
-	nr_segs = $nr_segs
+	file = @entry($iocb->ki_filp)
+        pathname = fullpath_struct_file(task_current(), @entry($iocb->ki_filp))
+	nr_segs = @entry($nr_segs)
 	name = "generic_file_aio_read"
 	retstr = sprintf("%d", $return)
 
@@ -257,9 +257,9 @@ probe generic.fop.read_iter = kernel.function("generic_file_read_iter") ?
 probe generic.fop.read_iter.return =
 	kernel.function("generic_file_read_iter").return ?
 {
-	file = $iocb->ki_filp
-        pathname = fullpath_struct_file(task_current(), $iocb->ki_filp)
-	nr_segs = $iter->nr_segs
+	file = @entry($iocb->ki_filp)
+        pathname = fullpath_struct_file(task_current(), @entry($iocb->ki_filp))
+	nr_segs = @entry($iter->nr_segs)
 	name = "generic_file_read_iter"
 	retstr = sprintf("%d", $return)
 
@@ -296,8 +296,8 @@ probe generic.fop.aio_write = kernel.function("generic_file_aio_write") ?
 probe generic.fop.aio_write.return =
 	kernel.function("generic_file_aio_write").return ?
 {
-	file = $iocb->ki_filp
-        pathname = fullpath_struct_file(task_current(), $iocb->ki_filp)
+	file = @entry($iocb->ki_filp)
+        pathname = fullpath_struct_file(task_current(), @entry($iocb->ki_filp))
 	name = "generic_file_aio_write"
 	retstr = sprintf("%d", $return)
 
@@ -335,8 +335,8 @@ probe generic.fop.write_iter = kernel.function("generic_file_write_iter") ?
 probe generic.fop.write_iter.return =
 	kernel.function("generic_file_write_iter").return ?
 {
-	file = $iocb->ki_filp
-        pathname = fullpath_struct_file(task_current(), $iocb->ki_filp)
+	file = @entry($iocb->ki_filp)
+        pathname = fullpath_struct_file(task_current(), @entry($iocb->ki_filp))
 	name = "generic_file_write_iter"
 	retstr = sprintf("%d", $return)
 
@@ -365,8 +365,8 @@ probe generic.fop.readv = kernel.function("generic_file_readv") ?
 }
 probe generic.fop.readv.return = kernel.function("generic_file_readv").return ?
 {
-	file = $filp
-        pathname = fullpath_struct_file(task_current(), $filp)
+	file = @entry($filp)
+        pathname = fullpath_struct_file(task_current(), @entry($filp))
 	name = "generic_file_readv"
 	retstr = sprintf("%d", $return)
 
@@ -401,8 +401,8 @@ probe generic.fop.writev = kernel.function("generic_file_writev") ?
 probe generic.fop.writev.return =
 	kernel.function("generic_file_writev").return ?
 {
-	file = $file
-        pathname = fullpath_struct_file(task_current(), $file)
+	file = @entry($file)
+        pathname = fullpath_struct_file(task_current(), @entry($file))
 	name = "generic_file_writev"
 	retstr = sprintf("%d", $return)
 
@@ -437,8 +437,8 @@ probe generic.fop.mmap = kernel.function("generic_file_mmap")
 }
 probe generic.fop.mmap.return = kernel.function("generic_file_mmap").return
 {
-	file = $file
-        pathname = fullpath_struct_file(task_current(), $file)
+	file = @entry($file)
+        pathname = fullpath_struct_file(task_current(), @entry($file))
 	name = "generic_file_mmap"
 	retstr = sprintf("%d", $return)
 
@@ -520,10 +520,10 @@ probe generic.fop.splice_read.return =
 {
 	name = "generic_file_splice_read"
 	retstr = sprintf("%d", $return)
-	file = $in
-        pathname = fullpath_struct_file(task_current(), $in)
-	ino = __file_ino($in)
-	dev = __file_dev($in)
+	file = @entry($in)
+        pathname = fullpath_struct_file(task_current(), @entry($in))
+	ino = __file_ino(@entry($in))
+	dev = __file_dev(@entry($in))
 	dev_major = MAJOR(dev)
 	dev_minor = MINOR(dev)
 
@@ -560,8 +560,8 @@ probe generic.fop.splice_write.return =
 	name = "generic_file_splice_write"
 	retstr = sprintf("%d", $return)
 
-	file = $out
-        pathname = fullpath_struct_file(task_current(), $out)
+	file = @entry($out)
+        pathname = fullpath_struct_file(task_current(), @entry($out))
 
 	error = $return < 0 ? $return : 0
 	error_str = error ? errno_str(error) : ""
@@ -682,7 +682,7 @@ probe vfs.do_sync_read.return = kernel.function("do_sync_read").return !,
 	name = "do_sync_read"
 	retstr = sprintf("%d", $return)
 
-	bytes_to_read = @choose_defined($len, $count)
+	bytes_to_read = @entry(@choose_defined($len, $count))
 	ret = $return
 	bytes_read = $return > 0 ? $return : 0
 	error = $return < 0 ? $return : 0
@@ -696,7 +696,7 @@ probe vfs.do_sync_read.return = kernel.function("do_sync_read").return !,
 probe __vfs.__vfs_read.return = kernel.function("__vfs_read").return
 {
 	# Skip the call if new_sync_read() wouldn't be called.
-	if ($file->f_op->read || !$file->f_op->read_iter) next
+	if (@entry($file->f_op->read) || !@entry($file->f_op->read_iter)) next
 }
 
 probe vfs.do_sync_write = kernel.function("do_sync_write") !,
@@ -734,8 +734,8 @@ probe vfs.do_sync_write.return = kernel.function("do_sync_write").return !,
 	name = "do_sync_write"
 	retstr = sprintf("%d", $return)
 
-	bytes_to_write = @choose_defined($len, $count)
-	pos = kernel_pointer(@choose_defined($ppos, $pos))
+	bytes_to_write = @entry(@choose_defined($len, $count))
+	pos = kernel_pointer(@entry(@choose_defined($ppos, $pos)))
 	ret = $return
 	bytes_written = $return > 0 ? $return : 0
 	error = $return < 0 ? $return : 0
@@ -749,7 +749,7 @@ probe vfs.do_sync_write.return = kernel.function("do_sync_write").return !,
 probe __vfs.__vfs_write.return = kernel.function("__vfs_write").return
 {
 	# Skip the call if new_sync_write() wouldn't be called.
-	if ($file->f_op->write || !$file->f_op->write_iter) next
+	if (@entry($file->f_op->write) || !@entry($file->f_op->write_iter)) next
 }
 
 probe vfs.block_sync_page = kernel.function("block_sync_page") ?
@@ -932,14 +932,14 @@ probe vfs.read.return = kernel.function("vfs_read").return
 	name = "vfs.read"
 	retstr = sprintf("%d", $return)
 
-	file = $file
-        pathname = fullpath_struct_file(task_current(), $file)
-	pos = $pos
-	buf = $buf
-	bytes_to_read = $count
-	dev = __file_dev($file)
-	devname = __find_bdevname(dev, __file_bdev($file))
-	ino = __file_ino($file)
+	file = @entry($file)
+        pathname = fullpath_struct_file(task_current(), @entry($file))
+	pos = @entry($pos)
+	buf = @entry($buf)
+	bytes_to_read = @entry($count)
+	dev = __file_dev(@entry($file))
+	devname = __find_bdevname(dev, __file_bdev(@entry($file)))
+	ino = __file_ino(@entry($file))
 
 	ret = $return
 	bytes_read = $return > 0 ? $return : 0
@@ -968,15 +968,15 @@ probe vfs.readv.return = kernel.function("vfs_readv").return
 	name = "vfs.readv"
 	retstr = sprintf("%d", $return)
 
-	file = $file
-        pathname = fullpath_struct_file(task_current(), $file)
-	dev = __file_dev($file)
-	devname = __find_bdevname(dev, __file_bdev($file))
-	ino = __file_ino($file)
-	pos = $pos
-	vec = $vec
-	vlen = $vlen
-	bytes_to_read = _get_fopv_size($vec, $vlen)
+	file = @entry($file)
+        pathname = fullpath_struct_file(task_current(), @entry($file))
+	dev = __file_dev(@entry($file))
+	devname = __find_bdevname(dev, __file_bdev(@entry($file)))
+	ino = __file_ino(@entry($file))
+	pos = @entry($pos)
+	vec = @entry($vec)
+	vlen = @entry($vlen)
+	bytes_to_read = _get_fopv_size(vec, vlen)
 
 	ret = $return
 	bytes_read = $return > 0 ? $return : 0
@@ -1004,14 +1004,14 @@ probe vfs.write.return = kernel.function("vfs_write").return
 	name = "vfs.write"
 	retstr = sprintf("%d", $return)
 
-	file = $file
-        pathname = fullpath_struct_file(task_current(), $file)
-	pos = $pos
-	buf = $buf
-	bytes_to_write = $count
-	dev = __file_dev($file)
-	devname = __find_bdevname(dev, __file_bdev($file))
-	ino = __file_ino($file)
+	file = @entry($file)
+        pathname = fullpath_struct_file(task_current(), @entry($file))
+	pos = @entry($pos)
+	buf = @entry($buf)
+	bytes_to_write = @entry($count)
+	dev = __file_dev(@entry($file))
+	devname = __find_bdevname(dev, __file_bdev(@entry($file)))
+	ino = __file_ino(@entry($file))
 
 	ret = $return
 	bytes_written = $return > 0 ? $return : 0
@@ -1040,15 +1040,15 @@ probe vfs.writev.return = kernel.function("vfs_writev").return
 	name = "vfs.writev"
 	retstr = sprintf("%d", $return)
 
-	file = $file
-        pathname = fullpath_struct_file(task_current(), $file)
-	dev = __file_dev($file)
-	devname = __find_bdevname(dev, __file_bdev($file))
-	ino = __file_ino($file)
-	pos = $pos
-	vlen = $vlen
-	vec = $vec
-	bytes_to_write = _get_fopv_size($vec, $vlen)
+	file = @entry($file)
+        pathname = fullpath_struct_file(task_current(), @entry($file))
+	dev = __file_dev(@entry($file))
+	devname = __find_bdevname(dev, __file_bdev(@entry($file)))
+	ino = __file_ino(@entry($file))
+	pos = @entry($pos)
+	vlen = @entry($vlen)
+	vec = @entry($vec)
+	bytes_to_write = _get_fopv_size(vec, vlen)
 
 	ret = $return
 	bytes_written = $return > 0 ? $return : 0
@@ -1073,9 +1073,9 @@ probe _vfs.generic_file_readonly_mmap.return =
 	name = "_vfs.generic_file_readonly_mmap"
 	retstr = sprintf("%d", $return)
 
-	file = $file
-        pathname = fullpath_struct_file(task_current(), $file)
-	vma = $vma
+	file = @entry($file)
+        pathname = fullpath_struct_file(task_current(), @entry($file))
+	vma = @entry($vma)
 
 	ret = $return
 	error = $return < 0 ? $return : 0
@@ -1140,11 +1140,11 @@ probe _vfs.block_prepare_write.return =
 	name = "_vfs.block_prepare_write"
 	retstr = sprintf("%d", $return)
 
-	page = $page
-	if (@defined($pos)) {
-		_inode = __page_ino($page)
-		from = $pos & (@const("_STP_PAGE_SIZE") - 1)
-		to = from + $len		
+	page = @entry($page)
+	if (@defined(@entry($pos))) {
+		_inode = __page_ino(@entry($page))
+		from = @entry($pos) & (@const("_STP_PAGE_SIZE") - 1)
+		to = from + @entry($len)
 %(systemtap_v < "2.3" %?
 		# write_from and write_upto are deprecated
 		write_from = from
@@ -1152,16 +1152,16 @@ probe _vfs.block_prepare_write.return =
 %)
 	}
 	else {
-		_inode = $inode
+		_inode = @entry($inode)
 %(systemtap_v < "2.3" %?
 		# write_from and write_upto are deprecated
-		write_from = $from
-		write_upto = $to
+		write_from = @entry($from)
+		write_upto = @entry($to)
 %)
-		from = $from
-		to = $to
+		from = @entry($from)
+		to = @entry($to)
 	}
-	page = $page
+	page = @entry($page)
 
 	ret = $return
 	error = ret < 0 ? ret : 0
@@ -1188,13 +1188,13 @@ probe _vfs.block_write_begin.return =
 	name = "_vfs.block_write_begin"
 	retstr = sprintf("%d", $return)
 
-	file = @choose_defined($file, 0)
-        pathname = @defined($file) ? fullpath_struct_file(task_current(), $file) : ""
-	pos = $pos
-	len = $len
-	flags = $flags
+	file = @entry($file)
+        pathname = @defined(@entry($file)) ? fullpath_struct_file(task_current(), @entry($file)) : ""
+	pos = @entry($pos)
+	len = @entry($len)
+	flags = @entry($flags)
 
-	_inode = __address_inode($mapping)
+	_inode = __address_inode(@entry($mapping))
 
 	ret = $return
 	error = $return < 0 ? $return : 0
@@ -1219,12 +1219,12 @@ probe _vfs.block_write_end.return = kernel.function("block_write_end").return ?
 	name = "_vfs.block_write_end"
 	retstr = sprintf("%d", $return)
 
-	file = $file
-        pathname = fullpath_struct_file(task_current(), $file)
-	pos = $pos
-	len = $len
-	page = $page
-	_inode = __address_inode($mapping)
+	file = @entry($file)
+        pathname = fullpath_struct_file(task_current(), @entry($file))
+	pos = @entry($pos)
+	len = @entry($len)
+	page = @entry($page)
+	_inode = __address_inode(@entry($mapping))
 	ret = $return
 }
 
@@ -1247,7 +1247,7 @@ probe vfs.open.return = kernel.function("vfs_open").return ?
 	error = $return < 0 ? $return : 0
 	error_str = error ? errno_str(error) : ""
 
-        path = $path
-        cred = $cred
-        pathname = fullpath_struct_path($path)
+        path = @entry($path)
+        cred = @entry($cred)
+        pathname = fullpath_struct_path(@entry($path))
 }

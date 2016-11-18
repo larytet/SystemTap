@@ -4325,6 +4325,10 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
         {
           if (lvalue)
             throw SEMANTIC_ERROR(_("write to target variable not permitted in .return probes"), e->tok);
+          // PR14924: discourage this syntax
+          stringstream expr;
+          e->print(expr);
+          q.sess.print_warning(_F("confusing usage, consider @entry(%s) in .return probe", expr.str().c_str()), e->tok);
           visit_target_symbol_saved_return(e);
           return;
         }
@@ -4429,12 +4433,42 @@ dwarf_var_expanding_visitor::visit_entry_op (entry_op *e)
       // If we were to expand it here, we may e.g. map @perf("...") to
       // __perf_read_... prematurely & incorrectly.  PR20416
 
-      // XXX it would be nice to use gen_kretprobe_saved_return when available,
-      // but it requires knowing the types already, which is problematic for
-      // arbitrary expressons.
-      repl = gen_mapped_saved_return (e->operand, "entry");
+      // First off, check whether e->operand is defined.  Mimic the
+      // var_expanding_visitor::visit_defined_op operation.  This is
+      // to make @defined(@entry($ex->pr)) a valid construct.  PR14924.
+      expression * const old_operand = e->operand;
+      bool resolved = true;
+      try {
+        q.has_return = false;
+	replace (e->operand);
+	q.has_return = true;
+
+	target_symbol* tsym = dynamic_cast<target_symbol*> (e->operand);
+	if (tsym && tsym->saved_conversion_error) // failing
+	  resolved = false;
+
+      } catch (const semantic_error& e) {
+        assert (0); // should not happen
+      }
+
+      if(resolved)
+        {
+	  // Return the entry-saved val
+	  e->operand = old_operand;
+	  // XXX it would be nice to use gen_kretprobe_saved_return when available,
+	  // but it requires knowing the types already, which is problematic for
+	  // arbitrary expressons.
+	  repl = gen_mapped_saved_return (e->operand, "entry");
+	  provide (repl);
+	  return;
+	}
+      else
+        {
+          // Provide the undefined bit
+	  provide (e->operand);
+	  return;
+        }
     }
-  provide (repl);
 }
 
 void

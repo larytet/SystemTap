@@ -208,7 +208,7 @@ probe scheduler.kthread_stop =
 probe __scheduler.kthread_stop.return.kp =
 	kernel.function("kthread_stop").return
 {
-	return_value = $k->exit_code
+	return_value = @entry($k->exit_code)
 }
 probe __scheduler.kthread_stop.return.tp =
 	kernel.trace("sched_kthread_stop_ret")

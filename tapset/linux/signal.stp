@@ -211,9 +211,9 @@ probe __signal.send.send_signal.return =
 		kernel.function("__send_signal").return !,
 		kernel.function("send_signal").return ?
 {
-    if (@defined($group)) {
+    if (@defined(@entry($group))) {
 	name = "__send_signal"
-	shared = ($group == 0) ? 0 : 1
+	shared = (@entry($group)) == 0) ? 0 : 1
     }
     else {
 	name = "send_signal"

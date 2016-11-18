@@ -46,7 +46,7 @@ probe _linuxmib.DelayedACKs.B = kernel.function("tcp_delack_timer")
 
 probe _linuxmib.DelayedACKs.C = kernel.function("tcp_delack_timer").return
 {
-	sk=$data
+	sk=@entry($data)
 	indelack_timer[sk]=0;
 	op=0
 }
@@ -63,9 +63,9 @@ probe _linuxmib.DelayedACKs.C = kernel.function("tcp_delack_timer").return
  */
 probe linuxmib.ListenOverflows=kernel.function("tcp_v4_syn_recv_sock").return
 {
-	sk = $sk
+	sk = @entry($sk)
 	if ( $return ) next
-	if ( $sk->sk_ack_backlog <= $sk->sk_max_ack_backlog ) next
+	if ( @entry($sk->sk_ack_backlog) <= @entry($sk->sk_max_ack_backlog) ) next
 	op = 1;
 	key = linuxmib_filter_key(sk,op);
 	if ( key ) ListenOverflows[key] += op;
@@ -83,7 +83,7 @@ probe linuxmib.ListenOverflows=kernel.function("tcp_v4_syn_recv_sock").return
  */
 probe linuxmib.ListenDrops=kernel.function("tcp_v4_syn_recv_sock").return
 {
-	sk = $sk
+	sk = @entry($sk)
 	if ( $return ) next
 	op = 1;
 	key = linuxmib_filter_key(sk,op);
