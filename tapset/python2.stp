@@ -225,7 +225,7 @@ private function Py2String_Size:long(object:long)
 	# string representation of the object, then returning the
 	# length of the new string. We can't create new objects here,
 	# so we'll just quit.
-	warn(sprintf("Py2Bytes_Size called on non-bytes object address 0x%p\n",
+	warn(sprintf("Py2string_Size called on non-string object address 0x%p\n",
 		     object))
 	return 0
     }

@@ -270,7 +270,6 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
     // function call.
     if (e->name == "$$parms" || e->name == "$$locals" || e->name == "$$vars")
     {
-	clog << "*** found " << e->name << "***" << endl;
 	int flags = (e->name == "$$parms"
 		     ? 0 : (e->name == "$$locals" ? 1 : 2));
 

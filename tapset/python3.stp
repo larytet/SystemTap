@@ -20,6 +20,34 @@
 #define Py3_TPFLAGS_DICT_SUBCLASS        (1L<<29)
 #define Py3_TPFLAGS_BASE_EXC_SUBCLASS    (1L<<30)
 #define Py3_TPFLAGS_TYPE_SUBCLASS        (1L<<31)
+
+/*
+ * Defines borrowed from code.h.
+ */
+
+/* Masks for co_flags above */
+#define Py3_CO_OPTIMIZED	0x0001
+#define Py3_CO_NEWLOCALS	0x0002
+#define Py3_CO_VARARGS		0x0004
+#define Py3_CO_VARKEYWORDS	0x0008
+#define Py3_CO_NESTED		0x0010
+#define Py3_CO_GENERATOR	0x0020
+/* The Py3_CO_NOFREE flag is set if there are no free or cell variables.
+   This information is redundant, but it allows a single flag test
+   to determine whether there is any extra work to be done when the
+   call frame it setup.
+*/
+#define Py3_CO_NOFREE       0x0040
+
+/*
+ * Defines borrowed from longintrepr.h
+ */
+#define Py3Long_SHIFT_SMALL	15
+#define PY3_LONG_MAX_SMALL	0x7fffffffL
+
+#define Py3Long_SHIFT_BIG	30
+#define PY3_LONG_MAX_BIG	0x7fffffffffffffffL
+
 %}
 
 #
@@ -53,6 +81,10 @@
 %)
 @define Py3VarObject(object) %(
     @cast(@object, "PyVarObject",
+	  "python3:/usr/lib64/libpython3.5m.so:/usr/lib/libpython3.5m.so")
+%)
+@define Py3LongObject(object) %(
+    @cast(@object, "PyLongObject",
 	  "python3:/usr/lib64/libpython3.5m.so:/usr/lib/libpython3.5m.so")
 %)
 @define Py3BytesObject(object) %(
@@ -187,6 +219,183 @@
 %)
 
 #
+# Systemtap macros based on C macros in longobject.h.
+#
+
+@define Py3Long_Check(op) %(
+    @Py3Type_FastSubclass(@Py3_TYPE(@op), %{ Py3_TPFLAGS_LONG_SUBCLASS %})
+%)
+
+#
+# Systemtap macros based on C macros in tupleobject.h.
+#
+
+@define Py3Tuple_Check(op) %(
+    @Py3Type_FastSubclass(@Py3_TYPE(@op), %{ Py3_TPFLAGS_TUPLE_SUBCLASS %})
+%)
+
+#
+# Systemtap macros based on C macros in listobject.h.
+#
+
+@define Py3List_Check(op) %(
+    @Py3Type_FastSubclass(@Py3_TYPE(@op), %{ Py3_TPFLAGS_LIST_SUBCLASS %})
+%)
+
+#
+# Systemtap functions based on C functions in longobject.c.
+#
+
+%{
+/* Checking for overflow in PyLong_AsLong is a PITA since C doesn't define
+ * anything about what happens when a signed integer operation overflows,
+ * and some compilers think they're doing you a favor by being "clever"
+ * then.  The bit pattern for the largest positive signed long is
+ * (unsigned long)LONG_MAX, and for the smallest negative signed long
+ * it is abs(LONG_MIN), which we could write -(unsigned long)LONG_MIN.
+ * However, some other compilers warn about applying unary minus to an
+ * unsigned operand.  Hence the weird "0-".
+ */
+
+#define PY3_LLONG_MIN		(-__LONG_LONG_MAX__ - 1L)
+#define PY3_ABS_LLONG_MIN	(0-(unsigned long long)PY3_LLONG_MIN)
+%}
+
+/* Get a C long int from an int object or any object that has an __int__
+ * method.
+ *
+ * On overflow, return -1 and throw an error.
+ */
+
+/*
+ * The Py3Long_AsLongLong() function below is actually based on
+ * PyLong_AsLong(). Python's PyLong_AsLongLong() converts the PyLong
+ * to a Bytes object. This method is simpler.
+ *
+ * On 32-bit platforms, the default for PYLONG_BITS_IN_DIGIT is 15. On
+ * 64-bit platforms, the default for PYLONG_BITS_IN_DIGIT is 30. We're
+ * going to assume that to be true, even though it can be configured
+ * differently.
+ *
+ * Since we can be on a 64-bit kernel but probing a 32-bit python 3
+ * executable, we have to handle both cases at the same time.
+ */
+
+private function Py3Long_AsLongLongAndOverflow_Small:long(v:long)
+{
+    res = -1
+    i = @Py3_SIZE(v)
+    if (i == -1) {
+	/* We're using 'x & 0xffff' instead of '(short)x' */
+	res = -(@Py3LongObject(v)->ob_digit[0] & 0xffff)
+    }
+    else if (i == 0) {
+	res = 0
+    }
+    else if (i == 1) {
+	res = @Py3LongObject(v)->ob_digit[0]
+    }
+    else {
+	sign = 1
+	x = 0
+	if (i < 0) {
+	    sign = -1
+	    i = -(i)
+	}
+	while (--i >= 0) {
+	    prev = x
+	    x = ((x << %{ Py3Long_SHIFT_SMALL %})
+		 | @Py3LongObject(v)->ob_digit[i])
+	    if ((x >> %{ Py3Long_SHIFT_SMALL %}) != prev) {
+		error("Python int too large")
+		return res
+	    }
+	}
+	/* Haven't lost any bits, but casting to long requires extra
+	 * care (see comment above).
+	 */
+        if (x <= %{ __LONG_LONG_MAX__ %}) {
+            res = x * sign
+        }
+        else if (sign < 0 && x == %{ PY3_ABS_LLONG_MIN %}) {
+            res = %{ PY3_LLONG_MIN %}
+        }
+        else {
+	    error("Python int too large")
+            /* res is already set to -1 */
+	}
+    }
+    return res
+}
+
+private function Py3Long_AsLongLongAndOverflow_Big:long(v:long)
+{
+    res = -1
+    i = @Py3_SIZE(v)
+    if (i == -1) {
+	/* We're using 'x & 0xffffffff' instead of '(int32_t)x' */
+	res = -(@Py3LongObject(v)->ob_digit[0] & 0xffffffff)
+    }
+    else if (i == 0) {
+	res = 0
+    }
+    else if (i == 1) {
+	res = @Py3LongObject(v)->ob_digit[0]
+    }
+    else {
+	sign = 1
+	x = 0
+	if (i < 0) {
+	    sign = -1
+	    i = -(i)
+	}
+	while (--i >= 0) {
+	    prev = x
+	    x = ((x << %{ Py3Long_SHIFT_BIG %})
+		 | @Py3LongObject(v)->ob_digit[i])
+	    if ((x >> %{ Py3Long_SHIFT_BIG %}) != prev) {
+		error("Python int too large")
+		return res
+	    }
+	}
+	/* Haven't lost any bits, but casting to long requires extra
+	 * care (see comment above).
+	 */
+        if (x <= %{ __LONG_LONG_MAX__ %}) {
+            res = x * sign
+        }
+        else if (sign < 0 && x == %{ PY3_ABS_LLONG_MIN %}) {
+            res = %{ PY3_LLONG_MIN %}
+        }
+        else {
+	    error("Python int too large")
+            /* res is already set to -1 */
+	}
+    }
+    return res
+}
+
+private function Py3Long_AsLongLong:long(v:long)
+{
+    if (! @Py3Long_Check(v)) {    
+	error(sprintf("Py3Long_AsLong called on %s object at %p\n",
+	      python3_get_typename(v), v))
+	return -1
+    }
+
+%( CONFIG_64BIT == "y" %?
+%( CONFIG_COMPAT == "y" %?
+    if (@__compat_task) {
+    	return Py3Long_AsLongLongAndOverflow_Small(v)
+    }
+%)
+    return Py3Long_AsLongLongAndOverflow_Big(v)
+%:
+    return Py3Long_AsLongLongAndOverflow_Small(v)
+%)
+}
+
+#
 # Systemtap functions based on C functions in bytesobject.c.
 #
 
@@ -282,6 +491,110 @@ private function Py3Frame_GetLineNumber:long(frame:long)
 				 @Py3FrameObject(frame)->f_lasti)
 }
 
+#
+# Systemtap functions based on C functions in tupleobject.c.
+#
+
+private function Py3Tuple_GetItem:long(op:long, i:long)
+{
+    if (!@Py3Tuple_Check(op)) {
+	error(sprintf("Py3Tuple_GetItem called on %s object at %p\n",
+		      python3_get_typename(op), op))
+	return 0
+    }
+    if (i < 0 || i >= @Py3_SIZE(op)) {
+        error(sprintf("tuple index %d out of range (%d)", i, @Py3_SIZE(op)))
+        return 0
+    }
+    return @Py3TupleObject(op)->ob_item[i]
+}
+
+private function Py3Tuple_Repr:string(object:long)
+{
+    if (!@Py3Tuple_Check(object)) {
+	error(sprintf("Py3Tuple_Repr called on %s object at %p\n",
+		      python3_get_typename(object), object))
+	return ""
+    }
+    n = @Py3_SIZE(object)
+    if (n == 0)
+	return "()"
+
+    retstr = "("
+    first = 1
+    for (i = 0; i < n; i++) {
+	if (! first)
+	    retstr .= " "
+	first = 0
+	retstr .= Py3Object_Repr(Py3Tuple_GetItem(object, i))
+    }
+    retstr .= ")"
+    return retstr
+}
+#
+# Systemtap functions based on C functions in listobject.c.
+#
+
+private function Py3List_GetItem:long(op:long, i:long)
+{
+    if (!@Py3List_Check(op)) {
+	error(sprintf("Py3List_GetItem called on %s object at %p\n",
+		      python3_get_typename(op), op))
+        return 0
+    }
+    if (i < 0 || i >= @Py3_SIZE(op)) {
+        error(sprintf("tuple index %d out of range (%d)", i, @Py3_SIZE(op)))
+        return 0
+    }
+    return @Py3ListObject(op)->ob_item[i];
+}
+
+private function Py3List_Repr:string(object:long)
+{
+    if (!@Py3List_Check(object)) {
+	error(sprintf("Py3List_Repr called on %s object at %p\n",
+		      python3_get_typename(object), object))
+	return ""
+    }
+    n = @Py3_SIZE(object)
+    if (n == 0)
+	return "[]"
+
+    retstr = "["
+    first = 1
+    for (i = 0; i < n; i++) {
+	if (! first)
+	    retstr .= " "
+	first = 0
+	retstr .= Py3Object_Repr(Py3List_GetItem(object, i))
+    }
+    retstr .= "]"
+    return retstr
+}
+
+#
+# Systemtap functions based on C functions in object.c.
+#
+
+private function Py3Object_Repr:string(object:long)
+{
+    if (object == 0)
+	return "<NULL>"
+    if (@Py3Unicode_Check(object))
+	return sprintf("\"%s\"", Py3Unicode_AsASCIIString(object))
+    if (@Py3Long_Check(object))
+    	return sprintf("%#x", Py3Long_AsLongLong(object))
+    if (@Py3Tuple_Check(object))
+	return sprintf("%s", Py3Tuple_Repr(object))
+    if (@Py3List_Check(object))
+	return sprintf("%s", Py3List_Repr(object))
+    return sprintf("<%s object at %p>", python3_get_typename(object), object)
+}
+
+#
+# Systemtap support functions for python 3.
+#
+
 /*
  * python3_print_backtrace - Print python backtrace
  *
@@ -344,6 +657,82 @@ function python3_sprint_backtrace:string(frame:long)
 			  lineno, name)
 
 	frame = @Py3FrameObject(frame)->f_back
+    }
+    return retstr
+}
+
+
+/*
+ * python3_get_typename - Get python object type name
+ *
+ * Description: This function returns a string describing the type of
+ * a python object.
+ */
+private function python3_get_typename:string(obj:long)
+{
+    if (obj == 0)
+	return ""
+    return user_string(@Py3_TYPE(obj)->tp_name)
+}
+
+/*
+ * python3_get_locals - Get python local variables
+ *
+ * Description: This function returns a list of python local variables
+ * from a frame.
+ *
+ * frame: python frame object pointer
+ * flags: 0: function parameters only ($$parms), 1: locals only
+ * ($$locals), 2: all local vars, parameters and locals ($$vars)
+ *
+ * Note that users shouldn't call this directly, they should refer to
+ * '$$parms', '$$locals', and '$$vars' in a python probe and the
+ * translator will generate code that calls this function with the
+ * correct arguments.
+ */
+function python3_get_locals:string(frame:long, flags:long)
+{
+    code = @Py3FrameObject(frame)->f_code
+	
+    # flags == 2: get all variables
+    if (flags == 2) {		
+	i = 0
+	n = code->co_nlocals
+    }
+    else {
+	n = code->co_argcount + code->co_kwonlyargcount
+	if (code->co_flags & %{ Py3_CO_VARARGS %})
+	    n++
+	if (code->co_flags & %{ Py3_CO_VARKEYWORDS %})
+	    n++
+
+	# flags == 0 (parms only): 0 to n (argcount)
+	if (flags == 0)
+	    i = 0
+	# flags == 1 (locals only): n (argcount) to max
+	else if (flags == 1) {
+	    i = n
+	    n = code->co_nlocals
+	}
+    }
+    if (i < 0 || i > n) {
+        error(sprintf("python3_get_locals: invalid indicies (%d-%d)", i, n))
+        return ""
+    }
+	    
+    # Each element in co_varnames is a tuple of strings. The values
+    # are in f_localsplus.
+    p = code->co_varnames
+    localsplus = @Py3FrameObject(frame)->f_localsplus
+    first = 1
+    for (; i < n; i++) {
+	if (! first)
+	    retstr .= " "
+	first = 0
+	key_obj = Py3Tuple_GetItem(p, i)
+	value_obj = user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
+	retstr .= sprintf("%s=%s", Py3Unicode_AsASCIIString(key_obj),
+			  Py3Object_Repr(value_obj))
     }
     return retstr
 }
