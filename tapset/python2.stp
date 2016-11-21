@@ -359,6 +359,96 @@ private function Py2List_Repr:string(object:long)
 }
 
 #
+# Systemtap functions based on C functions in dictobject.c.
+#
+
+private function Py2Dict_GetItem:long(op:long, key:string)
+{
+    if (!@Py2Dict_Check(op)) {
+	error(sprintf("Py2Dict_GetItem called on %s object at %p\n",
+		      python2_get_typename(op), op))
+        return 0
+    }
+    // We'd like to hash 'key' here, but we can't (easily). Python
+    // randomizes its hash function at python process startup. So,
+    // instead of hashing the key and then searching for that hash in
+    // the dictionary, we'll do a linear search of the dictionary for
+    // the key.
+    n = @Py2DictObject(op)->ma_mask;
+    for (i = 0; i < n; i++) {
+	entry = @Py2DictObject(op)->ma_table[i]
+	if (entry->me_key == 0 || entry->me_value == 0
+	    || ! @Py2String_Check(entry->me_key))
+	   continue
+	if (Py2String_AsString(entry->me_key) == key)
+	   return entry
+    }
+    return 0
+}
+
+private function Py2Dict_GetItem:long(op:long, key:long)
+{
+    if (!@Py2Dict_Check(op)) {
+	error(sprintf("Py2Dict_GetItem called on %s object at %p\n",
+		      python2_get_typename(op), op))
+        return 0
+    }
+    // We'd like to hash 'key' here, but we can't (easily). Python
+    // randomizes its hash function at python process startup. So,
+    // instead of hashing the key and then searching for that hash in
+    // the dictionary, we'll do a linear search of the dictionary for
+    // the key.
+    n = @Py2DictObject(op)->ma_mask;
+    for (i = 0; i < n; i++) {
+	entry = @Py2DictObject(op)->ma_table[i]
+	if (entry->me_key == 0 || entry->me_value == 0
+	    || ! @Py2Int_Check(entry->me_key))
+	   continue
+	if (Py2Int_AsLong(entry->me_key) == key)
+	   return entry
+    }
+    return 0
+}
+
+private function Py2DictEntry_Repr:string(object:long)
+{
+    // Note there is no way of checking to see if an object pointer
+    // here is really a PyDictEntry. A PyDictEntry structure doesn't
+    // have PyObject in it.
+    retstr = Py2Object_Repr(@Py2DictEntry(object)->me_key)
+    retstr .= ":"
+    retstr .= Py2Object_Repr(@Py2DictEntry(object)->me_value)
+    return retstr
+}
+
+private function Py2Dict_Repr:string(object:long)
+{
+    if (!@Py2Dict_Check(object)) {
+	error(sprintf("Py2Dict_Repr called on %s object at %p\n",
+		      python2_get_typename(object), object))
+	return ""
+    }
+    n = @Py2DictObject(object)->ma_mask;
+    if (n == 0)
+	return "{}"
+
+    retstr = "{"
+    first = 1
+    for (i = 0; i < n; i++) {
+	entry = &@Py2DictObject(object)->ma_table[i]
+	if (entry->me_key == 0 || entry->me_value == 0)
+	   continue
+
+	if (! first)
+	    retstr .= " "
+	first = 0
+	retstr .= Py2DictEntry_Repr(entry)
+    }
+    retstr .= "}"
+    return retstr
+}
+
+#
 # Systemtap functions based on C functions in object.c.
 #
 
@@ -371,9 +461,11 @@ private function Py2Object_Repr:string(object:long)
     if (@Py2Int_Check(object))
     	return sprintf("%#x", Py2Int_AsLong(object))
     if (@Py2Tuple_Check(object))
-	return sprintf("%s", Py2Tuple_Repr(object))
+	return Py2Tuple_Repr(object)
     if (@Py2List_Check(object))
-	return sprintf("%s", Py2List_Repr(object))
+	return Py2List_Repr(object)
+    if (@Py2Dict_Check(object))
+	return Py2Dict_Repr(object)
     return sprintf("<%s object at %p>", python2_get_typename(object), object)
 }
 
