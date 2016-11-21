@@ -40,6 +40,12 @@
 */
 #define Py2_CO_NOFREE		0x0040
 
+/*
+ * Defines borrowed from longintrepr.h
+ */
+#define Py2Long_SHIFT_SMALL	15
+#define Py2Long_SHIFT_BIG	30
+
 %}
 
 #
@@ -115,6 +121,10 @@
     @cast(@object, "PyCodeObject",
 	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so")
 %)
+@define Py2LongObject(object) %(
+    @cast(@object, "PyLongObject",
+	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so")
+%)
 
 #
 # Systemtap macros based on C macros in object.h.
@@ -158,6 +168,14 @@
 %)
 
 #
+# Systemtap macros based on C macros in longobject.h.
+#
+
+@define Py2Long_Check(op) %(
+    @Py2Type_FastSubclass(@Py2_TYPE(@op), %{ Py2_TPFLAGS_LONG_SUBCLASS %})
+%)
+
+#
 # Systemtap macros based on C macros in dictobject.h.
 #
 
@@ -192,6 +210,158 @@ private function Py2Int_AsLong:long(op:long)
     error(sprintf("Py2Int_AsLong called on %s object at %p\n",
 		  python2_get_typename(op), op))
     return -1
+}
+#
+# Systemtap functions based on C functions in longobject.c.
+#
+
+%{
+/* Checking for overflow in PyLong_AsLong is a PITA since C doesn't define
+ * anything about what happens when a signed integer operation overflows,
+ * and some compilers think they're doing you a favor by being "clever"
+ * then.  The bit pattern for the largest positive signed long is
+ * (unsigned long)LONG_MAX, and for the smallest negative signed long
+ * it is abs(LONG_MIN), which we could write -(unsigned long)LONG_MIN.
+ * However, some other compilers warn about applying unary minus to an
+ * unsigned operand.  Hence the weird "0-".
+ */
+
+#define PY2_LLONG_MIN		(-__LONG_LONG_MAX__ - 1L)
+#define PY2_ABS_LLONG_MIN	(0-(unsigned long long)PY2_LLONG_MIN)
+%}
+
+/* Get a C long int from an int object or any object that has an __int__
+ * method.
+ *
+ * On overflow, return -1 and throw an error.
+ */
+
+/*
+ * The Py2Long_AsLongLong() function below is actually based on
+ * PyLong_AsLong(). Python's PyLong_AsLongLong() converts the PyLong
+ * to a Bytes object. This method is simpler.
+ *
+ * On 32-bit platforms, the default for PYLONG_BITS_IN_DIGIT is 15. On
+ * 64-bit platforms, the default for PYLONG_BITS_IN_DIGIT is 30. We're
+ * going to assume that to be true, even though it can be configured
+ * differently.
+ *
+ * Since we can be on a 64-bit kernel but probing a 32-bit python 3
+ * executable, we have to handle both cases at the same time.
+ */
+
+private function Py2Long_AsLongLongAndOverflow_Small:long(v:long)
+{
+    res = -1
+    i = @Py2_SIZE(v)
+    if (i == -1) {
+	/* We're using 'x & 0xffff' instead of '(short)x' */
+	res = -(@Py2LongObject(v)->ob_digit[0] & 0xffff)
+    }
+    else if (i == 0) {
+	res = 0
+    }
+    else if (i == 1) {
+	res = @Py2LongObject(v)->ob_digit[0]
+    }
+    else {
+	sign = 1
+	x = 0
+	if (i < 0) {
+	    sign = -1
+	    i = -(i)
+	}
+	while (--i >= 0) {
+	    prev = x
+	    x = ((x << %{ Py2Long_SHIFT_SMALL %})
+		 | @Py2LongObject(v)->ob_digit[i])
+	    if ((x >> %{ Py2Long_SHIFT_SMALL %}) != prev) {
+		error("Python int too large")
+		return res
+	    }
+	}
+	/* Haven't lost any bits, but casting to long requires extra
+	 * care (see comment above).
+	 */
+        if (x <= %{ __LONG_LONG_MAX__ %}) {
+            res = x * sign
+        }
+        else if (sign < 0 && x == %{ PY2_ABS_LLONG_MIN %}) {
+            res = %{ PY2_LLONG_MIN %}
+        }
+        else {
+	    error("Python int too large")
+            /* res is already set to -1 */
+	}
+    }
+    return res
+}
+
+private function Py2Long_AsLongLongAndOverflow_Big:long(v:long)
+{
+    res = -1
+    i = @Py2_SIZE(v)
+    if (i == -1) {
+	/* We're using 'x & 0xffffffff' instead of '(int32_t)x' */
+	res = -(@Py2LongObject(v)->ob_digit[0] & 0xffffffff)
+    }
+    else if (i == 0) {
+	res = 0
+    }
+    else if (i == 1) {
+	res = @Py2LongObject(v)->ob_digit[0]
+    }
+    else {
+	sign = 1
+	x = 0
+	if (i < 0) {
+	    sign = -1
+	    i = -(i)
+	}
+	while (--i >= 0) {
+	    prev = x
+	    x = ((x << %{ Py2Long_SHIFT_BIG %})
+		 | @Py2LongObject(v)->ob_digit[i])
+	    if ((x >> %{ Py2Long_SHIFT_BIG %}) != prev) {
+		error("Python int too large")
+		return res
+	    }
+	}
+	/* Haven't lost any bits, but casting to long requires extra
+	 * care (see comment above).
+	 */
+        if (x <= %{ __LONG_LONG_MAX__ %}) {
+            res = x * sign
+        }
+        else if (sign < 0 && x == %{ PY2_ABS_LLONG_MIN %}) {
+            res = %{ PY2_LLONG_MIN %}
+        }
+        else {
+	    error("Python int too large")
+            /* res is already set to -1 */
+	}
+    }
+    return res
+}
+
+private function Py2Long_AsLongLong:long(v:long)
+{
+    if (! @Py2Long_Check(v)) {    
+	error(sprintf("Py2Long_AsLong called on %s object at %p\n",
+	      python2_get_typename(v), v))
+	return -1
+    }
+
+%( CONFIG_64BIT == "y" %?
+%( CONFIG_COMPAT == "y" %?
+    if (@__compat_task) {
+    	return Py2Long_AsLongLongAndOverflow_Small(v)
+    }
+%)
+    return Py2Long_AsLongLongAndOverflow_Big(v)
+%:
+    return Py2Long_AsLongLongAndOverflow_Small(v)
+%)
 }
 
 #
@@ -402,9 +572,13 @@ private function Py2Dict_GetItem:long(op:long, key:long)
     for (i = 0; i < n; i++) {
 	entry = @Py2DictObject(op)->ma_table[i]
 	if (entry->me_key == 0 || entry->me_value == 0
-	    || ! @Py2Int_Check(entry->me_key))
+	    || (! @Py2Int_Check(entry->me_key)
+		&& ! @Py2Long_Check(entry->me_key)))
 	   continue
-	if (Py2Int_AsLong(entry->me_key) == key)
+	if (@Py2Int_Check(entry->me_key) && Py2Int_AsLong(entry->me_key) == key)
+	   return entry
+	else if (@Py2Long_Check(entry->me_key)
+		 && Py2Long_AsLongLong(entry->me_key) == key)
 	   return entry
     }
     return 0
@@ -460,6 +634,8 @@ private function Py2Object_Repr:string(object:long)
 	return sprintf("\"%s\"", Py2String_AsString(object))
     if (@Py2Int_Check(object))
     	return sprintf("%#x", Py2Int_AsLong(object))
+    if (@Py2Long_Check(object))
+    	return sprintf("%#x", Py2Long_AsLongLong(object))
     if (@Py2Tuple_Check(object))
 	return Py2Tuple_Repr(object)
     if (@Py2List_Check(object))
