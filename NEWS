@@ -1,5 +1,10 @@
 * What's new in version 3.1, PRERELEASE
 
+- Context variables in .return probes should be accessed with @entry($var)
+  rather than $var, to make it clear that entry-time snapshots are being
+  used.  The latter construct now generates a warning.  Availability testing
+  with either @defined(@entry($var)) or @defined($var) works.
+
 - Tapsets containing process probes may now be placed in the special
   $prefix/share/systemtap/tapset/PATH/ directory to have their process parameter
   prefixed with the location of the tapset. For example,

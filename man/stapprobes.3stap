@@ -696,9 +696,11 @@ stap command line macro setting to override the default for all
 For ".return" probes, context variables other than the "$return" may
 be accessible, as a convenience for a script programmer wishing to
 access function parameters.  These values are \fBsnapshots\fP
-taken at the time of function entry.  Local variables within the
+taken at the time of function entry.  (Local variables within the
 function are \fBnot\fP generally accessible, since those variables did
-not exist in allocated/initialized form at the snapshot moment.
+not exist in allocated/initialized form at the snapshot moment.)
+These entry-snapshot variables should be accessed via
+.IR @entry($var) .
 .PP
 In addition, arbitrary entry-time expressions can also be saved for
 ".return" probes using the
