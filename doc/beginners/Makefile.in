@@ -235,6 +235,7 @@ builddir = @builddir@
 datadir = @datadir@
 datarootdir = @datarootdir@
 docdir = @docdir@
+dracutbindir = @dracutbindir@
 dracutstap = @dracutstap@
 dvidir = @dvidir@
 elfutils_abs_srcdir = @elfutils_abs_srcdir@
