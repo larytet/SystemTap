@@ -596,7 +596,6 @@ private function Py3List_Repr:string(object:long)
 	     : (@DK_SIZE(@dk) <= 0xff ?
 		1 : (@DK_SIZE(@dk) <= 0xffff ?
 		2 : (@DK_SIZE(@dk) <= 0xffffffff ? 4 : 8))))
-	    }
 	%:
 	    (@DK_SIZE(@dk) <= 0xff ?
 	     1 : (@DK_SIZE(@dk) <= 0xffff ?
