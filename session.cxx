@@ -482,6 +482,12 @@ systemtap_session::version ()
 #ifdef HAVE_JAVA
        << " JAVA"
 #endif
+#ifdef HAVE_PYTHON2_PROBES
+       << " PYTHON2"
+#endif
+#ifdef HAVE_PYTHON3_PROBES
+       << " PYTHON3"
+#endif
 #ifdef HAVE_LIBRPM
        << " LIBRPM"
 #endif

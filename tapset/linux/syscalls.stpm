@@ -86,12 +86,16 @@
 
 @define __pointer(val)
 %(
-    %( CONFIG_COMPAT == "y" %?
-	# If this is a compat task, the high bits of a pointer may be
-	# garbage.
-	(@__compat_task ? (@val & 0xffffffff) : @val)
+    %( CONFIG_64BIT == "y" %?
+	%( CONFIG_COMPAT == "y" %?
+	    # If this is a compat task, the high bits of a pointer may be
+	    # garbage.
+	    (@__compat_task ? (@val & 0xffffffff) : @val)
+	%:
+	    @val
+	%)
     %:
-	@val
+	(@val & 0xffffffff)
     %)
 %)
 

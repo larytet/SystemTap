@@ -269,7 +269,7 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
     // Convert '$$parms', '$$locals', and '$$vars' references to a
     // function call.
     if (e->name == "$$parms" || e->name == "$$locals" || e->name == "$$vars")
-    {
+      {
 	int flags = (e->name == "$$parms"
 		     ? 0 : (e->name == "$$locals" ? 1 : 2));
 
@@ -290,14 +290,56 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 
 	provide (fcall);
 	return;
-    }
-    // FIXME: Later, we'll support grabbing individual python target variables.
-    provide (e);
+      }
 
-    // FIXME 2: Will this work in return probes?
+    // Here we're going to try to look up the value of a python
+    // variable. However, at compile time we can't really know if that
+    // variable exists. So, the user will get a runtime error if the
+    // variable doesn't exist, not a compile-time error.
+    //
+    // Note that we also can't know what type the variable is
+    // (assuming it exists). Another wrinkle is that python variables
+    // are polymorphic and can change the type they hold, like this:
+    //
+    //    x = "abc"
+    //    x = 10
+    //
+    // So, we can't really find out if a particular python variable
+    // exists until runtime and we can't know the type. So, we treat
+    // all python variables as string variables.
+    //
+    // Also note we've got one final problem here. This code ends up
+    // in a systemtap marker probe, which has $arg1 ... $argN
+    // variables. The user shouldn't be referencing those variables,
+    // but we need to refer to them (to use the python frame pointer
+    // in $arg1 for example). So, we'll do the python variable
+    // expansion first, and later the python backtrace request
+    // expansions (which will add a reference to $arg1). So, order is
+    // important. See python_builder::build().
+    if (e->name[0] == '$')
+      {
 
-    // FIXME 3: We probably need to prevent assigning to individual
-    // python target variables.
+	// Get a python variable.
+	functioncall *fcall = new functioncall;
+	fcall->tok = e->tok;
+	fcall->function = (python_version == 2
+			   ? "python2_get_variable" : "python3_get_variable");
+	fcall->type = pe_string;
+
+	target_symbol *tsym = new target_symbol;
+	tsym->tok = e->tok;
+	tsym->name = "$arg1";
+	fcall->args.push_back(tsym);
+
+	// We want 'foo', not '$foo'.
+	interned_string new_name = e->name.substr(1, e->name.size());
+	literal_string* ls = new literal_string(new_name);
+	ls->tok = e->tok;
+	fcall->args.push_back(ls);
+
+	provide (fcall);
+	return;
+      }
 }
 
 
@@ -438,7 +480,7 @@ python_builder::build(systemtap_session & sess, probe * base,
 	  derive_probes(sess, base_probe, results);
 	  if (results.size() != 1)
 	    throw SEMANTIC_ERROR (_F("wrong number of probes derived (%d),"
-				     " should be 1", results.size()));
+				     " should be 1", (int)results.size()));
 	  python2_procfs_probe = results[0];
 	  finished_results.push_back(results[0]);
 	      
@@ -467,7 +509,7 @@ python_builder::build(systemtap_session & sess, probe * base,
 	  derive_probes(sess, base_probe, results);
 	  if (results.size() != 1)
 	    throw SEMANTIC_ERROR (_F("wrong number of probes derived (%d),"
-				     " should be 1", results.size()));
+				     " should be 1", (int)results.size()));
 	  python3_procfs_probe = results[0];
 	  finished_results.push_back(results[0]);
 	      
@@ -540,11 +582,14 @@ python_builder::build(systemtap_session & sess, probe * base,
       // additional probe intermediate to catch probe listing.
       mark_probe->base = new probe(base, location);
 
-      // Expand python variable requests in the probe body.
+      // Note that order *is* important here. We want to expand python
+      // variable requests in the probe body first, then expand python
+      // backtrace requests in the probe body. The latter uses '$arg1'
+      // as the python frame pointer, and we don't want the python
+      // variable exander to find those maker argument references.
       python_var_expanding_visitor pvev (sess, python_version);
       pvev.replace (base->body);
       
-      // Expand python backtrace requests in the probe body.
       python_functioncall_expanding_visitor v (sess, python_version);
       v.replace (base->body);
 

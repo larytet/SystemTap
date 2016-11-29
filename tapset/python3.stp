@@ -43,10 +43,7 @@
  * Defines borrowed from longintrepr.h
  */
 #define Py3Long_SHIFT_SMALL	15
-#define PY3_LONG_MAX_SMALL	0x7fffffffL
-
 #define Py3Long_SHIFT_BIG	30
-#define PY3_LONG_MAX_BIG	0x7fffffffffffffffL
 
 %}
 
@@ -117,6 +114,10 @@
 %)
 @define Py3DictEntry(object) %(
     @cast(@object, "PyDictEntry",
+	  "python3:/usr/lib64/libpython3.5m.so:/usr/lib/libpython3.5m.so")
+%)
+@define Py3DictKeysObject(object) %(
+    @cast(@object, "PyDictKeysObject",
 	  "python3:/usr/lib64/libpython3.5m.so:/usr/lib/libpython3.5m.so")
 %)
 @define Py3FrameObject(object) %(
@@ -224,6 +225,14 @@
 
 @define Py3Long_Check(op) %(
     @Py3Type_FastSubclass(@Py3_TYPE(@op), %{ Py3_TPFLAGS_LONG_SUBCLASS %})
+%)
+
+#
+# Systemtap macros based on C macros in dictobject.h.
+#
+
+@define Py3Dict_Check(op) %(
+    @Py3Type_FastSubclass(@Py3_TYPE(@op), %{ Py3_TPFLAGS_DICT_SUBCLASS %})
 %)
 
 #
@@ -546,7 +555,7 @@ private function Py3List_GetItem:long(op:long, i:long)
         error(sprintf("tuple index %d out of range (%d)", i, @Py3_SIZE(op)))
         return 0
     }
-    return @Py3ListObject(op)->ob_item[i];
+    return @Py3ListObject(op)->ob_item[i]
 }
 
 private function Py3List_Repr:string(object:long)
@@ -573,6 +582,145 @@ private function Py3List_Repr:string(object:long)
 }
 
 #
+# Systemtap functions based on C functions in dictobject.c.
+#
+
+@define DK_SIZE(dk) %(
+    @Py3DictKeysObject(@dk)->dk_size
+%)
+@define DK_IXSIZE(dk) %(
+    %( CONFIG_64BIT == "y" %?
+	%( CONFIG_COMPAT == "y" %?
+	    (@__compat_task
+	     ? (@DK_SIZE(@dk) <= 0xff ? 1 : (@DK_SIZE(@dk) <= 0xffff ? 2 : 4))
+	     : (@DK_SIZE(@dk) <= 0xff ?
+		1 : (@DK_SIZE(@dk) <= 0xffff ?
+		2 : (@DK_SIZE(@dk) <= 0xffffffff ? 4 : 8))))
+	    }
+	%:
+	    (@DK_SIZE(@dk) <= 0xff ?
+	     1 : (@DK_SIZE(@dk) <= 0xffff ?
+	     2 : (@DK_SIZE(@dk) <= 0xffffffff ? 4 : 8)))
+	%)
+    %:
+	(@DK_SIZE(@dk) <= 0xff ? 1 : (@DK_SIZE(@dk) <= 0xffff ? 2 : 4))
+    %)
+%)
+@define DK_ENTRIES(dk) %(
+     (@choose_defined(@Py3DictKeysObject(@dk)->dk_entries,
+      (&(@Py3DictKeysObject(@dk)->dk_indices->as_1[@DK_SIZE(@dk) * @DK_IXSIZE(@dk)]))))
+%)
+
+private function Py3Dict_GetItem:long(op:long, key:string)
+{
+    if (!@Py3Dict_Check(op)) {
+	error(sprintf("Py3Dict_GetItem called on %s object at %p\n",
+		      python3_get_typename(op), @__pointer(op)))
+        return 0
+    }
+    // We'd like to hash 'key' here, but we can't (easily). Python
+    // randomizes its hash function at python process startup. So,
+    // instead of hashing the key and then searching for that hash in
+    // the dictionary, we'll do a linear search of the dictionary for
+    // the key.
+
+    // In python 3, each DictObject can be in one of two forms.
+    //
+    // Either:
+    //   A combined table:
+    //     ma_values == NULL, dk_refcnt == 1.
+    //     Values are stored in the me_value field of the PyDictKeysObject.
+    // Or:
+    //   A split table:
+    //     ma_values != NULL, dk_refcnt >= 1
+    //     Values are stored in the ma_values array.
+    //     Only string (unicode) keys are allowed.
+
+    // If we've got a split table...
+    if (@Py3DictObject(op)->ma_values != 0) {
+        n = @Py3DictObject(op)->ma_used
+	for (i = 0; i < n; i++) {
+	    entry_ptr = &@DK_ENTRIES(@Py3DictObject(op)->ma_keys)[i]
+	    if (entry_ptr->me_key == 0
+		|| ! @Py3Unicode_Check(entry_ptr->me_key))
+		continue
+	    if (Py3Unicode_AsASCIIString(entry_ptr->me_key) == key)
+		return @Py3DictObject(op)->ma_values[i]
+	}
+    }
+    // If we've got a combined table...
+    else {
+	n = @choose_defined(@Py3DictObject(op)->ma_keys->dk_nentries,
+			    @DK_SIZE(@Py3DictObject(op)->ma_keys))
+	for (i = 0; i < n; i++) {
+	    entry_ptr = &@DK_ENTRIES(@Py3DictObject(op)->ma_keys)[i]
+	    if (entry_ptr->me_key == 0 || entry_ptr->me_value == 0
+		|| ! @Py3Unicode_Check(entry_ptr->me_key))
+		continue
+	    if (Py3Unicode_AsASCIIString(entry_ptr->me_key) == key)
+		return entry_ptr->me_value
+	}
+    }
+    return 0
+}
+
+private function Py3Dict_Repr:string(object:long)
+{
+    if (!@Py3Dict_Check(object)) {
+	error(sprintf("Py3Dict_Repr called on %s object at %p\n",
+		      python3_get_typename(object), @__pointer(object)))
+	return ""
+    }
+
+    // If we've got a split table...
+    if (@Py3DictObject(object)->ma_values != 0) {
+        n = @Py3DictObject(object)->ma_used
+	if (n == 0)
+	    return "{}"
+
+	retstr = "{"
+	first = 1
+	for (i = 0; i < n; i++) {
+	    entry_ptr = &@DK_ENTRIES(@Py3DictObject(object)->ma_keys)[i]
+	    if (entry_ptr->me_key == 0)
+		continue
+
+	    if (! first)
+		retstr .= " "
+	    first = 0
+	    retstr .= Py3Object_Repr(entry_ptr->me_key)
+	    retstr .= ":"
+	    retstr .= Py3Object_Repr(@Py3DictObject(object)->ma_values[i])
+	}
+	retstr .= "}"
+    }
+    // If we've got a combined table...
+    else {
+	n = @choose_defined(@Py3DictObject(object)->ma_keys->dk_nentries,
+			    @DK_SIZE(@Py3DictObject(object)->ma_keys))
+	if (n == 0)
+	    return "{}"
+
+	retstr = "{"
+	first = 1
+	for (i = 0; i < n; i++) {
+	    entry_ptr = &@DK_ENTRIES(@Py3DictObject(object)->ma_keys)[i]
+	    if (entry_ptr->me_key == 0 || entry_ptr->me_value == 0)
+		continue
+
+	    if (! first)
+		retstr .= " "
+	    first = 0
+	    retstr .= Py3Object_Repr(entry_ptr->me_key)
+	    retstr .= ":"
+	    retstr .= Py3Object_Repr(entry_ptr->me_value)
+	}
+	retstr .= "}"
+    }
+    return retstr
+}
+
+#
 # Systemtap functions based on C functions in object.c.
 #
 
@@ -585,10 +733,13 @@ private function Py3Object_Repr:string(object:long)
     if (@Py3Long_Check(object))
     	return sprintf("%#x", Py3Long_AsLongLong(object))
     if (@Py3Tuple_Check(object))
-	return sprintf("%s", Py3Tuple_Repr(object))
+	return Py3Tuple_Repr(object)
     if (@Py3List_Check(object))
-	return sprintf("%s", Py3List_Repr(object))
-    return sprintf("<%s object at %p>", python3_get_typename(object), object)
+	return Py3List_Repr(object)
+    if (@Py3Dict_Check(object))
+	return Py3Dict_Repr(object)
+    return sprintf("<%s object at %p>", python3_get_typename(object),
+		   @__pointer(object))
 }
 
 #
@@ -617,7 +768,7 @@ function python3_print_backtrace:long(frame:long)
 
 	# Quit when we make it back to the HelperSDT module.
 	if (isinstr(filename, "/HelperSDT/"))
-	    break;
+	    break
 
 	printf("  File \"%s\", line %d, in %s\n", filename, lineno, name)
 	# NB: We'd like to print the source line here as python does,
@@ -651,7 +802,7 @@ function python3_sprint_backtrace:string(frame:long)
 
 	# Quit when we make it back to the HelperSDT module.
 	if (isinstr(filename, "/HelperSDT/"))
-	    break;
+	    break
 
 	retstr .= sprintf("  File \"%s\", line %d, in %s\n", filename,
 			  lineno, name)
@@ -735,4 +886,31 @@ function python3_get_locals:string(frame:long, flags:long)
 			  Py3Object_Repr(value_obj))
     }
     return retstr
+}
+
+function python3_get_variable:string(frame:long, var:string)
+{
+    f_code = @Py3FrameObject(frame)->f_code
+    n = f_code->co_nlocals
+	    
+    # Each element in co_varnames is a tuple of strings. The values
+    # are in f_localsplus.
+    p = f_code->co_varnames
+    localsplus = @Py3FrameObject(frame)->f_localsplus
+    for (i = 0; i < n; i++) {
+	key_obj = Py3Tuple_GetItem(p, i)
+	if (var == Py3Unicode_AsASCIIString(key_obj)) {
+	    value_obj = user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
+	    return Py3Object_Repr(value_obj)
+	}
+    }
+
+    # If we can't find it in the locals, we look in the globals.
+    f_globals = @Py3FrameObject(frame)->f_globals
+    value = Py3Dict_GetItem(f_globals, var)
+    if (value == 0) {
+        error(sprintf("Python variable '%s' cannot be found\n", var))
+	return ""
+    }
+    return Py3Object_Repr(value)
 }
