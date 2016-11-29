@@ -1,11 +1,25 @@
 * What's new in version 3.1, PRERELEASE
 
+- Context variables in .return probes should be accessed with @entry($var)
+  rather than $var, to make it clear that entry-time snapshots are being
+  used.  The latter construct now generates a warning.  Availability testing
+  with either @defined(@entry($var)) or @defined($var) works.
+
 - Tapsets containing process probes may now be placed in the special
   $prefix/share/systemtap/tapset/PATH/ directory to have their process parameter
   prefixed with the location of the tapset. For example,
 
   process("foo").function("NAME") expands to process("/usr/bin/foo").function("NAME")
   when placed in $prefix/share/systemtap/tapset/PATH/usr/bin/
+
+  This is intended to help write more reusable tapsets for userspace binaries.
+
+- The implementation of "var <<< X" for each aggregate variable is now
+  specially compiled to compute only the script-requested @op(var) values,
+  not all potential ones.  This speeds up the <<< operations.
+
+- Systemtap now warns if script arguments given on the command line are unused,
+  instead of mentioned by the script with $n/@n.
 
 - Netfilter tapsets now provide variables data_hex and data_str to display packet
   contents in hexadecimal and ASCII respectively.
@@ -32,6 +46,9 @@
   for per-cpu computation, and the Total Variance formula authored by
   Niranjan Kamat and Arnab Nandi from the Ohio State University for the
   cross-cpu aggregation.
+
+- New command within interactive mode, sample.  Allows you to search through
+  all included example scripts to load for further editing or running.
 
 * What's new in version 3.0, 2016-03-27
 

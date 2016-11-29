@@ -1,7 +1,57 @@
-# This is a test for stat run time optimizations.
-# See corresponding .stp file for details.
-
 set test "optim_stats"
+
+#  This is a test for stat run time optimizations.  Each stat has a list of
+#  requested statistical operators.  For instance, if a script uses stat x,
+#  and only refers to @avg(x), then the list of requested statistical operators
+#  for given stat x is @count, @sum, and @avg. The  @min(x) and @max(x) are
+#  not in the list, and thus do not need to be avaluated at the _stp_stat_add()
+#  time (iow, at the x<<<val time).  Optimization based on this makes the
+#  systemtap runtime run faster. The goal of this test is to verify that this
+#  sort of optimizations actually works in a measurable way.
+#
+#  At the moment, the available stat operators are @count, @sum, @min, @max,
+#  @avg, and @variance.  The most computionally expensive is @variance.
+#  Detecting the variance optimization is quite simple.  Other operators are
+#  computionally cheap and thus detecting their respective optimizations is
+#  somewhat tricky on a multiuser/multitasking system, where so many irrelevant
+#  bearings are affecting our fragile measurement.  In this case we must set
+#  the treshold distinguishing between the PASS and FAIL pretty carefully.  Just
+#  slightly above the "noise".  This testcase is sentenced to be fragile by it's
+#  nature though.
+#
+#  One of the basic assumptions for this sort of test is that if we compare stats
+#  having identical list of requested statistical operators, we should get very
+#  similar results.  It turns out, that to achieve this, we can't simply feed the
+#  values into measured stats in straightforward order. Instead, we need to baffle
+#  the optimizations under the hood by complicating the "feed" order slightly.
+#  After verifying this assumption, we can start comparing different stats.
+#
+#  Since verifying the @variance optimization is much easirer and doesn't require
+#  so many time consuming iterations to get reasonable results, this test is
+#  divided into two parts, TEST 1, and TEST 2, where in TEST 1 we focus on the
+#  optimization for @count, @sum, @min, and @max, and then, in TEST 2, we test the
+#  @variance optimization separately. This makes the test itself run faster.
+#
+
+#  Define the tresholds
+switch -regexp $::tcl_platform(machine) {
+    {^(aarch64|ppc64le|ppc64|s390x)$} {
+	array set treshold [list {TEST1} {0} \
+				 {TEST2} {10} \
+				 {TEST3} {0} \
+				 {TEST4} {10} ]
+    }
+    default {
+	array set treshold [list {TEST1} {5} \
+				 {TEST2} {20} \
+				 {TEST3} {5} \
+				 {TEST4} {20} ]
+    }
+}
+
+
+
+
 
 if {![installtest_p]} {
     untested $test
@@ -15,14 +65,20 @@ for {set i 1} {$i <= 2} {incr i} {
 	} else {
 	    spawn stap -g --suppress-time-limits $srcdir/$subdir/$test$i.stp
 	}
-
 	expect {
 	    -timeout 300
 	    -re {^IGNORE[^\r\n]+\r\n} { exp_continue }
-	    -re {^PASS test1[^\r\n]+\r\n} { pass "$test$i.stp subtest1 $runtime"; exp_continue }
-	    -re {^PASS test2[^\r\n]+\r\n} { pass "$test$i.stp subtest2 $runtime"; exp_continue }
-	    -re {^FAIL test1[^\r\n]+\r\n} { fail "$test$i.stp subtest1 $runtime"; exp_continue }
-	    -re {^FAIL test2[^\r\n]+\r\n} { fail "$test$i.stp subtest2 $runtime"; exp_continue }
+	    -re {^TEST[0-9]\ [^\r\n]+\r\n} {
+		set key [lindex [split $expect_out(0,string)] 0]
+		set val [lindex [split $expect_out(0,string)] 1]
+		set lim $treshold($key)
+		if {$val >= $lim} {
+		    pass "$key $runtime ($lim, $val)"
+		} else {
+		    fail "$key $runtime ($lim, $val)"
+		}
+		exp_continue
+	    }
 	    timeout {fail "$test: unexpected timeout"}
 	    eof { }
 	}

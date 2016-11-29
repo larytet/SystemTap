@@ -304,6 +304,7 @@ _stp_init_time(void)
 {
     int cpu, ret = 0;
 
+    might_sleep();
     _stp_kill_time();
 
     stp_time = _stp_alloc_percpu(sizeof(stp_time_t));

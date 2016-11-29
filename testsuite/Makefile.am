@@ -80,7 +80,7 @@ installcheck-parallel: site.exp
 	$(SHELL) $(srcdir)/dg-extract-results.sh \
 	`find artifacts -name systemtap.sum -print` > systemtap.sum; \
 	$(SHELL) $(srcdir)/dg-extract-results.sh -L \
-	`find artifacts -name systemtap.log -print` > systemtap.log; \
+	`find artifacts -name systemtap.log -print` > systemtap.log;
 	-tail systemtap.sum
 	exit $$result
 

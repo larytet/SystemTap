@@ -23,6 +23,7 @@
 #include "stapregex.h"
 #include "stringtable.h"
 
+#include <byteswap.h>
 #include <cstdlib>
 #include <iostream>
 #include <set>
@@ -1791,6 +1792,11 @@ c_unparser::emit_module_init ()
       o->newline() << "#ifdef STAPCONF_GENERATED_COMPILE";
       o->newline() << "const char* version = UTS_VERSION;";
       o->newline() << "#endif";
+
+      // The systemtap_module_init() function must be run in
+      // non-atomic context, since several functions might need to
+      // sleep.
+      o->newline() << "might_sleep();";
 
       // NB: This UTS_RELEASE compile-time macro directly checks only that
       // the compile-time kbuild tree matches the compile-time debuginfo/etc.
@@ -6062,6 +6068,17 @@ struct unwindsym_dump_context
   set<string> undone_unwindsym_modules;
 };
 
+static bool need_byte_swap_for_target (const unsigned char e_ident[])
+{
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+  return (e_ident[EI_DATA] == ELFDATA2MSB);
+#elif __BYTE_ORDER == __BIG_ENDIAN
+  return (e_ident[EI_DATA] == ELFDATA2LSB);
+#else
+  #error Bad host __BYTE_ORDER
+#endif
+}
+
 static void create_debug_frame_hdr (const unsigned char e_ident[],
 				    Elf_Data *debug_frame,
 				    void **debug_frame_hdr,
@@ -6081,6 +6098,12 @@ static void create_debug_frame_hdr (const unsigned char e_ident[],
   // So there is no need to read the CIEs.  And the size is either 4
   // or 8, depending on the elf class from e_ident.
   int size = (e_ident[EI_CLASS] == ELFCLASS32) ? 4 : 8;
+  bool need_byte_swap = need_byte_swap_for_target (e_ident);
+#define host_to_target_64(x) (need_byte_swap ? bswap_64((x)) : (x))
+#define host_to_target_32(x) (need_byte_swap ? bswap_32((x)) : (x))
+#define target_to_host_64(x) (need_byte_swap ? bswap_64((x)) : (x))
+#define target_to_host_32(x) (need_byte_swap ? bswap_32((x)) : (x))
+
   int res = 0;
   Dwarf_Off off = 0;
   Dwarf_CFI_Entry entry;
@@ -6098,9 +6121,9 @@ static void create_debug_frame_hdr (const unsigned char e_ident[],
 	    {
 	      Dwarf_Addr addr;
 	      if (size == 4)
-		addr = (*((uint32_t *) entry.fde.start));
+		addr = target_to_host_32((*((uint32_t *) entry.fde.start)));
 	      else
-		addr = (*((uint64_t *) entry.fde.start));
+		addr = target_to_host_64((*((uint64_t *) entry.fde.start)));
 	      fdes.insert(pair<Dwarf_Addr, Dwarf_Off>(addr, off));
 	    }
 	}
@@ -6145,23 +6168,23 @@ static void create_debug_frame_hdr (const unsigned char e_ident[],
   if (size == 4)
     {
       uint32_t *table = (uint32_t *)(hdr + 4);
-      *table++ = (uint32_t) 0; // eh_frame_ptr, unused
-      *table++ = (uint32_t) fdes.size();
+      *table++ = host_to_target_32 ((uint32_t) 0); // eh_frame_ptr, unused
+      *table++ = host_to_target_32 ((uint32_t) fdes.size());
       for (it = fdes.begin(); it != fdes.end(); it++)
 	{
-	  *table++ = (*it).first;
-	  *table++ = (*it).second;
+	  *table++ = host_to_target_32 ((*it).first);
+	  *table++ = host_to_target_32 ((*it).second);
 	}
     }
   else
     {
       uint64_t *table = (uint64_t *)(hdr + 4);
-      *table++ = (uint64_t) 0; // eh_frame_ptr, unused
-      *table++ = (uint64_t) fdes.size();
+      *table++ = host_to_target_64 ((uint64_t) 0); // eh_frame_ptr, unused
+      *table++ = host_to_target_64 ((uint64_t) fdes.size());
       for (it = fdes.begin(); it != fdes.end(); it++)
 	{
-	  *table++ = (*it).first;
-	  *table++ = (*it).second;
+	  *table++ = host_to_target_64 ((*it).first);
+	  *table++ = host_to_target_64 ((*it).second);
 	}
     }
 }
@@ -8053,6 +8076,9 @@ translate_pass (systemtap_session& s)
   s.op = 0;
   s.up = 0;
 
+ for (unsigned i=0; i<s.auxiliary_outputs.size(); i++)
+   s.auxiliary_outputs[i]->close();
+  
   return rc + s.num_errors();
 }
 

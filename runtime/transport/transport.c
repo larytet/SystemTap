@@ -503,6 +503,7 @@ static inline void _stp_lock_inode(struct inode *inode)
 	inode_lock(inode);
 #else
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
+	might_sleep();
 	mutex_lock(&inode->i_mutex);
 #else
 	down(&inode->i_sem);

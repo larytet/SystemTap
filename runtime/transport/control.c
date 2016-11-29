@@ -63,6 +63,7 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
 
         // PR17232: preclude reentrancy during handling of messages.
         // This also permits use of static variables in the switch/case.
+	might_sleep();
         mutex_lock (& cmd_mutex);
         // NB: past this point, no 'return;' - use 'goto out;'
 

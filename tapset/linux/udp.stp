@@ -61,11 +61,11 @@ probe udp.sendmsg.return = kernel.function("udp_sendmsg").return {
 	name = "udp.sendmsg"
 	size = $return 
         %( systemtap_v >= "2.3" %?
-	family  = __ip_sock_family($sk)
-	saddr   = format_ipaddr(__ip_sock_saddr($sk), __ip_sock_family($sk))
-	daddr   = format_ipaddr(__ip_sock_daddr($sk), __ip_sock_family($sk))
-	sport   = __udp_sock_sport($sk)
-	dport   = __udp_sock_dport($sk)
+	family  = __ip_sock_family(@entry($sk))
+	saddr   = format_ipaddr(__ip_sock_saddr(@entry($sk)), __ip_sock_family(@entry($sk)))
+	daddr   = format_ipaddr(__ip_sock_daddr(@entry($sk)), __ip_sock_family(@entry($sk)))
+	sport   = __udp_sock_sport(@entry($sk))
+	dport   = __udp_sock_dport(@entry($sk))
         %)
 }
 
@@ -113,11 +113,11 @@ probe udp.recvmsg.return = kernel.function("udp_recvmsg").return {
 	name = "udp.recvmsg"
 	size = $return 
         %( systemtap_v >= "2.3" %?
-	family  = __ip_sock_family($sk)
-	saddr   = format_ipaddr(__ip_sock_saddr($sk), __ip_sock_family($sk))
-	daddr   = format_ipaddr(__ip_sock_daddr($sk), __ip_sock_family($sk))
-	sport   = __udp_sock_sport($sk)
-	dport   = __udp_sock_dport($sk)
+	family  = __ip_sock_family(@entry($sk))
+	saddr   = format_ipaddr(__ip_sock_saddr(@entry($sk)), __ip_sock_family(@entry($sk)))
+	daddr   = format_ipaddr(__ip_sock_daddr(@entry($sk)), __ip_sock_family(@entry($sk)))
+	sport   = __udp_sock_sport(@entry($sk))
+	dport   = __udp_sock_dport(@entry($sk))
         %)
 }
 
@@ -165,10 +165,10 @@ probe udp.disconnect.return = kernel.function("udp_disconnect").return {
 	name = "udp.disconnect"
 	ret = $return 
         %( systemtap_v >= "2.3" %?
-	family  = __ip_sock_family($sk)
-	saddr   = format_ipaddr(__ip_sock_saddr($sk), __ip_sock_family($sk))
-	daddr   = format_ipaddr(__ip_sock_daddr($sk), __ip_sock_family($sk))
-	sport   = __udp_sock_sport($sk)
-	dport   = __udp_sock_dport($sk)
+	family  = __ip_sock_family(@entry($sk))
+	saddr   = format_ipaddr(__ip_sock_saddr(@entry($sk)), __ip_sock_family(@entry($sk)))
+	daddr   = format_ipaddr(__ip_sock_daddr(@entry($sk)), __ip_sock_family(@entry($sk)))
+	sport   = __udp_sock_sport(@entry($sk))
+	dport   = __udp_sock_dport(@entry($sk))
         %)
 }

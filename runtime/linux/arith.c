@@ -21,7 +21,8 @@
 /* Other 32-bit cpus will need to modify this file. */
 
 #if defined (__i386__) || defined(__arm__) || \
-	(defined(__powerpc__) && !defined(__powerpc64__))
+	(defined(__powerpc__) && !defined(__powerpc64__)) || \
+        (defined(__mips__) && !defined(__mips64))
 static long long _div64 (long long u, long long v);
 static long long _mod64 (long long u, long long v);
 #endif
@@ -116,7 +117,8 @@ static int _stp_random_pm (unsigned n)
 
 
 #if defined (__i386__) || defined (__arm__) || \
-	(defined(__powerpc__) && !defined(__powerpc64__))
+	(defined(__powerpc__) && !defined(__powerpc64__)) || \
+        (defined(__mips__) && !defined(__mips64))
 
 /* 64-bit division functions extracted from libgcc */
 typedef long long DWtype;
@@ -125,6 +127,7 @@ typedef unsigned long UWtype;
 typedef long Wtype;
 typedef unsigned int USItype;
 typedef unsigned int UQItype	__attribute__ ((mode (QI)));
+typedef unsigned int UDItype	__attribute__ ((mode (DI)));
 
 #ifdef _BIG_ENDIAN
 struct DWstruct {Wtype high, low;};
@@ -248,6 +251,95 @@ typedef union
 	   : "r" ((USItype) (a)),					\
 	     "r" ((USItype) (b)) __CLOBBER_CC );}
 
+#elif (defined(__mips) && __mips >= 3) && W_TYPE_SIZE == 64
+#if (__GNUC__ >= 5) || (__GNUC__ >= 4 && __GNUC_MINOR__ >= 4)
+#define umul_ppmm(w1, w0, u, v) \
+do {									\
+	typedef unsigned int __ll_UTItype __attribute__((mode(TI)));	\
+	__ll_UTItype __ll = (__ll_UTItype)(u) * (v);			\
+	w1 = __ll >> 64;						\
+	w0 = __ll;							\
+} while (0)
+#elif __GNUC__ > 2 || __GNUC_MINOR__ >= 7
+#define umul_ppmm(w1, w0, u, v) \
+	__asm__ ("dmultu %2,%3" \
+	: "=l" ((UDItype)(w0)), \
+	     "=h" ((UDItype)(w1)) \
+	: "d" ((UDItype)(u)), \
+	     "d" ((UDItype)(v)))
+#else
+#define umul_ppmm(w1, w0, u, v) \
+	__asm__ ("dmultu %2,%3\n" \
+	   "mflo %0\n" \
+	   "mfhi %1" \
+	: "=d" ((UDItype)(w0)), \
+	     "=d" ((UDItype)(w1)) \
+	: "d" ((UDItype)(u)), \
+	     "d" ((UDItype)(v)))
+#endif
+/* This comes from lib/mpi/longlong.h */
+#elif defined(__mips__) && W_TYPE_SIZE == 32
+#if (__GNUC__ >= 5) || (__GNUC__ >= 4 && __GNUC_MINOR__ >= 4)
+#define umul_ppmm(w1, w0, u, v)			\
+do {						\
+	UDItype __ll = (UDItype)(u) * (v);	\
+	w1 = __ll >> 32;			\
+	w0 = __ll;				\
+} while (0)
+#elif __GNUC__ > 2 || __GNUC_MINOR__ >= 7
+#define umul_ppmm(w1, w0, u, v) \
+	__asm__ ("multu %2,%3" \
+	: "=l" ((USItype)(w0)), \
+	     "=h" ((USItype)(w1)) \
+	: "d" ((USItype)(u)), \
+	     "d" ((USItype)(v)))
+#else
+#define umul_ppmm(w1, w0, u, v) \
+	__asm__ ("multu %2,%3\n" \
+	   "mflo %0\n" \
+	   "mfhi %1" \
+	: "=d" ((USItype)(w0)), \
+	     "=d" ((USItype)(w1)) \
+	: "d" ((USItype)(u)), \
+	     "d" ((USItype)(v)))
+#endif
+
+#if !defined (sub_ddmmss)
+#define sub_ddmmss(sh, sl, ah, al, bh, bl) \
+  do {                                                                 \
+    UWtype __x;                                                        \
+    __x = (al) - (bl);                                                 \
+    (sh) = (ah) - (bh) - (__x > (al));                                 \
+    (sl) = __x;                                                        \
+  } while (0)
+#endif
+
+#elif (defined(__mips) && __mips >= 3) && W_TYPE_SIZE == 64
+#if (__GNUC__ >= 5) || (__GNUC__ >= 4 && __GNUC_MINOR__ >= 4)
+#define umul_ppmm(w1, w0, u, v) \
+do {									\
+	typedef unsigned int __ll_UTItype __attribute__((mode(TI)));	\
+	__ll_UTItype __ll = (__ll_UTItype)(u) * (v);			\
+	w1 = __ll >> 64;						\
+	w0 = __ll;							\
+} while (0)
+#elif __GNUC__ > 2 || __GNUC_MINOR__ >= 7
+#define umul_ppmm(w1, w0, u, v) \
+	__asm__ ("dmultu %2,%3" \
+	: "=l" ((UDItype)(w0)), \
+	     "=h" ((UDItype)(w1)) \
+	: "d" ((UDItype)(u)), \
+	     "d" ((UDItype)(v)))
+#else
+#define umul_ppmm(w1, w0, u, v) \
+	__asm__ ("dmultu %2,%3\n" \
+	   "mflo %0\n" \
+	   "mfhi %1" \
+	: "=d" ((UDItype)(w0)), \
+	     "=d" ((UDItype)(w1)) \
+	: "d" ((UDItype)(u)), \
+	     "d" ((UDItype)(v)))
+#endif
 #endif
 
 #define __udiv_qrnnd_c(q, r, n1, n0, d) \

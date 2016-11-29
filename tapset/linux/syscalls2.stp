@@ -460,7 +460,7 @@ probe __syscall.pipe2.return = kernel.function("sys_pipe2").return ?
 {
 	@__syscall_compat_gate(@const("__NR_pipe2"), @const("__NR_compat_pipe2"))
 	name = "pipe2"
-	fildes_uaddr = $fildes
+	fildes_uaddr = @entry($fildes)
 	if (fildes_uaddr == 0) {
 		pipe0 = 0;
 		pipe1 = 0;
@@ -469,8 +469,8 @@ probe __syscall.pipe2.return = kernel.function("sys_pipe2").return ?
 		 * See comment in syscall.pipe about why @cast is used
 		 * here.
 		 */
-		pipe0 = user_int(&@cast($fildes, "int")[0])
-		pipe1 = user_int(&@cast($fildes, "int")[1])
+		pipe0 = user_int(&@cast(@entry($fildes), "int")[0])
+		pipe1 = user_int(&@cast(@entry($fildes), "int")[1])
 	}
 	retstr = return_str(1, $return)
 }
@@ -485,7 +485,7 @@ probe __syscall.ia64_pipe.return = kernel.function("sys_ia64_pipe").return ?
 probe __syscall.pipe.return = kernel.function("sys_pipe").return
 {
 	name = "pipe"
-	fildes_uaddr = $fildes
+	fildes_uaddr = @entry($fildes)
 	if (fildes_uaddr == 0) {
 		pipe0 = 0;
 		pipe1 = 0;
@@ -494,8 +494,8 @@ probe __syscall.pipe.return = kernel.function("sys_pipe").return
 		 * See comment in syscall.pipe about why @cast is used
 		 * here.
 		 */
-		pipe0 = user_int(&@cast($fildes, "int")[0])
-		pipe1 = user_int(&@cast($fildes, "int")[1])
+		pipe0 = user_int(&@cast(@entry($fildes), "int")[0])
+		pipe1 = user_int(&@cast(@entry($fildes), "int")[1])
 	}
 	retstr = return_str(1, $return)
 }
@@ -920,8 +920,8 @@ probe syscall.ptrace.return = kernel.function("sys_ptrace").return ?,
 	name = "ptrace"
 	retstr = return_str(1, $return)
 
-	geteventmsg_data = _ptrace_return_geteventmsg_data($request, $data)
-	arch_prctl_addr = _ptrace_return_arch_prctl_addr($request, $addr, $data)
+	geteventmsg_data = _ptrace_return_geteventmsg_data(@entry($request), @entry($data))
+	arch_prctl_addr = _ptrace_return_arch_prctl_addr(@entry($request), @entry($addr), @entry($data))
 }
 
 # pwrite64 ___________________________________________________
@@ -1344,7 +1344,7 @@ probe __syscall.socketcall.recv.return =
 	kernel.function("sys_socketcall").return ?, 
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_RECV")) next;
+	if (@entry($call) != @const("SYS_RECV")) next;
 }
 probe __syscall.recv.return = kernel.function("sys_recv").return ?
 {
@@ -1412,7 +1412,7 @@ probe syscall.recvfrom.return = __syscall.socketcall.return ?,
 probe __syscall.socketcall.return = kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_RECVFROM")) next
+	if (@entry($call) != @const("SYS_RECVFROM")) next
 }
 probe __syscall.recvfrom.return = kernel.function("sys_recvfrom").return ?
 {
@@ -1516,7 +1516,7 @@ probe __syscall.recvmsg.return = kernel.function("sys_recvmsg").return ?
 probe __syscall.socketcall.recvmsg.return = 
 	kernel.function("sys_socketcall").return ?
 {
-	if ($call != @const("SYS_RECVMSG")) next;
+	if (@entry($call) != @const("SYS_RECVMSG")) next;
 }
 
 # compat_sys_recvmsg ________________________________________
@@ -1548,7 +1548,7 @@ probe syscall.compat_sys_recvmsg =
 probe syscall.compat_sys_recvmsg.return =
  	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_RECVMSG")) next;
+	if (@entry($call) != @const("SYS_RECVMSG")) next;
 	name = "recvmsg"
 	retstr = return_str(1, $return)
 }
@@ -1953,7 +1953,11 @@ probe syscall.rt_sigreturn.return =
 	kernel.function("sys32_rt_sigreturn").return ?
 {
 	name = "rt_sigreturn"
+%( arch == "mips" %?
+	retstr = "void"
+%:
 	retstr = return_str(1, $return)
+%)
 }
 
 # rt_sigsuspend ______________________________________________
@@ -2432,7 +2436,7 @@ probe __syscall.compat_ipc.semctl.return =
 	kernel.function("compat_sys_ipc").return ?,
 	kernel.function("sys32_ipc").return ?
 {
-	if ($call != @const("SEMCTL")) next;
+	if (@entry($call) != @const("SEMCTL")) next;
 }
 
 # semget _____________________________________________________
@@ -2496,7 +2500,7 @@ probe __syscall.compat_semop.return =
 	kernel.function("compat_sys_ipc").return ?,
 	kernel.function("sys32_ipc").return ?
 {
-	if ($call != @const("SEMOP")) next;
+	if (@entry($call) != @const("SEMOP")) next;
 }
 
 # semtimedop _________________________________________________
@@ -2570,7 +2574,7 @@ probe __syscall.compat_ipc.semtimedop.return =
 	kernel.function("compat_sys_ipc").return ?,
 	kernel.function("sys32_ipc").return ?
 {
-	if ($call != @const("SEMTIMEDOP")) next;
+	if (@entry($call) != @const("SEMTIMEDOP")) next;
 }
 
 # send _______________________________________________________
@@ -2627,7 +2631,7 @@ probe __syscall.socketcall.send.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_SEND")) next;
+	if (@entry($call) != @const("SYS_SEND")) next;
 }
 
 # sendfile ___________________________________________________
@@ -2723,7 +2727,7 @@ probe __syscall.sendmsg.return = kernel.function("sys_sendmsg").return ?
 probe __syscall.socketcall.sendmsg.return = 
 	kernel.function("sys_socketcall").return ?
 {
-	if ($call != @const("SYS_SENDMSG")) next;
+	if (@entry($call) != @const("SYS_SENDMSG")) next;
 }
 
 # compat_sys_sendmsg ________________________________________
@@ -2753,7 +2757,7 @@ probe syscall.compat_sys_sendmsg =
 probe syscall.compat_sys_sendmsg.return =
  	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_SENDMSG")) next;
+	if (@entry($call) != @const("SYS_SENDMSG")) next;
 	name = "sendmsg"
 	retstr = return_str(1, $return)
 }
@@ -2821,7 +2825,7 @@ probe __syscall.sendmmsg.return = kernel.function("sys_sendmmsg").return ?
 probe __syscall.compat_socketcall.sendmmsg.return =
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_SENDMMSG")) next
+	if (@entry($call) != @const("SYS_SENDMMSG")) next
 }
 probe __syscall.compat_sendmmsg.return =
 	kernel.function("compat_sys_sendmmsg").return ?
@@ -2882,8 +2886,8 @@ probe syscall.sendto.return = kernel.function("sys_sendto").return ?,
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if (@defined($call)) {
-		if ($call != @const("SYS_SENDTO")) next;
+	if (@defined(@entry($call))) {
+		if (@entry($call) != @const("SYS_SENDTO")) next;
 	}
 	else {
 		@__syscall_gate(@const("__NR_sendto"))
@@ -3416,7 +3420,7 @@ probe __syscall.socketcall.setsockopt.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_SETSOCKOPT")) next;
+	if (@entry($call) != @const("SYS_SETSOCKOPT")) next;
 }
 
 # set_tid_address ____________________________________________
@@ -3648,7 +3652,7 @@ probe __syscall.compat_ipc.shmctl.return =
 	kernel.function("compat_sys_ipc").return ?,
 	kernel.function("sys32_ipc").return ?
 {
-	if ($call != @const("SHMCTL")) next;
+	if (@entry($call) != @const("SHMCTL")) next;
 }
 
 # shmdt ______________________________________________________
@@ -3733,7 +3737,7 @@ probe __syscall.socketcall.shutdown.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_SHUTDOWN")) next;
+	if (@entry($call) != @const("SYS_SHUTDOWN")) next;
 }
 
 # sigaction __________________________________________________
@@ -3863,7 +3867,7 @@ probe syscall.signalfd.return = __syscall.signalfd4.return !,
 probe __syscall.signalfd4.return = kernel.function("sys_signalfd4").return
 {
 	@__syscall_gate(@const("__NR_signalfd4"))
-	flags = __int32($flags)
+	flags = __int32(@entry($flags))
 	name = (flags == 0) ? "signalfd" : "signalfd4"
 }
 probe __syscall.signalfd.return = kernel.function("sys_signalfd").return
@@ -3890,7 +3894,7 @@ probe syscall.compat_signalfd.return =
 		kernel.function("compat_sys_signalfd4").return !,
 		kernel.function("compat_sys_signalfd").return ?
 {
-	flags = __int32(@choose_defined($flags, 0))
+	flags = __int32(@entry(@choose_defined($flags, 0)))
 	name = (flags == 0) ? "signalfd" : "signalfd4"
 	retstr = return_str(1, $return)
 }
@@ -3965,7 +3969,11 @@ probe syscall.sigreturn.return = kernel.function("sys_sigreturn").return ?,
                                  kernel.function("sys32_sigreturn").return ?
 {
 	name = "sigreturn"
+%( arch == "mips" && CONFIG_TRAD_SIGNALS == "y" %?
+	retstr = "void"
+%:
 	retstr = return_str(1, $return)
+%)
 }
 
 # sigsuspend _________________________________________________
@@ -3983,7 +3991,11 @@ probe syscall.sigsuspend = kernel.function("sys_sigsuspend").call ?,
 	kernel.function("compat_sys_sigsuspend").call ?
 {
 	name = "sigsuspend"
+%( arch == "mips" && CONFIG_TRAD_SIGNALS == "y" %?
+	mask = __ulong($uset)
+%:
 	mask = __ulong($mask)
+%)
 	argstr = sprintf("%s", _stp_sigmask_str(mask))
 }
 probe syscall.sigsuspend.return = kernel.function("sys_sigsuspend").return ?,
@@ -4041,7 +4053,7 @@ probe __syscall.socketcall.socket.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_SOCKET")) next;
+	if (@entry($call) != @const("SYS_SOCKET")) next;
 }
 
 # socketcall _________________________________________________
@@ -4105,7 +4117,7 @@ probe __syscall.socketcall.socketpair.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if ($call != @const("SYS_SOCKETPAIR")) next;
+	if (@entry($call) != @const("SYS_SOCKETPAIR")) next;
 }
 
 # splice ___________________________________________________
@@ -5315,10 +5327,10 @@ probe syscall.wait4.return = __syscall.wait4.return,
 
 	if (returnval () <= 0)
 		status_str = "N/A"
-	else if ($stat_addr == 0)
+	else if (@entry($stat_addr) == 0)
 		status_str = "NULL"
 	else
-		status_str = _wait_status_str(user_int($stat_addr))
+		status_str = _wait_status_str(user_int(@entry($stat_addr)))
 
 	retstr = return_str(1, $return)
 }

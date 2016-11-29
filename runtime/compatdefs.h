@@ -20,6 +20,14 @@
 #if defined(__s390__) || defined(__s390x__)
   #define TIF_32BIT TIF_31BIT
 #endif
+#if defined (__mips__) && !defined(TIF_32BIT)
+  #ifdef CONFIG_MIPS32_O32
+    #define TIF_32BIT TIF_32BIT_REGS
+  #elif defined(CONFIG_MIPS32_N32)
+    #define TIF_32BIT TIF_32BIT_ADDR
+  #endif
+#endif
+
 #if !defined(TIF_32BIT)
 #error architecture not supported, no TIF_32BIT flag
 #endif

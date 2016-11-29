@@ -82,8 +82,14 @@ static struct context * _stp_runtime_entryfn_get_context(void)
 	preempt_disable ();
 	c = _stp_runtime_get_context();
 	if (c != NULL) {
-		if (atomic_inc_return(&c->busy) == 1)
+		if (atomic_inc_return(&c->busy) == 1) {
+			// NB: Notice we're not re-enabling preemption
+			// here. We exepect the calling code to call
+			// _stp_runtime_entryfn_get_context() and
+			// _stp_runtime_entryfn_put_context() as a
+			// pair.
 			return c;
+		}
 		atomic_dec(&c->busy);
 	}
 	preempt_enable_no_resched();

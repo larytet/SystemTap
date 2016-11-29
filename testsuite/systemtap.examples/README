@@ -1,7 +1,6 @@
 This text describes contribution procedures for adding scripts to
 systemtap.examples directory.  Please read before submitting SystemTap
-examples.  Discussions take place on the
-<systemtap@sourceware.org> mailing list.
+examples.  Discussions take place on the <systemtap@sourceware.org> list.
 
 - general
 
@@ -34,6 +33,7 @@ examples.  Discussions take place on the
 
     #! /usr/bin/env stap
 
+
 - Describe the example
 
   Each example script has a description in a .meta file that provide
@@ -48,12 +48,17 @@ examples.  Discussions take place on the
 
   The meta file may contain the following elements. Each element (key
   and value) are on one line. If a key can have a list of values, the
-  list elements are separated by spaces.  Only fields marked with @
+  list elements are separated by spaces.  Only fields marked with "@"
   below are meaningful enough and used by the index-generator, so
   a .meta file can be quite small.  The generator script
       perl examples-index-gen.pl
   should be run whenever .meta/.txt files are modified.  Note, this
   will require perl DBI.
+
+
++---- @ means required
+|
+v
 
 @ title: Descriptive title for the script (required)
 @ name: the file name for the script, e.g. iotime.stp (required)
@@ -106,6 +111,20 @@ examples.  Discussions take place on the
          for the script.
 
 
+- Testing of the example script
+
+  To enable automated testing, include the "test_support", "test_check",
+  and/or "test_installcheck" fields in the meta file.  Run the examples
+  subset of the testsuite with
+  % make check RUNTESTFLAGS=check.exp
+  and/or
+  # make installcheck RUNTESTFLAGS=check.exp
+
+  Note that the check.exp test script checks for an optional tcl file
+  that can check to see if the example is applicable to the system,
+  somewhat analogous to the 'test_support' key mentioned above.
+
+
 - Review, revision, and submission of the example script
 
   When you have a SystemTap script that should be included as an
@@ -114,8 +133,4 @@ examples.  Discussions take place on the
   ready for submission as an example, feel free to ask questions or
   discuss the work-in-progress script with other people working with
   SystemTap.
-
-Note that the check.exp test script checks for an optional tcl file
-that can check to see if the example is applicable to the system,
-somewhat analogous to the 'test_support' key mentioned above.
 

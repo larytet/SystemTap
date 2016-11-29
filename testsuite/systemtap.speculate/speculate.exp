@@ -12,7 +12,7 @@ if {! [installtest_p]} {
     return
 }
 
-spawn stap $srcdir/$subdir/$test.stp -c ./$test
+spawn stap $srcdir/$subdir/$test.stp -c ./$test -w
 set ok 0
 expect {
 	-timeout 60

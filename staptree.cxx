@@ -544,7 +544,10 @@ void vardecl::print (ostream& o) const
 
 void vardecl::printsig (ostream& o) const
 {
-  o << unmangled_name;
+  if (unmangled_name != "")
+    o << unmangled_name;
+  else
+    o << name;
   if(wrap)
      o << "%";
   if (maxsize > 0)

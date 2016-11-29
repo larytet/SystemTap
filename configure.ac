@@ -405,6 +405,16 @@ AS_IF([test "x$with_dracutstap" != "x"],[dracutstap="$with_dracutstap"],
 AC_MSG_NOTICE([using dracut module directory $dracutstap])
 AC_SUBST(dracutstap)
 
+dnl PR20850 Fix the boot time probing feature for fedora too. Typical rhel
+dnl location is /sbin, typical fedora location is /usr/bin.
+AC_ARG_WITH([dracutbindir],
+  AS_HELP_STRING([--with-dracutbindir=DIR],
+    [Use the dracut binary located in DIR]))
+AS_IF([test "x$with_dracutbindir" != "x"],[dracutbindir="$with_dracutbindir"],
+            [dracutbindir=/sbin])
+AC_MSG_NOTICE([using dracut binary $dracutbindir])
+AC_SUBST(dracutbindir)
+
 dnl Handle the option to build the compile server.
 AC_ARG_ENABLE([server],
   AS_HELP_STRING([--enable-server],
@@ -894,7 +904,9 @@ man/stap.1 man/stappaths.7 man/systemtap.8 \
 man/cs/stap.1 man/cs/stappaths.7 man/cs/systemtap.8 \
 initscript/config.systemtap initscript/config.stap-server \
 initscript/systemtap initscript/stap-server \
-initscript/99stap/module-setup.sh ])
+initscript/99stap/module-setup.sh \
+initscript/99stap/install \
+initscript/99stap/check ])
 AC_CONFIG_SUBDIRS(testsuite)
 if test $enable_translator == "yes"; then
 	AC_CONFIG_FILES([run-stap], [chmod +x run-stap])

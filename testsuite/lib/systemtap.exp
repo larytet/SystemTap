@@ -458,6 +458,7 @@ proc normalize_arch { arch } {
     if {$arch == "armv7lh"} then {return "arm"}
     if {$arch == "aarch64"} then {return "arm64"}
     if {$arch == "ppc64le"} then {return "powerpc"}
+    if {$arch == "mips64"} then {return "mips"}
     return $arch
 }
 

@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# NB: $moddir only works in install()
+. @dracutstap@/params.conf
+
+# These programs are very likely to already be included by other
+# dracut modules so we're really not adding any weight
+dracut_install bash mkdir
+
+# The real payload...
+inst "$STAPRUN"
+inst "$STAPIO"
+for script in $ONBOOT_SCRIPTS; do
+  inst "$CACHE_PATH/$script.ko"
+done
+
+# start-staprun.sh will need a copy of params.conf
+inst_simple "$moddir/params.conf" "/etc/systemtap-params.conf"
+inst_hook cmdline 01 "$moddir/start-staprun.sh"
+

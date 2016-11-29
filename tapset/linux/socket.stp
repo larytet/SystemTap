@@ -181,11 +181,11 @@ probe socket.sendmsg.return = kernel.function("sock_sendmsg").return
 {
 	name = "socket.sendmsg.return"
 	size = $return
-	protocol = @_sock_prot_num($sock)
-	family = @_sock_fam_num($sock)
-	state = @_sock_state_num($sock)
-	flags = @_sock_flags_num($sock)
-	type = @_sock_type_num($sock)
+	protocol = @entry(@_sock_prot_num($sock))
+	family = @entry(@_sock_fam_num($sock))
+	state = @entry(@_sock_state_num($sock))
+	flags = @entry(@_sock_flags_num($sock))
+	type = @entry(@_sock_type_num($sock))
 	success = @_sock_success_check($return)
 }
 
@@ -240,11 +240,11 @@ probe socket.recvmsg.return = kernel.function("sock_recvmsg").return
 {
 	name = "socket.recvmsg.return"
 	size = $return
-	protocol = @_sock_prot_num($sock)
-	family = @_sock_fam_num($sock)
-	state = @_sock_state_num($sock)
-	flags = @_sock_flags_num($sock)
-	type = @_sock_type_num($sock)
+	protocol = @entry(@_sock_prot_num($sock))
+	family = @entry(@_sock_fam_num($sock))
+	state = @entry(@_sock_state_num($sock))
+	flags = @entry(@_sock_flags_num($sock))
+	type = @entry(@_sock_type_num($sock))
 	success = @_sock_success_check($return)
 }
 
@@ -312,7 +312,7 @@ probe socket.aio_write.return = kernel.function("sock_aio_write").return ?
 {
 	name = "socket.aio_write.return"
 	size = $return
-	_sock = _get_sock_addr($iocb->ki_filp)
+	_sock = _get_sock_addr(@entry($iocb->ki_filp))
 	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
 	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
 	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
@@ -385,7 +385,7 @@ probe socket.aio_read.return = kernel.function("sock_aio_read").return ?
 {
 	name = "socket.aio_read.return"
 	size = $return
-	_sock = _get_sock_addr($iocb->ki_filp)
+	_sock = _get_sock_addr(@entry($iocb->ki_filp))
 	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
 	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
 	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
@@ -452,7 +452,7 @@ probe socket.write_iter.return = kernel.function("sock_write_iter").return ?
 {
 	name = "socket.write_iter.return"
 	size = $return
-	_sock = _get_sock_addr($iocb->ki_filp)
+	_sock = _get_sock_addr(@entry($iocb->ki_filp))
 	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
 	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
 	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
@@ -518,7 +518,7 @@ probe socket.read_iter.return = kernel.function("sock_read_iter").return ?
 {
 	name = "socket.read_iter.return"
 	size = $return
-	_sock = _get_sock_addr($iocb->ki_filp)
+	_sock = _get_sock_addr(@entry($iocb->ki_filp))
 	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
 	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
 	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
@@ -577,7 +577,7 @@ probe socket.writev.return = kernel.function("sock_writev").return ?
 {
 	name = "socket.writev.return"
 	size = $return
-	_sock = _get_sock_addr($file)
+	_sock = _get_sock_addr(@entry($file))
 	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
 	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
 	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
@@ -636,7 +636,7 @@ probe socket.readv.return = kernel.function("sock_readv").return ?
 {
 	name = "socket.readv.return"
 	size = $return
-	_sock = _get_sock_addr($file)
+	_sock = _get_sock_addr(@entry($file))
 	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
 	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
 	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
@@ -685,10 +685,10 @@ probe socket.create = kernel.function("__sock_create")
 probe socket.create.return = kernel.function("__sock_create").return
 {
 	name = "socket.create.return"
-	protocol = $protocol
-	family = $family
-	type = $type
-	requester = $kern
+	protocol = @entry($protocol)
+	family = @entry($family)
+	type = @entry($type)
+	requester = @entry($kern)
 	err = $return
 	success = @_sock_success_check($return)
 }

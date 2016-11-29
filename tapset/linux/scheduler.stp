@@ -117,7 +117,7 @@ probe scheduler.balance = kernel.function("idle_balance") ?
  */
 
 probe scheduler.ctxswitch = kernel.trace("sched_switch") !,
-%( arch != "x86_64" && arch != "ia64" && arch != "arm" %?
+%( arch != "x86_64" && arch != "ia64" && arch != "arm" && arch != "mips" %?
 	kernel.function("__switch_to")
 %:
 	kernel.function("context_switch")
@@ -208,7 +208,7 @@ probe scheduler.kthread_stop =
 probe __scheduler.kthread_stop.return.kp =
 	kernel.function("kthread_stop").return
 {
-	return_value = $k->exit_code
+	return_value = @entry($k->exit_code)
 }
 probe __scheduler.kthread_stop.return.tp =
 	kernel.trace("sched_kthread_stop_ret")

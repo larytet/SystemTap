@@ -23,7 +23,8 @@ warning::debuginfo \- systemtap missing-debuginfo warnings
 .SH DESCRIPTION
 For many symbolic probing operations, systemtap needs DWARF debuginfo for
 the relevant binaries.  This often includes resolving function/statement
-probes, or $context variables in related handlers.  DWARF debuginfo may
+probes, or $context variables in related handlers.  DWARF debuginfo is
+created by the compiler when using \fICFLAGS \-g\fP, and may
 be found in the original binaries built during compilation, or may have
 been split into separate files.  The
 .IR SYSTEMTAP_DEBUGINFO_PATH
@@ -126,6 +127,7 @@ option, in case such a server is already running.
 .SH SEE ALSO
 .nh
 .nf
+.IR gcc (1),
 .IR stap (1),
 .IR stappaths (7),
 .IR stap-server (8),

@@ -8,6 +8,15 @@ Errors that occur during pass 2 (elaboration) can have a variety of causes.
 Common types include:
 
 .TP
+missing debuginfo
+The script requires debuginfo to resolve a probe point, but could not
+find any.  See
+.IR error::dwarf (7stap)
+and
+.IR warning::debuginfo (7stap)
+for more details.
+
+.TP
 unavailable probe point classes
 Some types of probe points are only available on certain system versions,
 architectures, and configurations.  For example, user-space 

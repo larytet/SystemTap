@@ -207,6 +207,7 @@ int stp_tracepoint_probe_register(const char *name, void *probe, void *data)
 	struct tracepoint_entry *e;
 	int ret = 0;
 
+	might_sleep();
 	mutex_lock(&stp_tracepoint_mutex);
 	e = get_tracepoint(name);
 	if (!e) {
@@ -238,6 +239,7 @@ int stp_tracepoint_probe_unregister(const char *name, void *probe, void *data)
 	struct tracepoint_entry *e;
 	int ret = 0;
 
+	might_sleep();
 	mutex_lock(&stp_tracepoint_mutex);
 	e = get_tracepoint(name);
 	if (!e) {
@@ -269,6 +271,7 @@ int stp_tracepoint_coming(struct tp_module *tp_mod)
 {
 	int i;
 
+	might_sleep();
 	mutex_lock(&stp_tracepoint_mutex);
 	for (i = 0; i < tp_mod->mod->num_tracepoints; i++) {
 		struct tracepoint *tp;
@@ -310,6 +313,7 @@ int stp_tracepoint_going(struct tp_module *tp_mod)
 {
 	int i;
 
+	might_sleep();
 	mutex_lock(&stp_tracepoint_mutex);
 	for (i = 0; i < tp_mod->mod->num_tracepoints; i++) {
 		struct tracepoint *tp;
@@ -394,6 +398,7 @@ void stp_kernel_tracepoint_add(struct tracepoint *tp, void *priv)
 	struct stp_tp_probe *p;
 	int *ret = priv;
 
+	might_sleep();
 	mutex_lock(&stp_tracepoint_mutex);
 	e = get_tracepoint(tp->name);
 	if (!e) {
@@ -430,6 +435,7 @@ void stp_kernel_tracepoint_remove(struct tracepoint *tp, void *priv)
 	struct tracepoint_entry *e;
 	int *ret = priv;
 
+	might_sleep();
 	mutex_lock(&stp_tracepoint_mutex);
 	e = get_tracepoint(tp->name);
 	if (!e || e->refcount != 1 || !list_empty(&e->probes)) {
@@ -465,6 +471,7 @@ void stp_tracepoint_exit(void)
 
 	stp_tracepoint_module_exit();
 	for_each_kernel_tracepoint(stp_kernel_tracepoint_remove, &ret);
+	might_sleep();
 	mutex_lock(&stp_tracepoint_mutex);
 	for (i = 0; i < TRACEPOINT_TABLE_SIZE; i++) {
 		struct hlist_head *head = &tracepoint_table[i];

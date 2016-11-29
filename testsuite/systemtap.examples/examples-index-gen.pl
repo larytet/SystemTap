@@ -47,7 +47,7 @@ our $dsn = "DBI:$driver:dbname=$database";
 our $dbh = DBI->connect($dsn, "", "", { RaiseError => 1 })
                         or die $DBI::errstr;
 
-my $sqlcmd = $dbh->prepare('DELETE FROM meta');
+my $sqlcmd = $dbh->prepare('DELETE FROM metavirt');
 $sqlcmd->execute();
 
 my %scripts = ();
@@ -267,7 +267,7 @@ sub parse_meta_files {
     my $file = $_;
     my $filename = $File::Find::name;
 
-    my $sqlcmd = $dbh->prepare('INSERT INTO meta (title, name, keywords, description, path) VALUES (?,?,?,?,?)');
+    my $sqlcmd = $dbh->prepare('INSERT INTO metavirt (title, name, keywords, description, path) VALUES (?,?,?,?,?)');
 
     if (-f $file && $file =~ /\.meta$/) {
 	open FILE, $file or die "couldn't open '$file': $!\n";

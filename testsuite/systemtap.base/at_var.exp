@@ -42,7 +42,7 @@ if { $res != "" } {
     verbose "target_compile failed: $res" 2
     fail "${test}: unable to compile ${test}.c"
 } else {
-    stap_run3 $test $srcdir/$subdir/$test.stp -c ./${test}
+    stap_run3 $test $srcdir/$subdir/$test.stp -c ./${test} -w
 }
 
 # Test for target program compiled without optimization
@@ -52,7 +52,7 @@ if { $res != "" } {
     verbose "target_compile failed: $res" 2
     fail "${test_name}: unable to compile ${test}.c"
 } else {
-    stap_run3 $test_name $srcdir/$subdir/$test.stp -c ./${test}
+    stap_run3 $test_name $srcdir/$subdir/$test.stp -c ./${test} -w
 }
 
 # Cleanup

@@ -1,5 +1,5 @@
 // tapset resolution
-// Copyright (C) 2005-2015 Red Hat Inc.
+// Copyright (C) 2005-2016 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -2500,6 +2500,7 @@ validate_module_elf (Dwfl_Module *mod, const char *name,  base_query *q)
     case EM_IA_64: expect_machine = "ia64"; break;
     case EM_ARM: expect_machine = "arm*"; break;
     case EM_AARCH64: expect_machine = "arm64"; break;
+    case EM_MIPS: expect_machine = "mips"; break;
       // XXX: fill in some more of these
     default: expect_machine = "?"; break;
     }
@@ -3003,7 +3004,7 @@ var_expanding_visitor::visit_defined_op (defined_op* e)
     // Successes have to result in an attempted rewrite of the
     // target_symbol (via provide()).
     //
-    // Edna Mode: "no capes".  fche: "no exceptions".
+    // Edna Mode: "no capes".  fche: "no exceptions".  reality: not that simple
 
     // dwarf stuff: success: rewrites to a function; failure: retains target_symbol, sets saved_conversion_error
     //
@@ -3017,6 +3018,9 @@ var_expanding_visitor::visit_defined_op (defined_op* e)
     // utrace: success: rewrites to function; failure: semantic_error
     //
     // procfs: success: rewrites to function; failure: semantic_error
+    //
+    // ... but @defined() can nest other types of expressions too, for better or for worse,
+    // which can result in semantic_error. 
 
     target_symbol* tsym = dynamic_cast<target_symbol*> (e->operand);
     if (tsym && tsym->saved_conversion_error) // failing
@@ -3033,7 +3037,8 @@ var_expanding_visitor::visit_defined_op (defined_op* e)
     else // resolved, rewritten to some other expression type
       resolved = true;
   } catch (const semantic_error& e) {
-    assert (0); // should not happen
+    // some uncooperative value like @perf("NO_SUCH_VALUE")
+    resolved = false;
   }
   defined_ops.pop ();
 
@@ -3783,12 +3788,12 @@ dwarf_var_expanding_visitor::visit_target_symbol_saved_return (target_symbol* e)
   // Attempt the expansion directly first, so if there's a problem with the
   // variable we won't have a bogus entry probe lying around.  Like in
   // saveargs(), we pretend for a moment that we're not in a .return.
-  bool saved_has_return = q.has_return;
-  q.has_return = false;
   expression *repl = e;
-  replace (repl);
-  q.has_return = saved_has_return;
-
+  {
+    save_and_restore<bool> temp_return (& q.has_return, false);
+    replace (repl);
+  }
+  
   // If it's still a target_symbol, then it couldn't be resolved.  It may
   // not have a saved_conversion_error yet, e.g. for null_die(scope_die),
   // but we know it's not worth making that bogus entry anyway.
@@ -4324,6 +4329,10 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
         {
           if (lvalue)
             throw SEMANTIC_ERROR(_("write to target variable not permitted in .return probes"), e->tok);
+          // PR14924: discourage this syntax
+          stringstream expr;
+          e->print(expr);
+          q.sess.print_warning(_F("confusing usage, consider @entry(%s) in .return probe", expr.str().c_str()), e->tok);
           visit_target_symbol_saved_return(e);
           return;
         }
@@ -4420,6 +4429,9 @@ void
 dwarf_var_expanding_visitor::visit_entry_op (entry_op *e)
 {
   expression *repl = e;
+  bool defined_being_checked = (defined_ops.size() > 0 && (defined_ops.top()->operand == e));
+  // In this mode, we avoid hiding errors or generating extra code such as for .return saved $vars
+
   if (q.has_return)
     {
       // NB: don't expand the operand here, as if it weren't a return
@@ -4428,13 +4440,34 @@ dwarf_var_expanding_visitor::visit_entry_op (entry_op *e)
       // If we were to expand it here, we may e.g. map @perf("...") to
       // __perf_read_... prematurely & incorrectly.  PR20416
 
-      // XXX it would be nice to use gen_kretprobe_saved_return when available,
-      // but it requires knowing the types already, which is problematic for
-      // arbitrary expressons.
-      repl = gen_mapped_saved_return (e->operand, "entry");
+      // NB: but ... we sort of want to do a trial-expansion, just to
+      // see if the contents are rejected, e.g. with a $var-undefined
+      // error, so that the failure can propagate back up to a containing
+      // @defined().  PR20821
+      
+      if (defined_being_checked)
+        {
+          save_and_restore<bool> temp_return (& q.has_return, false);
+          replace (e->operand); // don't generate any @entry machinery!
+
+          // propagate the replaced operand upward; it may be a
+          // target_symbol and have a saved_conversion_error; we
+          // also don't want to expand @defined(@entry(...)) into
+          // a full synthetic probe goo.
+          repl = e->operand;
+        }
+      else
+        {
+          // XXX it would be nice to use gen_kretprobe_saved_return when available,
+          // but it requires knowing the types already, which is problematic for
+          // arbitrary expressons.
+
+          repl = gen_mapped_saved_return (e->operand, "entry");
+        }
     }
   provide (repl);
 }
+
 
 void
 dwarf_var_expanding_visitor::visit_perf_op (perf_op *e)
@@ -5179,10 +5212,9 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
           assert (q.has_return && !q.has_call);
 
           // We temporarily replace q.base_probe.
-          statement* old_body = q.base_probe->body;
-          q.base_probe->body = v.add_call_probe;
-          q.has_return = false;
-          q.has_call = true;
+          save_and_restore<statement*> tmp_body (&q.base_probe->body, v.add_call_probe);
+          save_and_restore<bool> tmp_return (&q.has_return, false);
+          save_and_restore<bool> tmp_call (&q.has_call, true);
 
           // NB: any moved @entry(EXPR) bits will be expanded during this
           // nested *derived_probe ctor for the synthetic .call probe.
@@ -5211,10 +5243,6 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
           saved_strings = entry_handler->saved_strings = v.saved_strings;
 
           q.results.push_back (entry_handler);
-
-          q.has_return = true;
-          q.has_call = false;
-          q.base_probe->body = old_body;
         }
       // Save the local variables for listing mode. If the scope_die is null,
       // local vars aren't accessible, so no need to invoke saveargs (PR10820).
@@ -6275,6 +6303,77 @@ sdt_uprobe_var_expanding_visitor::build_dwarf_registers ()
     DRI ("x29", 29, DI); DRI ("w29", 29, SI);
     DRI ("x30", 30, DI); DRI ("w30", 30, SI);
     DRI ("sp", 31, DI);
+  } else if (elf_machine == EM_MIPS) {
+    Dwarf_Addr bias;
+    Elf* elf = (dwfl_module_getelf (dw.mod_info->mod, &bias));
+    enum regwidths mips_reg_width =
+        (gelf_getclass (elf) == ELFCLASS32) ? SI : DI;
+    DRI ("$zero", 0, mips_reg_width);
+    DRI ("$at", 1, mips_reg_width);
+    DRI ("$v0", 2, mips_reg_width);
+    DRI ("$v1", 3, mips_reg_width);
+    DRI ("$a0", 4, mips_reg_width);
+    DRI ("$a1", 5, mips_reg_width);
+    DRI ("$a2", 6, mips_reg_width);
+    DRI ("$a3", 7, mips_reg_width);
+    DRI ("$a4", 8, mips_reg_width);
+    DRI ("$a5", 9, mips_reg_width);
+    DRI ("$a6", 10, mips_reg_width);
+    DRI ("$a7", 11, mips_reg_width);
+    DRI ("$t0", 12, mips_reg_width);
+    DRI ("$t1", 13, mips_reg_width);
+    DRI ("$t2", 14, mips_reg_width);
+    DRI ("$t3", 15, mips_reg_width);
+    DRI ("$s0", 16, mips_reg_width);
+    DRI ("$s1", 17, mips_reg_width);
+    DRI ("$s2", 18, mips_reg_width);
+    DRI ("$s3", 19, mips_reg_width);
+    DRI ("$s4", 20, mips_reg_width);
+    DRI ("$s5", 21, mips_reg_width);
+    DRI ("$s6", 22, mips_reg_width);
+    DRI ("$s7", 23, mips_reg_width);
+    DRI ("$t8", 24, mips_reg_width);
+    DRI ("$t9", 25, mips_reg_width);
+    DRI ("$k0", 26, mips_reg_width);
+    DRI ("$k1", 27, mips_reg_width);
+    DRI ("$gp", 28, mips_reg_width);
+    DRI ("$sp", 29, mips_reg_width);
+    DRI ("$s8", 30, mips_reg_width);
+    DRI ("$fp", 30, mips_reg_width);
+    DRI ("$ra", 31, mips_reg_width);
+
+    DRI ("$0", 0, mips_reg_width);
+    DRI ("$1", 1, mips_reg_width);
+    DRI ("$2", 2, mips_reg_width);
+    DRI ("$3", 3, mips_reg_width);
+    DRI ("$4", 4, mips_reg_width);
+    DRI ("$5", 5, mips_reg_width);
+    DRI ("$6", 6, mips_reg_width);
+    DRI ("$7", 7, mips_reg_width);
+    DRI ("$8", 8, mips_reg_width);
+    DRI ("$9", 9, mips_reg_width);
+    DRI ("$10", 10, mips_reg_width);
+    DRI ("$11", 11, mips_reg_width);
+    DRI ("$12", 12, mips_reg_width);
+    DRI ("$13", 13, mips_reg_width);
+    DRI ("$14", 14, mips_reg_width);
+    DRI ("$15", 15, mips_reg_width);
+    DRI ("$16", 16, mips_reg_width);
+    DRI ("$17", 17, mips_reg_width);
+    DRI ("$18", 18, mips_reg_width);
+    DRI ("$19", 19, mips_reg_width);
+    DRI ("$20", 20, mips_reg_width);
+    DRI ("$21", 21, mips_reg_width);
+    DRI ("$22", 22, mips_reg_width);
+    DRI ("$23", 23, mips_reg_width);
+    DRI ("$24", 24, mips_reg_width);
+    DRI ("$25", 25, mips_reg_width);
+    DRI ("$26", 26, mips_reg_width);
+    DRI ("$27", 27, mips_reg_width);
+    DRI ("$28", 28, mips_reg_width);
+    DRI ("$29", 29, mips_reg_width);
+    DRI ("$30", 30, mips_reg_width);
+    DRI ("$31", 31, mips_reg_width);
   } else if (arg_count) {
     /* permit this case; just fall back to dwarf */
   }
@@ -6287,6 +6386,10 @@ sdt_uprobe_var_expanding_visitor::build_dwarf_registers ()
     {
       string regname = ri->first;
       assert (regname != "");
+      // for register names starting with '$' convert the dollar to a
+      // '\$' as otherwise the regexp tries to match end-of-line
+      if (regname[0]=='$')
+        regname = string("\\")+regname;
       regnames += string("|")+regname;
       if (regname[0]=='%')
         percent_regnames += string("|")+regname;
@@ -6428,7 +6531,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_literal (target_symbol *e,
   vector<string> matches;
   string regexp;
 
-  if (elf_machine == EM_AARCH64) {
+  if (elf_machine == EM_AARCH64 || elf_machine == EM_MIPS) {
     regexp = "^([-]?[0-9][0-9]*)$";
   } else {
     regexp = "^[i\\$#]([-]?[0-9][0-9]*)$";
@@ -6821,6 +6924,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
       // s390   N       %rR 0(rR)    N(r15)
       // arm    #N      rR  [rR]     [rR, #N]
       // arm64  N       rR  [rR]     [rR, N]
+      // mips   N       $r           N($r)
 
       expression* argexpr = 0; // filled in in case of successful parse
 

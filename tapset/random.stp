@@ -5,7 +5,7 @@
 function randint:long(n:long) 
 %{	/* unprivileged */
 #define RANDMAX (1024*1024)
-        if (STAP_ARG_n > RANDMAX)
+        if ((unsigned long)STAP_ARG_n > RANDMAX)
            CONTEXT->last_error = "range too wide";
         else {
   	   STAP_RETVALUE = (uint64_t) _stp_random_u((unsigned long) STAP_ARG_n);

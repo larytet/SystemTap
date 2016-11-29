@@ -3405,7 +3405,9 @@ static void _stp_sigaction_str(struct sigaction *act, char *ptr, int len)
     V(SA_RESTART),
     V(SA_NODEFER),
     V(SA_SIGINFO),
+#ifdef SA_RESTORER
     V(SA_RESTORER),
+#endif
     {0, NULL}
   };
   
@@ -3417,7 +3419,7 @@ static void _stp_sigaction_str(struct sigaction *act, char *ptr, int len)
       strlcat (ptr, ", ", len);
       _stp_lookup_or_str(_stp_sa_flags_list, act->sa_flags, ptr, len);
       strlcat (ptr, ", ", len);
-#if !defined (__ia64__)
+#if !defined (__ia64__) && !defined (__mips__)
       slen = strlen(ptr);
       _stp_snprintf(ptr + slen, len - slen,
 		    "0x%lx, ", (long)act->sa_restorer);
@@ -3487,8 +3489,9 @@ function _struct_sigaction32_u:string(uaddr:long)
 
 	  act.sa_handler = (void *)compat_ptr(act32.sa_handler);
 	  act.sa_flags = (unsigned long)act32.sa_flags;
+#ifdef SA_RESTORER
 	  act.sa_restorer = (void *)compat_ptr(act32.sa_restorer);
-
+#endif
 	  /* swap words around to get right endian order. */
 	  switch (_NSIG_WORDS)
 	    {
@@ -3541,7 +3544,9 @@ function _struct_old_sigaction32_u:string(uaddr:long)
 	  struct sigaction act;
 
 	  act.sa_handler = (void *)compat_ptr(act32.sa_handler);
+#ifdef SA_RESTORER
 	  act.sa_restorer = (void *)compat_ptr(act32.sa_restorer);
+#endif
 	  act.sa_flags = (unsigned long)act32.sa_flags;
 	  siginitset(&act.sa_mask, act32.sa_mask);
 	  _stp_sigaction_str(&act, STAP_RETVALUE, MAXSTRINGLEN);	  
@@ -3959,6 +3964,13 @@ function _swapon_flags_str:string(flags:long)
 #elif defined(__arm__)
 	long cpsr = kread(&regs->ARM_cpsr);
 	STAP_RETVALUE = ((cpsr & 0xf) == 0);
+#elif defined(__mips__)
+	unsigned long cp0 = kread(&regs->cp0_status);
+#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+	THIS->__retvalue = ((cp0 & 0x08) == 8);
+#else
+	THIS->__retvalue = ((cp0 & 0x18) == 0x10);
+#endif
 #elif defined(__s390__) || defined(__s390x__)
 	unsigned long mask = kread(&regs->psw.mask);
 	STAP_RETVALUE = ((mask & PSW_MASK_PSTATE) != 0);

@@ -118,7 +118,7 @@ query (const char *prompt, query_default qdefault)
 
       response = readline(_F("%s(%s or %s) ", prompt, y_string,
 			     n_string).c_str());
-      if (response == NULL)		// C-d
+      if (response == NULL)		// EOF
 	{
 	  clog << _F("EOF [assumed %c]\n", def_answer);
 	  retval = def_value;
@@ -537,7 +537,7 @@ public:
 	  {
 	    char *response;
 	    response = readline("stap>>> ");
-	    if (response == NULL)		// C-d
+	    if (response == NULL)		// EOF
 	      {
 		clog << endl;
 		break;
@@ -917,15 +917,14 @@ public:
   sample_cmd()
   {
     name = "sample";
-    usage = "sample KEYWORD";
-    _help_text = "Search and load an example script related to KEYWORD.";
+    usage = "sample STATEMENT";
+    _help_text = "Search and load an example script using criteria specified in STATEMENT. STATEMENT can contain any number of case insensitive keywords seperated by OR, AND or NOT (case sensitive). Wildcards can be postfixed to any number of keywords. STATEMENT can contain anything supported by FTS full-text index queries. Example: sample socket AND tcp* OR disk NOT virtual";
   }
   bool handler (systemtap_session &s __attribute ((unused)),
                 vector<string> &tokens __attribute ((unused)),
                 string &input __attribute ((unused)))
   {
-    tokens.erase(tokens.begin());
-    if (tokens.size() != 1)
+    if (tokens.size() == 1)
       {
         cout << usage << ": " << _help_text << endl;
         return false;
@@ -945,22 +944,26 @@ public:
 	return false;
       }
 
-    string sqlstr = "SELECT name, title, description, path FROM meta WHERE (title" \
-    " || name || description || keywords || path) LIKE '%'||?||'%';";
+    string sqlstr = "SELECT name, title, description, path FROM metavirt WHERE metavirt MATCH ?;";
     sqlite3_stmt* sqlstmt;
-
-    rc = sqlite3_prepare_v2(db, sqlstr.c_str(), sqlstr.size() + tokens[0].size(), &sqlstmt, NULL);
-    if (rc)
+    string tokenstring = tokens[1];
+    for (unsigned it = 2; it < tokens.size(); it++)
       {
-	cout << "Error preparing SQL statement. RC: " << rc << endl;
-	return false;
+        tokenstring.append(" " + tokens[it]);
       }
 
-    rc = sqlite3_bind_text(sqlstmt, 1, tokens[0].c_str(), tokens[0].size(), 0);
+    rc = sqlite3_prepare_v2(db, sqlstr.c_str(), sqlstr.size() + tokenstring.size(), &sqlstmt, NULL);
     if (rc)
       {
-	cout << "Error binding SQL statement. RC: " << rc << endl;
-	return false;
+        cout << "Error preparing SQL statement. RC: " << rc << endl;
+        return false;
+      }
+
+    rc = sqlite3_bind_text(sqlstmt, 1, tokenstring.c_str(), tokenstring.size(), 0);
+    if (rc)
+      {
+        cout << "Error binding SQL statement. RC: " << rc << endl;
+        return false;
       }
 
     metafile file;
@@ -979,7 +982,7 @@ public:
 	  break;
 	else
 	  {
-            cout << "Error executing statement. RC: " << rc << endl;
+            cout << "Incomplete statement." << endl;
 	    return false;
 	  }
       }
@@ -987,25 +990,28 @@ public:
 
     if (metalist.size() == 0)
       {
-        cout << "No sample scripts related to \"" << tokens[0] << "\"." << endl;
+        cout << "No sample scripts found using \"" << tokenstring << "\"." << endl;
+	cout << "Note, AND, OR and NOT are case sensitive." << endl;
         return false;
       }
-
-    cout << "Enter a script name for a description or use q to quit:" << endl;
-    for (unsigned it=0; it < metalist.size();it++)
-      cout << "  " << metalist[it].name << endl;
 
     char* response;
     metafile selection;
     while (selection.name == "")
       {
-	response = readline(_F("%s","stap>> ").c_str());
+	cout << "Enter a script name for a description or use q to quit:" << endl;
+        for (unsigned it=0; it < metalist.size();it++)
+	  cout << "  " << metalist[it].name << ":  " << metalist[it].title <<  endl;
 
-	if (*response == '\0')
-	   continue;
+	response = readline(_F("%s","stap sample>> ").c_str());
 
+        if (response == NULL) // EOF
+          {
+            cout << endl;
+            return false;
+          }
         if (*response == 'q')
-           return false;
+          return false;
 
        for (unsigned i=0; i < metalist.size();i++)
 	 {
@@ -1019,16 +1025,15 @@ public:
            }
 	 cout << endl << "Title: " << selection.title << endl << "Name: " << selection.name << endl;
 	 cout << "Description: " << selection.description << endl;
-         if (!query("Would you like to open this script for editing and running? ", no_default))
+         if (!query("Would you like to load this example? ", no_default))
 	   {
 	     selection.name = "";
-	    if (!query("Would you like to select another related script? ",no_default))
+	    if (!query("Would you like to select another related script? ", no_default))
 	      return false;
-	    else
-	      cout << "Enter a script name for a description or use q to quit:" << endl;
            }
       }
 
+    tokens.erase(tokens.begin() + 1, tokens.begin() + tokens.size());
     auto load = new load_cmd;
     tokens.push_back(dirstr + selection.path + "/" + selection.name);
     load -> handler(s, tokens, input);

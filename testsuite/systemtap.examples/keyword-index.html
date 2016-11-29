@@ -39,7 +39,7 @@
          	</ul>
 
 <p><em>For systemtap version 3.1.</em></p><h2>Examples by Keyword</h2>
-<p><tt><a href="#_BEST">_BEST(18)</a> <a href="#BACKTRACE">BACKTRACE(8)</a> <a href="#CALLGRAPH">CALLGRAPH(3)</a> <a href="#DIAGRAM">DIAGRAM(1)</a> <a href="#DISK">DISK(5)</a> <a href="#FILE">FILE(2)</a> <a href="#FILESYSTEM">FILESYSTEM(4)</a> <a href="#FORMAT">FORMAT(2)</a> <a href="#FUNCTION">FUNCTION(4)</a> <a href="#FUTEX">FUTEX(2)</a> <a href="#GURU">GURU(16)</a> <a href="#INTERRUPT">INTERRUPT(3)</a> <a href="#IO">IO(29)</a> <a href="#JSON">JSON(2)</a> <a href="#KVM">KVM(3)</a> <a href="#LIMITS">LIMITS(2)</a> <a href="#LOCKING">LOCKING(6)</a> <a href="#MEMORY">MEMORY(14)</a> <a href="#MONITORING">MONITORING(7)</a> <a href="#NANOSLEEP">NANOSLEEP(1)</a> <a href="#NETWORK">NETWORK(21)</a> <a href="#NFS">NFS(4)</a> <a href="#NUMA">NUMA(1)</a> <a href="#PACKETS">PACKETS(1)</a> <a href="#PROCESS">PROCESS(23)</a> <a href="#PROFILING">PROFILING(20)</a> <a href="#QEMU">QEMU(2)</a> <a href="#REGEX">REGEX(1)</a> <a href="#SCHEDULER">SCHEDULER(8)</a> <a href="#SCSI">SCSI(1)</a> <a href="#SECURITY">SECURITY(10)</a> <a href="#SIGNALS">SIGNALS(5)</a> <a href="#SIMPLE">SIMPLE(10)</a> <a href="#SOCKET">SOCKET(7)</a> <a href="#SPECULATION">SPECULATION(1)</a> <a href="#STAPGAMES">STAPGAMES(5)</a> <a href="#STATISTICS">STATISTICS(9)</a> <a href="#SYSCALL">SYSCALL(12)</a> <a href="#TCP">TCP(3)</a> <a href="#THREAD">THREAD(2)</a> <a href="#TIME">TIME(3)</a> <a href="#TRACE">TRACE(6)</a> <a href="#TRACEPOINT">TRACEPOINT(4)</a> <a href="#TRAFFIC">TRAFFIC(8)</a> <a href="#TTY">TTY(1)</a> <a href="#VIRTUALIZATION">VIRTUALIZATION(3)</a> <a href="#WATCHDOG">WATCHDOG(1)</a> <a href="#WATCHPOINT">WATCHPOINT(2)</a> </tt></p>
+<p><tt><a href="#_BEST">_BEST(18)</a> <a href="#BACKTRACE">BACKTRACE(8)</a> <a href="#CALLGRAPH">CALLGRAPH(3)</a> <a href="#DIAGRAM">DIAGRAM(1)</a> <a href="#DISK">DISK(5)</a> <a href="#FILE">FILE(2)</a> <a href="#FILESYSTEM">FILESYSTEM(4)</a> <a href="#FORMAT">FORMAT(2)</a> <a href="#FUNCTION">FUNCTION(4)</a> <a href="#FUTEX">FUTEX(2)</a> <a href="#GURU">GURU(17)</a> <a href="#INTERRUPT">INTERRUPT(3)</a> <a href="#IO">IO(29)</a> <a href="#JSON">JSON(2)</a> <a href="#KVM">KVM(3)</a> <a href="#LIMITS">LIMITS(2)</a> <a href="#LOCKING">LOCKING(6)</a> <a href="#MEMORY">MEMORY(14)</a> <a href="#MONITORING">MONITORING(7)</a> <a href="#NANOSLEEP">NANOSLEEP(1)</a> <a href="#NETWORK">NETWORK(21)</a> <a href="#NFS">NFS(4)</a> <a href="#NUMA">NUMA(1)</a> <a href="#PACKETS">PACKETS(1)</a> <a href="#PROCESS">PROCESS(23)</a> <a href="#PROFILING">PROFILING(20)</a> <a href="#QEMU">QEMU(2)</a> <a href="#REGEX">REGEX(1)</a> <a href="#RETRANSMISSION">RETRANSMISSION(1)</a> <a href="#SCHEDULER">SCHEDULER(8)</a> <a href="#SCSI">SCSI(1)</a> <a href="#SECURITY">SECURITY(11)</a> <a href="#SIGNALS">SIGNALS(5)</a> <a href="#SIMPLE">SIMPLE(10)</a> <a href="#SOCKET">SOCKET(8)</a> <a href="#SPECULATION">SPECULATION(1)</a> <a href="#STAPGAMES">STAPGAMES(5)</a> <a href="#STATISTICS">STATISTICS(9)</a> <a href="#SYSCALL">SYSCALL(13)</a> <a href="#TCP">TCP(4)</a> <a href="#THREAD">THREAD(2)</a> <a href="#TIME">TIME(3)</a> <a href="#TRACE">TRACE(6)</a> <a href="#TRACEPOINT">TRACEPOINT(4)</a> <a href="#TRAFFIC">TRAFFIC(8)</a> <a href="#TTY">TTY(1)</a> <a href="#VIRTUALIZATION">VIRTUALIZATION(3)</a> <a href="#WATCHDOG">WATCHDOG(1)</a> <a href="#WATCHPOINT">WATCHPOINT(2)</a> </tt></p>
 <h3><a name="_BEST"><a href="#_BEST">&para;</a> _BEST</a></h3>
 <ul>
 <li><a href="general/eventcount.stp">general/eventcount.stp</a> - Count Specified Events<br>
@@ -148,7 +148,7 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 <ul>
 <li><a href="io/deviceseeks.stp">io/deviceseeks.stp</a> - Histograms of Seek Behavior for Each Device<br>
 keywords: <a href="keyword-index.html#DISK">DISK</a> <br>
-<p>The deviceseeks.stp script generates a histogram showing the frequency of different sized seeks (in sectors) on each device.</p><p><font size="-2"><pre># stap deviceseeks.stp -T 1</pre></font></p>
+<p>The deviceseeks.stp script generates a periodic histogram showing the frequency of different sized seeks (in sectors) on each device, or optional given device-name regexp</p><p><i><a href="io/deviceseeks.txt">sample usage in io/deviceseeks.txt</i></font></p>
 </li><li><a href="io/disktop.stp">io/disktop.stp</a> - Summarize Disk Read/Write Traffic<br>
 keywords: <a href="keyword-index.html#DISK">DISK</a> <br>
 <p>Get the status of reading/writing disk every 5 seconds, output top ten entries during that period.</p><p><font size="-2"><pre># stap disktop.stp -T 1</pre></font></p>
@@ -267,6 +267,9 @@ keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-in
 keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>historical emergency security band-aid, for reference/education only</p></p>
 </li><li><a href="security-band-aids/cve-2016-0728.stp">security-band-aids/cve-2016-0728.stp</a> - cve-2016-0728 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p></p>
+</li><li><a href="security-band-aids/cve-2016-5195.stp">security-band-aids/cve-2016-5195.stp</a> - cve-2016-5195 security band-aid<br>
 keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>historical emergency security band-aid, for reference/education only</p></p>
 </li></ul>
@@ -743,6 +746,12 @@ keywords: <a href="keyword-index.html#VIRTUALIZATION">VIRTUALIZATION</a> <a href
 keywords: <a href="keyword-index.html#REGEX">REGEX</a> <br>
 <p>Uses the regex functionality to detect opened files whose names match a pattern given on the command line. If no command line parameter is given, demonstrate by filtering for files that end with an extension showing them to be an archive.</p><p><font size="-2"><pre># stap regex.stp -T 1</pre></font></p>
 </li></ul>
+<h3><a name="RETRANSMISSION"><a href="#RETRANSMISSION">&para;</a> RETRANSMISSION</a></h3>
+<ul>
+<li><a href="network/tcp_retransmission.stp">network/tcp_retransmission.stp</a> - print tcp retransmission packet<br>
+keywords: <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#RETRANSMISSION">RETRANSMISSION</a> <br>
+<p>The tcp_retransmission.stp prints out a line for each tcp retransmission packet</p><p><font size="-2"><pre># stap tcp_retransmission.stp -T 1</pre></font></p>
+</li></ul>
 <h3><a name="SCHEDULER"><a href="#SCHEDULER">&para;</a> SCHEDULER</a></h3>
 <ul>
 <li><a href="process/chng_cpu.stp">process/chng_cpu.stp</a> - Monitor Changes in Processor Executing a Task<br>
@@ -808,6 +817,9 @@ keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-in
 </li><li><a href="security-band-aids/cve-2016-0728.stp">security-band-aids/cve-2016-0728.stp</a> - cve-2016-0728 security band-aid<br>
 keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>historical emergency security band-aid, for reference/education only</p></p>
+</li><li><a href="security-band-aids/cve-2016-5195.stp">security-band-aids/cve-2016-5195.stp</a> - cve-2016-5195 security band-aid<br>
+keywords: <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
+<p>historical emergency security band-aid, for reference/education only</p></p>
 </li></ul>
 <h3><a name="SIGNALS"><a href="#SIGNALS">&para;</a> SIGNALS</a></h3>
 <ul>
@@ -863,7 +875,10 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li></ul>
 <h3><a name="SOCKET"><a href="#SOCKET">&para;</a> SOCKET</a></h3>
 <ul>
-<li><a href="lwtools/accept2close-nd.stp">lwtools/accept2close-nd.stp</a> - Show socket lifespan, from accept() to close() (non-debuginfo)<br>
+<li><a href="general/socket-events.stp">general/socket-events.stp</a> - Trace Socket Activity of a Process<br>
+keywords: <a href="keyword-index.html#SOCKET">SOCKET</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
+<p>Prints the life cycle of all sockets associated with a process. This includes bytes and timing. The timing information that is tracked includes event completion relative to the start of said event and the end of the previous event. Currently tracks read, write, recv, send, connect and close.</p><p><font size="-2"><pre># stap socket-events.stp</pre></font></p>
+</li><li><a href="lwtools/accept2close-nd.stp">lwtools/accept2close-nd.stp</a> - Show socket lifespan, from accept() to close() (non-debuginfo)<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
 <p>This traces socket duration from the accept() syscall to close(), and provides details on the lifespan of these passive connections, showing the distribution as a histogram.</p><p><i><a href="lwtools/accept2close-nd.txt">sample usage in lwtools/accept2close-nd.txt</i></font></p>
 </li><li><a href="network/connect_stat.stp">network/connect_stat.stp</a> - Show Process Ancestry for IP Connections<br>
@@ -941,7 +956,10 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li></ul>
 <h3><a name="SYSCALL"><a href="#SYSCALL">&para;</a> SYSCALL</a></h3>
 <ul>
-<li><a href="io/iotime.stp">io/iotime.stp</a> - Trace Time Spent in Read and Write for Files <br>
+<li><a href="general/socket-events.stp">general/socket-events.stp</a> - Trace Socket Activity of a Process<br>
+keywords: <a href="keyword-index.html#SOCKET">SOCKET</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
+<p>Prints the life cycle of all sockets associated with a process. This includes bytes and timing. The timing information that is tracked includes event completion relative to the start of said event and the end of the previous event. Currently tracks read, write, recv, send, connect and close.</p><p><font size="-2"><pre># stap socket-events.stp</pre></font></p>
+</li><li><a href="io/iotime.stp">io/iotime.stp</a> - Trace Time Spent in Read and Write for Files <br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#FILE">FILE</a> <br>
 <p>The script watches each open, close, read, and write syscalls on the system. For each file the scripts observes opened it accumulates the amount of wall clock time spent in read and write operations and the number of bytes read and written. When a file is closed the script prints out a pair of lines for the file. Both lines begin with a timestamp in microseconds, the PID number, and the executable name in parentheses. The first line with the &quot;access&quot; keyword lists the file name, the attempted number of bytes for the read and write operations. The second line with the &quot;iotime&quot; keyword list the file name and the number of microseconds accumulated in the read and write syscalls.</p><p><font size="-2"><pre># stap iotime.stp -T 1</pre></font></p>
 </li><li><a href="process/errsnoop.stp">process/errsnoop.stp</a> - Tabulate System Call Errors<br>
@@ -989,6 +1007,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li><li><a href="network/tcp_init_cwnd.stp">network/tcp_init_cwnd.stp</a> - Increase Initial TCP Congestion Window to 10<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>Run the tcp_init_cwnd.stp script in the background to override a kernel&#39;s default tcp cwnd value to 10, which has been found to improve latency for web server type workloads.  The script prints a count of cwnd value changes when it is stopped.</p><p><font size="-2"><pre># stap -g tcp_init_cwnd.stp -T 1</pre></font></p>
+</li><li><a href="network/tcp_retransmission.stp">network/tcp_retransmission.stp</a> - print tcp retransmission packet<br>
+keywords: <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#RETRANSMISSION">RETRANSMISSION</a> <br>
+<p>The tcp_retransmission.stp prints out a line for each tcp retransmission packet</p><p><font size="-2"><pre># stap tcp_retransmission.stp -T 1</pre></font></p>
 </li></ul>
 <h3><a name="THREAD"><a href="#THREAD">&para;</a> THREAD</a></h3>
 <ul>

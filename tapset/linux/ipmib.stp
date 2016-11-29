@@ -226,7 +226,7 @@ probe ipmib.InNoRoutes=kernel.function("ip_route_input_noref").return!,
 		       kernel.function("ip_route_input_common").return!,
                        kernel.function("ip_route_input").return
 {
-	skb = $skb;
+	skb = @entry($skb);
 	op = 1;
 	SourceIsLocal = 0;
 	if ( $return != -_enetunreach()) next;
@@ -248,7 +248,7 @@ probe ipmib.InAddrErrors=kernel.function("ip_route_input_noref").return!,
 			 kernel.function("ip_route_input_common").return!,
                          kernel.function("ip_route_input").return
 {
-	skb = $skb;
+	skb = @entry($skb);
 	op = 1;
 	SourceIsLocal = 0;
 	if ( $return != -_ehostunreach()) next;
@@ -295,7 +295,7 @@ probe ipmib.InUnknownProtos=kernel.function("icmp_send")
 */
 probe ipmib.InDiscards=kernel.function("ip_rcv").return
 {
-	skb = $skb;
+	skb = @entry($skb);
 	op = 1;
 	SourceIsLocal = 0;
 	if ( $return != _net_rx_drop() ) next;
@@ -416,7 +416,7 @@ probe ipmib.FragOKs=kernel.function("ip_fragment").return
  */
 probe ipmib.FragFails=kernel.function("ip_fragment").return
 {
-	skb = $skb;
+	skb = @entry($skb);
 	op = 1;
 	SourceIsLocal = 1;
 	if (!$return ) next

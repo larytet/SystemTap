@@ -154,6 +154,15 @@
 #define pt_regs_store_register(pt_regs,regno,value) \
   (pt_regs->gpr[regno] = (value))
 
+#elif defined __mips__
+
+#undef pt_regs_fetch_register
+#undef pt_regs_store_register
+#define pt_regs_fetch_register(pt_regs,regno) \
+  ((intptr_t) pt_regs->regs[regno])
+#define pt_regs_store_register(pt_regs,regno,value) \
+  (pt_regs->regs[regno] = (value))
+
 #elif defined (__aarch64__)
 
 #define pt_dwarf_register_0(pt_regs)	pt_regs->regs[0]

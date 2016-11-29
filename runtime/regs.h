@@ -54,6 +54,10 @@
 #define REG_SP(regs) regs->ARM_sp
 #define REG_LINK(regs) regs->ARM_lr
 
+#elif defined (__mips__)
+#define REG_IP(regs_arg) ((regs_arg)->cp0_epc)
+#define REG_SP(regs_arg) ((regs_arg)->regs[29])
+
 #elif defined (__s390__) || defined (__s390x__)
 
 #ifndef __s390x__

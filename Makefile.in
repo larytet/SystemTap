@@ -147,9 +147,9 @@ CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES = includes/sys/sdt-config.h \
 	initscript/config.systemtap initscript/config.stap-server \
 	initscript/systemtap initscript/stap-server \
-	initscript/99stap/module-setup.sh run-stap dtrace \
-	staprun/guest/stapshd staprun/guest/stapsh-daemon \
-	staprun/guest/stapsh@.service
+	initscript/99stap/module-setup.sh initscript/99stap/install \
+	initscript/99stap/check run-stap dtrace staprun/guest/stapshd \
+	staprun/guest/stapsh-daemon staprun/guest/stapsh@.service
 CONFIG_CLEAN_VPATH_FILES =
 @BUILD_TRANSLATOR_TRUE@am__EXEEXT_1 = stap$(EXEEXT)
 @BUILD_TRANSLATOR_TRUE@@BUILD_VIRT_TRUE@am__EXEEXT_2 =  \
@@ -513,6 +513,7 @@ builddir = @builddir@
 datadir = @datadir@
 datarootdir = @datarootdir@
 docdir = @docdir@
+dracutbindir = @dracutbindir@
 dracutstap = @dracutstap@
 dvidir = @dvidir@
 elfutils_abs_srcdir = @elfutils_abs_srcdir@
@@ -770,6 +771,10 @@ initscript/systemtap: $(top_builddir)/config.status $(top_srcdir)/initscript/sys
 initscript/stap-server: $(top_builddir)/config.status $(top_srcdir)/initscript/stap-server.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 initscript/99stap/module-setup.sh: $(top_builddir)/config.status $(top_srcdir)/initscript/99stap/module-setup.sh.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+initscript/99stap/install: $(top_builddir)/config.status $(top_srcdir)/initscript/99stap/install.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+initscript/99stap/check: $(top_builddir)/config.status $(top_srcdir)/initscript/99stap/check.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 run-stap: $(top_builddir)/config.status $(srcdir)/run-stap.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@

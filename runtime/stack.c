@@ -78,6 +78,8 @@ static int _stp_valid_pc_addr(unsigned long addr, struct task_struct *tsk)
 #include "stack-ia64.c"
 #elif defined (__arm__)
 #include "stack-arm.c"
+#elif defined (__mips__)
+#include "stack-mips.c"
 #elif defined (__s390__)
 #include "stack-s390.c"
 #else

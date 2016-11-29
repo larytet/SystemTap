@@ -43,7 +43,7 @@ STAP=@bindir@/stap
 STAPRUN=@bindir@/staprun
 UNAME=/bin/uname
 LSMOD=/sbin/lsmod
-DRACUT=/sbin/dracut
+DRACUT=@dracutbindir@/dracut
 NEWKERNELPKG=/sbin/new-kernel-pkg
 
 # Not actually used directly, but needed by
@@ -283,28 +283,23 @@ else
   SCRIPTS="$OPT_SCRIPTS"
 fi
 
-# Move over any pid files in /var/run/systemtap (from boot-time scripts)
-# to the user-defined $STAT_PATH if it's different.
-if [ "$STAT_PATH" != /var/run/systemtap ] && # XXX: use inodes instead?
-   [ -d /var/run/systemtap ]; then
 
-   # Check if there's stuff to copy
-  if [ "$(ls -A /var/run/systemtap)" ]; then
-
-    # Create target dir if it does not exist
-    if [ ! -d "$STAT_PATH" ]; then
-      logex mkdir -p "$STAT_PATH"
-      if [ $? -ne 0 ]; then
-        do_failure $"Failed to make stat directory ($STAT_PATH)"
-        exit 1
-      fi
-    fi
-
-    cp /var/run/systemtap/* "$STAT_PATH"
+# Create user-defined $STAT_PATH if it does not exist
+if [ ! -d "$STAT_PATH" ]; then
+  logex mkdir -p "$STAT_PATH"
+  if [ $? -ne 0 ]; then
+    do_failure $"Failed to make stat directory ($STAT_PATH)"
+    exit 1
   fi
-
-  rm -rf /var/run/systemtap
 fi
+
+# Create pidfiles for running boot-time scripts
+for srv in $( grep -rl 'running' /proc/systemtap/*/srvstat 2>/dev/null | awk -F\/ '{print $4}' )
+do
+  if [ ! -f "$STAT_PATH/$srv" ]; then
+    echo "0" > "$STAT_PATH/$srv"
+  fi
+done
 
 #------------------------------------------------------------------
 # Main routine
@@ -495,7 +490,8 @@ compile_script () { # script checkcache
     return 1
   fi
   pushd "$tmpdir" &> /dev/null
-  logex $STAP -m "$1" -p4 -r $KRELEASE --save-uprobes $opts "$f"
+  logex $STAP -E "probe procfs(\"srvstat\").read {\$value = \"running\n\"}" \
+    -m "$1" -p4 -r $KRELEASE --save-uprobes $opts "$f"
   ret=$?
   if [ $ret -eq 0 ]; then
     if [ -f "uprobes/uprobes.ko" ]; then

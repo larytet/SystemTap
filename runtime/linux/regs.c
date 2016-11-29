@@ -312,6 +312,137 @@ static void _stp_print_regs(struct pt_regs * regs)
 	_stp_printf("\n");
 }
 
+#elif defined (__mips__)
+/*
+ * MIPS_CPU_ISA_I was removed from the kernel (3.11) by
+ * Commit: 1990e5429c21 ("MIPS: Get rid of MIPS I flag and test macros.")
+ */
+#ifndef MIPS_CPU_ISA_I
+#define IS_CPU_ISA_MIPS_I(x) (!((x) & (MIPS_CPU_ISA_32BIT | MIPS_CPU_ISA_64BIT)))
+#else 
+#define IS_CPU_ISA_MIPS_I(x) ((x) == MIPS_CPU_ISA_I)
+#endif
+/*
+ * Only o32 application has 32bit registers. N32 and N64 both
+ * should use 64bit registers regardless of pointer size
+ */
+static int _stp_probing_app_with_32bit_regs(struct pt_regs *regs)
+{
+	if (!regs)
+		return 0;
+	return (user_mode(regs) &&
+			test_tsk_thread_flag(current, TIF_32BIT_REGS));
+}
+
+void _stp_print_regs(struct pt_regs * regs)
+{
+#ifdef MIPS_PRINT_REGS_SHOW_SYMBOLS
+	/* it is too much stack to do symbol translation by default */
+	char symbol_name[KSYM_SYMBOL_LEN];
+#endif /* MIPS_PRINT_REGS_SHOW_SYMBOLS */
+	const int field = 2 * sizeof(unsigned long);
+	unsigned int cause = regs->cp0_cause;
+	int i;
+
+#ifdef CONFIG_SMP
+	_stp_printf("Cpu %d\n", smp_processor_id());
+#endif
+
+	/*
+	 * Saved main processor registers
+	 */
+	for (i = 0; i < 32;) {
+		if ((i % 4) == 0)
+			_stp_printf("$%2d   :", i);
+		if (i == 0)
+			_stp_printf(" %0*lx", field, 0UL);
+		else if (i == 26 || i == 27)
+			_stp_printf(" %*s", field, "");
+		else
+			_stp_printf(" %0*lx", field, regs->regs[i]);
+
+		i++;
+		if ((i % 4) == 0)
+			_stp_printf("\n");
+	}
+
+	/* Hi and Lo don't exist for R6 */
+	if (current_cpu_data.isa_level != MIPS_CPU_ISA_M32R6
+		&& current_cpu_data.isa_level != MIPS_CPU_ISA_M64R6) {
+		_stp_printf("Hi    : %0*lx\n", field, regs->hi);
+		_stp_printf("Lo    : %0*lx\n", field, regs->lo);
+	}
+
+	/*
+	 * Saved cp0 registers
+	 */
+	_stp_printf("epc   : %0*lx ", field, regs->cp0_epc);
+#ifdef MIPS_PRINT_REGS_SHOW_SYMBOLSx
+	sprint_symbol(symbol_name, regs->cp0_epc);
+	_stp_printf("%s ", symbol_name);
+#endif /* MIPS_PRINT_REGS_SHOW_SYMBOLS */
+
+	_stp_printf("ra    : %0*lx ", field, regs->regs[31]);
+#ifdef MIPS_PRINT_REGS_SHOW_SYMBOLS
+	sprint_symbol(symbol_name, regs->regs[31]);
+	_stp_printf("%s", symbol_name);
+#endif /* MIPS_PRINT_REGS_SHOW_SYMBOLS */
+	_stp_printf("\n");
+
+	_stp_printf("Status: %08x    ", (uint32_t) regs->cp0_status);
+
+	if (IS_CPU_ISA_MIPS_I(current_cpu_data.isa_level)) {
+		if (regs->cp0_status & ST0_KUO)
+			_stp_printf("KUo ");
+		if (regs->cp0_status & ST0_IEO)
+			_stp_printf("IEo ");
+		if (regs->cp0_status & ST0_KUP)
+			_stp_printf("KUp ");
+		if (regs->cp0_status & ST0_IEP)
+			_stp_printf("IEp ");
+		if (regs->cp0_status & ST0_KUC)
+			_stp_printf("KUc ");
+		if (regs->cp0_status & ST0_IEC)
+			_stp_printf("IEc ");
+	} else {
+		if (regs->cp0_status & ST0_KX)
+			_stp_printf("KX ");
+		if (regs->cp0_status & ST0_SX)
+			_stp_printf("SX ");
+		if (regs->cp0_status & ST0_UX)
+			_stp_printf("UX ");
+		switch (regs->cp0_status & ST0_KSU) {
+		case KSU_USER:
+			_stp_printf("USER ");
+			break;
+		case KSU_SUPERVISOR:
+			_stp_printf("SUPERVISOR ");
+			break;
+		case KSU_KERNEL:
+			_stp_printf("KERNEL ");
+			break;
+		default:
+			_stp_printf("BAD_MODE ");
+			break;
+		}
+		if (regs->cp0_status & ST0_ERL)
+			_stp_printf("ERL ");
+		if (regs->cp0_status & ST0_EXL)
+			_stp_printf("EXL ");
+		if (regs->cp0_status & ST0_IE)
+			_stp_printf("IE ");
+	}
+
+	_stp_printf("\n");
+
+	_stp_printf("Cause : %08x\n", cause);
+
+	cause = (((cause) & CAUSEF_EXCCODE) >> CAUSEB_EXCCODE);
+	if (1 <= cause && cause <= 5)
+		_stp_printf("BadVA : %0*lx\n", field, regs->cp0_badvaddr);
+
+	_stp_printf("PrId  : %08x\n", read_c0_prid());
+}
 #endif
 
 

@@ -2242,7 +2242,11 @@ global big[10000],little[5]
 .ESAMPLE
 or denoted with
 .IR %
-to make them wrap-around automatically.
+to make them wrap-around (replace old entries) automatically, as in
+.SAMPLE
+global big%
+.ESAMPLE
+or both.
 .TP
 MAPHASHBIAS
 The number of powers-of-two to add or subtract from the natural size of the

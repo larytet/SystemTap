@@ -371,10 +371,11 @@ keywords: process diagram
 io/deviceseeks.stp - Histograms of Seek Behavior for Each Device
 keywords: disk
 
-  The deviceseeks.stp script generates a histogram showing the
-  frequency of different sized seeks (in sectors) on each device.
+  The deviceseeks.stp script generates a periodic histogram showing the
+  frequency of different sized seeks (in sectors) on each device, or
+  optional given device-name regexp
 
-  # stap deviceseeks.stp -T 1
+  # stap deviceseeks.stp -T 1 sda
 
 
 io/disktop.stp - Summarize Disk Read/Write Traffic
@@ -719,6 +720,12 @@ keywords: security guru
 
 
 security-band-aids/cve-2016-0728.stp - cve-2016-0728 security band-aid
+keywords: security guru
+
+  historical emergency security band-aid, for reference/education only
+
+
+security-band-aids/cve-2016-5195.stp - cve-2016-5195 security band-aid
 keywords: security guru
 
   historical emergency security band-aid, for reference/education only
@@ -2340,6 +2347,17 @@ keywords: regex
   # stap regex.stp -T 1
 
 
+= RETRANSMISSION =
+
+network/tcp_retransmission.stp - print tcp retransmission packet
+keywords: tcp retransmission
+
+  The tcp_retransmission.stp prints out a line for each tcp
+  retransmission packet
+
+  # stap tcp_retransmission.stp -T 1
+
+
 = SCHEDULER =
 
 process/chng_cpu.stp - Monitor Changes in Processor Executing a Task
@@ -2527,6 +2545,12 @@ keywords: security guru
   historical emergency security band-aid, for reference/education only
 
 
+security-band-aids/cve-2016-5195.stp - cve-2016-5195 security band-aid
+keywords: security guru
+
+  historical emergency security band-aid, for reference/education only
+
+
 = SIGNALS =
 
 process/psig.stp - Print Process File Descriptors
@@ -2680,6 +2704,18 @@ keywords: network trace traffic simple
 
 
 = SOCKET =
+
+general/socket-events.stp - Trace Socket Activity of a Process
+keywords: socket syscall
+
+  Prints the life cycle of all sockets associated with a process. This
+  includes bytes and timing. The timing information that is tracked
+  includes event completion relative to the start of said event and the
+  end of the previous event. Currently tracks read, write, recv, send,
+  connect and close.
+
+  # stap socket-events.stp
+
 
 lwtools/accept2close-nd.stp - Show socket lifespan, from accept() to close() (non-debuginfo)
 keywords: network socket
@@ -2917,6 +2953,18 @@ keywords: network statistics
 
 = SYSCALL =
 
+general/socket-events.stp - Trace Socket Activity of a Process
+keywords: socket syscall
+
+  Prints the life cycle of all sockets associated with a process. This
+  includes bytes and timing. The timing information that is tracked
+  includes event completion relative to the start of said event and the
+  end of the previous event. Currently tracks read, write, recv, send,
+  connect and close.
+
+  # stap socket-events.stp
+
+
 io/iotime.stp - Trace Time Spent in Read and Write for Files 
 keywords: profiling syscall io file
 
@@ -3087,6 +3135,15 @@ keywords: network tcp socket guru
   count of cwnd value changes when it is stopped.
 
   # stap -g tcp_init_cwnd.stp -T 1
+
+
+network/tcp_retransmission.stp - print tcp retransmission packet
+keywords: tcp retransmission
+
+  The tcp_retransmission.stp prints out a line for each tcp
+  retransmission packet
+
+  # stap tcp_retransmission.stp -T 1
 
 
 = THREAD =

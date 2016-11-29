@@ -1,0 +1,10 @@
+#! stap -p4
+
+probe process("stap").function("main").return
+{
+   println(@defined(@perf("foo")),
+   	   $argv, // should trigger warning
+   	   @entry($argv),
+	   @defined($no_such_var),
+	   @defined(@entry($no_such_var)))
+}

@@ -689,6 +689,7 @@ avahi_LIBS
 avahi_CFLAGS
 BUILD_SERVER_FALSE
 BUILD_SERVER_TRUE
+dracutbindir
 dracutstap
 HAVE_NSS_FALSE
 HAVE_NSS_TRUE
@@ -891,6 +892,7 @@ enable_refdocs
 enable_htmldocs
 with_nss
 with_dracutstap
+with_dracutbindir
 enable_server
 with_avahi
 with_rpm
@@ -1597,6 +1599,7 @@ Optional Packages:
   --without-libintl-prefix     don't search for libintl in includedir and libdir
   --without-nss           Do not use NSS even if present
   --with-dracutstap=DIR   Install dracut module files in DIR
+  --with-dracutbindir=DIR Use the dracut binary located in DIR
   --without-avahi         Do not use Avahi even if present
   --with-rpm              query rpm database for missing debuginfos
   --with-python3          prefer /usr/bin/python3
@@ -10729,6 +10732,21 @@ fi
 $as_echo "$as_me: using dracut module directory $dracutstap" >&6;}
 
 
+
+# Check whether --with-dracutbindir was given.
+if test "${with_dracutbindir+set}" = set; then :
+  withval=$with_dracutbindir;
+fi
+
+if test "x$with_dracutbindir" != "x"; then :
+  dracutbindir="$with_dracutbindir"
+else
+  dracutbindir=/sbin
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using dracut binary $dracutbindir" >&5
+$as_echo "$as_me: using dracut binary $dracutbindir" >&6;}
+
+
 # Check whether --enable-server was given.
 if test "${enable_server+set}" = set; then :
   enableval=$enable_server; enable_server=$enableval
@@ -12480,7 +12498,7 @@ STAP_PREFIX="$stap_prefix"
 
 ac_config_headers="$ac_config_headers config.h:config.in"
 
-ac_config_files="$ac_config_files Makefile doc/Makefile man/Makefile man/cs/Makefile doc/beginners/Makefile doc/SystemTap_Tapset_Reference/Makefile man/stap.1 man/stappaths.7 man/systemtap.8 man/cs/stap.1 man/cs/stappaths.7 man/cs/systemtap.8 initscript/config.systemtap initscript/config.stap-server initscript/systemtap initscript/stap-server initscript/99stap/module-setup.sh"
+ac_config_files="$ac_config_files Makefile doc/Makefile man/Makefile man/cs/Makefile doc/beginners/Makefile doc/SystemTap_Tapset_Reference/Makefile man/stap.1 man/stappaths.7 man/systemtap.8 man/cs/stap.1 man/cs/stappaths.7 man/cs/systemtap.8 initscript/config.systemtap initscript/config.stap-server initscript/systemtap initscript/stap-server initscript/99stap/module-setup.sh initscript/99stap/install initscript/99stap/check"
 
 
 
@@ -13380,6 +13398,8 @@ do
     "initscript/systemtap") CONFIG_FILES="$CONFIG_FILES initscript/systemtap" ;;
     "initscript/stap-server") CONFIG_FILES="$CONFIG_FILES initscript/stap-server" ;;
     "initscript/99stap/module-setup.sh") CONFIG_FILES="$CONFIG_FILES initscript/99stap/module-setup.sh" ;;
+    "initscript/99stap/install") CONFIG_FILES="$CONFIG_FILES initscript/99stap/install" ;;
+    "initscript/99stap/check") CONFIG_FILES="$CONFIG_FILES initscript/99stap/check" ;;
     "run-stap") CONFIG_FILES="$CONFIG_FILES run-stap" ;;
     "dtrace") CONFIG_FILES="$CONFIG_FILES dtrace" ;;
     "stapdyn/Makefile") CONFIG_FILES="$CONFIG_FILES stapdyn/Makefile" ;;

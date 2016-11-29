@@ -37,6 +37,7 @@ extern "C" {
 using namespace std;
 
 
+class parser;
 class lexer
 {
 public:
@@ -1623,6 +1624,7 @@ skip:
           n->make_junk(tok_junk_invalid_arg);
           return n;
         }
+      session.used_args[idx-1] = true;
       const string& arg = session.args[idx-1];
       input_put ((c == '$') ? arg : lex_cast_qstring (arg), n);
       token_str.clear();
