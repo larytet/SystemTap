@@ -1,8 +1,4 @@
-/*
- * Analogy to optim_stats1.stp, but for pmaps.  See optim_stats1.stp for comments.
- */
-
-@define RANDCNT %( 200000 %)
+@define RANDCNT %( 4000 %)
 @define RANDMAX %( 1000 %)
 @define ITERS %( 1500 %)
 
@@ -22,7 +18,7 @@ function time() { return gettimeofday_us() }
 
 probe begin
 {
-    /* TEST 1 */
+    /* TEST 1: test optimizations for @count, @sum, @min, and @max. */
 
     for (i=0; i<@ITERS; i++)
     {
@@ -30,6 +26,7 @@ probe begin
 	for (j=0; j<@RANDCNT; j++)
 	    randvals[j] = randint(@RANDMAX)
 
+	/* The "ordering dance" described above happens here */
 	if(i%2)
 	{
 	    @feed(x[1], tx)
@@ -42,17 +39,24 @@ probe begin
 	}
     }
 
+    /*
+     * We need to print the stats out to avoid compiler elision.
+     * The list of stats mentioned below makes the actual difference
+     * between stats under test and is the gist of this test.  The test
+     * should show no measurable shrinkage, if the below list doesn't
+     * differ for measured stats.
+     */
     printdln(" ", "IGNORE", @count(x[1]))
     printdln(" ", "IGNORE", @count(y[1]), @sum(y[1]), @min(y[1]), @max(y[1]))
 
-    shrinkage = (ty-tx)*100/ty
+    /*
+     * Measured shrinkage [%], prevent division by zero caused by
+     * rounding errors
+     */
+    printf("TEST3 %d\n", ((ty-tx)*10000)/(ty*100))
 
-    treshold = 0
 
-    printf("%s test1 (%d)\n", ((shrinkage >= treshold) ? "PASS" : "FAIL"), shrinkage)
-
-
-    /* TEST 2 */
+    /* TEST 2: test optimizations for @variance. */
 
     for (i=0; i<(@ITERS / 4); i++)
     {
@@ -75,11 +79,11 @@ probe begin
     printdln(" ", "IGNORE", @count(a[1]))
     printdln(" ", "IGNORE", @variance(b[1]))
 
-    shrinkage = (tb-ta)*100/tb
-
-    treshold = 20
-
-    printf("%s test2 (%d)\n", ((shrinkage >= treshold) ? "PASS" : "FAIL"), shrinkage)
+    /*
+     * Measured shrinkage [%], prevent division by zero caused by
+     * rounding errors
+     */
+    printf("TEST4 %d\n", ((tb-ta)*10000)/(tb*100))
 
     exit()
 }
