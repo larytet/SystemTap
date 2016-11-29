@@ -11850,6 +11850,9 @@ fi
 have_python3_support=no
 if test "x$with_python3_probes" != "xno"; then :
      pathless_python3=$(basename "$PYTHON3")
+   if test "x${pathless_python3}" == "x"; then
+	pathless_python3="python3"
+   fi
    # Extract the first word of "${pathless_python3}-config", so it can be a program name with args.
 set dummy ${pathless_python3}-config; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5

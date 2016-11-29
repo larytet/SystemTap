@@ -695,6 +695,9 @@ have_python3_support=no
 AS_IF([test "x$with_python3_probes" != "xno"],
   [dnl First, check to make sure we have the 'python3-config' script.
    pathless_python3=$(basename "$PYTHON3")
+   if test "x${pathless_python3}" == "x"; then
+	pathless_python3="python3"   
+   fi
    AC_PATH_PROG([PYTHON3_CONFIG], [${pathless_python3}-config], [no])
    AS_IF([test "x$PYTHON3_CONFIG" != "xno"],
 	 [dnl Use the 'python3-config' script to find the python
