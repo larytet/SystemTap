@@ -337,6 +337,27 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 	ls->tok = e->tok;
 	fcall->args.push_back(ls);
 
+	// Here we try to handle array indexing. Note that we can't
+	// really know if the python variable type supports array
+	// indexing at compile time. If the python variable type
+	// doesn't support array indexing, the user will get an error
+	// at runtime.
+	const target_symbol::component* c =
+	  e->components.empty() ? NULL : &e->components[0];
+	if (c)
+	  {
+	    if (c->type == target_symbol::comp_literal_array_index)
+	      {
+		literal_number* ln = new literal_number(c->num_index);
+		ln->tok = e->tok;
+		fcall->args.push_back(ln);
+	      }
+	    else if (c->type == target_symbol::comp_expression_array_index)
+	      throw SEMANTIC_ERROR(_("unhandled expression array indexing"));
+	    else
+	      throw SEMANTIC_ERROR(_("unhandled array indexing type"));
+	  }
+
 	provide (fcall);
 	return;
       }

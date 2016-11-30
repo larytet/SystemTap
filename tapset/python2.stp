@@ -547,11 +547,44 @@ private function Py2Dict_GetItem:long(op:long, key:string)
     n = @Py2DictObject(op)->ma_mask;
     for (i = 0; i < n; i++) {
 	entry_ptr = &@Py2DictObject(op)->ma_table[i]
-	if (entry_ptr->me_key == 0 || entry_ptr->me_value == 0
-	    || ! @Py2String_Check(entry_ptr->me_key))
+	if (@Py2DictEntry(entry_ptr)->me_key == 0
+	    || @Py2DictEntry(entry_ptr)->me_value == 0
+	    || ! @Py2String_Check(@Py2DictEntry(entry_ptr)->me_key))
 	   continue
-	if (Py2String_AsString(entry_ptr->me_key) == key)
-	   return entry_ptr->me_value
+	if (Py2String_AsString(@Py2DictEntry(entry_ptr)->me_key) == key)
+	   return @Py2DictEntry(entry_ptr)->me_value
+    }
+    return 0
+}
+
+# This function isn't really based on a function in dictobject.c, but
+# it is based on Py2Dict_GetItem().
+private function Py2Dict_GetItem_FromLong:long(op:long, key:long)
+{
+    if (!@Py2Dict_Check(op)) {
+	error(sprintf("Py2Dict_GetItem called on %s object at %p\n",
+		      python2_get_typename(op), @__pointer(op)))
+        return 0
+    }
+    // We'd like to hash 'key' here, but we can't (easily). Python
+    // randomizes its hash function at python process startup. So,
+    // instead of hashing the key and then searching for that hash in
+    // the dictionary, we'll do a linear search of the dictionary for
+    // the key.
+    n = @Py2DictObject(op)->ma_mask;
+    for (i = 0; i < n; i++) {
+	entry_ptr = &@Py2DictObject(op)->ma_table[i]
+	if (@Py2DictEntry(entry_ptr)->me_key == 0
+	    || @Py2DictEntry(entry_ptr)->me_value == 0
+	    || (! @Py2Int_Check(@Py2DictEntry(entry_ptr)->me_key)
+		&& ! @Py2Long_Check(@Py2DictEntry(entry_ptr)->me_key)))
+	   continue
+	if ((@Py2Int_Check(@Py2DictEntry(entry_ptr)->me_key)
+	     && @Py2Int_AS_LONG(@Py2DictEntry(entry_ptr)->me_key) == key)
+	    || (@Py2Long_Check(@Py2DictEntry(entry_ptr)->me_key)
+		&& Py2Long_AsLongLong(@Py2DictEntry(entry_ptr)->me_key)
+		== key))
+	   return @Py2DictEntry(entry_ptr)->me_value
     }
     return 0
 }
@@ -571,15 +604,16 @@ private function Py2Dict_Repr:string(object:long)
     first = 1
     for (i = 0; i < n; i++) {
 	entry_ptr = &@Py2DictObject(object)->ma_table[i]
-	if (entry_ptr->me_key == 0 || entry_ptr->me_value == 0)
+	if (@Py2DictEntry(entry_ptr)->me_key == 0
+	    || @Py2DictEntry(entry_ptr)->me_value == 0)
 	   continue
 
 	if (! first)
 	    retstr .= " "
 	first = 0
-	retstr .= Py2Object_Repr(entry_ptr->me_key)
+	retstr .= Py2Object_Repr(@Py2DictEntry(entry_ptr)->me_key)
 	retstr .= ":"
-	retstr .= Py2Object_Repr(entry_ptr->me_value)
+	retstr .= Py2Object_Repr(@Py2DictEntry(entry_ptr)->me_value)
     }
     retstr .= "}"
     return retstr
@@ -609,6 +643,26 @@ private function Py2Object_Repr:string(object:long)
 		   @__pointer(object))
 }
 
+# This function isn't really based on a function in object.c, but
+# it is based on Py2Object_Repr().
+private function Py2Object_Repr:string(object:long, index:long)
+{
+    if (object == 0)
+	return "<NULL>"
+    if (@Py2String_Check(object))
+	return sprintf("\"%c\"", stringat(Py2String_AsString(object), index))
+    if (@Py2Tuple_Check(object))
+	return Py2Object_Repr(Py2Tuple_GetItem(object, index))
+    if (@Py2List_Check(object))
+	return Py2Object_Repr(Py2List_GetItem(object, index))
+    if (@Py2Dict_Check(object))
+	return Py2Object_Repr(Py2Dict_GetItem_FromLong(object, index))
+
+    error(sprintf("TypeError: '%s' object cannot be indexed",
+	  python2_get_typename(object)))
+    return ""
+}
+
 #
 # Systemtap support functions for python 2.
 #
@@ -629,9 +683,9 @@ function python2_print_backtrace:long(frame:long)
     printf("Traceback (most recent call first):\n")
     while (frame != 0) {
 	lineno = Py2Frame_GetLineNumber(frame)
-	code = @Py2FrameObject(frame)->f_code
-	filename = Py2String_AsString(code->co_filename)
-	name = Py2String_AsString(code->co_name)
+	f_code = @Py2FrameObject(frame)->f_code
+	filename = Py2String_AsString(@Py2CodeObject(f_code)->co_filename)
+	name = Py2String_AsString(@Py2CodeObject(f_code)->co_name)
 
 	# Quit when we make it back to the HelperSDT module.
 	if (isinstr(filename, "/HelperSDT/"))
@@ -663,9 +717,9 @@ function python2_sprint_backtrace:string(frame:long)
     retstr = "Traceback (most recent call first):\n"
     while (frame != 0) {
 	lineno = Py2Frame_GetLineNumber(frame)
-	code = @Py2FrameObject(frame)->f_code
-	filename = Py2String_AsString(code->co_filename)
-	name = Py2String_AsString(code->co_name)
+	f_code = @Py2FrameObject(frame)->f_code
+	filename = Py2String_AsString(@Py2CodeObject(f_code)->co_filename)
+	name = Py2String_AsString(@Py2CodeObject(f_code)->co_name)
 
 	# Quit when we make it back to the HelperSDT module.
 	if (isinstr(filename, "/HelperSDT/"))
@@ -714,13 +768,13 @@ function python2_get_locals:string(frame:long, flags:long)
     # flags == 2: get all variables
     if (flags == 2) {		
 	i = 0
-	n = f_code->co_nlocals
+	n = @Py2CodeObject(f_code)->co_nlocals
     }
     else {
-	n = f_code->co_argcount
-	if (f_code->co_flags & %{ Py2_CO_VARARGS %})
+	n = @Py2CodeObject(f_code)->co_argcount
+	if (@Py2CodeObject(f_code)->co_flags & %{ Py2_CO_VARARGS %})
 	    n++
-	if (f_code->co_flags & %{ Py2_CO_VARKEYWORDS %})
+	if (@Py2CodeObject(f_code)->co_flags & %{ Py2_CO_VARKEYWORDS %})
 	    n++
 
 	# flags == 0 (parms only): 0 to n (argcount)
@@ -729,7 +783,7 @@ function python2_get_locals:string(frame:long, flags:long)
 	# flags == 1 (locals only): n (argcount) to max
 	else if (flags == 1) {
 	    i = n
-	    n = f_code->co_nlocals
+	    n = @Py2CodeObject(f_code)->co_nlocals
 	}
     }
     if (i < 0 || i > n) {
@@ -739,7 +793,7 @@ function python2_get_locals:string(frame:long, flags:long)
 	    
     # Each element in co_varnames is a tuple of strings. The values
     # are in f_localsplus.
-    p = f_code->co_varnames
+    p = @Py2CodeObject(f_code)->co_varnames
     localsplus = @Py2FrameObject(frame)->f_localsplus
     first = 1
     for (; i < n; i++) {
@@ -757,11 +811,11 @@ function python2_get_locals:string(frame:long, flags:long)
 function python2_get_variable:string(frame:long, var:string)
 {
     f_code = @Py2FrameObject(frame)->f_code
-    n = f_code->co_nlocals
+    n = @Py2CodeObject(f_code)->co_nlocals
 	    
     # Each element in co_varnames is a tuple of strings. The values
     # are in f_localsplus.
-    p = f_code->co_varnames
+    p = @Py2CodeObject(f_code)->co_varnames
     localsplus = @Py2FrameObject(frame)->f_localsplus
     for (i = 0; i < n; i++) {
 	key_obj = Py2Tuple_GetItem(p, i)
@@ -779,4 +833,31 @@ function python2_get_variable:string(frame:long, var:string)
 	return ""
     }
     return Py2Object_Repr(value)
+}
+
+function python2_get_variable:string(frame:long, var:string, index:long)
+{
+    f_code = @Py2FrameObject(frame)->f_code
+    n = @Py2CodeObject(f_code)->co_nlocals
+	    
+    # Each element in co_varnames is a tuple of strings. The values
+    # are in f_localsplus.
+    p = @Py2CodeObject(f_code)->co_varnames
+    localsplus = @Py2FrameObject(frame)->f_localsplus
+    for (i = 0; i < n; i++) {
+	key_obj = Py2Tuple_GetItem(p, i)
+	if (var == Py2String_AsString(key_obj)) {
+	    value_obj = user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
+	    return Py2Object_Repr(value_obj, index)
+	}
+    }
+
+    # If we can't find it in the locals, we look in the globals.
+    f_globals = @Py2FrameObject(frame)->f_globals
+    value_obj = Py2Dict_GetItem(f_globals, var)
+    if (value_obj == 0) {
+	error(sprintf("Python variable '%s' cannot be found\n", var))
+	return ""
+    }
+    return Py2Object_Repr(value_obj, index)
 }

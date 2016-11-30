@@ -663,6 +663,46 @@ private function Py3Dict_GetItem:long(op:long, key:string)
     return 0
 }
 
+# This function isn't really based on a function in dictobject.c, but
+# it is based on Py3Dict_GetItem().
+private function Py3Dict_GetItem_FromLong:long(op:long, key:long)
+{
+    if (!@Py3Dict_Check(op)) {
+	error(sprintf("Py3Dict_GetItem called on %s object at %p\n",
+		      python3_get_typename(op), @__pointer(op)))
+        return 0
+    }
+
+    // See Py3Dict_GetItem() for details on dicts.
+
+    // If we've got a split table...
+    if (@Py3DictObject(op)->ma_values != 0) {
+        n = @Py3DictObject(op)->ma_used
+	for (i = 0; i < n; i++) {
+	    entry_ptr = &@DK_ENTRIES(@Py3DictObject(op)->ma_keys)[i]
+	    if (entry_ptr->me_key == 0
+		|| ! @Py3Long_Check(entry_ptr->me_key))
+		continue
+	    if (Py3Long_AsLongLong(entry_ptr->me_key) == key)
+		return @Py3DictObject(op)->ma_values[i]
+	}
+    }
+    // If we've got a combined table...
+    else {
+	n = @choose_defined(@Py3DictObject(op)->ma_keys->dk_nentries,
+			    @DK_SIZE(@Py3DictObject(op)->ma_keys))
+	for (i = 0; i < n; i++) {
+	    entry_ptr = &@DK_ENTRIES(@Py3DictObject(op)->ma_keys)[i]
+	    if (entry_ptr->me_key == 0 || entry_ptr->me_value == 0
+		|| ! @Py3Long_Check(entry_ptr->me_key))
+		continue
+	    if (Py3Long_AsLongLong(entry_ptr->me_key) == key)
+		return entry_ptr->me_value
+	}
+    }
+    return 0
+}
+
 private function Py3Dict_Repr:string(object:long)
 {
     if (!@Py3Dict_Check(object)) {
@@ -739,6 +779,27 @@ private function Py3Object_Repr:string(object:long)
 	return Py3Dict_Repr(object)
     return sprintf("<%s object at %p>", python3_get_typename(object),
 		   @__pointer(object))
+}
+
+# This function isn't really based on a function in object.c, but
+# it is based on Py3Object_Repr().
+private function Py3Object_Repr:string(object:long, index:long)
+{
+    if (object == 0)
+	return "<NULL>"
+    if (@Py3Unicode_Check(object))
+	return sprintf("\"%c\"", stringat(Py3Unicode_AsASCIIString(object),
+					  index))
+    if (@Py3Tuple_Check(object))
+	return Py3Object_Repr(Py3Tuple_GetItem(object, index))
+    if (@Py3List_Check(object))
+	return Py3Object_Repr(Py3List_GetItem(object, index))
+    if (@Py3Dict_Check(object))
+	return Py3Object_Repr(Py3Dict_GetItem_FromLong(object, index))
+
+    error(sprintf("TypeError: '%s' object cannot be indexed",
+	  python3_get_typename(object)))
+    return ""
 }
 
 #
@@ -912,4 +973,31 @@ function python3_get_variable:string(frame:long, var:string)
 	return ""
     }
     return Py3Object_Repr(value)
+}
+
+function python3_get_variable:string(frame:long, var:string, index:long)
+{
+    f_code = @Py3FrameObject(frame)->f_code
+    n = @Py3CodeObject(f_code)->co_nlocals
+	    
+    # Each element in co_varnames is a tuple of strings. The values
+    # are in f_localsplus.
+    p = @Py3CodeObject(f_code)->co_varnames
+    localsplus = @Py3FrameObject(frame)->f_localsplus
+    for (i = 0; i < n; i++) {
+	key_obj = Py3Tuple_GetItem(p, i)
+	if (var == Py3Unicode_AsASCIIString(key_obj)) {
+	    value_obj = user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
+	    return Py3Object_Repr(value_obj, index)
+	}
+    }
+
+    # If we can't find it in the locals, we look in the globals.
+    f_globals = @Py3FrameObject(frame)->f_globals
+    value_obj = Py3Dict_GetItem(f_globals, var)
+    if (value_obj == 0) {
+	error(sprintf("Python variable '%s' cannot be found\n", var))
+	return ""
+    }
+    return Py3Object_Repr(value_obj, index)
 }
