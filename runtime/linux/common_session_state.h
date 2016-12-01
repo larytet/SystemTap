@@ -53,6 +53,7 @@ static struct stp_globals stp_global;
 #define global_lock_init(name)	rwlock_init(global_lock(name))
 #ifdef STP_TIMING
 #define global_skipped(name)	(&global(name ## _lock_skip_count))
+#define global_contended(name)	(&global(name ## _lock_contention_count))
 #endif
 
 
@@ -73,8 +74,8 @@ static int stp_session_init(void)
 	for (i = 0; i < STP_PROBE_COUNT; ++i)
 		// NB: we don't check for null return here, but instead at
 		// passage to probe handlers and at final printing.
-		g_probe_timing[i] = _stp_stat_init(STAT_OP_MIN, STAT_OP_MAX, STAT_OP_AVG, NULL);
-	g_refresh_timing = _stp_stat_init(STAT_OP_MIN, STAT_OP_MAX, STAT_OP_AVG, NULL);
+	        g_probe_timing[i] = _stp_stat_init(STAT_OP_MIN, STAT_OP_MAX, STAT_OP_AVG, STAT_OP_VARIANCE, 0, NULL);
+	g_refresh_timing = _stp_stat_init(STAT_OP_MIN, STAT_OP_MAX, STAT_OP_AVG, STAT_OP_VARIANCE, 0, NULL);
 #endif
 
 	return 0;
