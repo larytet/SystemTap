@@ -460,6 +460,10 @@ python_builder::build(systemtap_session & sess, probe * base,
       // Create a new probe point location.
       probe_point *pp = new probe_point (*location);
 
+      // The new probe point location will have all wildcards
+      // expanded, so the new location is well-formed.
+      pp->well_formed = true;
+
       // Create a new 'module' component.
       probe_point::component* ppc
 	  = new probe_point::component (TOK_MODULE,
@@ -601,7 +605,7 @@ python_builder::build(systemtap_session & sess, probe * base,
 
       // Link this main probe back to the original base, with an
       // additional probe intermediate to catch probe listing.
-      mark_probe->base = new probe(base, location);
+      mark_probe->base = new probe(base, pp);
 
       // Note that order *is* important here. We want to expand python
       // variable requests in the probe body first, then expand python
