@@ -207,10 +207,11 @@ def _find_wildcarded_modules(modpattern, path=None):
             # since the loop above should only return full paths.
             raise ImportError('Unhandled package directory ' + fm)
         elif descr[2] == imp.C_BUILTIN:
-            raise ImportError('No python source for builtin module ' + fm)
+            # Just ignore 
+            continue
         elif descr[2] == imp.C_EXTENSION:
-            raise ImportError('No python source for C extension module '
-                              + fm)
+            # Just ignore 
+            continue
         else:
             raise ImportError('Unknown descr: %d for module' %
                               descr[2], fm)
@@ -349,6 +350,9 @@ def resolve_patterns(module_pattern, function_pattern):
 
     if _verbose:
         _eprint("modpattern_list: %s" % modpattern_list)
+    ret_list = []
+    ret_list_format = '%s %s@%s:%d'
+    ret_list_flag_format = '%s %s@%s:%d %s'
     for (mp, p) in modpattern_list:
         # Try to load the source for the module(s).
         if _verbose:
@@ -356,9 +360,6 @@ def resolve_patterns(module_pattern, function_pattern):
         results = _find_wildcarded_modules(mp, p)
         if _verbose:
             _eprint('_find_wildcarded_modules() returned %s' % results)
-        ret_list = []
-        ret_list_format = '%s %s@%s:%d'
-        ret_list_flag_format = '%s %s@%s:%d %s'
         for (module, f, filename, descr) in results:
             if _verbose:
                 _eprint("Loading source for module '%s'" % module)
