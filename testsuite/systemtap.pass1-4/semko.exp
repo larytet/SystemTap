@@ -25,7 +25,11 @@ foreach runtime [get_runtime_list] {
 		    # version of vfs_read() doesn't exist. One does
 		    # exist on 3.10.0-327.el7.ppc64.
 		    set pp "kernel.function(\"vfs_read\").inline"
-		    if {![catch {exec stap -l ${pp} 2>&1} dummy]} {
+
+		    # Notice we are using the tcl 'exec' command
+		    # redirection of '2>@1', which is equivalent to
+		    # the shell's '2>&1'.
+		    if {![catch {exec stap -l ${pp} 2>@1} dummy]} {
 			untested $test; continue } }
 	    }
 	    
