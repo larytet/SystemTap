@@ -545,7 +545,7 @@ private function Py2Dict_GetItem:long(op:long, key:string)
     // the dictionary, we'll do a linear search of the dictionary for
     // the key.
     n = @Py2DictObject(op)->ma_mask;
-    for (i = 0; i < n; i++) {
+    for (i = 0; i <= n; i++) {
 	entry_ptr = &@Py2DictObject(op)->ma_table[i]
 	if (@Py2DictEntry(entry_ptr)->me_key == 0
 	    || @Py2DictEntry(entry_ptr)->me_value == 0
@@ -572,7 +572,7 @@ private function Py2Dict_GetItem_FromLong:long(op:long, key:long)
     // the dictionary, we'll do a linear search of the dictionary for
     // the key.
     n = @Py2DictObject(op)->ma_mask;
-    for (i = 0; i < n; i++) {
+    for (i = 0; i <= n; i++) {
 	entry_ptr = &@Py2DictObject(op)->ma_table[i]
 	if (@Py2DictEntry(entry_ptr)->me_key == 0
 	    || @Py2DictEntry(entry_ptr)->me_value == 0
@@ -602,7 +602,7 @@ private function Py2Dict_Repr:string(object:long)
 
     retstr = "{"
     first = 1
-    for (i = 0; i < n; i++) {
+    for (i = 0; i <= n; i++) {
 	entry_ptr = &@Py2DictObject(object)->ma_table[i]
 	if (@Py2DictEntry(entry_ptr)->me_key == 0
 	    || @Py2DictEntry(entry_ptr)->me_value == 0)
