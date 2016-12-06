@@ -603,9 +603,13 @@ python_builder::build(systemtap_session & sess, probe * base,
 	throw SEMANTIC_ERROR (_("can't create python call mark probe"),
 			      tok);
 
-      // Link this main probe back to the original base, with an
+      // Note we're operating on a copy of the base, because we might
+      // need to do the expansion several times.
+      probe *base_copy = new probe(base, pp);
+
+      // Link this main probe back to the original base copy, with an
       // additional probe intermediate to catch probe listing.
-      mark_probe->base = new probe(base, pp);
+      mark_probe->base = new probe(base_copy, pp);
 
       // Note that order *is* important here. We want to expand python
       // variable requests in the probe body first, then expand python
@@ -613,13 +617,13 @@ python_builder::build(systemtap_session & sess, probe * base,
       // as the python frame pointer, and we don't want the python
       // variable exander to find those maker argument references.
       python_var_expanding_visitor pvev (sess, python_version);
-      pvev.replace (base->body);
+      pvev.replace (base_copy->body);
       
       python_functioncall_expanding_visitor v (sess, python_version);
-      v.replace (base->body);
+      v.replace (base_copy->body);
 
-      // Splice base->body in after the parsed body
-      mark_probe->body = new block(mark_probe->body, base->body);
+      // Splice base_copy->body in after the parsed body
+      mark_probe->body = new block(mark_probe->body, base_copy->body);
       derive_probes(sess, mark_probe, finished_results);
 
       // Create a python_derived_probe, but don't return it in
