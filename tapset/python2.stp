@@ -207,7 +207,7 @@ private function Py2Int_AsLong:long(op:long)
 {
     if (op && @Py2Int_Check(op))
 	return @Py2Int_AS_LONG(op)
-    error(sprintf("Py2Int_AsLong called on %s object at %p\n",
+    error(sprintf("Py2Int_AsLong called on %s object at %p",
 		  python2_get_typename(op), @__pointer(op)))
     return -1
 }
@@ -347,7 +347,7 @@ private function Py2Long_AsLongLongAndOverflow_Big:long(v:long)
 private function Py2Long_AsLongLong:long(v:long)
 {
     if (! @Py2Long_Check(v)) {    
-	error(sprintf("Py2Long_AsLong called on %s object at %p\n",
+	error(sprintf("Py2Long_AsLong called on %s object at %p",
 	      python2_get_typename(v), @__pointer(v)))
 	return -1
     }
@@ -453,7 +453,7 @@ private function Py2Frame_GetLineNumber:long(frame:long)
 private function Py2Tuple_GetItem:long(op:long, i:long)
 {
     if (!@Py2Tuple_Check(op)) {
-	error(sprintf("Py2Tuple_GetItem called on %s object at %p\n",
+	error(sprintf("Py2Tuple_GetItem called on %s object at %p",
 		      python2_get_typename(op), @__pointer(op)))
 	return 0
     }
@@ -467,7 +467,7 @@ private function Py2Tuple_GetItem:long(op:long, i:long)
 private function Py2Tuple_Repr:string(object:long)
 {
     if (!@Py2Tuple_Check(object)) {
-	error(sprintf("Py2Tuple_Repr called on %s object at %p\n",
+	error(sprintf("Py2Tuple_Repr called on %s object at %p",
 		      python2_get_typename(object), @__pointer(object)))
 	return ""
     }
@@ -494,7 +494,7 @@ private function Py2Tuple_Repr:string(object:long)
 private function Py2List_GetItem:long(op:long, i:long)
 {
     if (!@Py2List_Check(op)) {
-	error(sprintf("Py2List_GetItem called on %s object at %p\n",
+	error(sprintf("Py2List_GetItem called on %s object at %p",
 		      python2_get_typename(op), @__pointer(op)))
         return 0
     }
@@ -508,7 +508,7 @@ private function Py2List_GetItem:long(op:long, i:long)
 private function Py2List_Repr:string(object:long)
 {
     if (!@Py2List_Check(object)) {
-	error(sprintf("Py2List_Repr called on %s object at %p\n",
+	error(sprintf("Py2List_Repr called on %s object at %p",
 		      python2_get_typename(object), @__pointer(object)))
 	return ""
     }
@@ -535,7 +535,7 @@ private function Py2List_Repr:string(object:long)
 private function Py2Dict_GetItem:long(op:long, key:string)
 {
     if (!@Py2Dict_Check(op)) {
-	error(sprintf("Py2Dict_GetItem called on %s object at %p\n",
+	error(sprintf("Py2Dict_GetItem called on %s object at %p",
 		      python2_get_typename(op), @__pointer(op)))
         return 0
     }
@@ -562,7 +562,7 @@ private function Py2Dict_GetItem:long(op:long, key:string)
 private function Py2Dict_GetItem_FromLong:long(op:long, key:long)
 {
     if (!@Py2Dict_Check(op)) {
-	error(sprintf("Py2Dict_GetItem called on %s object at %p\n",
+	error(sprintf("Py2Dict_GetItem called on %s object at %p",
 		      python2_get_typename(op), @__pointer(op)))
         return 0
     }
@@ -592,7 +592,7 @@ private function Py2Dict_GetItem_FromLong:long(op:long, key:long)
 private function Py2Dict_Repr:string(object:long)
 {
     if (!@Py2Dict_Check(object)) {
-	error(sprintf("Py2Dict_Repr called on %s object at %p\n",
+	error(sprintf("Py2Dict_Repr called on %s object at %p",
 		      python2_get_typename(object), @__pointer(object)))
 	return ""
     }
@@ -829,7 +829,7 @@ function python2_get_variable:string(frame:long, var:string)
     f_globals = @Py2FrameObject(frame)->f_globals
     value = Py2Dict_GetItem(f_globals, var)
     if (value == 0) {
-	error(sprintf("Python variable '%s' cannot be found\n", var))
+	error(sprintf("Python variable '%s' cannot be found", var))
 	return ""
     }
     return Py2Object_Repr(value)
@@ -856,7 +856,7 @@ function python2_get_variable:string(frame:long, var:string, index:long)
     f_globals = @Py2FrameObject(frame)->f_globals
     value_obj = Py2Dict_GetItem(f_globals, var)
     if (value_obj == 0) {
-	error(sprintf("Python variable '%s' cannot be found\n", var))
+	error(sprintf("Python variable '%s' cannot be found", var))
 	return ""
     }
     return Py2Object_Repr(value_obj, index)

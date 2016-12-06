@@ -387,7 +387,7 @@ private function Py3Long_AsLongLongAndOverflow_Big:long(v:long)
 private function Py3Long_AsLongLong:long(v:long)
 {
     if (! @Py3Long_Check(v)) {    
-	error(sprintf("Py3Long_AsLong called on %s object at %p\n",
+	error(sprintf("Py3Long_AsLong called on %s object at %p",
 	      python3_get_typename(v), v))
 	return -1
     }
@@ -507,7 +507,7 @@ private function Py3Frame_GetLineNumber:long(frame:long)
 private function Py3Tuple_GetItem:long(op:long, i:long)
 {
     if (!@Py3Tuple_Check(op)) {
-	error(sprintf("Py3Tuple_GetItem called on %s object at %p\n",
+	error(sprintf("Py3Tuple_GetItem called on %s object at %p",
 		      python3_get_typename(op), op))
 	return 0
     }
@@ -521,7 +521,7 @@ private function Py3Tuple_GetItem:long(op:long, i:long)
 private function Py3Tuple_Repr:string(object:long)
 {
     if (!@Py3Tuple_Check(object)) {
-	error(sprintf("Py3Tuple_Repr called on %s object at %p\n",
+	error(sprintf("Py3Tuple_Repr called on %s object at %p",
 		      python3_get_typename(object), object))
 	return ""
     }
@@ -547,7 +547,7 @@ private function Py3Tuple_Repr:string(object:long)
 private function Py3List_GetItem:long(op:long, i:long)
 {
     if (!@Py3List_Check(op)) {
-	error(sprintf("Py3List_GetItem called on %s object at %p\n",
+	error(sprintf("Py3List_GetItem called on %s object at %p",
 		      python3_get_typename(op), op))
         return 0
     }
@@ -561,7 +561,7 @@ private function Py3List_GetItem:long(op:long, i:long)
 private function Py3List_Repr:string(object:long)
 {
     if (!@Py3List_Check(object)) {
-	error(sprintf("Py3List_Repr called on %s object at %p\n",
+	error(sprintf("Py3List_Repr called on %s object at %p",
 		      python3_get_typename(object), object))
 	return ""
     }
@@ -613,7 +613,7 @@ private function Py3List_Repr:string(object:long)
 private function Py3Dict_GetItem:long(op:long, key:string)
 {
     if (!@Py3Dict_Check(op)) {
-	error(sprintf("Py3Dict_GetItem called on %s object at %p\n",
+	error(sprintf("Py3Dict_GetItem called on %s object at %p",
 		      python3_get_typename(op), @__pointer(op)))
         return 0
     }
@@ -668,7 +668,7 @@ private function Py3Dict_GetItem:long(op:long, key:string)
 private function Py3Dict_GetItem_FromLong:long(op:long, key:long)
 {
     if (!@Py3Dict_Check(op)) {
-	error(sprintf("Py3Dict_GetItem called on %s object at %p\n",
+	error(sprintf("Py3Dict_GetItem called on %s object at %p",
 		      python3_get_typename(op), @__pointer(op)))
         return 0
     }
@@ -706,7 +706,7 @@ private function Py3Dict_GetItem_FromLong:long(op:long, key:long)
 private function Py3Dict_Repr:string(object:long)
 {
     if (!@Py3Dict_Check(object)) {
-	error(sprintf("Py3Dict_Repr called on %s object at %p\n",
+	error(sprintf("Py3Dict_Repr called on %s object at %p",
 		      python3_get_typename(object), @__pointer(object)))
 	return ""
     }
@@ -969,7 +969,7 @@ function python3_get_variable:string(frame:long, var:string)
     f_globals = @Py3FrameObject(frame)->f_globals
     value = Py3Dict_GetItem(f_globals, var)
     if (value == 0) {
-        error(sprintf("Python variable '%s' cannot be found\n", var))
+        error(sprintf("Python variable '%s' cannot be found", var))
 	return ""
     }
     return Py3Object_Repr(value)
@@ -996,7 +996,7 @@ function python3_get_variable:string(frame:long, var:string, index:long)
     f_globals = @Py3FrameObject(frame)->f_globals
     value_obj = Py3Dict_GetItem(f_globals, var)
     if (value_obj == 0) {
-	error(sprintf("Python variable '%s' cannot be found\n", var))
+	error(sprintf("Python variable '%s' cannot be found", var))
 	return ""
     }
     return Py3Object_Repr(value_obj, index)
