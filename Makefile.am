@@ -12,7 +12,6 @@ AM_CPPFLAGS = -DBINDIR='"$(bindir)"' \
 	      -DPKGDATADIR='"$(pkgdatadir)"' \
 	      -DPKGLIBDIR='"$(pkglibexecdir)"' \
 	      -DLOCALEDIR='"$(localedir)"' \
-              -DDOCDIR='"$(docdir)"' \
 	      -I$(srcdir)/includes -I$(builddir)/includes/sys
 
 AM_CFLAGS = -D_GNU_SOURCE -fexceptions -Wall -Wextra -Werror -Wunused -Wformat=2 -W
@@ -268,11 +267,11 @@ endif
 	(cd $(srcdir)/tapset; find . \( -name '*.stp' -o -name '*.stpm' -o -name README \) -print \
 		| while read f; do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/tapset/$$f; done)
 	(cd $(srcdir)/testsuite/systemtap.examples; find . -type f -print \
-		| egrep -v 'check.exp|ChangeLog|examples-index-gen.pl|html/.*\.tmpl$$' \
+		| egrep -v 'check.exp|ChangeLog|examples-index-gen.pl|html/.*\.tmpl|metadatabase.dbq$$' \
 		| while read f; do if test -x $$f; then \
 			i_cmd="$(INSTALL_PROGRAM)"; else \
 			i_cmd="$(INSTALL_DATA)"; fi; \
-			$$i_cmd -D $$f $(DESTDIR)$(docdir)/examples/$$f; done)
+			$$i_cmd -D $$f $(DESTDIR)$(pkgdatadir)/examples/$$f; done)
 	test -e $(DESTDIR)$(sysconfdir)/systemtap || mkdir -p $(DESTDIR)$(sysconfdir)/systemtap
 if BUILD_SERVER
 	test -e $(DESTDIR)$(localstatedir)/run/stap-server || mkdir -p $(DESTDIR)$(localstatedir)/run/stap-server

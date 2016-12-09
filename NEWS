@@ -48,7 +48,10 @@
   cross-cpu aggregation.
 
 - New command within interactive mode, sample.  Allows you to search through
-  all included example scripts to load for further editing or running.
+  all included example scripts to load for further editing or running.  Sample
+  and example scripts have been moved to /usr/share/systemtap*/examples.  The
+  examples folder has been linked to in the previous location, /usr/share/doc/
+  systemtap*/examples.
 
 * What's new in version 3.0, 2016-03-27
 

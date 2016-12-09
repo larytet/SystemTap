@@ -530,14 +530,10 @@ for dir in $(ls -1d $RPM_BUILD_ROOT%{_mandir}/{??,??_??}) ; do
     echo "%%lang($lang) $dir/man*/*" >> %{name}.lang
 done
 
-# We want the examples in the special doc dir, not the build install dir.
-# We build it in place and then move it away so it doesn't get installed
-# twice. rpm can specify itself where the (versioned) docs go with the
-# %doc directive.
-mv $RPM_BUILD_ROOT%{_datadir}/doc/systemtap/examples examples
+ln -s %{_datadir}/systemtap/examples
 
 # Fix paths in the example scripts.
-find examples -type f -name '*.stp' -print0 | xargs -0 sed -i -r -e '1s@^#!.+stap@#!%{_bindir}/stap@'
+find $RPM_BUILD_ROOT%{_datadir}/systemtap/examples -type f -name '*.stp' -print0 | xargs -0 sed -i -r -e '1s@^#!.+stap@#!%{_bindir}/stap@'
 
 # To make rpmlint happy, remove any .gitignore files in the testsuite.
 find testsuite -type f -name '.gitignore' -print0 | xargs -0 rm -f
@@ -968,7 +964,8 @@ done
 
 %files client -f systemtap.lang
 %defattr(-,root,root)
-%doc README README.unprivileged AUTHORS NEWS examples
+%doc README README.unprivileged AUTHORS NEWS
+%{_datadir}/systemtap/examples
 %{!?_licensedir:%global license %%doc}
 %license COPYING
 %if %{with_docs}
