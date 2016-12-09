@@ -33,7 +33,14 @@ __access_process_vm_ (struct task_struct *tsk, unsigned long addr, void *buf,
       void *maddr;
 
 #ifdef STAPCONF_GET_USER_PAGES_REMOTE
+#ifdef STAPCONF_GET_USER_PAGES_REMOTE_FLAGS
+      unsigned int flags = FOLL_FORCE;
+      if (write)
+	  flags |= FOLL_WRITE;
+      ret = get_user_pages_remote (tsk, mm, addr, 1, flags, &page, &vma);
+#else  /* !STAPCONF_GET_USER_PAGES_REMOTE_FLAGS */
       ret = get_user_pages_remote (tsk, mm, addr, 1, write, 1, &page, &vma);
+#endif /* !STAPCONF_GET_USER_PAGES_REMOTE_FLAGS */
 #else
       ret = get_user_pages (tsk, mm, addr, 1, write, 1, &page, &vma);
 #endif

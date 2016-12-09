@@ -10,6 +10,7 @@
  */
 
 #include "../procfs.c"		   // for _stp_mkdir_proc_module()
+#include "relay_compat.h"
 
 #define STP_DEFAULT_BUFFERS 256
 
@@ -19,6 +20,7 @@ static ssize_t _stp_proc_read(struct file *file, char __user *buf, size_t count,
 {
 	int num;
 	struct _stp_buf_info out;
+	struct rchan_buf *sub_buf;
 
 	int cpu = *(int *)(PDE(file->f_dentry->d_inode)->data);
 
@@ -26,8 +28,9 @@ static ssize_t _stp_proc_read(struct file *file, char __user *buf, size_t count,
 		return -EINVAL;
 
 	out.cpu = cpu;
-	out.produced = atomic_read(&_stp_relay_data.rchan->buf[cpu]->subbufs_produced);
-	out.consumed = atomic_read(&_stp_relay_data.rchan->buf[cpu]->subbufs_consumed);
+	sub_buf = _stp_get_rchan_subbuf(_stp_relay_data.rchan->buf, cpu);
+	out.produced = atomic_read(&sub_buf->subbufs_produced);
+	out.consumed = atomic_read(&sub_buf->subbufs_consumed);
 	out.flushing = _stp_relay_data.flushing;
 
 	num = sizeof(out);

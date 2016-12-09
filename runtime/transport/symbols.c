@@ -12,6 +12,7 @@
 #ifndef _STP_SYMBOLS_C_
 #define _STP_SYMBOLS_C_
 #include "../sym.h"
+#include "relay_compat.h"
 
 #ifndef KERN_CONT
 #define KERN_CONT	""
@@ -327,7 +328,7 @@ static int _stp_module_panic_notifier (struct notifier_block *nb, unsigned long 
                 int printed;
                 int first_iteration;
 
-                sub_buf = _stp_relay_data.rchan->buf[i];
+                sub_buf = _stp_get_rchan_subbuf(_stp_relay_data.rchan->buf, i);
 
                 /* Set our pointer to the beginning of the channel buffer */
                 subbuf_start = (char *)sub_buf->start;

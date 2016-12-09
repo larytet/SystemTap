@@ -32,6 +32,7 @@
 #include <linux/relay.h>
 #include <linux/timer.h>
 #include "../uidgid_compatibility.h"
+#include "relay_compat.h"
 
 #ifndef STP_RELAY_TIMER_INTERVAL
 /* Wakeup timer interval in jiffies (default 10 ms) */
@@ -126,12 +127,18 @@ static void __stp_relay_wakeup_timer(unsigned long val)
 #endif
 
 	if (atomic_read(&_stp_relay_data.wakeup)) {
+		struct rchan_buf *buf;
+		
 		atomic_set(&_stp_relay_data.wakeup, 0);
 #ifdef STP_BULKMODE
-		for_each_possible_cpu(i)
-			__stp_relay_wakeup_readers(_stp_relay_data.rchan->buf[i]);
+		for_each_possible_cpu(i) {
+			buf = _stp_get_rchan_subbuf(_stp->relay_data.rchan->buf,
+						    i);
+			__stp_relay_wakeup_readers(buf);
+		}
 #else
-		__stp_relay_wakeup_readers(_stp_relay_data.rchan->buf[0]);
+		buf = _stp_get_rchan_subbuf(_stp_relay_data.rchan->buf, 0);
+		__stp_relay_wakeup_readers(buf);
 #endif
 	}
 
@@ -397,7 +404,8 @@ _stp_data_write_reserve(size_t size_request, void **entry)
 	if (entry == NULL)
 		return -EINVAL;
 
-	buf = _stp_relay_data.rchan->buf[smp_processor_id()];
+	buf = _stp_get_rchan_subbuf(_stp_relay_data.rchan->buf,
+				    smp_processor_id());
 	if (unlikely(buf->offset + size_request > buf->chan->subbuf_size)) {
 		size_request = __stp_relay_switch_subbuf(buf, size_request);
 		if (!size_request)

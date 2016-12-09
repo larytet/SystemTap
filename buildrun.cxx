@@ -393,6 +393,7 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-task_work-struct.c", "STAPCONF_TASK_WORK_STRUCT", NULL);
   output_autoconf(s, o, "autoconf-vm-area-pte.c", "STAPCONF_VM_AREA_PTE", NULL);
   output_autoconf(s, o, "autoconf-relay-umode_t.c", "STAPCONF_RELAY_UMODE_T", NULL);
+  output_autoconf(s, o, "autoconf-relay_buf-per_cpu_ptr.c", "STAPCONF_RELAY_BUF_PER_CPU_PTR", NULL);
   output_autoconf(s, o, "autoconf-fs_supers-hlist.c", "STAPCONF_FS_SUPERS_HLIST", NULL);
   output_autoconf(s, o, "autoconf-compat_sigaction.c", "STAPCONF_COMPAT_SIGACTION", NULL);
   output_autoconf(s, o, "autoconf-netfilter.c", "STAPCONF_NETFILTER_V313", NULL);
@@ -447,6 +448,8 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-mod_kallsyms.c",
 		  "STAPCONF_MOD_KALLSYMS", NULL);
   output_exportconf(s, o, "get_user_pages_remote", "STAPCONF_GET_USER_PAGES_REMOTE");
+  output_autoconf(s, o, "autoconf-get_user_pages_remote-flags.c",
+		  "STAPCONF_GET_USER_PAGES_REMOTE_FLAGS", NULL);
 
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
