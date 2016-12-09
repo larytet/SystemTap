@@ -132,7 +132,7 @@ static void __stp_relay_wakeup_timer(unsigned long val)
 		atomic_set(&_stp_relay_data.wakeup, 0);
 #ifdef STP_BULKMODE
 		for_each_possible_cpu(i) {
-			buf = _stp_get_rchan_subbuf(_stp->relay_data.rchan->buf,
+			buf = _stp_get_rchan_subbuf(_stp_relay_data.rchan->buf,
 						    i);
 			__stp_relay_wakeup_readers(buf);
 		}
