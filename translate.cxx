@@ -1651,6 +1651,7 @@ c_unparser::emit_global (vardecl *v)
   o->newline() << "rwlock_t " << vn << "_lock;";
   o->newline() << "#ifdef STP_TIMING";
   o->newline() << "atomic_t " << vn << "_lock_skip_count;";
+  o->newline() << "atomic_t " << vn << "_lock_contention_count;";
   o->newline() << "#endif\n";
 }
 
@@ -1938,6 +1939,7 @@ c_unparser::emit_module_init ()
       o->newline() << "global_lock_init(" << c_globalname (v->name) << ");";
       o->newline() << "#ifdef STP_TIMING";
       o->newline() << "atomic_set(global_skipped(" << c_globalname (v->name) << "), 0);";
+      o->newline() << "atomic_set(global_contended(" << c_globalname (v->name) << "), 0);";
       o->newline() << "#endif";
     }
 
@@ -2145,8 +2147,8 @@ c_unparser::emit_module_refresh ()
       o->newline(1) << "? ((int32_t)cycles_atend - (int32_t)cycles_atstart)";
       o->newline() << ": (~(int32_t)0) - (int32_t)cycles_atstart + (int32_t)cycles_atend + 1;";
       o->indent(-1);
-      // STP_TIMING requires min, max, avg (and thus count and sum), but not variance.
-      o->newline() << "_stp_stat_add(g_refresh_timing, cycles_elapsed, 1, 1, 1, 1, 0);";
+      // STP_TIMING requires min, max, avg (and thus count and sum) as well as variance.
+      o->newline() << "_stp_stat_add(g_refresh_timing, cycles_elapsed, 1, 1, 1, 1, 1);";
       o->newline(-1) << "}";
       o->newline() << "#endif";
     }
@@ -2282,10 +2284,10 @@ c_unparser::emit_module_exit ()
   o->newline(1) << "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);";
   o->newline() << "_stp_printf (\"%s, (%s), hits: %lld, "
 	       << (!session->runtime_usermode_p() ? "cycles" : "nsecs")
-	       << ": %lldmin/%lldavg/%lldmax,%s, index: %d\\n\",";
+	       << ": %lldmin/%lldavg/%lldmax, variance: %lld,%s, index: %d\\n\",";
   o->newline(2) << "p->pp, p->location, (long long) stats->count,";
   o->newline() << "(long long) stats->min, (long long) avg, (long long) stats->max,";
-  o->newline() << "p->derivation, i);";
+  o->newline() << "(long long) stats->variance, p->derivation, i);";
   o->newline(-3) << "}";
   o->newline() << "_stp_stat_del (probe_timing(i));";
   o->newline(-1) << "}";
@@ -2300,9 +2302,10 @@ c_unparser::emit_module_exit ()
       o->newline(1) << "struct stat_data *stats = _stp_stat_get (g_refresh_timing, 0);";
       o->newline() << "if (stats->count) {";
       o->newline(1) << "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);";
-      o->newline() << "_stp_printf (\"hits: %lld, cycles: %lldmin/%lldavg/%lldmax\\n\",";
+      o->newline() << "_stp_printf (\"hits: %lld, cycles: %lldmin/%lldavg/%lldmax, "
+                   << "variance: %lld\\n\",";
       o->newline(2) << "(long long) stats->count, (long long) stats->min, ";
-      o->newline() <<  "(long long) avg, (long long) stats->max);";
+      o->newline() <<  "(long long) avg, (long long) stats->max, (long long) stats->variance);";
       o->newline(-3) << "}";
       o->newline() << "_stp_stat_del (g_refresh_timing);";
       o->newline(-1) << "}";
@@ -2311,6 +2314,22 @@ c_unparser::emit_module_exit ()
 
   o->newline() << "_stp_print_flush();";
   o->newline() << "#endif";
+
+  //print lock contentions if non-zero
+  o->newline() << "#ifdef STP_TIMING";
+  o->newline() << "{";
+  o->newline(1) << "int ctr;";
+  for (unsigned i=0; i<session->globals.size(); i++)
+    {
+      string orig_vn = session->globals[i]->name;
+      string vn = c_globalname (orig_vn);
+      o->newline() << "ctr = atomic_read (global_contended(" << vn << "));";
+      o->newline() << "if (ctr) _stp_printf(\"'%s' lock contention occurred %d times\\n\", "
+	           << lex_cast_qstring(orig_vn) << ", ctr);";
+    }
+  o->newline(-1) << "}";
+  o->newline() << "_stp_print_flush();";
+  o->newline () << "#endif";
 
   // print final error/skipped counts if non-zero
   o->newline() << "if (atomic_read (skipped_count()) || "
@@ -2329,7 +2348,7 @@ c_unparser::emit_module_exit ()
       string vn = c_globalname (orig_vn);
       o->newline() << "ctr = atomic_read (global_skipped(" << vn << "));";
       o->newline() << "if (ctr) _stp_warn (\"Skipped due to global '%s' lock timeout: %d\\n\", "
-                   << lex_cast_qstring(orig_vn) << ", ctr);"; 
+                   << lex_cast_qstring(orig_vn) << ", ctr);";
     }
   o->newline() << "ctr = atomic_read (skipped_count_lowstack());";
   o->newline() << "if (ctr) _stp_warn (\"Skipped due to low stack: %d\\n\", ctr);";
@@ -2956,6 +2975,7 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
       o->newline() << ".write_p = " << (write_p ? 1 : 0) << ",";
       o->newline() << "#ifdef STP_TIMING";
       o->newline() << ".skipped = global_skipped(" << c_globalname (v->name) << "),";
+      o->newline() << ".contention = global_contended(" << c_globalname (v->name) << "),";
       o->newline() << "#endif";
       o->newline(-1) << "},";
 

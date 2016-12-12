@@ -2275,11 +2275,11 @@ install-data-local:
 	(cd $(srcdir)/tapset; find . \( -name '*.stp' -o -name '*.stpm' -o -name README \) -print \
 		| while read f; do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/tapset/$$f; done)
 	(cd $(srcdir)/testsuite/systemtap.examples; find . -type f -print \
-		| egrep -v 'check.exp|ChangeLog|examples-index-gen.pl|html/.*\.tmpl$$' \
+		| egrep -v 'check.exp|ChangeLog|examples-index-gen.pl|html/.*\.tmpl|metadatabase.dbq$$' \
 		| while read f; do if test -x $$f; then \
 			i_cmd="$(INSTALL_PROGRAM)"; else \
 			i_cmd="$(INSTALL_DATA)"; fi; \
-			$$i_cmd -D $$f $(DESTDIR)$(docdir)/examples/$$f; done)
+			$$i_cmd -D $$f $(DESTDIR)$(pkgdatadir)/examples/$$f; done)
 	test -e $(DESTDIR)$(sysconfdir)/systemtap || mkdir -p $(DESTDIR)$(sysconfdir)/systemtap
 @BUILD_SERVER_TRUE@	test -e $(DESTDIR)$(localstatedir)/run/stap-server || mkdir -p $(DESTDIR)$(localstatedir)/run/stap-server
 @BUILD_SERVER_TRUE@	test -e $(DESTDIR)$(localstatedir)/log || mkdir -p $(DESTDIR)$(localstatedir)/log

@@ -4,8 +4,8 @@
 . @dracutstap@/params.conf
 
 # Do not include stap module if there are no scripts to include
-[ "$ONBOOT_SCRIPTS" ] || return 1
+[ "$ONBOOT_SCRIPTS" ] || exit 1
 # We're disabled by default: the initscript explicitly uses dracut's
 # '--add stap' when creating the initramfs. Otherwise, we might be
 # mistakenly included during e.g. kernel updates.
-return 255
+exit 255

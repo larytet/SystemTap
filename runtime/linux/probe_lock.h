@@ -20,6 +20,7 @@
 struct stp_probe_lock {
 	#ifdef STP_TIMING
 	atomic_t *skipped;
+	atomic_t *contention;
 	#endif
 	rwlock_t *lock;
 	unsigned write_p;
@@ -50,6 +51,9 @@ stp_lock_probe(const struct stp_probe_lock *locks, unsigned num_locks)
 				if (++retries > MAXTRYLOCK)
 					goto skip;
 #endif
+				#ifdef STP_TIMING
+					atomic_inc(locks[i].contention);
+				#endif
 				udelay (TRYLOCKDELAY);
 			}
 		else
@@ -58,6 +62,9 @@ stp_lock_probe(const struct stp_probe_lock *locks, unsigned num_locks)
 				if (++retries > MAXTRYLOCK)
 					goto skip;
 #endif
+				#ifdef STP_TIMING
+					atomic_inc(locks[i].contention);
+				#endif
 				udelay (TRYLOCKDELAY);
 			}
 	}

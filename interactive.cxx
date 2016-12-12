@@ -934,7 +934,7 @@ public:
     int rc;
     vector <metafile>  metalist;
 
-    string dirstr = DOCDIR;
+    string dirstr = PKGDATADIR;
     dirstr.append("/examples/");
 
     rc = sqlite3_open((dirstr + "metadatabase.db").c_str(), &db);
