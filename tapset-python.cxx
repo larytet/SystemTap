@@ -63,14 +63,17 @@ struct python_derived_probe: public derived_probe
 struct python_derived_probe_group: public generic_dpg<python_derived_probe>
 {
 private:
+  systemtap_session &s;
   vector<python_derived_probe* > python2_probes;
+  embeddedcode *python2_embedded;
   vector<python_derived_probe* > python3_probes;
+  embeddedcode *python3_embedded;
 
 public:
-  python_derived_probe_group () {}
-
+  python_derived_probe_group(systemtap_session &s) :
+      s(s), python2_embedded(NULL), python3_embedded(NULL) {}
   void enroll (python_derived_probe* probe);
-  void emit_module_decls (systemtap_session& s);
+  void emit_module_decls (systemtap_session& ) { }
   void emit_module_init (systemtap_session& ) { }
   void emit_module_exit (systemtap_session& ) { }
 };
@@ -151,7 +154,7 @@ python_derived_probe::join_group (systemtap_session &s)
 {
   if (! s.python_derived_probes)
     {
-      s.python_derived_probes = new python_derived_probe_group ();
+      s.python_derived_probes = new python_derived_probe_group (s);
     }
   s.python_derived_probes->enroll (this);
   this->group = s.python_derived_probes;
@@ -179,52 +182,54 @@ void
 python_derived_probe_group::enroll (python_derived_probe* p)
 {
   if (p->python_version == 2)
-    python2_probes.push_back(p);
-  else if (p->python_version == 3)
-    python3_probes.push_back(p);
-  else
-    throw SEMANTIC_ERROR(_F("Unknown python version: %d", p->python_version));
-}
-
-
-void
-python_derived_probe_group::emit_module_decls (systemtap_session& s)
-{
-  if (python2_probes.empty() && python3_probes.empty())
-    return;
-
-  s.op->newline();
-  s.op->newline() << "/* ---- python probes ---- */";
-
-  // Output the probe info buffer.
-  if (python2_probes.size())
     {
+      python2_probes.push_back(p);
+      // Create/update the global synthetic embedded code.
+      if (python2_embedded == NULL)
+        {
+	  python2_embedded = new embeddedcode;
+	  s.embeds.push_back(python2_embedded);
+	}
+
       unsigned index = 0;
-      s.op->newline() << "static const char python2_probe_info[] =";
-      s.op->indent(1);
+      stringstream data;
+      data << "/* ---- python 2 probes ---- */\n";
+      data << "static const char python2_probe_info[] =";
       for (auto iter = python2_probes.begin(); iter != python2_probes.end();
 	   iter++)
         {
-	  s.op->newline() << "\"b " << (*iter)->break_definition()
-			  << "|" << index++ << "\\n\"";
+	  data << "\n  \"b " << (*iter)->break_definition()
+	       << "|" << index++ << "\\n\"";
 	}
-      s.op->line() << ";";
-      s.op->indent(-1);
+      data << ";\n";
+      python2_embedded->code = data.str();
     }
-  if (python3_probes.size())
+  else if (p->python_version == 3)
     {
+      python3_probes.push_back(p);
+
+      // Create/update the global synthetic embedded code.
+      if (python3_embedded == NULL)
+        {
+	  python3_embedded = new embeddedcode;
+	  s.embeds.push_back(python3_embedded);
+	}
+
       unsigned index = 0;
-      s.op->newline() << "static const char python3_probe_info[] =";
-      s.op->indent(1);
+      stringstream data;
+      data << "/* ---- python 3 probes ---- */\n";
+      data << "static const char python3_probe_info[] =";
       for (auto iter = python3_probes.begin(); iter != python3_probes.end();
 	   iter++)
         {
-	  s.op->newline() << "\"b " << (*iter)->break_definition()
-			  << "|" << index++ << "\\n\"";
+	  data << "\n  \"b " << (*iter)->break_definition()
+	       << "|" << index++ << "\\n\"";
 	}
-      s.op->line() << ";";
-      s.op->indent(-1);
-    }
+      data << ";\n";
+      python3_embedded->code = data.str();
+  }
+  else
+    throw SEMANTIC_ERROR(_F("Unknown python version: %d", p->python_version));
 }
 
 
@@ -509,9 +514,9 @@ python_builder::build(systemtap_session & sess, probe * base,
 	  python2_procfs_probe = results[0];
 	  finished_results.push_back(results[0]);
 	      
-	  // Now that we've got our procfs derived probe, point it
-	  // at our internal buffer that we're going to output in
-	  // python_derived_probe_group::emit_module_decls().
+	  // Now that we've got our procfs derived probe, point it at
+	  // our internal buffer that we're going to create/update in
+	  // python_derived_probe_group::enroll().
 	  python2_procfs_probe->use_internal_buffer("python2_probe_info");
 	}
 
@@ -538,9 +543,9 @@ python_builder::build(systemtap_session & sess, probe * base,
 	  python3_procfs_probe = results[0];
 	  finished_results.push_back(results[0]);
 	      
-	  // Now that we've got our procfs derived probe, point it
-	  // at our internal buffer that we're going to output in
-	  // python_derived_probe_group::emit_module_decls().
+	  // Now that we've got our procfs derived probe, point it at
+	  // our internal buffer that we're going to create/update in
+	  // python_derived_probe_group::enroll().
 	  python3_procfs_probe->use_internal_buffer("python3_probe_info");
       }
 
