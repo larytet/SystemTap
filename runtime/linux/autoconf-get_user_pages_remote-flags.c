@@ -1,4 +1,3 @@
-#ifdef STAPCONF_GET_USER_PAGES_REMOTE
 #include <linux/mm.h>
 
 //
@@ -39,4 +38,3 @@ long gupr_wrapper(struct task_struct *tsk, struct mm_struct *mm,
     return get_user_pages_remote(tsk, mm, start, nr_pages, gup_flags,
 				 pages, vmas);
 }
-#endif
