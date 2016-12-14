@@ -4918,27 +4918,21 @@ void semantic_pass_opt6 (systemtap_session& s, bool& relaxed_p)
     }
 }
 
-struct stable_analysis: public embedded_tags_visitor
+struct stable_analysis: public nop_visitor
 {
   bool stable;
-  stable_analysis(): embedded_tags_visitor(true), stable(false) {};
+  stable_analysis(): stable(false) {};
 
   void visit_embeddedcode (embeddedcode* s);
-  void visit_functioncall (functioncall* e);
 };
 
 void stable_analysis::visit_embeddedcode (embeddedcode* s)
 {
-  embedded_tags_visitor::visit_embeddedcode(s);
-  if (tagged_p("/* stable */"))
+  if (s->tagged_p("/* stable */"))
     stable = true;
-  if (stable && !tagged_p("/* pure */"))
+  if (stable && !s->tagged_p("/* pure */"))
     throw SEMANTIC_ERROR(_("stable function must also be /* pure */"),
         s->tok);
-}
-
-void stable_analysis::visit_functioncall (functioncall*)
-{
 }
 
 // Examines entire subtree for any stable functioncalls.
