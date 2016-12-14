@@ -1,0 +1,265 @@
+# Test python3 probe support.
+set test "python3"
+global env
+set PYTHON3 $env(PYTHON3)
+
+if {! [installtest_p]} then { untested $test; return }
+if {! [python3_p]} then { untested $test; return }
+if {! [file exists "$PYTHON3"]} { then untested $test; return }
+
+# To make sure the custom python module is in python's path, we'll
+# modify PYTHONPATH.
+set env(PYTHONPATH) $env(PY3EXECDIR)
+
+#
+# Test python backtraces.
+#
+# Notice we are using the tcl 'exec' command redirection of '2>@1',
+# which is equivalent to the shell's '2>&1'.
+if {[catch {exec cp $srcdir/$subdir/celsius.py . 2>@1} out]} {
+    verbose -log "python cp failure: $out"
+}
+
+# This test won't work if we don't have python's debuginfo
+# installed. So, try to compile celsius-bt.stp first to see if we've
+# got debuginfo.
+spawn stap -p4 $srcdir/$subdir/celsius-bt.stp python3
+set compile_errors 0
+expect {
+    -timeout 60
+    -re {^parse error[^\r\n]*\r\n} { incr compile_errors 1; exp_continue }
+    -re {^[^\r\n]*compilation failed[^\r\n]*\r\n} {
+	incr compile_errors 1; exp_continue }
+    -re {^semantic error[^\r\n]*\r\n} { incr compile_errors 1; exp_continue }
+    timeout { fail "$test (timeout)" }
+    eof { }
+}
+catch { close }
+set res [wait -i $spawn_id]
+set res [lindex $res 3]
+if { $res != 0 || $compile_errors > 0 } {
+    fail "$test: debuginfo check"
+    untested $test
+    catch {exec rm -f celsius.py}
+    return
+}
+pass "$test: debuginfo check"
+
+
+set traceback_lines 0
+set error_seen 0
+set returning_seen 0
+spawn stap $srcdir/$subdir/celsius-bt.stp -c "$PYTHON3 -m HelperSDT celsius.py 30" python3
+expect {
+    -timeout 120
+    -re {^30 Celsius is 86.0 Farenheit\r\n} { exp_continue }
+    -re {^Traceback[^:]+:\r\n} { exp_continue }
+    -re {^[ ]+File "celsius.py", line [0-9]+, in [^\r\n]+\r\n} {
+	incr traceback_lines; exp_continue }
+    -re {^celsius_to_farenheit returning\r\n} {
+	incr returning_seen 1; exp_continue }
+    -re {^semantic error:.+\r\n} { incr error_seen; exp_continue }
+    timeout { incr error_seen; fail "$test (timeout)" }
+}
+catch {close}; catch {wait}
+
+if {$traceback_lines == 3} {
+    pass "$test: backtrace"
+} else {
+    if {$error_seen} {
+	fail "$test: backtrace (errors)"
+    } else {
+	fail "$test: backtrace ($traceback_lines vs. 3)"
+    }
+}
+if {$returning_seen == 1} {
+    pass "$test: return probe seen"
+} else {
+    if {$error_seen} {
+	fail "$test: return probe seen"
+    } else {
+	fail "$test: return probe seen ($returning_seen vs. 1)"
+    }
+}
+
+#
+# Test getting the value of python variables.
+#
+# Notice we are using the tcl 'exec' command redirection of '2>@1',
+# which is equivalent to the shell's '2>&1'.
+if {[catch {exec cp $srcdir/$subdir/python-var.py . 2>@1} out]} {
+    verbose -log "python cp failure: $out"
+}
+
+set error_seen 0
+# Note that we're incrementing MAXACTION, since we're doing lots of
+# actions in each probe.
+spawn stap -DMAXACTION=2000 $srcdir/$subdir/python-var.stp -c "$PYTHON3 -m  HelperSDT python-var.py" python3
+set types {"none" "type" "bool" "int" "long" "float" "complex" \
+	       "string" "unicode" "tuple" "list" "xrange" "dictionary" \
+	       "function" "class" "unbound" "instance" "method" "zip" \
+	       "file" "ellipsis"}
+
+# Note that several types aren't handled well (or at all) yet:
+dict set kfails "none" 1
+dict set kfails "type" 1
+dict set kfails "bool" 1
+dict set kfails "float" 1
+dict set kfails "complex" 1
+dict set kfails "function" 1
+dict set kfails "class" 1
+dict set kfails "unbound" 1
+dict set kfails "instance" 1
+dict set kfails "method" 1
+dict set kfails "file" 1
+dict set kfails "ellipsis" 1
+
+set globals [dict create]
+set locals [dict create]
+
+# Note that the order of dictionary items isn't important, so we have
+# to expect the items in any order.
+expect {
+    -timeout 120
+
+    -re {^g_none = <NoneType object at 0x[0-9a-f]+>\r\n} {
+	dict set globals "none" 1; exp_continue }
+    -re {^g_type = <type object at 0x[0-9a-f]+>\r\n} {
+	dict set globals "type" 1; exp_continue }
+    -re {^g_bool = 0x1\r\n} { dict set globals "bool" 1; exp_continue }
+
+    -re {^g_int = 0x9\r\n} { dict set globals "int" 1; exp_continue }
+    -re {^g_long = 0x7eadbeeffeedbabe\r\n} {
+	dict set globals "long" 1; exp_continue }
+    -re {^g_float = <float object at 0x[0-9a-f]+>\r\n} {
+	dict set globals "float" 1; exp_continue }
+    -re {^g_complex = <complex object at 0x[0-9a-f]+>\r\n} {
+	dict set globals "complex" 1; exp_continue }
+
+    -re {^g_string = "regular string"\r\n} {
+	dict set globals "string" 1; exp_continue }
+    -re {^g_unicode = "unicode string"\r\n} {
+	dict set globals "unicode" 1; exp_continue }
+    -re {^g_tuple = \(0x0 "abc" 0x2\)\r\n} {
+	dict set globals "tuple" 1; exp_continue }
+    -re {^g_list = \[0x0 0x1 0x2 0x3\]\r\n} {
+	dict set globals "list" 1; exp_continue }
+    -re {^Error: Python variable 'g_xrange' cannot be found\r\n} {
+	dict set globals "xrange" 1; exp_continue }
+
+    -re {^g_dictionary = \{"Ribs":0x2 "Bacon":0x1 "Ham":0x0\}\r\n} {
+	dict set globals "dictionary" 1; exp_continue }
+    -re {^g_dictionary = \{"Ribs":0x2 "Ham":0x0 "Bacon":0x1\}\r\n} {
+	dict set globals "dictionary" 1; exp_continue }
+    -re {^g_dictionary = \{"Bacon":0x1 "Ham":0x0 "Ribs":0x2\}\r\n} {
+	dict set globals "dictionary" 1; exp_continue }
+    -re {^g_dictionary = \{"Bacon":0x1 "Ribs":0x2 "Ham":0x0\}\r\n} {
+	dict set globals "dictionary" 1; exp_continue }
+    -re {^g_dictionary = \{"Ham":0x0 "Ribs":0x2 "Bacon":0x1\}\r\n} {
+	dict set globals "dictionary" 1; exp_continue }
+    -re {^g_dictionary = \{"Ham":0x0 "Bacon":0x1 "Ribs":0x2\}\r\n} {
+	dict set globals "dictionary" 1; exp_continue }
+
+    -re {^g_func = <function object at 0x[0-9a-f]+>\r\n} {
+	dict set globals "function" 1; exp_continue }
+    -re {^g_class = <type object at 0x[0-9a-f]+>\r\n} {
+	dict set globals "class" 1; exp_continue }
+    -re {^g_unbound_method = <function object at 0x[0-9a-f]+>\r\n} {
+	dict set globals "unbound" 1; exp_continue }
+    -re {^g_instance = <xqueue object at 0x[0-9a-f]+>\r\n} {
+	dict set globals "instance" 1; exp_continue }
+    -re {^g_method = <method object at 0x[0-9a-f]+>\r\n} {
+	dict set globals "method" 1; exp_continue }
+
+    -re {^g_zip = <zip object at 0x[0-9a-f]+>\r\n} {
+	dict set globals "zip" 1; exp_continue }
+    -re {^g_file = <[^ ]+ object at 0x[0-9a-f]+>\r\n} {
+	dict set globals "file" 1; exp_continue }
+    -re {^g_ellipsis = <ellipsis object at 0x[0-9a-f]+>\r\n} {
+	dict set globals "ellipsis" 1; exp_continue }
+
+    -re {^l_none = <NoneType object at 0x[0-9a-f]+>\r\n} {
+	dict set locals "none" 1; exp_continue }
+    -re {^l_type = <type object at 0x[0-9a-f]+>\r\n} {
+	dict set locals "type" 1; exp_continue }
+    -re {^l_bool = 0x0\r\n} { dict set locals "bool" 1; exp_continue }
+
+    -re {^l_int = 0xf\r\n} { dict set locals "int" 1; exp_continue }
+    -re {^l_long = 0x7eedfacecafebeef\r\n} {
+	dict set locals "long" 1; exp_continue }
+    -re {^l_float = <float object at 0x[0-9a-f]+>\r\n} {
+	dict set locals "float" 1; exp_continue }
+    -re {^l_complex = <complex object at 0x[0-9a-f]+>\r\n} {
+	dict set locals "complex" 1; exp_continue }
+
+    -re {^l_string = "another regular string"\r\n} {
+	dict set locals "string" 1; exp_continue }
+    -re {^l_unicode = "another unicode string"\r\n} {
+	dict set locals "unicode" 1; exp_continue }
+    -re {^l_tuple = \("hello" 0x63 "there" 0xbeef\)\r\n} {
+	dict set locals "tuple" 1; exp_continue }
+    -re {^l_list = \[0x4 0x5 0x6 0x7 0x8 0x9 0xa\]\r\n} {
+	dict set locals "list" 1; exp_continue }
+    -re {^l_xrange = <NULL>\r\n} {
+	dict set locals "xrange" 1; exp_continue }
+    -re {^l_xrange = <NULL>\r\n} {
+	dict set locals "xrange" 1; exp_continue }
+    -re {^Error: Python variable 'l_xrange' cannot be found\r\n} {
+	dict set locals "xrange" 1; exp_continue }
+
+    -re {^l_dictionary = \{0x1:"numeric index" "abc":0x3\}\r\n} {
+	dict set locals "dictionary" 1; exp_continue }
+    -re {^l_dictionary = \{"abc":0x3 0x1:"numeric index"\}\r\n} {
+	dict set locals "dictionary" 1; exp_continue }
+
+    -re {^l_func = <function object at 0x[0-9a-f]+>\r\n} {
+	dict set locals "function" 1; exp_continue }
+    -re {^l_class = <type object at 0x[0-9a-f]+>\r\n} {
+	dict set locals "class" 1; exp_continue }
+    -re {^l_unbound_method = <[^ ]+ object at 0x[0-9a-f]+>\r\n} {
+	dict set locals "unbound" 1; exp_continue }
+    -re {^l_instance = <[^ ]+ object at 0x[0-9a-f]+>\r\n} {
+	dict set locals "instance" 1; exp_continue }
+    -re {^l_method = <[^ ]+ object at 0x[0-9a-f]+>\r\n} {
+	dict set locals "method" 1; exp_continue }
+
+    -re {^l_zip = <[^ ]+ object at 0x[0-9a-f]+>\r\n} {
+	dict set locals "zip" 1; exp_continue }
+    -re {^l_file = <[^ ]+ object at 0x[0-9a-f]+>\r\n} {
+	dict set locals "file" 1; exp_continue }
+    -re {^l_ellipsis = <ellipsis object at 0x[0-9a-f]+>\r\n} {
+	dict set locals "ellipsis" 1; exp_continue }
+
+    -re {[^\r\n]*\r\n} { exp_continue }
+    -re {^semantic error:.+\r\n} { incr error_seen; exp_continue }
+    timeout { incr error_seen; fail "$test (timeout)" }
+}
+catch {close}; catch {wait}
+
+foreach type $types {
+    if {[dict exists $globals $type]} {
+	if {[dict exists $kfails $type]} {
+	    kfail "${test}_${type}_support" "$test: global $type"
+	} else {
+	    pass "$test: global $type"
+	}
+    } else {
+	fail "$test: global $type"
+    }
+}
+
+foreach type $types {
+    if {[dict exists $locals $type]} {
+	if {[dict exists $kfails $type]} {
+	    kfail "${test}_${type}_support" "$test: local $type"
+	} else {
+	    pass "$test: local $type"
+	}
+    } else {
+	fail "$test: local $type"
+    }
+}
+
+if { $verbose == 0 } {
+    catch {exec rm -rf celsius.py python-var.py}
+}

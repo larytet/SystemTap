@@ -9045,6 +9045,10 @@ cat >>confdefs.h <<_ACEOF
 #define PYTHON_BASENAME "${python_basename}"
 _ACEOF
 
+# AM_PATH_PYTHON defines 'pyexecdir'. Make sure the python and
+# pyexecdir variables get sent down to the subconfigure in the
+# testsuite directory.
+as_fn_append ac_configure_args " python='$PYTHON' pyexecdir='$pyexecdir'"
 
 # Now let's try to find python version 3.
 if test "x$PYTHON_UNKNOWN" != "xno" -a "x$python_unknown_version" = "x3"; then
@@ -9195,6 +9199,10 @@ fi
 $as_echo "$ac_cv_py3execdir" >&6; }
    py3execdir=$ac_cv_py3execdir
 
+
+   # Make sure the python3 and py3execdir variables get sent down to
+   # the subconfigure in the testsuite directory.
+   as_fn_append ac_configure_args " python3='$PYTHON3' py3execdir='$ac_cv_py3execdir'"
 fi
 
 if test "${enable_prologues+set}" != set; then

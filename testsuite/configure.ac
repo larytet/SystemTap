@@ -23,6 +23,13 @@ if test -n "$dejazilla"; then
 fi
 AC_SUBST(dejazilla)
 
+# The configure above passed us several python-related variables. Make
+# sure these get substituted in the Makefile.
+AC_SUBST([python], [${python}])
+AC_SUBST([pyexecdir], [${pyexecdir}])
+AC_SUBST([python3], [${python3}])
+AC_SUBST([py3execdir], [${py3execdir}])
+
 apps=
 for exp in $srcdir/systemtap.apps/*.exp
 do

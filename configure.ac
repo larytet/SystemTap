@@ -77,6 +77,10 @@ AM_PATH_PYTHON([2.6], [], [:])
 python_basename=$(basename "$PYTHON")
 AC_DEFINE_UNQUOTED([PYTHON_BASENAME], "${python_basename}",
 		   [Base name of the python2 interpreter binary.])
+# AM_PATH_PYTHON defines 'pyexecdir'. Make sure the python and
+# pyexecdir variables get sent down to the subconfigure in the
+# testsuite directory.
+AS_VAR_APPEND([ac_configure_args], [" python='$PYTHON' pyexecdir='$pyexecdir'"])
 
 # Now let's try to find python version 3.
 if test "x$PYTHON_UNKNOWN" != "xno" -a "x$python_unknown_version" = "x3"; then
@@ -109,6 +113,10 @@ if test -n "$PYTHON3"; then
    		  [ac_cv_py3execdir],
 		  [ac_cv_py3execdir=`$PYTHON3 -c "import distutils.sysconfig; print(distutils.sysconfig.get_python_lib(1,0,prefix='$PYTHON3_EXEC_PREFIX'))"`])
    AC_SUBST([py3execdir], [$ac_cv_py3execdir])
+
+   # Make sure the python3 and py3execdir variables get sent down to
+   # the subconfigure in the testsuite directory.
+   AS_VAR_APPEND([ac_configure_args], [" python3='$PYTHON3' py3execdir='$ac_cv_py3execdir'"])
 fi
 
 dnl Handle the prologues option.
