@@ -130,7 +130,7 @@ __stp_ktime_get_real_ts(struct timespec *ts)
 static stp_time_t*
 __stp_time_local_update(void)
 {
-    unsigned long flags;
+    unsigned long flags, flags2;
     stp_time_t *time;
     struct timespec ts;
     int64_t ns;
@@ -143,10 +143,15 @@ __stp_time_local_update(void)
     ns = (NSEC_PER_SEC * (int64_t)ts.tv_sec) + ts.tv_nsec;
     time = per_cpu_ptr(stp_time, smp_processor_id());
 
-    write_seqlock(&time->lock);
+    // Why are we calling write_seqlock_irqsave() here instead of just
+    // write_seqlock() (especially since we've already disabled
+    // interrupts using local_irq_save())? The answer is that
+    // write_seqlock_irqsave() does the correct wait for when
+    // interrupts are disabled.
+    write_seqlock_irqsave(&time->lock, flags2);
     time->base_ns = ns;
     time->base_cycles = cycles;
-    write_sequnlock(&time->lock);
+    write_sequnlock_irqrestore(&time->lock, flags2);
 
     local_irq_restore(flags);
 
