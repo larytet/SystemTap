@@ -260,6 +260,38 @@ foreach type $types {
     }
 }
 
+#
+# Test python backtraces when we're in a class instance.
+if {[catch {exec cp $srcdir/$subdir/class.py . 2>@1} out]} {
+    verbose -log "python cp failure: $out"
+}
+
+set traceback_lines 0
+set error_seen 0
+spawn stap $srcdir/$subdir/class.stp -c "$PYTHON3 -m HelperSDT class.py" \
+    python3
+expect {
+    -timeout 120
+    -re {^Checkings current balance is: 10\r\n} { exp_continue }
+    -re {^Savings current balance is: 33\r\n} { exp_continue }
+    -re {^Traceback[^:]+:\r\n} { exp_continue }
+    -re {^[ ]+File "class.py", line [0-9]+, in [^\r\n]+\r\n} {
+	incr traceback_lines; exp_continue }
+    -re {^semantic error:.+\r\n} { incr error_seen; exp_continue }
+    timeout { incr error_seen; fail "$test (timeout)" }
+}
+catch {close}; catch {wait}
+
+if {$traceback_lines == 4} {
+    pass "$test: backtrace"
+} else {
+    if {$error_seen} {
+	fail "$test: backtrace (errors)"
+    } else {
+	fail "$test: backtrace ($traceback_lines vs. 4)"
+    }
+}
+
 if { $verbose == 0 } {
-    catch {exec rm -rf celsius.py python-var.py}
+    catch {exec rm -rf celsius.py python-var.py class.py}
 }

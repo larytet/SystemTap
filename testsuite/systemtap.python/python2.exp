@@ -48,6 +48,7 @@ pass "$test: debuginfo check"
 
 set traceback_lines 0
 set error_seen 0
+set returning_seen 0
 spawn stap $srcdir/$subdir/celsius-bt.stp -c "$PYTHON -m HelperSDT celsius.py 30" python2
 expect {
     -timeout 120
@@ -55,6 +56,8 @@ expect {
     -re {^Traceback[^:]+:\r\n} { exp_continue }
     -re {^[ ]+File "celsius.py", line [0-9]+, in [^\r\n]+\r\n} {
 	incr traceback_lines; exp_continue }
+    -re {^celsius_to_farenheit returning\r\n} {
+	incr returning_seen 1; exp_continue }
     -re {^semantic error:.+\r\n} { incr error_seen; exp_continue }
     timeout { incr error_seen; fail "$test (timeout)" }
 }
@@ -67,6 +70,15 @@ if {$traceback_lines == 3} {
 	fail "$test: backtrace (errors)"
     } else {
 	fail "$test: backtrace ($traceback_lines vs. 3)"
+    }
+}
+if {$returning_seen == 1} {
+    pass "$test: return probe seen"
+} else {
+    if {$error_seen} {
+	fail "$test: return probe seen"
+    } else {
+	fail "$test: return probe seen ($returning_seen vs. 1)"
     }
 }
 
@@ -246,6 +258,38 @@ foreach type $types {
     }
 }
 
+#
+# Test python backtraces when we're in a class instance.
+if {[catch {exec cp $srcdir/$subdir/class.py . 2>@1} out]} {
+    verbose -log "python cp failure: $out"
+}
+
+set traceback_lines 0
+set error_seen 0
+set returning_seen 0
+spawn stap $srcdir/$subdir/class.stp -c "$PYTHON -m HelperSDT class.py" python2
+expect {
+    -timeout 120
+    -re {^Checkings current balance is: 10\r\n} { exp_continue }
+    -re {^Savings current balance is: 33\r\n} { exp_continue }
+    -re {^Traceback[^:]+:\r\n} { exp_continue }
+    -re {^[ ]+File "class.py", line [0-9]+, in [^\r\n]+\r\n} {
+	incr traceback_lines; exp_continue }
+    -re {^semantic error:.+\r\n} { incr error_seen; exp_continue }
+    timeout { incr error_seen; fail "$test (timeout)" }
+}
+catch {close}; catch {wait}
+
+if {$traceback_lines == 4} {
+    pass "$test: backtrace"
+} else {
+    if {$error_seen} {
+	fail "$test: backtrace (errors)"
+    } else {
+	fail "$test: backtrace ($traceback_lines vs. 4)"
+    }
+}
+
 if { $verbose == 0 } {
-    catch {exec rm -rf celsius.py python-var.py}
+    catch {exec rm -rf celsius.py python-var.py class.py}
 }

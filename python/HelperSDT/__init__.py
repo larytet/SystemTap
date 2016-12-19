@@ -26,13 +26,20 @@ else:
     from . import _HelperSDT
 
 class _Breakpoint:
-    def __init__(self, index, filename, funcname, lineno, returnp, key):
+    def __init__(self, index, filename, funcname, lineno, flags, key):
         self.index = index
         self.filename = filename
         self.funcname = funcname
         self.lineno = lineno
-        self.returnp = returnp
         self.key = key
+
+        # Decode flags.
+        self.callp = False
+        self.returnp = False
+        if flags & 0x2:
+            self.callp = True
+        if flags & 0x1:
+            self.returnp = True
 
     def dump(self, out=None):
         if out is None:
@@ -40,12 +47,12 @@ class _Breakpoint:
         out.write("%s\n" % self.bpformat())
 
     def bpformat(self):
-        if self.lineno:
-            disp = '%d' % self.lineno
-        elif not self.returnp:
-            disp = self.funcname
+        if self.returnp:
+            disp = '%s.return:%d' % (self.funcname, self.lineno)
+        elif self.callp:
+            disp = '%s.call:%d' % (self.funcname, self.lineno)
         else:
-            disp = '%s.return' % self.funcname
+            disp = '%s:%d' % (self.funcname, self.lineno)
         return '%-4dbreakpoint at %s:%s %d' % (self.index, self.filename,
                                                disp, self.key)
 
@@ -58,30 +65,56 @@ class _BreakpointList:
         # N.B. To make sure we're inside the right function, and not
         # just executing a 'def' statement, we need the function name
         # for line number breakpoints.
-        self._byline = {}  	# indexed by (file, function, lineno) tuple
-        self._byfunc = {}  	# indexed by (file, function) tuple
-        self._byfuncret = {}    # indexed by (file, function) tuple
+        #
+        # The 'by line' and 'by function' lists are indexed by a (file,
+        # function, lineno) tuple. The 'by function return' list is
+        # indexed by a (file, function) tuple.
+        self._byline = {}
+        self._byfunc = {}
+        self._byfuncret = {}
 
-    def add(self, filename, funcname, lineno, returnp, key):
+        # Let's keep a cache of the os.path.abspath() results, to
+        # avoid looking up the same paths over and over again.
+        self._abspath_cache = {}
+
+    def _abspath(self, path):
+        if path in self._abspath_cache:
+            return self._abspath_cache[path]
+        abspath = os.path.abspath(path)
+        self._abspath_cache[path] = abspath
+        return abspath
+        
+    def add(self, filename, funcname, lineno, flags, key):
+        # Ensure we've got a full absolute path here.
+        filename = self._abspath(filename)
+
+        # We get passed the full function name, like
+        # "class.method". When the breakpoint hits, we only see
+        # 'method'. So, cut the function name down to the last bit.
+        period = funcname.rfind('.')
+        if period >= 0:
+            funcname = funcname[period + 1:]
+
         bp = _Breakpoint(self._index, filename, funcname, lineno,
-                         returnp, key)
+                         flags, key)
         self._index += 1
         self._bynumber.append(bp)
-        if bp.lineno:
-            if (filename, funcname, lineno) in self._byline:
-                self._byline[filename, funcname, lineno].append(bp)
-            else:
-                self._byline[filename, funcname, lineno] = [bp]
-        elif not bp.returnp:
-            if (filename, funcname) in self._byfunc:
-                self._byfunc[filename, funcname].append(bp)
-            else:
-                self._byfunc[filename, funcname] = [bp]
-        else:
+
+        if bp.returnp:
             if (filename, funcname) in self._byfuncret:
                 self._byfuncret[filename, funcname].append(bp)
             else:
                 self._byfuncret[filename, funcname] = [bp]
+        elif bp.callp:
+            if (filename, funcname, lineno) in self._byfunc:
+                self._byfunc[filename, funcname, lineno].append(bp)
+            else:
+                self._byfunc[filename, funcname, lineno] = [bp]
+        else:
+            if (filename, funcname, lineno) in self._byline:
+                self._byline[filename, funcname, lineno].append(bp)
+            else:
+                self._byline[filename, funcname, lineno] = [bp]
 
     def dump(self, out=None):
         if out is None:
@@ -90,21 +123,21 @@ class _BreakpointList:
             bp.dump(out)
 
     def break_here(self, frame, event):
+        # Depending on how the script name was passed to python,
+        # relative or absolute, we might or might not get a full
+        # pathname here. So, we'll make sure we've got an absolute
+        # path.
+        filename = self._abspath(frame.f_code.co_filename)
+
+        funcname = frame.f_code.co_name
+        lineno = frame.f_lineno
         if event == 'call':
-            # filename = self.canonic(frame.f_code.co_filename)
-            filename = frame.f_code.co_filename
-            funcname = frame.f_code.co_name
-            if (filename, funcname) in self._byfunc:
-                return self._byfunc[filename, funcname]
+            if (filename, funcname, lineno) in self._byfunc:
+                return self._byfunc[filename, funcname, lineno]
         elif event == 'line':
-            filename = frame.f_code.co_filename
-            funcname = frame.f_code.co_name
-            lineno = frame.f_lineno
             if (filename, funcname, lineno) in self._byline:
                 return self._byline[filename, funcname, lineno]
         elif event == 'return':
-            filename = frame.f_code.co_filename
-            funcname = frame.f_code.co_name
             if (filename, funcname) in self._byfuncret:
                 return self._byfuncret[filename, funcname]
         return None
@@ -235,21 +268,8 @@ class Dispatcher(cmd.Cmd):
             sys.stderr.write("Invalid line number value (%s)\n" % parts[1])
             return
 
-        # Decode flags.
-        returnp = False
-        if flags & 0x2:
-            # The breakpoint class distinguishes function call breaks
-            # from line number breaks by the lack of a line number.
-            lineno = None
-        if flags & 0x1:
-            # The breakpoint class distinguishes function return
-            # breaks from line number breaks by the lack of a line
-            # number.
-            lineno = None
-            returnp = True
-
         # Actually add the breakpoint.
-        self._bplist.add(filename, funcname, lineno, returnp, key)
+        self._bplist.add(filename, funcname, lineno, flags, key)
 
 
 def run():
