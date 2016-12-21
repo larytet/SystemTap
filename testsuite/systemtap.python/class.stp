@@ -1,6 +1,5 @@
 probe $1.module("class").function("Account.inquiry")
 {
     python_print_backtrace()
-# FIXME: not implemented yet.
-#    printf("balance is %s\n", $self->balance)
+    printf("balance is %s\n", $self->balance)
 }

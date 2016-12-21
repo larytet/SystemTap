@@ -59,7 +59,7 @@ expect {
     -re {^celsius_to_farenheit returning\r\n} {
 	incr returning_seen 1; exp_continue }
     -re {^semantic error:.+\r\n} { incr error_seen; exp_continue }
-    timeout { incr error_seen; fail "$test (timeout)" }
+    timeout { incr error_seen; kill -INT -[exp_pid]; fail "$test (timeout)" }
 }
 catch {close}; catch {wait}
 
@@ -109,9 +109,7 @@ dict set kfails "complex" 1
 dict set kfails "unicode" 1
 dict set kfails "xrange" 1
 dict set kfails "function" 1
-dict set kfails "class" 1
 dict set kfails "unbound" 1
-dict set kfails "instance" 1
 dict set kfails "method" 1
 dict set kfails "file" 1
 dict set kfails "ellipsis" 1
@@ -164,11 +162,11 @@ expect {
 
     -re {^g_func = <function object at 0x[0-9a-f]+>\r\n} {
 	dict set globals "function" 1; exp_continue }
-    -re {^g_class = <classobj object at 0x[0-9a-f]+>\r\n} {
+    -re {^g_class = <class xqueue.__main__ at 0x[0-9a-f]+>\r\n} {
 	dict set globals "class" 1; exp_continue }
     -re {^g_unbound_method = <instancemethod object at 0x[0-9a-f]+>\r\n} {
 	dict set globals "unbound" 1; exp_continue }
-    -re {^g_instance = <instance object at 0x[0-9a-f]+>\r\n} {
+    -re {^g_instance = <__main__.xqueue instance at 0x[0-9a-f]+>\r\n} {
 	dict set globals "instance" 1; exp_continue }
     -re {^g_method = <instancemethod object at 0x[0-9a-f]+>\r\n} {
 	dict set globals "method" 1; exp_continue }
@@ -212,11 +210,11 @@ expect {
 
     -re {^l_func = <function object at 0x[0-9a-f]+>\r\n} {
 	dict set locals "function" 1; exp_continue }
-    -re {^l_class = <classobj object at 0x[0-9a-f]+>\r\n} {
+    -re {^l_class = <class xqueue.__main__ at 0x[0-9a-f]+>\r\n} {
 	dict set locals "class" 1; exp_continue }
     -re {^l_unbound_method = <instancemethod object at 0x[0-9a-f]+>\r\n} {
 	dict set locals "unbound" 1; exp_continue }
-    -re {^l_instance = <instance object at 0x[0-9a-f]+>\r\n} {
+    -re {^l_instance = <__main__.xqueue instance at 0x[0-9a-f]+>\r\n} {
 	dict set locals "instance" 1; exp_continue }
     -re {^l_method = <instancemethod object at 0x[0-9a-f]+>\r\n} {
 	dict set locals "method" 1; exp_continue }
@@ -230,7 +228,7 @@ expect {
 
     -re {[^\r\n]*\r\n} { exp_continue }
     -re {^semantic error:.+\r\n} { incr error_seen; exp_continue }
-    timeout { incr error_seen; fail "$test (timeout)" }
+    timeout { incr error_seen; kill -INT -[exp_pid]; fail "$test (timeout)" }
 }
 catch {close}; catch {wait}
 
@@ -266,7 +264,8 @@ if {[catch {exec cp $srcdir/$subdir/class.py . 2>@1} out]} {
 
 set traceback_lines 0
 set error_seen 0
-set returning_seen 0
+set balance1_seen 0
+set balance2_seen 0
 spawn stap $srcdir/$subdir/class.stp -c "$PYTHON -m HelperSDT class.py" python2
 expect {
     -timeout 120
@@ -275,8 +274,10 @@ expect {
     -re {^Traceback[^:]+:\r\n} { exp_continue }
     -re {^[ ]+File "class.py", line [0-9]+, in [^\r\n]+\r\n} {
 	incr traceback_lines; exp_continue }
+    -re {^balance is 0xa\r\n} { incr balance1_seen; exp_continue }
+    -re {^balance is 0x21\r\n} { incr balance2_seen; exp_continue }
     -re {^semantic error:.+\r\n} { incr error_seen; exp_continue }
-    timeout { incr error_seen; fail "$test (timeout)" }
+    timeout { incr error_seen; kill -INT -[exp_pid]; fail "$test (timeout)" }
 }
 catch {close}; catch {wait}
 
@@ -287,6 +288,15 @@ if {$traceback_lines == 4} {
 	fail "$test: backtrace (errors)"
     } else {
 	fail "$test: backtrace ($traceback_lines vs. 4)"
+    }
+}
+if {$balance1_seen == 1 && $balance2_seen == 1} {
+    pass "$test: instance variable"
+} else {
+    if {$error_seen} {
+	fail "$test: instance variable (errors)"
+    } else {
+	fail "$test: instance variable ($balance1_seen $balance2_seen)"
     }
 }
 

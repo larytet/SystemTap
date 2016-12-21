@@ -323,30 +323,40 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
     // important. See python_builder::build().
     if (e->name[0] == '$')
       {
+	// We need a function call that turns the final object pointer
+	// into a string representation of that object.
+	functioncall *repr_fcall = new functioncall;
+	repr_fcall->tok = e->tok;
+	repr_fcall->function = (python_version == 2
+				? "Py2Object_Repr" : "Py3Object_Repr");
+	repr_fcall->type = pe_string;
 
-	// Get a python variable.
-	functioncall *fcall = new functioncall;
-	fcall->tok = e->tok;
-	fcall->function = (python_version == 2
-			   ? "python2_get_variable" : "python3_get_variable");
-	fcall->type = pe_string;
+	functioncall *var_fcall = new functioncall;
+	var_fcall->tok = e->tok;
+	var_fcall->function = (python_version == 2 ? "python2_get_var_obj"
+			       : "python3_get_var_obj");
+	var_fcall->type = pe_long;
 
 	target_symbol *tsym = new target_symbol;
 	tsym->tok = e->tok;
 	tsym->name = "$arg1";
-	fcall->args.push_back(tsym);
+	var_fcall->args.push_back(tsym);
 
 	// We want 'foo', not '$foo'.
 	interned_string new_name = e->name.substr(1, e->name.size());
 	literal_string* ls = new literal_string(new_name);
 	ls->tok = e->tok;
-	fcall->args.push_back(ls);
+	var_fcall->args.push_back(ls);
 
+	functioncall *last_fcall = var_fcall;
 	// Here we try to handle array indexing. Note that we can't
 	// really know if the python variable type supports array
 	// indexing at compile time. If the python variable type
 	// doesn't support array indexing, the user will get an error
 	// at runtime.
+	//
+	// FIXME: Needs a while loop to handle '$foo->bar[0]->baz'...
+	    
 	const target_symbol::component* c =
 	  e->components.empty() ? NULL : &e->components[0];
 	if (c)
@@ -355,15 +365,32 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 	      {
 		literal_number* ln = new literal_number(c->num_index);
 		ln->tok = e->tok;
-		fcall->args.push_back(ln);
+		last_fcall->args.push_back(ln);
 	      }
+	    else if (c->type == target_symbol::comp_struct_member)
+	    {
+		functioncall *fcall = new functioncall;
+		fcall->tok = e->tok;
+		fcall->function = (python_version == 2 ? "Py2Object_GetAttr"
+				   : "Py3Object_GetAttr");
+		fcall->type = pe_long;
+
+		fcall->args.push_back(last_fcall);
+
+		literal_string *ls = new literal_string(c->member);
+		ls->tok = e->tok;
+
+		fcall->args.push_back(ls);
+		last_fcall = fcall;
+	    }
 	    else if (c->type == target_symbol::comp_expression_array_index)
 	      throw SEMANTIC_ERROR(_("unhandled expression array indexing"));
 	    else
 	      throw SEMANTIC_ERROR(_("unhandled array indexing type"));
 	  }
+	repr_fcall->args.push_back(last_fcall);
 
-	provide (fcall);
+	provide (repr_fcall);
 	return;
       }
 }
