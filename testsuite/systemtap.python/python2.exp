@@ -12,6 +12,16 @@ if {! [file exists "$PYTHON"]} { then untested $test; return }
 set env(PYTHONPATH) $env(PYEXECDIR)
 
 #
+# In python 2.6, you have to specify the package name to run, like
+# 'python -m HelperSDT.__main__'. In python 2.7, using '__main__' is
+# automatic. Figure out what we need to do.
+if {! [catch {exec sh -c "$PYTHON -V 2>&1 | fgrep -q 2.6"} dummy]} {
+    set module_name "HelperSDT.__main__"
+} else {
+    set module_name "HelperSDT"
+}
+
+#
 # Test python backtraces.
 #
 # Notice we are using the tcl 'exec' command redirection of '2>@1',
@@ -49,7 +59,7 @@ pass "$test: debuginfo check"
 set traceback_lines 0
 set error_seen 0
 set returning_seen 0
-spawn stap $srcdir/$subdir/celsius-bt.stp -c "$PYTHON -m HelperSDT celsius.py 30" python2
+spawn stap $srcdir/$subdir/celsius-bt.stp -c "$PYTHON -m $module_name celsius.py 30" python2
 expect {
     -timeout 120
     -re {^30 Celsius is 86 Farenheit\r\n} { exp_continue }
@@ -94,7 +104,7 @@ if {[catch {exec cp $srcdir/$subdir/python-var.py . 2>@1} out]} {
 set error_seen 0
 # Note that we're incrementing MAXACTION, since we're doing lots of
 # actions in each probe.
-spawn stap -DMAXACTION=2000 $srcdir/$subdir/python-var.stp -c "$PYTHON -m  HelperSDT python-var.py" python2
+spawn stap -DMAXACTION=2000 $srcdir/$subdir/python-var.stp -c "$PYTHON -m $module_name python-var.py" python2
 set types {"none" "type" "bool" "int" "long" "float" "complex" \
 	       "string" "unicode" "tuple" "list" "xrange" "dictionary" \
 	       "function" "class" "unbound" "instance" "method" "zip" \
@@ -266,7 +276,7 @@ set traceback_lines 0
 set error_seen 0
 set balance1_seen 0
 set balance2_seen 0
-spawn stap $srcdir/$subdir/class.stp -c "$PYTHON -m HelperSDT class.py" python2
+spawn stap $srcdir/$subdir/class.stp -c "$PYTHON -m $module_name class.py" python2
 expect {
     -timeout 120
     -re {^Checkings current balance is: 10\r\n} { exp_continue }
