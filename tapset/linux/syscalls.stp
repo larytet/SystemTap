@@ -1,19 +1,4 @@
 
-# flock ______________________________________________________
-# long sys_flock(unsigned int fd, unsigned int cmd)
-probe syscall.flock = kernel.function("sys_flock").call
-{
-	name = "flock"
-	fd = __int32($fd)
-	operation = $cmd
-	argstr = sprintf("%d, %s", fd, _flock_cmd_str(operation))
-}
-probe syscall.flock.return = kernel.function("sys_flock").return
-{
-	name = "flock"
-	retstr = return_str(1, $return)
-}
-
 # fork _______________________________________________________
 #
 # SYSCALL_DEFINE0(fork)

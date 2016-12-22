@@ -1,20 +1,4 @@
 
-# flock ______________________________________________________
-# long sys_flock(unsigned int fd, unsigned int cmd)
-probe nd_syscall.flock = kprobe.function("sys_flock") ?
-{
-	name = "flock"
-	asmlinkage()
-	fd = int_arg(1)
-	operation = int_arg(2)
-	argstr = sprintf("%d, %s", fd, _flock_cmd_str(operation))
-}
-probe nd_syscall.flock.return = kprobe.function("sys_flock").return ?
-{
-	name = "flock"
-	retstr = returnstr(1)
-}
-
 # fork _______________________________________________________
 #
 # SYSCALL_DEFINE0(fork)
