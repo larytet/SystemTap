@@ -1,44 +1,4 @@
 
-# eventfd _____________________________________________________
-# long sys_eventfd(unsigned int count)
-# SYSCALL_DEFINE2(eventfd2, unsigned int, count, int, flags)
-probe nd_syscall.eventfd = __nd_syscall.eventfd2 ?, __nd_syscall.eventfd ?
-{
-}
-probe __nd_syscall.eventfd2 = kprobe.function("sys_eventfd2")
-{
-	@__syscall_compat_gate(@const("__NR_eventfd2"), @const("__NR_compat_eventfd2"))
-	name = "eventfd2"
-	asmlinkage()
-	count = uint_arg(1)
-	flags = int_arg(2)
-	flags_str = _eventfd2_flag_str(flags)
-	argstr = sprintf("%u, %s", count, flags_str)
-}
-probe __nd_syscall.eventfd = kprobe.function("sys_eventfd")
-{
-	name = "eventfd"
-	asmlinkage()
-	count = uint_arg(1)
-	flags = 0
-	flags_str = "0x0"
-	argstr = sprint(count)
-}
-probe nd_syscall.eventfd.return = __nd_syscall.eventfd2.return ?,
-                                  __nd_syscall.eventfd.return ?
-{
-	retstr = returnstr(1)
-}
-probe __nd_syscall.eventfd2.return = kprobe.function("sys_eventfd2").return
-{
-	@__syscall_compat_gate(@const("__NR_eventfd2"), @const("__NR_compat_eventfd2"))
-	name = "eventfd2"
-}
-probe __nd_syscall.eventfd.return = kprobe.function("sys_eventfd").return
-{
-	name = "eventfd"
-}
-
 # execve _____________________________________________________
 %( kernel_v >= "3.7" %?
 # In kernels >= 3.7, sys_execve() has been moved to generic code, so we
