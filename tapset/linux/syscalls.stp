@@ -1,44 +1,4 @@
 
-# clock_adjtime ______________________________________________
-# SYSCALL_DEFINE2(clock_adjtime, const clockid_t, which_clock,
-#                 struct timex __user *, utx)
-# long compat_sys_clock_adjtime(clockid_t which_clock,
-#                               struct compat_timex __user *utp)
-#
-probe syscall.clock_adjtime = __syscall.clock_adjtime ?,
-	__syscall.compat_clock_adjtime ?
-{
-	name = "clock_adjtime"
-}
-probe __syscall.clock_adjtime = kernel.function("sys_clock_adjtime").call
-{
-	@__syscall_gate_compat_simple
-	clk_id = __int32($which_clock)
-	clk_id_str = _get_wc_str(clk_id)
-	tx_uaddr = @choose_defined($utx, $ktx)
-	argstr = sprintf("%s, %s", clk_id_str, _struct_timex_u(tx_uaddr))
-}
-probe __syscall.compat_clock_adjtime =
-	kernel.function("compat_sys_clock_adjtime").call ?
-{
-	clk_id = __int32($which_clock)
-	clk_id_str = _get_wc_str(clk_id)
-	tx_uaddr = $utp
-	argstr = sprintf("%s, %s", clk_id_str,
-			 _struct_compat_timex_u(tx_uaddr))
-}
-probe syscall.clock_adjtime.return = __syscall.clock_adjtime.return ?,
-	kernel.function("compat_sys_clock_adjtime").return ?
-{
-	name = "clock_adjtime"
-	retstr = return_str(1, $return)
-}
-probe __syscall.clock_adjtime.return =
-	kernel.function("sys_clock_adjtime").return
-{
-	@__syscall_gate_compat_simple
-}
-
 # clock_getres _______________________________________________
 # long sys_clock_getres(clockid_t which_clock, struct timespec __user *tp)
 # long compat_clock_getres(clockid_t which_clock, struct compat_timespec __user *tp)
