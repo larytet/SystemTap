@@ -1,18 +1,4 @@
 
-# chdir ______________________________________________________
-# long sys_chdir(const char __user * filename)
-probe syscall.chdir = kernel.function("sys_chdir").call
-{
-	name = "chdir"
-	path = user_string_quoted($filename)
-	argstr = user_string_quoted($filename)
-}
-probe syscall.chdir.return = kernel.function("sys_chdir").return
-{
-	name = "chdir"
-	retstr = return_str(1, $return)
-}
-
 # chmod ______________________________________________________
 # long sys_chmod(const char __user * filename, mode_t mode)
 probe syscall.chmod = kernel.function("sys_chmod").call

@@ -1,19 +1,4 @@
 
-# chdir ______________________________________________________
-# long sys_chdir(const char __user * filename)
-probe nd_syscall.chdir = kprobe.function("sys_chdir") ?
-{
-	name = "chdir"
-	asmlinkage()
-	path = user_string_quoted(pointer_arg(1))
-	argstr = user_string_quoted(pointer_arg(1))
-}
-probe nd_syscall.chdir.return = kprobe.function("sys_chdir").return ?
-{
-	name = "chdir"
-	retstr = returnstr(1)
-}
-
 # chmod ______________________________________________________
 # long sys_chmod(const char __user * filename, mode_t mode)
 probe nd_syscall.chmod = kprobe.function("sys_chmod") ?
