@@ -1,26 +1,4 @@
 
-# chmod ______________________________________________________
-# long sys_chmod(const char __user * filename, mode_t mode)
-probe syscall.chmod = kernel.function("sys_chmod").call
-{
-	name = "chmod"
-	path = user_string_quoted($filename)
-%( arch == "i386" %?
-	# Why @cast() here? Even though the user passes an unsigned
-	# int (32-bits), some kernels (2.6.32-431.el6.i686) get an
-	# unsigned short (16-bits).
-	mode = @cast(&$mode, "unsigned int")
-%:
-	mode = __uint32($mode)
-%)
-	argstr = sprintf("%s, %#o", user_string_quoted($filename), mode)
-}
-probe syscall.chmod.return = kernel.function("sys_chmod").return
-{
-	name = "chmod"
-	retstr = return_str(1, $return)
-}
-
 # chown ______________________________________________________
 # long sys_chown(const char __user * filename, uid_t user, gid_t group)
 probe syscall.chown = kernel.function("sys_chown").call

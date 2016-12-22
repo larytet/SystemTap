@@ -1,20 +1,4 @@
 
-# chmod ______________________________________________________
-# long sys_chmod(const char __user * filename, mode_t mode)
-probe nd_syscall.chmod = kprobe.function("sys_chmod") ?
-{
-	name = "chmod"
-	asmlinkage()
-	path = user_string_quoted(pointer_arg(1))
-	mode = uint_arg(2)
-	argstr = sprintf("%s, %#o", user_string_quoted(pointer_arg(1)), mode)
-}
-probe nd_syscall.chmod.return = kprobe.function("sys_chmod").return ?
-{
-	name = "chmod"
-	retstr = returnstr(1)
-}
-
 # chown ______________________________________________________
 # long sys_chown(const char __user * filename, uid_t user, gid_t group)
 probe nd_syscall.chown = kprobe.function("sys_chown") ?
