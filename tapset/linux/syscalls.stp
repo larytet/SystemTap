@@ -1,23 +1,4 @@
 
-# dup3 _______________________________________________________
-# SYSCALL_DEFINE3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags)
-probe syscall.dup3 = kernel.function("sys_dup3").call ?
-{
-	@__syscall_compat_gate(@const("__NR_dup3"), @const("__NR_compat_dup3"))
-	name = "dup3";
-	oldfd = __int32($oldfd)
-	newfd = __int32($newfd)
-	flags = __int32($flags)
-	argstr = sprintf("%d, %d, %s", __int32($oldfd), __int32($newfd),
-			 _dup3_flag_str(flags));
-}
-probe syscall.dup3.return = kernel.function("sys_dup3").return ?
-{
-	@__syscall_compat_gate(@const("__NR_dup3"), @const("__NR_compat_dup3"))
-	name = "dup3"
-	retstr = return_str(1, $return)
-}
-
 # epoll_create _______________________________________________
 # long sys_epoll_create(int size)
 # SYSCALL_DEFINE1(epoll_create1, int, flags)
