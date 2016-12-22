@@ -1,19 +1,4 @@
 
-# acct _______________________________________________________
-# long sys_acct(const char __user *name)
-probe nd_syscall.acct = kprobe.function("sys_acct") ?
-{
-	name = "acct"
-	asmlinkage()
-	filename = user_string_quoted(pointer_arg(1))
-	argstr = user_string_quoted(pointer_arg(1))
-}
-probe nd_syscall.acct.return = kprobe.function("sys_acct").return ?
-{
-	name = "acct"
-	retstr = returnstr(1)
-}
-
 # add_key ____________________________________________________
 # long sys_add_key(const char __user *_type,
 #             const char __user *_description,

@@ -1,18 +1,4 @@
 
-# acct _______________________________________________________
-# long sys_acct(const char __user *name)
-probe syscall.acct = kernel.function("sys_acct").call ?
-{
-	name = "acct"
-	filename = user_string_quoted($name)
-	argstr = user_string_quoted($name)
-}
-probe syscall.acct.return = kernel.function("sys_acct").return ?
-{
-	name = "acct"
-	retstr = return_str(1, $return)
-}
-
 # add_key ____________________________________________________
 # long sys_add_key(const char __user *_type,
 #             const char __user *_description,
