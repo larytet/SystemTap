@@ -1,28 +1,4 @@
 
-# copy_file_range ___________________________________________
-# SYSCALL_DEFINE6(copy_file_range, int, fd_in, loff_t __user *, off_in,
-#		int, fd_out, loff_t __user *, off_out,
-#		size_t, len, unsigned int, flags)
-probe nd_syscall.copy_file_range =
-	kprobe.function("sys_copy_file_range").call ?
-{
-	name = "copy_file_range"
-	fd_in = int_arg(1)
-	off_in = pointer_arg(2)
-	fd_out = int_arg(3)
-	off_out = pointer_arg(4)
-	len = ulong_arg(5)
-	flags = uint_arg(6)
-	argstr = sprintf("%d, %p, %d, %p, %d, 0x%x", fd_in, off_in,
-			 fd_out, off_out, len, flags)
-}
-probe nd_syscall.copy_file_range.return =
-	kprobe.function("sys_copy_file_range").return ?
-{
-	name = "copy_file_range"
-	retstr = returnstr(1)
-}
-
 # creat
 # long sys_creat(const char __user * pathname, int mode)
 probe nd_syscall.creat = kprobe.function("sys_creat") ?
