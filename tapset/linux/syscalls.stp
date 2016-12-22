@@ -1,26 +1,4 @@
 
-# fallocate ____________________________________________________
-#
-# SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
-probe syscall.fallocate = kernel.function("sys_fallocate").call ?
-{
-	@__syscall_gate_compat_simple
-	name = "fallocate"
-	fd = __int32($fd)
-	mode = __uint32($mode)
-	mode_str = _stp_fallocate_mode_str(mode)
-	offset = $offset
-	len = $len
-	argstr = sprintf("%d, %s, %#x, %u", fd, _stp_fallocate_mode_str(mode),
-			 offset, len)
-}
-probe syscall.fallocate.return = kernel.function("sys_fallocate").return ?
-{
-	@__syscall_gate_compat_simple
-	name = "fallocate"
-	retstr = return_str(1, $return)
-}
-
 # fanotify_init ______________________________________________
 # fanotify_init() was enabled in kernel version 2.6.37.
 # SYSCALL_DEFINE2(fanotify_init, unsigned int, flags,

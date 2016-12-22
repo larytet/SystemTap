@@ -1,36 +1,4 @@
 
-# fallocate ____________________________________________________
-#
-# SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
-probe nd_syscall.fallocate = kprobe.function("sys_fallocate") ?
-{
-	asmlinkage()
-	@__syscall_gate_compat_simple
-	name = "fallocate"
-	fd = int_arg(1)
-	mode = uint_arg(2)
-	mode_str = _stp_fallocate_mode_str(mode)
-%( CONFIG_64BIT == "y" %?
-	offset = longlong_arg(3)
-	len = longlong_arg(4)
-%:
-	# On a 32-bit kernel, 'long long' arguments take the space of
-	# 2 arguments, so we have to adjust the following argument
-	# numbers.
-	offset = longlong_arg(3)
-	len = longlong_arg(5)
-%)
-	argstr = sprintf("%d, %s, %#x, %u", fd, _stp_fallocate_mode_str(mode),
-			 offset, len)
-}
-probe nd_syscall.fallocate.return = kprobe.function("sys_fallocate").return ?
-{
-	asmlinkage()
-	@__syscall_gate_compat_simple
-	name = "fallocate"
-	retstr = returnstr(1)
-}
-
 # fanotify_init ______________________________________________
 # fanotify_init() was enabled in kernel version 2.6.37.
 # SYSCALL_DEFINE2(fanotify_init, unsigned int, flags,
