@@ -1,32 +1,4 @@
 
-# fchownat ___________________________________________________
-# new function with 2.6.16
-# long sys_fchownat(int dfd, const char __user *filename,
-#	uid_t user, gid_t group, int flag)
-probe syscall.fchownat = kernel.function("sys_fchownat").call ?
-{
-	@__syscall_compat_gate(@const("__NR_fchownat"),
-			       @const("__NR_compat_fchownat"))
-	name = "fchownat"
-	dirfd = __int32($dfd)
-	dirfd_str = _dfd_str(__int32($dfd))
-	pathname = user_string_quoted($filename)
-	owner = __int32($user)
-	group = __int32($group)
-	flags = __int32($flag)
-	flags_str = _at_flag_str(__int32($flag))
-	argstr = sprintf("%s, %s, %d, %d, %s", dirfd_str,
-			 user_string_quoted($filename), owner, group,
-			 flags_str)
-}
-probe syscall.fchownat.return = kernel.function("sys_fchownat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_fchownat"),
-			       @const("__NR_compat_fchownat"))
-	name = "fchownat"
-	retstr = return_str(1, $return)
-}
-
 # fcntl ______________________________________________________
 # long sys_fcntl(int fd, unsigned int cmd, unsigned long arg)
 # long sys_fcntl64(unsigned int fd, unsigned int cmd, unsigned long arg)
