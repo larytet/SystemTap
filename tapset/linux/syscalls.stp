@@ -1,18 +1,4 @@
 
-# dup ________________________________________________________
-# long sys_dup(unsigned int fildes)
-probe syscall.dup = kernel.function("sys_dup").call
-{
-	name = "dup"
-	oldfd = __int32($fildes)
-	argstr = sprint(__int32($fildes))
-}
-probe syscall.dup.return = kernel.function("sys_dup").return
-{
-	name = "dup"
-	retstr = return_str(1, $return)
-}
-
 # dup2 _______________________________________________________
 # long sys_dup2(unsigned int oldfd, unsigned int newfd)
 probe syscall.dup2 = kernel.function("sys_dup2").call
