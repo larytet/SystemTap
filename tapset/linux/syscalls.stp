@@ -1,29 +1,3 @@
-
-# capget _____________________________________________________
-/*
- *  NOTE
- *   this  is  probably not a good function
- *   to probe. The  structures  are  always
- *   changing.  It also  seems  like  it is
- *   not really  used. Cscope  produced  no
- *   reference  of  this  function  in  the
- *   kernel  (returned no callers). Perhaps
- *   cap_get_proc / cap_set_proc are better
- *   functions to export.
- */
-# long sys_capget(cap_user_header_t header, cap_user_data_t dataptr)
-probe syscall.capget = kernel.function("sys_capget").call
-{
-	name = "capget"
-	header_uaddr = $header
-	data_uaddr = $dataptr
-	argstr = sprintf("%p, %p", $header, $dataptr)
-}
-probe syscall.capget.return = kernel.function("sys_capget").return
-{
-	name = "capget"
-	retstr = return_str(1, $return)
-}
 # capset _____________________________________________________
 /*
  *  NOTE
