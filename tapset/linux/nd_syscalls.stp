@@ -1,37 +1,4 @@
 
-# compat_clock_nanosleep ________________________________________
-#
-# long compat_clock_nanosleep(clockid_t which_clock, int flags,
-#			struct compat_timespec __user *rqtp,
-#			struct compat_timespec __user *rmtp)
-#
-probe nd_syscall.compat_clock_nanosleep =
-	kprobe.function("compat_clock_nanosleep").call ?,
-	kprobe.function("compat_sys_clock_nanosleep").call ?
-{
-	name = "clock_nanosleep"
-	asmlinkage()
-	clk_id = int_arg(1)
-	clk_id_str = _get_wc_str(clk_id)
-	flags = int_arg(2)
-%(systemtap_v <= "2.6" %?
-	flag_str = _stp_clock_nanosleep_flags_str(flags)
-%)
-	flags_str = _stp_clock_nanosleep_flags_str(flags)
-	req_uaddr = pointer_arg(3)
-	rem_uaddr = pointer_arg(4)
-	argstr = sprintf("%s, %s, %s, %p", _get_wc_str(int_arg(1)), flags_str,
-			 _struct_compat_timespec_u(req_uaddr, 1),
-			 pointer_arg(4))
-}
-probe nd_syscall.compat_clock_nanosleep.return =
-	kprobe.function("compat_clock_nanosleep").return ?,
-	kprobe.function("compat_sys_clock_nanosleep").return ?
-{
-	name = "clock_nanosleep"
-	retstr = returnstr(1)
-}
-
 # clock_settime ______________________________________________
 # long sys_clock_settime(clockid_t which_clock,
 #                   const struct timespec __user *tp)
