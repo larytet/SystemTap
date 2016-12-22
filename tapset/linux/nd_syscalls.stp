@@ -1,29 +1,4 @@
 
-# fork _______________________________________________________
-#
-# SYSCALL_DEFINE0(fork)
-#
-probe nd_syscall.fork = kprobe.function("sys_fork").call ?
-{
-%(systemtap_v < "2.3" %?
-	regs = 0
-%)
-%(systemtap_v < "2.5" %?
-	clone_flags = 0
-	stack_start = 0
-	stack_size = 0
-	parent_tid_uaddr = 0
-	child_tid_uaddr = 0
-%)
-	name = "fork"
-	argstr = ""
-}
-probe nd_syscall.fork.return = kprobe.function("sys_fork").return ?
-{
-	name = "fork"
-	retstr = returnstr(1)
-}
-
 # fremovexattr _______________________________________________
 # long sys_fremovexattr(int fd, char __user *name)
 probe nd_syscall.fremovexattr = kprobe.function("sys_fremovexattr") ?
