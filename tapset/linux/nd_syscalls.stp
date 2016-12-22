@@ -1,21 +1,3 @@
-# chown16 ___________________________________________________
-# long sys_chown16(const char __user * filename, old_uid_t user,
-#			old_gid_t group)
-#
-probe nd_syscall.chown16 = kprobe.function("sys_chown16") ?
-{
-	name = "chown16"
-	asmlinkage()
-	path = user_string_quoted(pointer_arg(1))
-	owner = __short(uint_arg(2))
-	group = __short(uint_arg(3))
-	argstr = sprintf("%s, %d, %d", user_string_quoted(pointer_arg(1)), owner, group)
-}
-probe nd_syscall.chown16.return = kprobe.function("sys_chown16").return ?
-{
-	name = "chown16"
-	retstr = returnstr(1)
-}
 
 # chroot _____________________________________________________
 # long sys_chroot(const char __user * filename)
