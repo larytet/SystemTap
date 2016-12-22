@@ -1,28 +1,4 @@
 
-# fgetxattr __________________________________________________
-# ssize_t sys_fgetxattr(int fd, char __user *name,
-# 		void __user *value, size_t size)
-probe nd_syscall.fgetxattr = kprobe.function("sys_fgetxattr") ?
-{
-	name = "fgetxattr"
-	asmlinkage()
-	filedes = int_arg(1)
-# 'name2' should have been 'name_str'.  Deprecate the old name.
-%(systemtap_v <= "1.4" %?
-	name2 = user_string_quoted(pointer_arg(2))
-%)
-	name_str = user_string_quoted(pointer_arg(2))
-	value_uaddr = pointer_arg(3)
-	size  = ulong_arg(4)
-	argstr = sprintf("%d, %s, %p, %u", filedes,
-			 user_string_quoted(pointer_arg(2)), value_uaddr, size)
-}
-probe nd_syscall.fgetxattr.return = kprobe.function("sys_fgetxattr").return ?
-{
-	name = "fgetxattr"
-	retstr = returnstr(1)
-}
-
 # finit_module ________________________________________________
 # SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs,
 #		  int, flags)

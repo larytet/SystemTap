@@ -1,27 +1,4 @@
 
-# fgetxattr __________________________________________________
-# ssize_t sys_fgetxattr(int fd, char __user *name,
-# 		void __user *value, size_t size)
-probe syscall.fgetxattr = kernel.function("sys_fgetxattr").call
-{
-	name = "fgetxattr"
-	filedes = __int32($fd)
-# 'name2' should have been 'name_str'.  Deprecate the old name.
-%(systemtap_v <= "1.4" %?
-	name2 = user_string_quoted($name)
-%)
-	name_str = user_string_quoted($name)
-	value_uaddr = $value
-	size = __ulong($size)
-	argstr = sprintf("%d, %s, %p, %u", filedes, user_string_quoted($name),
-			 value_uaddr, size)
-}
-probe syscall.fgetxattr.return = kernel.function("sys_fgetxattr").return
-{
-	name = "fgetxattr"
-	retstr = return_str(1, $return)
-}
-
 # finit_module ________________________________________________
 # SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs,
 #		  int, flags)
