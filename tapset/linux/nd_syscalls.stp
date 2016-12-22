@@ -1,29 +1,3 @@
-# capset _____________________________________________________
-/*
- *  NOTE
- *   this  is  probably not a good function
- *   to probe. The  structures  are  always
- *   changing.  It also  seems  like  it is
- *   not really  used. Cscope  produced  no
- *   reference  of  this  function  in  the
- *   kernel  (returned no callers). Perhaps
- *   cap_get_proc / cap_set_proc are better
- *   functions to export.
- */
-# long sys_capset(cap_user_header_t header, const cap_user_data_t data)
-probe nd_syscall.capset = kprobe.function("sys_capset") ?
-{
-	name = "capset"
-	asmlinkage()
-	header_uaddr = pointer_arg(1)
-	data_uaddr = pointer_arg(2)
-	argstr = sprintf("%p, %p", header_uaddr, data_uaddr)
-}
-probe nd_syscall.capset.return = kprobe.function("sys_capset").return ?
-{
-	name = "capset"
-	retstr = returnstr(1)
-}
 
 # chdir ______________________________________________________
 # long sys_chdir(const char __user * filename)
