@@ -1,20 +1,4 @@
 
-# access _____________________________________________________
-# long sys_access(const char __user * filename, int mode)
-probe syscall.access = kernel.function("sys_access").call
-{
-	name = "access"
-	pathname = user_string_quoted($filename)
-	mode = __int32($mode)
-	mode_str = _access_mode_str(__int32($mode))
-	argstr = sprintf("%s, %s", user_string_quoted($filename), mode_str)
-}
-probe syscall.access.return = kernel.function("sys_access").return
-{
-	name = "access"
-	retstr = return_str(1, $return)
-}
-
 # acct _______________________________________________________
 # long sys_acct(const char __user *name)
 probe syscall.acct = kernel.function("sys_acct").call ?

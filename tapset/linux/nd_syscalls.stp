@@ -1,21 +1,4 @@
 
-# access _____________________________________________________
-# long sys_access(const char __user * filename, int mode)
-probe nd_syscall.access = kprobe.function("sys_access") ?
-{
-	name = "access"
-	asmlinkage()
-	pathname = user_string_quoted(pointer_arg(1))
-	mode = int_arg(2)
-	mode_str = _access_mode_str(mode)
-	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)), mode_str)
-}
-probe nd_syscall.access.return = kprobe.function("sys_access").return ?
-{
-	name = "access"
-	retstr = returnstr(1)
-}
-
 # acct _______________________________________________________
 # long sys_acct(const char __user *name)
 probe nd_syscall.acct = kprobe.function("sys_acct") ?
