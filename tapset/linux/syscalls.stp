@@ -1,35 +1,4 @@
 
-# fstatat ____________________________________________________
-# sys32_fstatat64(unsigned int dfd, char __user *filename, struct stat64_emu31 __user* statbuf, int flag)
-# long sys_newfstatat(int dfd, char __user *filename, struct stat __user *statbuf, int flag)
-# long sys_fstatat64(int dfd, char __user *filename, struct stat64 __user *statbuf, int flag)
-# long compat_sys_newfstatat(unsigned int dfd, char __user *filename, struct compat_stat __user *statbuf, int flag)
-probe syscall.fstatat = kernel.function("sys_fstatat64").call ?,
-                        kernel.function("sys_newfstatat").call ?,
-                        kernel.function("compat_sys_newfstatat").call ?,
-                        kernel.function("sys32_fstatat64").call ?,
-                        kernel.function("sys32_fstatat").call ?
-{
-	name = "fstatat"
-	dirfd = __int32($dfd)
-	dirfd_str = _dfd_str(__int32($dfd))
-	path = user_string_quoted($filename)
-	buf_uaddr = $statbuf
-	flags = __int32($flag)
-	flags_str = _at_flag_str(__int32($flag))
-	argstr = sprintf("%s, %s, %p, %s", dirfd_str,
-			 user_string_quoted($filename), $statbuf, flags_str)
-}
-probe syscall.fstatat.return = kernel.function("sys_fstatat64").return ?,
-                               kernel.function("sys_newfstatat").return ?,
-                               kernel.function("compat_sys_newfstatat").return ?,
-                               kernel.function("sys32_fstatat64").return ?,
-			       kernel.function("sys32_fstatat").return ?
-{
-	name = "fstatat"
-	retstr = return_str(1, $return)
-}
-
 # fstatfs ____________________________________________________
 # long sys_fstatfs(unsigned int fd, struct statfs __user * buf)
 # long compat_sys_fstatfs(unsigned int fd, struct compat_statfs __user *buf)

@@ -1,36 +1,4 @@
 
-# fstatat ____________________________________________________
-# sys32_fstatat64(unsigned int dfd, char __user *filename, struct stat64_emu31 __user* statbuf, int flag)
-# long sys_newfstatat(int dfd, char __user *filename, struct stat __user *statbuf, int flag)
-# long sys_fstatat64(int dfd, char __user *filename, struct stat64 __user *statbuf, int flag)
-# long compat_sys_newfstatat(unsigned int dfd, char __user *filename, struct compat_stat __user *statbuf, int flag)
-probe nd_syscall.fstatat = kprobe.function("sys_fstatat64") ?,
-                           kprobe.function("sys_newfstatat") ?,
-                           kprobe.function("compat_sys_newfstatat") ?,
-                           kprobe.function("sys32_fstatat64") ?,
-			   kprobe.function("sys32_fstatat") ?
-{
-	name = "fstatat"
-	asmlinkage()
-	dirfd = int_arg(1)
-	dirfd_str = _dfd_str(dirfd)
-	path = user_string_quoted(pointer_arg(2))
-	buf_uaddr = pointer_arg(3)
-	flags = int_arg(4)
-	flags_str = _at_flag_str(flags)
-	argstr = sprintf("%s, %s, %p, %s", dirfd_str, path, buf_uaddr,
-			 flags_str)
-}
-probe nd_syscall.fstatat.return = kprobe.function("sys_fstatat64").return ?,
-                                  kprobe.function("sys_newfstatat").return ?,
-                                  kprobe.function("compat_sys_newfstatat").return ?,
-                                  kprobe.function("sys32_fstatat64").return ?,
-				  kprobe.function("sys32_fstatat").return ?
-{
-	name = "fstatat"
-	retstr = returnstr(1)
-}
-
 # fstatfs ____________________________________________________
 # long sys_fstatfs(unsigned int fd, struct statfs __user * buf)
 # long compat_sys_fstatfs(unsigned int fd, struct compat_statfs __user *buf)
