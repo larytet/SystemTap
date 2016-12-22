@@ -1,28 +1,4 @@
 
-# epoll_ctl __________________________________________________
-#
-# long sys_epoll_ctl(int epfd, int op, int fd, struct epoll_event __user *event)
-# long compat_sys_epoll_ctl(int epfd, int op, int fd,
-#			struct compat_epoll_event __user *event)
-#
-probe syscall.epoll_ctl = kernel.function("compat_sys_epoll_ctl").call ?,
-                          kernel.function("sys_epoll_ctl").call ?
-{
-	name = "epoll_ctl"
-	epfd = __int32($epfd)
-	op = $op
-	op_str = _opoll_op_str($op)
-	fd = __int32($fd)
-	event_uaddr = $event
-	argstr = sprintf("%d, %s, %d, %p", epfd, _opoll_op_str($op), fd, $event)
-}
-probe syscall.epoll_ctl.return = kernel.function("compat_sys_epoll_ctl").return ?,
-                                 kernel.function("sys_epoll_ctl").return ?
-{
-	name = "epoll_ctl"
-	retstr = return_str(1, $return)
-}
-
 # epoll_pwait _________________________________________________
 #
 # long sys_epoll_pwait(int epfd, struct epoll_event __user *events,

@@ -1,29 +1,4 @@
 
-# epoll_ctl __________________________________________________
-#
-# long sys_epoll_ctl(int epfd, int op, int fd, struct epoll_event __user *event)
-# long compat_sys_epoll_ctl(int epfd, int op, int fd,
-#			struct compat_epoll_event __user *event)
-#
-probe nd_syscall.epoll_ctl = kprobe.function("compat_sys_epoll_ctl") ?,
-                             kprobe.function("sys_epoll_ctl") ?
-{
-	name = "epoll_ctl"
-	asmlinkage()
-	epfd = int_arg(1)
-	op = int_arg(2)
-	op_str = _opoll_op_str(op)
-	fd = int_arg(3)
-	event_uaddr = pointer_arg(4)
-	argstr = sprintf("%d, %s, %d, %p", epfd, op_str, fd, event_uaddr)
-}
-probe nd_syscall.epoll_ctl.return = kprobe.function("compat_sys_epoll_ctl").return ?,
-                                    kprobe.function("sys_epoll_ctl").return ?
-{
-	name = "epoll_ctl"
-	retstr = returnstr(1)
-}
-
 # epoll_pwait _________________________________________________
 #
 # long sys_epoll_pwait(int epfd, struct epoll_event __user *events,
