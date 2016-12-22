@@ -1,20 +1,4 @@
 
-# creat
-# long sys_creat(const char __user * pathname, int mode)
-probe nd_syscall.creat = kprobe.function("sys_creat") ?
-{
-	name = "creat"
-	asmlinkage()
-	mode = uint_arg(2)
-	pathname = user_string_quoted(pointer_arg(1))
-	argstr = sprintf("%s, %#o", user_string_quoted(pointer_arg(1)), mode)
-}
-probe nd_syscall.creat.return = kprobe.function("sys_creat").return ?
-{
-	name = "creat"
-	retstr = returnstr(1)
-}
-
 # delete_module ______________________________________________
 # long sys_delete_module(const char __user *name_user, unsigned int flags)
 probe nd_syscall.delete_module = kprobe.function("sys_delete_module") ?

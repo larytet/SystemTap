@@ -1,20 +1,4 @@
 
-# creat
-# long sys_creat(const char __user * pathname, int mode)
-probe syscall.creat = kernel.function("sys_creat").call ?
-{
-	name = "creat"
-	mode = __uint32($mode)
-	pathname = user_string_quoted($pathname)
-	argstr = sprintf("%s, %#o", user_string_quoted($pathname),
-			 __uint32($mode))
-}
-probe syscall.creat.return = kernel.function("sys_creat").return ?
-{
-	name = "creat"
-	retstr = return_str(1, $return)
-}
-
 # delete_module ______________________________________________
 # long sys_delete_module(const char __user *name_user, unsigned int flags)
 probe syscall.delete_module = kernel.function("sys_delete_module").call ?
