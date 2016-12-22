@@ -1,34 +1,4 @@
 
-# clock_nanosleep ____________________________________________
-# long sys_clock_nanosleep(clockid_t which_clock,
-#                     int flags,
-#                     const struct timespec __user *rqtp,
-#                     struct timespec __user *rmtp)
-#
-probe syscall.clock_nanosleep = kernel.function("sys_clock_nanosleep").call
-{
-	@__syscall_gate(@const("__NR_clock_nanosleep"))
-	name = "clock_nanosleep"
-	clk_id = __int32($which_clock)
-	clk_id_str = _get_wc_str(__int32($which_clock))
-	flags = __int32($flags)
-%(systemtap_v <= "2.6" %?
-	flag_str = _stp_clock_nanosleep_flags_str(__int32($flags))
-%)
-	flags_str = _stp_clock_nanosleep_flags_str(__int32($flags))
-	req_uaddr = $rqtp
-	rem_uaddr = $rmtp
-	argstr = sprintf("%s, %s, %s, %p", _get_wc_str(__int32($which_clock)),
-			 flags_str, _struct_timespec_u($rqtp, 1), $rmtp)
-}
-probe syscall.clock_nanosleep.return =
-	kernel.function("sys_clock_nanosleep").return
-{
-	@__syscall_gate(@const("__NR_clock_nanosleep"))
-	name = "clock_nanosleep"
-	retstr = return_str(1, $return)
-}
-
 # compat_clock_nanosleep ________________________________________
 #
 # long compat_clock_nanosleep(clockid_t which_clock, int flags,
