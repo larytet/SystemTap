@@ -1,40 +1,4 @@
 
-# fsetxattr __________________________________________________
-/*
- * asmlinkage long
- * sys_fsetxattr(int fd,
- *               char __user *name,
- *               void __user *value,
- *               size_t size,
- *               int flags)
- */
-probe nd_syscall.fsetxattr = kprobe.function("sys_fsetxattr") ?
-{
-	name = "fsetxattr"
-	asmlinkage()
-	filedes = int_arg(1)
-# 'name2' should have been 'name_str'.  Deprecate the old name.
-%(systemtap_v <= "1.4" %?
-	name2 = user_string_quoted(pointer_arg(2))
-%)
-	name_uaddr = pointer_arg(2)
-	name_str = user_string_quoted(pointer_arg(2))
-	value_uaddr = pointer_arg(3)
-	size = ulong_arg(4)
-	value_str = _stp_xattr_val_str(value_uaddr, size)
-	flags = int_arg(5)
-	flags_str = _stp_xattr_flags_str(flags)
-	argstr = sprintf("%d, %s, %s, %u, %s", filedes,
-			 user_string_quoted(pointer_arg(2)),
-			 _stp_xattr_val_str(value_uaddr, size),
-			 size, _stp_xattr_flags_str(flags))
-}
-probe nd_syscall.fsetxattr.return = kprobe.function("sys_fsetxattr").return ?
-{
-	name = "fsetxattr"
-	retstr = returnstr(1)
-}
-
 # fstat ______________________________________________________
 # long sys_fstat(unsigned int fd, struct __old_kernel_stat __user * statbuf)
 # long sys_fstat64(unsigned long fd, struct stat64 __user * statbuf)
