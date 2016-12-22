@@ -1,20 +1,4 @@
 
-# fremovexattr _______________________________________________
-# long sys_fremovexattr(int fd, char __user *name)
-probe syscall.fremovexattr = kernel.function("sys_fremovexattr").call
-{
-	name = "fremovexattr"
-	filedes = __int32($fd)
-	name_uaddr = $name
-	name_str = user_string_quoted($name)
-	argstr = sprintf("%d, %s", __int32($fd), user_string_quoted($name))
-}
-probe syscall.fremovexattr.return = kernel.function("sys_fremovexattr").return
-{
-	name = "fremovexattr"
-	retstr = return_str(1, $return)
-}
-
 # fsetxattr __________________________________________________
 /*
  * asmlinkage long

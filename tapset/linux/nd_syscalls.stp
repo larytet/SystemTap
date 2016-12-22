@@ -1,26 +1,4 @@
 
-# fremovexattr _______________________________________________
-# long sys_fremovexattr(int fd, char __user *name)
-probe nd_syscall.fremovexattr = kprobe.function("sys_fremovexattr") ?
-{
-	name = "fremovexattr"
-	asmlinkage()
-	filedes = int_arg(1)
-
-# 'name2' should have been 'name_str'.  Deprecate the old name.
-%(systemtap_v <= "1.4" %?
-	name2 = user_string_quoted(pointer_arg(2))
-%)
-	name_uaddr = pointer_arg(2)
-	name_str = user_string_quoted(pointer_arg(2))
-	argstr = sprintf("%d, %s", filedes, user_string_quoted(pointer_arg(2)))
-}
-probe nd_syscall.fremovexattr.return = kprobe.function("sys_fremovexattr").return ?
-{
-	name = "fremovexattr"
-	retstr = returnstr(1)
-}
-
 # fsetxattr __________________________________________________
 /*
  * asmlinkage long
