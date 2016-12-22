@@ -1,22 +1,4 @@
 
-# bpf ________________________________________________________
-# SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr,
-#                 unsigned int, size)
-probe syscall.bpf = kernel.function("sys_bpf") ?
-{
-	name = "bpf"
-	cmd = __int32($cmd)
-	cmd_str = _bpf_cmd_str(cmd)
-	attr_uaddr = $uattr
-	size = __uint32($size)
-	argstr = sprintf("%s, %p, %u", cmd_str, attr_uaddr, size)
-}
-probe syscall.bpf.return = kernel.function("sys_bpf").return ?
-{
-	name = "bpf"
-	retstr = return_str(1, $return)
-}
-
 # brk ________________________________________________________
 # unsigned long sys_brk(unsigned long brk)
 probe syscall.brk = kernel.function("ia64_brk").call ?,

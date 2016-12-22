@@ -1,24 +1,4 @@
 
-# bpf ________________________________________________________
-# SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr,
-#                 unsigned int, size)
-probe nd_syscall.bpf = kprobe.function("sys_bpf") ?
-{
-	name = "bpf"
-	asmlinkage()
-	cmd = int_arg(1)
-	cmd_str = _bpf_cmd_str(cmd)
-	attr_uaddr = pointer_arg(2)
-	size = uint_arg(3)
-	argstr = sprintf("%s, %p, %u", cmd_str, attr_uaddr, size)
-
-}
-probe nd_syscall.bpf.return = kprobe.function("sys_bpf").return ?
-{
-	name = "bpf"
-	retstr = returnstr(1)
-}
-
 # brk ________________________________________________________
 # unsigned long sys_brk(unsigned long brk)
 probe nd_syscall.brk = kprobe.function("ia64_brk") ?,
