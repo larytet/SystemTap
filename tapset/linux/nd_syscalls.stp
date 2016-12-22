@@ -1,19 +1,4 @@
 
-# fdatasync __________________________________________________
-# long sys_fdatasync(unsigned int fd)
-probe nd_syscall.fdatasync = kprobe.function("sys_fdatasync") ?
-{
-	name = "fdatasync"
-	asmlinkage()
-	fd = int_arg(1)
-	argstr = sprint(fd)
-}
-probe nd_syscall.fdatasync.return = kprobe.function("sys_fdatasync").return ?
-{
-	name = "fdatasync"
-	retstr = returnstr(1)
-}
-
 # fgetxattr __________________________________________________
 # ssize_t sys_fgetxattr(int fd, char __user *name,
 # 		void __user *value, size_t size)

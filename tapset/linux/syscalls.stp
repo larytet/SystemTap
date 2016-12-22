@@ -1,18 +1,4 @@
 
-# fdatasync __________________________________________________
-# long sys_fdatasync(unsigned int fd)
-probe syscall.fdatasync = kernel.function("sys_fdatasync").call
-{
-	name = "fdatasync"
-	fd = __int32($fd)
-	argstr = sprint(fd)
-}
-probe syscall.fdatasync.return = kernel.function("sys_fdatasync").return
-{
-	name = "fdatasync"
-	retstr = return_str(1, $return)
-}
-
 # fgetxattr __________________________________________________
 # ssize_t sys_fgetxattr(int fd, char __user *name,
 # 		void __user *value, size_t size)
