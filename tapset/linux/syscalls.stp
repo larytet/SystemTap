@@ -1,36 +1,4 @@
 
-# epoll_pwait _________________________________________________
-#
-# long sys_epoll_pwait(int epfd, struct epoll_event __user *events,
-#		int maxevents, int timeout, const sigset_t __user *sigmask,
-#		size_t sigsetsize)
-# long compat_sys_epoll_pwait(int epfd,
-#			struct compat_epoll_event __user *events,
-#			int maxevents, int timeout,
-#			const compat_sigset_t __user *sigmask,
-#			compat_size_t sigsetsize)
-#
-probe syscall.epoll_pwait = kernel.function("compat_sys_epoll_pwait").call ?,
-                            kernel.function("sys_epoll_pwait").call ?
-{
-	name = "epoll_pwait"
-	epfd = __int32($epfd)
-	events_uaddr = @__pointer($events)
-	maxevents = __int32($maxevents)
-	timeout = __int32($timeout)
-	sigmask_uaddr = @__pointer($sigmask)
-	sigsetsize = $sigsetsize
-	argstr = sprintf("%d, %p, %d, %d, %p, %d",
-			 __int32($epfd), events_uaddr, __int32($maxevents),
-			 __int32($timeout), sigmask_uaddr, $sigsetsize)
-}
-probe syscall.epoll_pwait.return = kernel.function("compat_sys_epoll_pwait").return ?,
-                                   kernel.function("sys_epoll_pwait").return ?
-{
-	name = "epoll_pwait"
-	retstr = return_str(1, $return)
-}
-
 # epoll_wait _________________________________________________
 #
 # long sys_epoll_wait(int epfd, struct epoll_event __user *events,
