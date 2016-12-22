@@ -1,35 +1,4 @@
 
-# fadvise64 __________________________________________________
-# long sys_fadvise64(int fd, loff_t offset, size_t len,  int advice)
-#
-probe nd_syscall.fadvise64 = kprobe.function("sys_fadvise64") ?
-{
-	asmlinkage()
-	@__syscall_gate_compat_simple
-	name = "fadvise64"
-	fd = int_arg(1)
-%( CONFIG_64BIT == "y" %?
-	offset = longlong_arg(2)
-	len = long_arg(3)
-	advice = int_arg(4)
-%:
-	# On a 32-bit kernel, 'long long' arguments take the space of
-	# 2 arguments, so we have to adjust the following argument
-	# numbers.
-	offset = longlong_arg(2)
-	len = long_arg(4)
-	advice = int_arg(5)
-%)
-	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
-			 _fadvice_advice_str(advice))
-}
-probe nd_syscall.fadvise64.return = kprobe.function("sys_fadvise64").return ?
-{
-	@__syscall_gate_compat_simple
-	name = "fadvise64"
-	retstr = returnstr(1)
-}
-
 # fadvise64_64 _______________________________________________
 # long sys_fadvise64_64(int fd, loff_t offset, loff_t len,  int advice)
 #

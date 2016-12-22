@@ -1,25 +1,4 @@
 
-# fadvise64 __________________________________________________
-# long sys_fadvise64(int fd, loff_t offset, size_t len,  int advice)
-#
-probe syscall.fadvise64 = kernel.function("sys_fadvise64").call ?
-{
-	name = "fadvise64"
-	@__syscall_gate_compat_simple
-	fd = __int32(@choose_defined($fd, 0))
-	offset = @choose_defined($offset, 0)
-	len = __long(@choose_defined($len, 0))
-	advice = __int32(@choose_defined($advice, 0))
-	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
-			 _fadvice_advice_str(advice))
-}
-probe syscall.fadvise64.return = kernel.function("sys_fadvise64").return ?
-{
-	@__syscall_gate_compat_simple
-	name = "fadvise64"
-	retstr = return_str(1, $return)
-}
-
 # fadvise64_64 _______________________________________________
 # long sys_fadvise64_64(int fd, loff_t offset, loff_t len,  int advice)
 #

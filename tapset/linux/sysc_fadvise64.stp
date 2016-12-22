@@ -1,0 +1,64 @@
+# fadvise64 __________________________________________________
+# long sys_fadvise64(int fd, loff_t offset, size_t len,  int advice)
+#
+
+@define _SYSCALL_FADVISE64_NAME
+%(
+	name = "fadvise64"
+%)
+
+@define _SYSCALL_FADVISE64_ARGSTR
+%(
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len, _fadvice_advice_str(advice))
+%)
+
+probe syscall.fadvise64 = dw_syscall.fadvise64 !, nd_syscall.fadvise64 {}
+probe syscall.fadvise64.return = dw_syscall.fadvise64.return !, nd_syscall.fadvise64.return {}
+
+# dw_fadvise64 _____________________________________________________
+
+probe dw_syscall.fadvise64 = kernel.function("sys_fadvise64").call ?
+{
+	@_SYSCALL_FADVISE64_NAME
+	@__syscall_gate_compat_simple
+	fd = __int32(@choose_defined($fd, 0))
+	offset = @choose_defined($offset, 0)
+	len = __long(@choose_defined($len, 0))
+	advice = __int32(@choose_defined($advice, 0))
+	@_SYSCALL_FADVISE64_ARGSTR
+}
+probe dw_syscall.fadvise64.return = kernel.function("sys_fadvise64").return ?
+{
+	@__syscall_gate_compat_simple
+	@_SYSCALL_FADVISE64_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_fadvise64 _____________________________________________________
+
+probe nd_syscall.fadvise64 = kprobe.function("sys_fadvise64") ?
+{
+	asmlinkage()
+	@__syscall_gate_compat_simple
+	@_SYSCALL_FADVISE64_NAME
+	fd = int_arg(1)
+%( CONFIG_64BIT == "y" %?
+	offset = longlong_arg(2)
+	len = long_arg(3)
+	advice = int_arg(4)
+%:
+	# On a 32-bit kernel, 'long long' arguments take the space of
+	# 2 arguments, so we have to adjust the following argument
+	# numbers.
+	offset = longlong_arg(2)
+	len = long_arg(4)
+	advice = int_arg(5)
+%)
+	@_SYSCALL_FADVISE64_ARGSTR
+}
+probe nd_syscall.fadvise64.return = kprobe.function("sys_fadvise64").return ?
+{
+	@__syscall_gate_compat_simple
+	@_SYSCALL_FADVISE64_NAME
+	retstr = returnstr(1)
+}
