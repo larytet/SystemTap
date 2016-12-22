@@ -1,22 +1,4 @@
 
-# delete_module ______________________________________________
-# long sys_delete_module(const char __user *name_user, unsigned int flags)
-probe syscall.delete_module = kernel.function("sys_delete_module").call ?
-{
-	name = "delete_module"
-	name_user = user_string_quoted($name_user)
-	flags = __uint32($flags)
-	flags_str = _module_flags_str(__uint32($flags))
-	argstr = sprintf("%s, %s", user_string_quoted($name_user),
-			 _module_flags_str(__uint32($flags)))
-}
-probe syscall.delete_module.return =
-	kernel.function("sys_delete_module").return ?
-{
-	name = "delete_module"
-	retstr = return_str(1, $return)
-}
-
 # dup ________________________________________________________
 # long sys_dup(unsigned int fildes)
 probe syscall.dup = kernel.function("sys_dup").call

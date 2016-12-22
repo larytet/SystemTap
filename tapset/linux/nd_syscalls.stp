@@ -1,22 +1,4 @@
 
-# delete_module ______________________________________________
-# long sys_delete_module(const char __user *name_user, unsigned int flags)
-probe nd_syscall.delete_module = kprobe.function("sys_delete_module") ?
-{
-	name = "delete_module"
-	asmlinkage()
-	name_user = user_string_quoted(pointer_arg(1))
-	flags = uint_arg(2)
-	flags_str = _module_flags_str(flags)
-	argstr = sprintf("%s, %s", name_user, _module_flags_str(flags))
-}
-probe nd_syscall.delete_module.return =
-	kprobe.function("sys_delete_module").return ?
-{
-	name = "delete_module"
-	retstr = returnstr(1)
-}
-
 # dup ________________________________________________________
 # long sys_dup(unsigned int fildes)
 probe nd_syscall.dup = kprobe.function("sys_dup") ?
