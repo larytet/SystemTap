@@ -1,20 +1,4 @@
 
-# flistxattr _________________________________________________
-# ssize_t sys_flistxattr(int fd, char __user *list, size_t size)
-probe syscall.flistxattr = kernel.function("sys_flistxattr").call
-{
-	name = "flistxattr"
-	filedes = __int32($fd)
-	list_uaddr = $list
-	size = __ulong($size)
-	argstr = sprintf("%d, %p, %u", filedes, list_uaddr, size)
-}
-probe syscall.flistxattr.return = kernel.function("sys_flistxattr").return
-{
-	name = "flistxattr"
-	retstr = return_str(1, $return)
-}
-
 # flock ______________________________________________________
 # long sys_flock(unsigned int fd, unsigned int cmd)
 probe syscall.flock = kernel.function("sys_flock").call

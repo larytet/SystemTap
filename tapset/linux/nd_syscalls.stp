@@ -1,22 +1,4 @@
 
-
-# flistxattr _________________________________________________
-# ssize_t sys_flistxattr(int fd, char __user *list, size_t size)
-probe nd_syscall.flistxattr = kprobe.function("sys_flistxattr") ?
-{
-	name = "flistxattr"
-	asmlinkage()
-	filedes = int_arg(1)
-	list_uaddr = pointer_arg(2)
-	size = ulong_arg(3)
-	argstr = sprintf("%d, %p, %u", filedes, list_uaddr, size)
-}
-probe nd_syscall.flistxattr.return = kprobe.function("sys_flistxattr").return ?
-{
-	name = "flistxattr"
-	retstr = returnstr(1)
-}
-
 # flock ______________________________________________________
 # long sys_flock(unsigned int fd, unsigned int cmd)
 probe nd_syscall.flock = kprobe.function("sys_flock") ?
