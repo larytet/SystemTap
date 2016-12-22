@@ -1,31 +1,4 @@
 
-# fcntl ______________________________________________________
-# long sys_fcntl(int fd, unsigned int cmd, unsigned long arg)
-# long sys_fcntl64(unsigned int fd, unsigned int cmd, unsigned long arg)
-# long compat_sys_fcntl64(unsigned int fd, unsigned int cmd, unsigned long arg)
-# long compat_sys_fcntl(unsigned int fd, unsigned int cmd, unsigned long arg)
-#
-probe syscall.fcntl = kernel.function("compat_sys_fcntl").call ?,
-                      kernel.function("compat_sys_fcntl64").call ?,
-                      kernel.function("sys_fcntl64").call ?,
-                      kernel.function("sys_fcntl").call ?
-{
-	name = "fcntl"
-	fd = __int32($fd)
-	cmd = __int32($cmd)
-	cmd_str = _fcntl_cmd_str(cmd)
-	arg = $arg
-	argstr = sprintf("%d, %s, %p", __int32($fd), _fcntl_cmd_str(cmd), $arg)
-}
-probe syscall.fcntl.return = kernel.function("compat_sys_fcntl").return ?,
-                             kernel.function("compat_sys_fcntl64").return ?,
-                             kernel.function("sys_fcntl64").return ?,
-                             kernel.function("sys_fcntl").return ?
-{
-	name = "fcntl"
-	retstr = return_str(1, $return)
-}
-
 # fdatasync __________________________________________________
 # long sys_fdatasync(unsigned int fd)
 probe syscall.fdatasync = kernel.function("sys_fdatasync").call
