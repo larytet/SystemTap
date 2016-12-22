@@ -1,33 +1,4 @@
 
-# fchown _____________________________________________________
-# long sys_fchown(unsigned int fd, uid_t user, gid_t group)
-probe syscall.fchown = kernel.function("sys_fchown").call
-{
-	// Avoid fchown16() calling fchown().
-%( arch == "x86_64" %?
-	@__syscall_compat_gate(@const("__NR_fchown"), @const("__NR_ia32_fchown32"))
-%)
-%( arch == "i386" %?
-	@__syscall_gate(@const("__NR_fchown32"))
-%)
-	name = "fchown"
-	fd = __int32($fd)
-	owner = __int32($user)
-	group = __int32($group)
-	argstr = sprintf("%d, %d, %d", fd, owner, group)
-}
-probe syscall.fchown.return = kernel.function("sys_fchown").return
-{
-%( arch == "x86_64" %?
-	@__syscall_compat_gate(@const("__NR_fchown"), @const("__NR_ia32_fchown32"))
-%)
-%( arch == "i386" %?
-	@__syscall_gate(@const("__NR_fchown32"))
-%)
-	name = "fchown"
-	retstr = return_str(1, $return)
-}
-
 # fchown16 ___________________________________________________
 # long sys_fchown16(unsigned int fd, old_uid_t user, old_gid_t group)
 probe syscall.fchown16 = kernel.function("sys_fchown16").call ?
