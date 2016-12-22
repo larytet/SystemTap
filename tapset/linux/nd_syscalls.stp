@@ -1,26 +1,4 @@
 
-# fanotify_init ______________________________________________
-# fanotify_init() was enabled in kernel version 2.6.37.
-# SYSCALL_DEFINE2(fanotify_init, unsigned int, flags,
-#		  unsigned int, event_f_flags)
-probe nd_syscall.fanotify_init = kprobe.function("sys_fanotify_init") ?
-{
-	name = "fanotify_init"
-	asmlinkage()
-	flags = uint_arg(1)
-	flags_str = _fanotify_init_flags_str(flags)
-	event_f_flags = uint_arg(2)
-	event_f_flags_str = _sys_open_flag_str(event_f_flags)
-	argstr = sprintf("%s, %s", _fanotify_init_flags_str(flags),
-			 _sys_open_flag_str(event_f_flags))
-}
-probe nd_syscall.fanotify_init.return =
-	kprobe.function("sys_fanotify_init").return ?
-{
-	name = "fanotify_init"
-	retstr = returnstr(1)
-}
-
 
 # fanotify_mark ______________________________________________
 # fanotify_mark() was enabled in kernel version 2.6.37.

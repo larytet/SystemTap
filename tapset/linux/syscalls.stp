@@ -1,25 +1,4 @@
 
-# fanotify_init ______________________________________________
-# fanotify_init() was enabled in kernel version 2.6.37.
-# SYSCALL_DEFINE2(fanotify_init, unsigned int, flags,
-#		  unsigned int, event_f_flags)
-probe syscall.fanotify_init = kernel.function("sys_fanotify_init").call ?
-{
-	name = "fanotify_init"
-	flags = __uint32($flags)
-	flags_str = _fanotify_init_flags_str(flags)
-	event_f_flags = __uint32($event_f_flags)
-	event_f_flags_str = _sys_open_flag_str(event_f_flags)
-	argstr = sprintf("%s, %s", _fanotify_init_flags_str(flags),
-			 _sys_open_flag_str(event_f_flags))
-}
-probe syscall.fanotify_init.return =
-	kernel.function("sys_fanotify_init").return ?
-{
-	name = "fanotify_init"
-	retstr = return_str(1, $return)
-}
-
 
 # fanotify_mark ______________________________________________
 # fanotify_mark() was enabled in kernel version 2.6.37.
