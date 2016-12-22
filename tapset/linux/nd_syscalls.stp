@@ -1,19 +1,4 @@
 
-# fchdir _____________________________________________________
-# long sys_fchdir(unsigned int fd)
-probe nd_syscall.fchdir = kprobe.function("sys_fchdir") ?
-{
-	name = "fchdir"
-	asmlinkage()
-	fd = int_arg(1)
-	argstr = sprint(fd)
-}
-probe nd_syscall.fchdir.return = kprobe.function("sys_fchdir").return ?
-{
-	name = "fchdir"
-	retstr = returnstr(1)
-}
-
 # fchmod _____________________________________________________
 # long sys_fchmod(unsigned int fd, mode_t mode)
 probe nd_syscall.fchmod = kprobe.function("sys_fchmod") ?

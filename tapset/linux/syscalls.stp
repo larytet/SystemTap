@@ -1,18 +1,4 @@
 
-# fchdir _____________________________________________________
-# long sys_fchdir(unsigned int fd)
-probe syscall.fchdir = kernel.function("sys_fchdir").call
-{
-	name = "fchdir"
-	fd = __int32($fd)
-	argstr = sprint(__int32($fd))
-}
-probe syscall.fchdir.return = kernel.function("sys_fchdir").return
-{
-	name = "fchdir"
-	retstr = return_str(1, $return)
-}
-
 # fchmod _____________________________________________________
 # long sys_fchmod(unsigned int fd, mode_t mode)
 probe syscall.fchmod = kernel.function("sys_fchmod").call
