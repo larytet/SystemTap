@@ -1,25 +1,4 @@
 
-# finit_module ________________________________________________
-# SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs,
-#		  int, flags)
-#
-probe syscall.finit_module = kernel.function("sys_finit_module").call ?
-{
-	name = "finit_module"
-	fd = __int32($fd)
-	uargs = user_string_quoted($uargs)
-	flags = __int32($flags)
-	flags_str = _finit_module_flags_str(__int32($flags))
-	argstr = sprintf("%d, %s, %s", __int32($fd),
-			 user_string_quoted($uargs),
-			 _finit_module_flags_str(__int32($flags)))
-}
-probe syscall.finit_module.return = kernel.function("sys_finit_module").return ?
-{
-	name = "finit_module"
-	retstr = return_str(1, $return)
-}
-
 # flistxattr _________________________________________________
 # ssize_t sys_flistxattr(int fd, char __user *list, size_t size)
 probe syscall.flistxattr = kernel.function("sys_flistxattr").call

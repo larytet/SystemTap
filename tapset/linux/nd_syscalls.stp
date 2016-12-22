@@ -1,26 +1,4 @@
 
-# finit_module ________________________________________________
-# SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs,
-#		  int, flags)
-#
-probe nd_syscall.finit_module = kprobe.function("sys_finit_module").call ?
-{
-	name = "finit_module"
-	asmlinkage()
-	fd = int_arg(1)
-	uargs = user_string_quoted(pointer_arg(2))
-	flags = int_arg(3)
-	flags_str = _finit_module_flags_str(flags)
-	argstr = sprintf("%d, %s, %s", fd, uargs,
-			 _finit_module_flags_str(flags))
-}
-probe nd_syscall.finit_module.return =
-	kprobe.function("sys_finit_module").return ?
-{
-	name = "finit_module"
-	retstr = returnstr(1)
-}
-
 
 # flistxattr _________________________________________________
 # ssize_t sys_flistxattr(int fd, char __user *list, size_t size)
