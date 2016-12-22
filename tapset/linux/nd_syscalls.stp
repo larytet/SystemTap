@@ -1,34 +1,4 @@
 
-# adjtimex ___________________________________________________
-# long sys_adjtimex(struct timex __user *txc_p)
-probe nd_syscall.adjtimex = kprobe.function("sys_adjtimex") ?
-{
-	name = "adjtimex"
-	asmlinkage()
-	buf_uaddr = pointer_arg(1)
-	buf_str = _struct_timex_u(buf_uaddr)
-	argstr = sprintf("%s", buf_str)
-}
-probe nd_syscall.adjtimex.return = kprobe.function("sys_adjtimex").return ?
-{
-	name = "adjtimex"
-	retstr = _adjtimex_return_str(returnval())
-}
-# long compat_sys_adjtimex(struct compat_timex __user *utp)
-probe nd_syscall.compat_adjtimex = kprobe.function("compat_sys_adjtimex") ?
-{
-	name = "adjtimex"
-	asmlinkage()
-	buf_uaddr = pointer_arg(1)
-	buf_str = _struct_compat_timex_u(buf_uaddr)
-	argstr = sprintf("%s", buf_str)
-}
-probe nd_syscall.compat_adjtimex.return = kprobe.function("compat_sys_adjtimex").return ?
-{
-	name = "compat_adjtimex"
-	retstr = _adjtimex_return_str(returnval())
-}
-
 # alarm ______________________________________________________
 # unsigned long sys_alarm (unsigned int seconds)
 # long sys32_alarm(unsigned int seconds)

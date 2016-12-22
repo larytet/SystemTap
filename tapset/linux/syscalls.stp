@@ -1,32 +1,4 @@
 
-# adjtimex ___________________________________________________
-# long sys_adjtimex(struct timex __user *txc_p)
-probe syscall.adjtimex = kernel.function("sys_adjtimex").call
-{
-	name = "adjtimex"
-	buf_uaddr = $txc_p
-	buf_str = _struct_timex_u(buf_uaddr)
-	argstr = sprintf("%s", buf_str)
-}
-probe syscall.adjtimex.return = kernel.function("sys_adjtimex").return
-{
-	name = "adjtimex"
-	retstr = _adjtimex_return_str($return)
-}
-# long compat_sys_adjtimex(struct compat_timex __user *utp)
-probe syscall.compat_adjtimex = kernel.function("compat_sys_adjtimex").call ?
-{
-	name = "adjtimex"
-	buf_uaddr = $utp
-	buf_str = _struct_compat_timex_u(buf_uaddr)
-	argstr = sprintf("%s", buf_str)
-}
-probe syscall.compat_adjtimex.return = kernel.function("compat_sys_adjtimex").return ?
-{
-	name = "compat_adjtimex"
-	retstr = _adjtimex_return_str($return)
-}
-
 # alarm ______________________________________________________
 # unsigned long sys_alarm (unsigned int seconds)
 # long sys32_alarm(unsigned int seconds)
