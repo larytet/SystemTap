@@ -1,23 +1,4 @@
 
-# dup2 _______________________________________________________
-# long sys_dup2(unsigned int oldfd, unsigned int newfd)
-probe syscall.dup2 = kernel.function("sys_dup2").call
-{
-	name = "dup2"
-	oldfd = __int32($oldfd)
-	newfd = __int32($newfd)
-	# The dup2 syscall doesn't have a 'flags' argument. But, the
-	# syscall.dup2 and syscall.dup3 probes used to be combined, so
-	# both probes need a 'flags' variable.
-	flags = 0
-	argstr = sprintf("%d, %d", __int32($oldfd), __int32($newfd))
-}
-probe syscall.dup2.return = kernel.function("sys_dup2").return
-{
-	name = "dup2"
-	retstr = return_str(1, $return)
-}
-
 # dup3 _______________________________________________________
 # SYSCALL_DEFINE3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags)
 probe syscall.dup3 = kernel.function("sys_dup3").call ?
