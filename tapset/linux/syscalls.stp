@@ -1,32 +1,4 @@
 
-# clock_gettime ______________________________________________
-# long sys_clock_gettime(clockid_t which_clock, struct timespec __user *tp)
-#
-probe syscall.clock_gettime = __syscall.clock_gettime,
-	kernel.function("compat_sys_clock_gettime").call ?
-{
-	name = "clock_gettime"
-	clk_id = __int32($which_clock)
-	clk_id_str = _get_wc_str(__int32($which_clock))
-	tp_uaddr = $tp
-	argstr = sprintf("%s, %p", _get_wc_str(__int32($which_clock)), $tp)
-}
-probe __syscall.clock_gettime = kernel.function("sys_clock_gettime").call
-{
-	@__syscall_gate(@const("__NR_clock_gettime"))
-}
-probe syscall.clock_gettime.return = __syscall.clock_gettime.return, 
-	kernel.function("compat_sys_clock_gettime").return ?
-{
-	name = "clock_gettime"
-	retstr = return_str(1, $return)
-}
-probe __syscall.clock_gettime.return =
-	kernel.function("sys_clock_gettime").return
-{
-	@__syscall_gate(@const("__NR_clock_gettime"))
-}
-
 # clock_nanosleep ____________________________________________
 # long sys_clock_nanosleep(clockid_t which_clock,
 #                     int flags,

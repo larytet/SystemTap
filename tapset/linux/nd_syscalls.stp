@@ -1,33 +1,4 @@
 
-# clock_gettime ______________________________________________
-# long sys_clock_gettime(clockid_t which_clock, struct timespec __user *tp)
-#
-probe nd_syscall.clock_gettime = __nd_syscall.clock_gettime,
-	kprobe.function("compat_sys_clock_gettime") ?
-{
-	name = "clock_gettime"
-	asmlinkage()
-	clk_id = int_arg(1)
-	clk_id_str = _get_wc_str(clk_id)
-	tp_uaddr = pointer_arg(2)
-	argstr = sprintf("%s, %p", clk_id_str, tp_uaddr)
-}
-probe __nd_syscall.clock_gettime = kprobe.function("sys_clock_gettime").call
-{
-	@__syscall_gate(@const("__NR_clock_gettime"))
-}
-probe nd_syscall.clock_gettime.return = __nd_syscall.clock_gettime.return, 
-	kprobe.function("compat_sys_clock_gettime").return ?
-{
-	name = "clock_gettime"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.clock_gettime.return =
-	kprobe.function("sys_clock_gettime").return
-{
-	@__syscall_gate(@const("__NR_clock_gettime"))
-}
-
 # clock_nanosleep ____________________________________________
 # long sys_clock_nanosleep(clockid_t which_clock,
 #                     int flags,
