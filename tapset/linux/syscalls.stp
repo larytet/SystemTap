@@ -1,20 +1,4 @@
 
-# close ______________________________________________________
-# long sys_close(unsigned int fd)
-probe syscall.close = kernel.function("sys_close").call
-{
-	@__syscall_compat_gate(@const("__NR_close"), @const("__NR_compat_close"))
-	name = "close"
-	fd = __int32($fd)
-	argstr = sprint(fd)
-}
-probe syscall.close.return = kernel.function("sys_close").return
-{
-	@__syscall_compat_gate(@const("__NR_close"), @const("__NR_compat_close"))
-	name = "close"
-	retstr = return_str(1, $return)
-}
-
 # connect ____________________________________________________
 # long sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
 probe syscall.connect = __syscall.connect ?, __syscall.socketcall.connect ?,
