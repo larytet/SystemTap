@@ -1,49 +1,4 @@
 
-# clock_settime ______________________________________________
-# long sys_clock_settime(clockid_t which_clock,
-#                   const struct timespec __user *tp)
-#
-# long compat_sys_clock_settime(clockid_t which_clock,
-#		struct compat_timespec __user *tp)
-probe syscall.clock_settime = __syscall.clock_settime,
-	__syscall.compat_clock_settime ?
-{
-	name = "clock_settime"
-}
-probe __syscall.clock_settime = kernel.function("sys_clock_settime").call
-{
-	@__syscall_gate(@const("__NR_clock_settime"))
-	clk_id = __int32($which_clock)
-	clk_id_str = _get_wc_str($which_clock)
-	tp_uaddr = $tp
-	argstr = sprintf("%s, %s", clk_id_str, _struct_timespec_u($tp, 1))
-}
-probe __syscall.compat_clock_settime =
-	kernel.function("compat_sys_clock_settime").call ?
-{
-	clk_id = __int32($which_clock)
-	clk_id_str = _get_wc_str(__int32($which_clock))
-	tp_uaddr = $tp
-	argstr = sprintf("%s, %s", clk_id_str,
-			 _struct_compat_timespec_u($tp, 1))
-}
-probe syscall.clock_settime.return = __syscall.clock_settime.return,
-	__syscall.compat_clock_settime.return ?
-{
-	name = "clock_settime"
-}
-probe __syscall.clock_settime.return =
-	kernel.function("sys_clock_settime").return
-{
-	@__syscall_gate(@const("__NR_clock_settime"))
-	retstr = return_str(1, $return)
-}
-probe __syscall.compat_clock_settime.return =
-	kernel.function("compat_sys_clock_settime").return ?
-{
-	retstr = return_str(1, $return)
-}
-
 # clone ______________________________________________________
 #
 # The sys_clone() call was in arch-specific code (sometimes assembly
