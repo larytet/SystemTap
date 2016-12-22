@@ -1,28 +1,4 @@
 
-# fchmodat ___________________________________________________
-# new function with 2.6.16
-# long sys_fchmodat(int dfd, const char __user *filename,
-#	mode_t mode)
-probe nd_syscall.fchmodat = kprobe.function("sys_fchmodat") ?
-{
-	@__syscall_compat_gate(@const("__NR_fchmodat"),
-			       @const("__NR_compat_fchmodat"))
-	name = "fchmodat"
-	asmlinkage()
-	dirfd = int_arg(1)
-	dirfd_str = _dfd_str(dirfd)
-	pathname = user_string_quoted(pointer_arg(2))
-	mode = uint_arg(3)
-	argstr = sprintf("%s, %s, %#o", dirfd_str, user_string_quoted(pointer_arg(2)), mode)
-}
-probe nd_syscall.fchmodat.return = kprobe.function("sys_fchmodat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_fchmodat"),
-			       @const("__NR_compat_fchmodat"))
-	name = "fchmodat"
-	retstr = returnstr(1)
-}
-
 # fchown _____________________________________________________
 # long sys_fchown(unsigned int fd, uid_t user, gid_t group)
 probe nd_syscall.fchown = kprobe.function("sys_fchown") ?
