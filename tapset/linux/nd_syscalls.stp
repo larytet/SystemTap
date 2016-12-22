@@ -1,21 +1,4 @@
 
-# brk ________________________________________________________
-# unsigned long sys_brk(unsigned long brk)
-probe nd_syscall.brk = kprobe.function("ia64_brk") ?,
-                       kprobe.function("sys_brk") ?
-{
-	name = "brk"
-	asmlinkage()
-	brk = ulong_arg(1)
-	argstr = sprintf("%p", brk)
-}
-probe nd_syscall.brk.return = kprobe.function("ia64_brk").return ?,
-                              kprobe.function("sys_brk").return ?
-{
-	name = "brk"
-	retstr = returnstr(1)
-}
-
 # capget _____________________________________________________
 /*
  *  NOTE

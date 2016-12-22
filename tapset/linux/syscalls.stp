@@ -1,20 +1,4 @@
 
-# brk ________________________________________________________
-# unsigned long sys_brk(unsigned long brk)
-probe syscall.brk = kernel.function("ia64_brk").call ?,
-                    kernel.function("sys_brk").call
-{
-	name = "brk"
-	brk = __ulong($brk)
-	argstr = sprintf("%p", brk)
-}
-probe syscall.brk.return = kernel.function("ia64_brk").return ?,
-                           kernel.function("sys_brk").return
-{
-	name = "brk"
-	retstr = return_str(1, $return)
-}
-
 # capget _____________________________________________________
 /*
  *  NOTE
