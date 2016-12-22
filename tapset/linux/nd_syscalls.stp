@@ -1,18 +1,4 @@
 
-# exit_group _________________________________________________
-# void sys_exit_group(int error_code)
-#
-probe nd_syscall.exit_group = kprobe.function("sys_exit_group").call ?
-{
-	name = "exit_group"
-	asmlinkage()
-	status = int_arg(1)
-	argstr = sprint(status)
-}
-# sys_exit_group() never returns, and is blacklisted for return probes,
-# so no alias here.  See bz6588.
-# NB: the explicit .call ensures that alias suffixes can't infer .return
-
 # faccessat __________________________________________________
 # new function with 2.6.16
 # long sys_faccessat(int dfd, const char __user *filename, int mode)

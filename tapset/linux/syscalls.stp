@@ -1,16 +1,4 @@
 
-# exit_group _________________________________________________
-# void sys_exit_group(int error_code)
-#
-probe syscall.exit_group = kernel.function("sys_exit_group").call
-{
-	name = "exit_group"
-	status = __int32($error_code)
-	argstr = sprint(__int32($error_code))
-}
-# sys_exit_group() never returns, and is blacklisted for return probes,
-# so no alias here.  See bz6588.
-
 # faccessat __________________________________________________
 # new function with 2.6.16
 # long sys_faccessat(int dfd, const char __user *filename, int mode)
