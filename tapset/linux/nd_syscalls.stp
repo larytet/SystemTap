@@ -1,21 +1,4 @@
 
-# fchown16 ___________________________________________________
-# long sys_fchown16(unsigned int fd, old_uid_t user, old_gid_t group)
-probe nd_syscall.fchown16 = kprobe.function("sys_fchown16") ?
-{
-	name = "fchown16"
-	asmlinkage()
-	fd = int_arg(1)
-	owner = __short(uint_arg(2))
-	group = __short(uint_arg(3))
-	argstr = sprintf("%d, %d, %d", fd, owner, group)
-}
-probe nd_syscall.fchown16.return = kprobe.function("sys_fchown16").return ?
-{
-	name = "fchown16"
-	retstr = returnstr(1)
-}
-
 # fchownat ___________________________________________________
 # new function with 2.6.16
 # long sys_fchownat(int dfd, const char __user *filename,

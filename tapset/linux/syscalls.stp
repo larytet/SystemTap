@@ -1,20 +1,4 @@
 
-# fchown16 ___________________________________________________
-# long sys_fchown16(unsigned int fd, old_uid_t user, old_gid_t group)
-probe syscall.fchown16 = kernel.function("sys_fchown16").call ?
-{
-	name = "fchown16"
-	fd = $fd
-	owner = __short($user)
-	group = __short($group)
-	argstr = sprintf("%d, %d, %d", $fd, owner, group)
-}
-probe syscall.fchown16.return = kernel.function("sys_fchown16").return ?
-{
-	name = "fchown16"
-	retstr = return_str(1, $return)
-}
-
 # fchownat ___________________________________________________
 # new function with 2.6.16
 # long sys_fchownat(int dfd, const char __user *filename,
