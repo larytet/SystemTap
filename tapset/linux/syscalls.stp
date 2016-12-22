@@ -1,32 +1,3 @@
-
-# chown ______________________________________________________
-# long sys_chown(const char __user * filename, uid_t user, gid_t group)
-probe syscall.chown = kernel.function("sys_chown").call
-{
-	// Avoid chown16() calling chown().
-%( arch == "x86_64" %?
-	@__syscall_compat_gate(@const("__NR_chown"), @const("__NR_ia32_chown32"))
-%)
-%( arch == "i386" %?
-	@__syscall_gate(@const("__NR_chown32"))
-%)
-	name = "chown"
-	path = user_string_quoted($filename)
-	owner = __int32($user)
-	group = __int32($group)
-	argstr = sprintf("%s, %d, %d", user_string_quoted($filename), owner, group)
-}
-probe syscall.chown.return = kernel.function("sys_chown").return
-{
-%( arch == "x86_64" %?
-	@__syscall_compat_gate(@const("__NR_chown"), @const("__NR_ia32_chown32"))
-%)
-%( arch == "i386" %?
-	@__syscall_gate(@const("__NR_chown32"))
-%)
-	name = "chown"
-	retstr = return_str(1, $return)
-}
 # chown16 ___________________________________________________
 # long sys_chown16(const char __user * filename, old_uid_t user,
 #			old_gid_t group)
