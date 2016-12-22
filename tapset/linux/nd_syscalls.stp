@@ -1,19 +1,4 @@
 
-# chroot _____________________________________________________
-# long sys_chroot(const char __user * filename)
-probe nd_syscall.chroot = kprobe.function("sys_chroot") ?
-{
-	name = "chroot"
-	asmlinkage()
-	path = user_string_quoted(pointer_arg(1))
-	argstr = user_string_quoted(pointer_arg(1))
-}
-probe nd_syscall.chroot.return = kprobe.function("sys_chroot").return ?
-{
-	name = "chroot"
-	retstr = returnstr(1)
-}
-
 # clock_adjtime ______________________________________________
 # SYSCALL_DEFINE2(clock_adjtime, const clockid_t, which_clock,
 #                 struct timex __user *, utx)
