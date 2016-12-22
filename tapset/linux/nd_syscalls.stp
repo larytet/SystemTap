@@ -1,28 +1,4 @@
 
-# faccessat __________________________________________________
-# new function with 2.6.16
-# long sys_faccessat(int dfd, const char __user *filename, int mode)
-probe nd_syscall.faccessat = kprobe.function("sys_faccessat") ?
-{
-	@__syscall_compat_gate(@const("__NR_faccessat"),
-			       @const("__NR_compat_faccessat"))
-	name = "faccessat"
-	asmlinkage()
-	dirfd = int_arg(1)
-	dirfd_str = _dfd_str(dirfd)
-	pathname = user_string_quoted(pointer_arg(2))
-	mode = int_arg(3)
-	mode_str = _access_mode_str(mode)
-	argstr = sprintf("%s, %s, %s", dirfd_str, user_string_quoted(pointer_arg(2)), mode_str)
-}
-probe nd_syscall.faccessat.return = kprobe.function("sys_faccessat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_faccessat"),
-			       @const("__NR_compat_faccessat"))
-	name = "faccessat"
-	retstr = returnstr(1)
-}
-
 # fadvise64 __________________________________________________
 # long sys_fadvise64(int fd, loff_t offset, size_t len,  int advice)
 #

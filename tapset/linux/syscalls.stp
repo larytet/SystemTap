@@ -1,28 +1,4 @@
 
-# faccessat __________________________________________________
-# new function with 2.6.16
-# long sys_faccessat(int dfd, const char __user *filename, int mode)
-probe syscall.faccessat = kernel.function("sys_faccessat").call ?
-{
-	@__syscall_compat_gate(@const("__NR_faccessat"),
-			       @const("__NR_compat_faccessat"))
-	name = "faccessat"
-	dirfd = __int32($dfd)
-	dirfd_str = _dfd_str(__int32($dfd))
-	pathname = user_string_quoted($filename)
-	mode = __int32($mode)
-	mode_str = _access_mode_str(__int32($mode))
-	argstr = sprintf("%s, %s, %s", dirfd_str, user_string_quoted($filename),
-			 mode_str)
-}
-probe syscall.faccessat.return = kernel.function("sys_faccessat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_faccessat"),
-			       @const("__NR_compat_faccessat"))
-	name = "faccessat"
-	retstr = return_str(1, $return)
-}
-
 # fadvise64 __________________________________________________
 # long sys_fadvise64(int fd, loff_t offset, size_t len,  int advice)
 #
