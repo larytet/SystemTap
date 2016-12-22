@@ -1,24 +1,4 @@
 
-# bdflush ____________________________________________________
-# long sys_bdflush(int func, long data)
-probe nd_syscall.bdflush = kprobe.function("sys_bdflush") ?
-{
-	name = "bdflush"
-	asmlinkage()
-	func = int_arg(1)
-	data = long_arg(2)
-	if ((func >= 2) && (func % 2 == 0))
-		data_str = sprintf("%p", data)
-	else
-		data_str = sprintf("%d", data)
-	argstr = sprintf("%d, %s", func, data_str)
-}
-probe nd_syscall.bdflush.return = kprobe.function("sys_bdflush").return ?
-{
-	name = "bdflush"
-	retstr = returnstr(1)
-}
-
 # bind _______________________________________________________
 # long sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
 probe nd_syscall.bind = __nd_syscall.bind ?, __nd_syscall.socketcall.bind ?,

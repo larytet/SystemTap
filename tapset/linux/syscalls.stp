@@ -1,23 +1,4 @@
 
-# bdflush ____________________________________________________
-# long sys_bdflush(int func, long data)
-probe syscall.bdflush = kernel.function("sys_bdflush").call ?
-{
-	name = "bdflush"
-	func = $func
-	data = $data
-	if (($func >= 2) && ($func % 2 == 0))
-		data_str = sprintf("%p", $data)
-	else
-		data_str = sprintf("%d", $data)
-	argstr = sprintf("%d, %s", func, data_str)
-}
-probe syscall.bdflush.return = kernel.function("sys_bdflush").return ?
-{
-	name = "bdflush"
-	retstr = return_str(1, $return)
-}
-
 # bind _______________________________________________________
 # long sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
 probe syscall.bind = __syscall.bind ?, __syscall.socketcall.bind ?,
