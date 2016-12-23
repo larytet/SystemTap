@@ -1,48 +1,4 @@
 
-# io_getevents _______________________________________________
-# long sys_io_getevents(aio_context_t ctx_id,
-#		long min_nr,
-#		long nr,
-#		struct io_event __user *events,
-#		struct timespec __user *timeout)
-# long compat_sys_io_getevents(aio_context_t ctx_id,
-#		 long min_nr,
-#		 long nr,
-#		 struct io_event __user *events,
-#		 struct compat_timespec __user *timeout)
-#
-probe nd_syscall.io_getevents = __nd_syscall.io_getevents ?,
-	kprobe.function("compat_sys_io_getevents") ?
-{
-	name = "io_getevents"
-	asmlinkage()
-	ctx_id = ulong_arg(1)
-	min_nr = long_arg(2)
-	nr = long_arg(3)
-	events_uaddr = pointer_arg(4)
-	timeout_uaddr = pointer_arg(5)
-        timestr = (@__compat_task
-	           ? _struct_compat_timespec_u(timeout_uaddr, 1)
-	           : _struct_timespec_u(timeout_uaddr, 1))
-	argstr = sprintf("%u, %d, %d, %p, %s", ctx_id, min_nr,
-	                 nr, events_uaddr, timestr)
-}
-probe __nd_syscall.io_getevents = kprobe.function("sys_io_getevents")
-{
-	@__syscall_gate_compat_simple
-}
-probe nd_syscall.io_getevents.return = __nd_syscall.io_getevents.return,
-	kprobe.function("compat_sys_io_getevents").return ?
-{
-	name = "io_getevents"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.io_getevents.return =
-	kprobe.function("sys_io_getevents").return ?
-{
-	@__syscall_gate_compat_simple
-}
-
 # ioperm _____________________________________________________
 # long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 #
