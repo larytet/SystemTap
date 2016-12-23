@@ -1,23 +1,4 @@
 
-# getgid _____________________________________________________
-# long sys_getgid(void)
-# long sys32_getgid16(void)
-#
-probe syscall.getgid = kernel.function("sys_getgid16").call ?,
-                       kernel.function("sys32_getgid16").call ?,
-                       kernel.function("sys_getgid").call
-{
-	name = "getgid"
-	argstr = ""
-}
-probe syscall.getgid.return = kernel.function("sys_getgid16").return ?,
-                              kernel.function("sys32_getgid16").return ?,
-                              kernel.function("sys_getgid").return
-{
-	name = "getgid"
-	retstr = return_str(1, $return)
-}
-
 # getgroups __________________________________________________
 # long sys_getgroups(int gidsetsize, gid_t __user *grouplist)
 # long sys_getgroups16(int gidsetsize, old_gid_t __user *grouplist)

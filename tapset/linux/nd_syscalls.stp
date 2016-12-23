@@ -1,23 +1,4 @@
 
-# getgid _____________________________________________________
-# long sys_getgid(void)
-# long sys32_getgid16(void)
-#
-probe nd_syscall.getgid = kprobe.function("sys_getgid16") ?,
-                          kprobe.function("sys32_getgid16") ?,
-                          kprobe.function("sys_getgid")
-{
-	name = "getgid"
-	argstr = ""
-}
-probe nd_syscall.getgid.return = kprobe.function("sys_getgid16").return ?,
-                                 kprobe.function("sys32_getgid16").return ?,
-                                 kprobe.function("sys_getgid").return
-{
-	name = "getgid"
-	retstr = returnstr(1)
-}
-
 # getgroups __________________________________________________
 # long sys_getgroups(int gidsetsize, gid_t __user *grouplist)
 # long sys_getgroups16(int gidsetsize, old_gid_t __user *grouplist)
