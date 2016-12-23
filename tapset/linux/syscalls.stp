@@ -1,36 +1,4 @@
 
-# lstat ______________________________________________________
-# long sys_lstat(char __user * filename, struct __old_kernel_stat __user * statbuf)
-# long sys_newlstat(char __user * filename, struct stat __user * statbuf)
-# long compat_sys_newlstat(char __user * filename, struct compat_stat __user *statbuf)
-# long sys32_lstat64(char * filename, struct stat64 __user *statbuf)
-# long sys_lstat64(char __user * filename, struct stat64 __user * statbuf)
-# long sys_oabi_lstat64(char __user * filename,
-#			struct oldabi_stat64 __user * statbuf)
-#
-probe syscall.lstat = kernel.function("sys_lstat").call ?,
-                      kernel.function("sys_newlstat").call ?,
-                      kernel.function("compat_sys_newlstat").call ?,
-                      kernel.function("sys32_lstat64").call ?,
-                      kernel.function("sys_lstat64").call ?,
-                      kernel.function("sys_oabi_lstat64").call ?
-{
-	name = "lstat"
-	path = user_string_quoted($filename)
-	buf_uaddr = $statbuf
-	argstr = sprintf("%s, %p", user_string_quoted($filename), $statbuf)
-}
-probe syscall.lstat.return = kernel.function("sys_lstat").return ?,
-                             kernel.function("sys_newlstat").return ?,
-                             kernel.function("compat_sys_newlstat").return ?,
-                             kernel.function("sys32_lstat64").return ?,
-                             kernel.function("sys_lstat64").return ?,
-                             kernel.function("sys_oabi_lstat64").return ?
-{
-	name = "lstat"
-	retstr = return_str(1, $return)
-}
-
 # madvise ____________________________________________________
 # long sys_madvise(unsigned long start, size_t len_in, int behavior)
 #
