@@ -1,28 +1,4 @@
 
-# lremovexattr _______________________________________________
-# long sys_lremovexattr(char __user *path, char __user *name)
-#
-probe syscall.lremovexattr = kernel.function("sys_lremovexattr").call
-{
-	name = "lremovexattr"
-	name_uaddr = $name
-# 'name2' should have been 'name_str'.  Deprecate the old name.
-%(systemtap_v <= "1.4" %?
-	name2 = user_string_quoted($name)
-%)
-	name_str = user_string_quoted($name)
-	path_uaddr = @choose_defined($pathname, $path)
-	path = user_string_quoted(@choose_defined($pathname, $path))
-	argstr = sprintf("%s, %s",
-		user_string_quoted(@choose_defined($pathname, $path)),
-		user_string_quoted($name))
-}
-probe syscall.lremovexattr.return = kernel.function("sys_lremovexattr").return
-{
-	name = "lremovexattr"
-	retstr = return_str(1, $return)
-}
-
 # lseek ______________________________________________________
 # off_t sys_lseek(unsigned int fd, off_t offset, unsigned int whence)
 # COMPAT_SYSCALL_DEFINE3(lseek, unsigned int, fd, compat_off_t, offset,
