@@ -1,27 +1,4 @@
 
-# getgroups __________________________________________________
-# long sys_getgroups(int gidsetsize, gid_t __user *grouplist)
-# long sys_getgroups16(int gidsetsize, old_gid_t __user *grouplist)
-# long sys32_getgroups16(int gidsetsize, u16 __user *grouplist)
-#
-probe nd_syscall.getgroups = kprobe.function("sys_getgroups16") ?,
-                             kprobe.function("sys32_getgroups16") ?,
-                             kprobe.function("sys_getgroups") ?
-{
-	name = "getgroups"
-	asmlinkage()
-	size = int_arg(1)
-	list_uaddr = pointer_arg(2)
-	argstr = sprintf("%d, %p", size, list_uaddr)
-}
-probe nd_syscall.getgroups.return = kprobe.function("sys_getgroups16").return ?,
-                                    kprobe.function("sys32_getgroups16").return ?,
-                                    kprobe.function("sys_getgroups").return ?
-{
-	name = "getgroups"
-	retstr = returnstr(1)
-}
-
 # gethostname ________________________________________________
 # long sys_gethostname(char __user *name, int len)
 probe nd_syscall.gethostname = kprobe.function("sys_gethostname") ?

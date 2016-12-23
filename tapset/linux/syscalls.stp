@@ -1,26 +1,4 @@
 
-# getgroups __________________________________________________
-# long sys_getgroups(int gidsetsize, gid_t __user *grouplist)
-# long sys_getgroups16(int gidsetsize, old_gid_t __user *grouplist)
-# long sys32_getgroups16(int gidsetsize, u16 __user *grouplist)
-#
-probe syscall.getgroups = kernel.function("sys_getgroups16").call ?,
-                          kernel.function("sys32_getgroups16").call ?,
-                          kernel.function("sys_getgroups").call ?
-{
-	name = "getgroups"
-	size = __int32($gidsetsize)
-	list_uaddr = $grouplist
-	argstr = sprintf("%d, %p", __int32($gidsetsize), $grouplist)
-}
-probe syscall.getgroups.return = kernel.function("sys_getgroups16").return ?,
-                                 kernel.function("sys32_getgroups16").return ?,
-                                 kernel.function("sys_getgroups").return ?
-{
-	name = "getgroups"
-	retstr = return_str(1, $return)
-}
-
 # gethostname ________________________________________________
 # long sys_gethostname(char __user *name, int len)
 probe syscall.gethostname = kernel.function("sys_gethostname").call ?
