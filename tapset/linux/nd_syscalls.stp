@@ -1,20 +1,4 @@
 
-# kill _______________________________________________________
-# long sys_kill(int pid, int sig)
-probe nd_syscall.kill = kprobe.function("sys_kill") ?
-{
-	name = "kill"
-	asmlinkage()
-	pid = int_arg(1)
-	sig = int_arg(2)
-	argstr = sprintf("%d, %s", pid, _signal_name(sig))
-}
-probe nd_syscall.kill.return = kprobe.function("sys_kill").return ?
-{
-	name = "kill"
-	retstr = returnstr(1)
-}
-
 # lchown _____________________________________________________
 # long sys_lchown(const char __user * filename, uid_t user, gid_t group)
 #

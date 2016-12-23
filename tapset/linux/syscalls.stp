@@ -1,19 +1,4 @@
 
-# kill _______________________________________________________
-# long sys_kill(int pid, int sig)
-probe syscall.kill = kernel.function("sys_kill").call
-{
-	name = "kill"
-	pid = __int32($pid)
-	sig = __int32($sig)
-	argstr = sprintf("%d, %s", __int32($pid), _signal_name(__int32($sig)))
-}
-probe syscall.kill.return = kernel.function("sys_kill").return
-{
-	name = "kill"
-	retstr = return_str(1, $return)
-}
-
 # lchown _____________________________________________________
 # long sys_lchown(const char __user * filename, uid_t user, gid_t group)
 #
