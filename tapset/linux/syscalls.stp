@@ -1,32 +1,4 @@
 
-# lgetxattr __________________________________________________
-# ssize_t sys_lgetxattr(char __user *path,
-#               char __user *name,
-#               void __user *value,
-#               size_t size)
-#
-probe syscall.lgetxattr = kernel.function("sys_lgetxattr").call
-{
-	name = "lgetxattr"
-	path = user_string_quoted(@choose_defined($pathname, $path))
-# 'name2' should have been 'name_str'.  Deprecate the old name.
-%(systemtap_v <= "1.4" %?
-	name2 = user_string_quoted($name)
-%)
-	name_str = user_string_quoted($name)
-	value_uaddr = $value
-	size = __ulong($size)
-	argstr = sprintf("%s, %s, %p, %u",
-		user_string_quoted(@choose_defined($pathname, $path)),
-		user_string_quoted($name),
-		value_uaddr, size)
-}
-probe syscall.lgetxattr.return = kernel.function("sys_lgetxattr").return
-{
-	name = "lgetxattr"
-	retstr = return_str(1, $return)
-}
-
 # link _______________________________________________________
 # long sys_link(const char __user * oldname,
 #          const char __user * newname)

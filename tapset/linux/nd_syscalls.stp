@@ -1,31 +1,3 @@
-# lgetxattr __________________________________________________
-# ssize_t sys_lgetxattr(char __user *path,
-#               char __user *name,
-#               void __user *value,
-#               size_t size)
-#
-probe nd_syscall.lgetxattr = kprobe.function("sys_lgetxattr") ?
-{
-	name = "lgetxattr"
-	asmlinkage()
-	path = user_string_quoted(pointer_arg(1))
-# 'name2' should have been 'name_str'.  Deprecate the old name.
-%(systemtap_v <= "1.4" %?
-	name2 = user_string_quoted(pointer_arg(2))
-%)
-	name_str = user_string_quoted(pointer_arg(2))
-	value_uaddr = pointer_arg(3)
-	size = ulong_arg(4)
-	argstr = sprintf("%s, %s, %p, %u",
-		user_string_quoted(pointer_arg(1)),
-		user_string_quoted(pointer_arg(2)),
-		value_uaddr, size)
-}
-probe nd_syscall.lgetxattr.return = kprobe.function("sys_lgetxattr").return ?
-{
-	name = "lgetxattr"
-	retstr = returnstr(1)
-}
 # link _______________________________________________________
 # long sys_link(const char __user * oldname,
 #          const char __user * newname)
