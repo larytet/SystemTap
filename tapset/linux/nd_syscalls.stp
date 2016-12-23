@@ -1,22 +1,4 @@
 
-# ioperm _____________________________________________________
-# long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
-#
-probe nd_syscall.ioperm = kprobe.function("sys_ioperm") ?
-{
-	name = "ioperm"
-	asmlinkage()
-	from = ulong_arg(1)
-	num = ulong_arg(2)
-	turn_on = uint_arg(3)
-	argstr = sprintf("%#x, %#x, %#x", from, num, turn_on)
-}
-probe nd_syscall.ioperm.return = kprobe.function("sys_ioperm").return ?
-{
-	name = "ioperm"
-	retstr = returnstr(1)
-}
-
 # io_setup ___________________________________________________
 # long sys_io_setup(unsigned nr_events, aio_context_t __user *ctxp)
 # long compat_sys_io_setup(unsigned nr_reqs, u32 __user *ctx32p)

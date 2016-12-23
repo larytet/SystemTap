@@ -1,21 +1,4 @@
 
-# ioperm _____________________________________________________
-# long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
-#
-probe syscall.ioperm = kernel.function("sys_ioperm").call ?
-{
-	name = "ioperm"
-	from = __ulong($from)
-	num = __ulong($num)
-	turn_on = __uint32($turn_on)
-	argstr = sprintf("%#x, %#x, %#x", from, num, turn_on)
-}
-probe syscall.ioperm.return = kernel.function("sys_ioperm").return ?
-{
-	name = "ioperm"
-	retstr = return_str(1, $return)
-}
-
 # io_setup ___________________________________________________
 # long sys_io_setup(unsigned nr_events, aio_context_t __user *ctxp)
 # long compat_sys_io_setup(unsigned nr_reqs, u32 __user *ctx32p)
