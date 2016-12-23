@@ -1,39 +1,4 @@
 
-# inotify_rm_watch ___________________________________________
-#
-# long sys_inotify_rm_watch(int fd, u32 wd)
-#
-probe syscall.inotify_rm_watch = kernel.function("sys_inotify_rm_watch").call ?
-{
-	name = "inotify_rm_watch"
-	fd = __int32($fd)
-	wd = __int32($wd)
-	argstr = sprintf("%d, %d", __int32($fd), __int32($wd))
-}
-probe syscall.inotify_rm_watch.return = kernel.function("sys_inotify_rm_watch").return ?
-{
-	name = "inotify_rm_watch"
-	retstr = return_str(1, $return)
-}
-
-# io_cancel __________________________________________________
-# long sys_io_cancel(aio_context_t ctx_id,
-#		struct iocb __user *iocb,
-#		struct io_event __user *result)
-probe syscall.io_cancel = kernel.function("sys_io_cancel").call
-{
-	name = "io_cancel"
-	ctx_id = __ulong($ctx_id)
-	iocb_uaddr = $iocb
-	result_uaddr = $result
-	argstr = sprintf("%u, %p, %p", ctx_id, iocb_uaddr, result_uaddr)
-}
-probe syscall.io_cancel.return = kernel.function("sys_io_cancel").return
-{
-	name = "io_cancel"
-	retstr = return_str(1, $return)
-}
-
 # ioctl ______________________________________________________
 # long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 # long compat_sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
