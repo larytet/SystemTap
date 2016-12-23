@@ -1,17 +1,4 @@
 
-# getppid ____________________________________________________
-# long sys_getppid(void)
-probe nd_syscall.getppid = kprobe.function("sys_getppid")
-{
-	name = "getppid"
-	argstr = ""
-}
-probe nd_syscall.getppid.return = kprobe.function("sys_getppid").return
-{
-	name = "getppid"
-	retstr = returnstr(1)
-}
-
 # getpriority ________________________________________________
 # long sys_getpriority(int which, int who)
 probe nd_syscall.getpriority = kprobe.function("sys_getpriority") ?

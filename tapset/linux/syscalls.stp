@@ -1,17 +1,4 @@
 
-# getppid ____________________________________________________
-# long sys_getppid(void)
-probe syscall.getppid = kernel.function("sys_getppid").call
-{
-	name = "getppid"
-	argstr = ""
-}
-probe syscall.getppid.return = kernel.function("sys_getppid").return
-{
-	name = "getppid"
-	retstr = return_str(1, $return)
-}
-
 # getpriority ________________________________________________
 # long sys_getpriority(int which, int who)
 probe syscall.getpriority = kernel.function("sys_getpriority").call
