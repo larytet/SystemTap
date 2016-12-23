@@ -1,29 +1,4 @@
 
-# getresgid __________________________________________________
-# long sys_getresgid(gid_t __user *rgid,
-#                    gid_t __user *egid,
-#                    gid_t __user *sgid)
-# long sys_getresgid16(old_uid_t __user *rgid,
-#                 old_uid_t __user *egid,
-#                 old_uid_t __user *sgid)
-probe syscall.getresgid = kernel.function("sys_getresgid16").call ?,
-                          kernel.function("sys_getresgid").call
-{
-	name = "getresgid"
-	rgid_uaddr = @choose_defined($rgidp, $rgid)
-	egid_uaddr = @choose_defined($egidp, $egid)
-	sgid_uaddr = @choose_defined($sgidp, $sgid)
-	argstr = sprintf("%p, %p, %p", @choose_defined($rgidp, $rgid),
-			 @choose_defined($egidp, $egid),
-			 @choose_defined($sgidp, $sgid))
-}
-probe syscall.getresgid.return = kernel.function("sys_getresgid16").return ?,
-                                 kernel.function("sys_getresgid").return
-{
-	name = "getresgid"
-	retstr = return_str(1, $return)
-}
-
 # getresuid __________________________________________________
 # long sys_getresuid(uid_t __user *ruid,
 #		uid_t __user *euid,

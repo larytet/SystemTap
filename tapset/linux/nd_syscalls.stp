@@ -1,28 +1,4 @@
 
-# getresgid __________________________________________________
-# long sys_getresgid(gid_t __user *rgid,
-#                    gid_t __user *egid,
-#                    gid_t __user *sgid)
-# long sys_getresgid16(old_uid_t __user *rgid,
-#                 old_uid_t __user *egid,
-#                 old_uid_t __user *sgid)
-probe nd_syscall.getresgid = kprobe.function("sys_getresgid16") ?,
-                             kprobe.function("sys_getresgid") ?
-{
-	name = "getresgid"
-	asmlinkage()
-	rgid_uaddr = pointer_arg(1)
-	egid_uaddr = pointer_arg(2)
-	sgid_uaddr = pointer_arg(3)
-	argstr = sprintf("%p, %p, %p", rgid_uaddr, egid_uaddr, sgid_uaddr)
-}
-probe nd_syscall.getresgid.return = kprobe.function("sys_getresgid16").return ?,
-                                    kprobe.function("sys_getresgid").return ?
-{
-	name = "getresgid"
-	retstr = returnstr(1)
-}
-
 # getresuid __________________________________________________
 # long sys_getresuid(uid_t __user *ruid,
 #		uid_t __user *euid,
