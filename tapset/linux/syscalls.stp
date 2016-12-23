@@ -1,24 +1,4 @@
 
-# getuid _____________________________________________________
-# long sys_getuid(void
-# long sys_getuid16(void)
-# long sys32_getuid16(void)
-#
-probe syscall.getuid = kernel.function("sys_getuid16").call ?,
-                       kernel.function("sys32_getuid16").call ?,
-                       kernel.function("sys_getuid").call
-{
-	name = "getuid"
-	argstr = ""
-}
-probe syscall.getuid.return = kernel.function("sys_getuid16").return ?,
-                              kernel.function("sys32_getuid16").return ?,
-                              kernel.function("sys_getuid").return
-{
-	name = "getuid"
-	retstr = return_str(1, $return)
-}
-
 # getxattr ___________________________________________________
 # ssize_t sys_getxattr(char __user *path, char __user *name,
 #		void __user *value, size_t size)
