@@ -1,27 +1,4 @@
 
-# lseek ______________________________________________________
-# off_t sys_lseek(unsigned int fd, off_t offset, unsigned int whence)
-# COMPAT_SYSCALL_DEFINE3(lseek, unsigned int, fd, compat_off_t, offset,
-#			 unsigned int, whence)
-#
-probe nd_syscall.lseek = kprobe.function("sys_lseek"),
-                         kprobe.function("compat_sys_lseek") ?
-{
-	name = "lseek"
-	asmlinkage()
-	fildes = int_arg(1)
-	offset = long_arg(2)
-	whence = uint_arg(3)
-	whence_str = _seek_whence_str(whence)
-	argstr = sprintf("%d, %d, %s", fildes, offset, whence_str)
-}
-probe nd_syscall.lseek.return = kprobe.function("sys_lseek").return,
-				kprobe.function("compat_sys_lseek").return ?
-{
-	name = "lseek"
-	retstr = returnstr(1)
-}
-
 # lsetxattr __________________________________________________
 # long sys_lsetxattr(char __user *path,
 #               char __user *name,

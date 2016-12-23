@@ -1,26 +1,4 @@
 
-# lseek ______________________________________________________
-# off_t sys_lseek(unsigned int fd, off_t offset, unsigned int whence)
-# COMPAT_SYSCALL_DEFINE3(lseek, unsigned int, fd, compat_off_t, offset,
-#			 unsigned int, whence)
-#
-probe syscall.lseek = kernel.function("sys_lseek").call ?,
-                      kernel.function("compat_sys_lseek").call ?
-{
-	name = "lseek"
-	fildes = __int32($fd)
-	offset = @__compat_long($offset)
-	whence = @__compat_ulong(@choose_defined($whence, $origin))
-	whence_str = _seek_whence_str(whence)
-	argstr = sprintf("%d, %d, %s", fildes, offset, whence_str)
-}
-probe syscall.lseek.return = kernel.function("sys_lseek").return,
-			     kernel.function("compat_sys_lseek").return ?
-{
-	name = "lseek"
-	retstr = return_str(1, $return)
-}
-
 # lsetxattr __________________________________________________
 # long sys_lsetxattr(char __user *path,
 #               char __user *name,
