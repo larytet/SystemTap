@@ -1,39 +1,4 @@
 
-# io_setup ___________________________________________________
-# long sys_io_setup(unsigned nr_events, aio_context_t __user *ctxp)
-# long compat_sys_io_setup(unsigned nr_reqs, u32 __user *ctx32p)
-#
-probe syscall.io_setup = __syscall.io_setup,
-	__syscall.compat_io_setup ?
-{
-	name = "io_setup"
-
-}
-probe __syscall.io_setup = kernel.function("sys_io_setup").call
-{
-	@__syscall_gate(@const("__NR_io_setup"))
-	maxevents = __uint32($nr_events)
-	ctxp_uaddr = $ctxp
-	argstr = sprintf("%u, %p", maxevents, ctxp_uaddr)
-}
-probe __syscall.compat_io_setup = kernel.function("compat_sys_io_setup").call
-{
-	maxevents = __uint32($nr_reqs)
-	ctxp_uaddr = $ctx32p
-	argstr = sprintf("%u, %p", maxevents, ctxp_uaddr)
-}
-probe syscall.io_setup.return = __syscall.io_setup.return,
-	kernel.function("compat_sys_io_setup").return ?
-{
-	name = "io_setup"
-	retstr = return_str(1, $return)
-}
-
-probe __syscall.io_setup.return = kernel.function("sys_io_setup").return
-{
-	@__syscall_gate(@const("__NR_io_setup"))
-}
-
 # io_submit __________________________________________________
 # long compat_sys_io_submit(aio_context_t ctx_id, int nr, u32 __user *iocb)
 # long sys_io_submit(aio_context_t ctx_id, long nr, struct iocb __user * __user *iocbpp)
