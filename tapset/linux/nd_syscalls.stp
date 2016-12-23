@@ -1,24 +1,4 @@
 
-# llistxattr _________________________________________________
-# ssize_t sys_llistxattr(char __user *path, char __user *list, size_t size)
-#
-probe nd_syscall.llistxattr = kprobe.function("sys_llistxattr") ?
-{
-	name = "llistxattr"
-	asmlinkage()
-	path_uaddr = pointer_arg(1)
-	path = user_string_quoted(path_uaddr)
-	list_uaddr = pointer_arg(2)
-	size = ulong_arg(3)
-	argstr = sprintf("%s, %p, %u", user_string_quoted(path_uaddr),
-			 list_uaddr, size)
-}
-probe nd_syscall.llistxattr.return = kprobe.function("sys_llistxattr").return ?
-{
-	name = "llistxattr"
-	retstr = returnstr(1)
-}
-
 # llseek _____________________________________________________
 # long sys_llseek(unsigned int fd,
 #            unsigned long offset_high,
