@@ -1,33 +1,4 @@
 
-# linkat _____________________________________________________
-# new function with 2.6.16
-# long sys_linkat(int olddfd, const char __user *oldname,
-#	int newdfd, const char __user *newname, int flags)
-probe nd_syscall.linkat = kprobe.function("sys_linkat") ?
-{
-	@__syscall_compat_gate(@const("__NR_linkat"), @const("__NR_compat_linkat"))
-	name = "linkat"
-	asmlinkage()
-	olddirfd = int_arg(1)
-	olddirfd_str = _dfd_str(olddirfd)
-	oldpath = user_string_quoted(pointer_arg(2))
-	newdirfd = int_arg(3)
-	newdirfd_str = _dfd_str(newdirfd)
-	newpath = user_string_quoted(pointer_arg(4))
-	flags = int_arg(5)
-	flags_str = _at_flag_str(flags)
-	argstr = sprintf("%s, %s, %s, %s, %s",
-		olddirfd_str, user_string_quoted(pointer_arg(2)),
-		newdirfd_str, user_string_quoted(pointer_arg(4)),
-		flags_str)
-}
-probe nd_syscall.linkat.return = kprobe.function("sys_linkat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_linkat"), @const("__NR_compat_linkat"))
-	name = "linkat"
-	retstr = returnstr(1)
-}
-
 # listen _____________________________________________________
 # long sys_listen(int fd, int backlog)
 probe nd_syscall.listen = __nd_syscall.listen ?,

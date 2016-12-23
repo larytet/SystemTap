@@ -1,32 +1,4 @@
 
-# linkat _____________________________________________________
-# new function with 2.6.16
-# long sys_linkat(int olddfd, const char __user *oldname,
-#	int newdfd, const char __user *newname, int flags)
-probe syscall.linkat = kernel.function("sys_linkat").call ?
-{
-	@__syscall_compat_gate(@const("__NR_linkat"), @const("__NR_compat_linkat"))
-	name = "linkat"
-	olddirfd = __int32($olddfd)
-	olddirfd_str = _dfd_str(__int32($olddfd))
-	oldpath = user_string_quoted($oldname)
-	newdirfd = __int32($newdfd)
-	newdirfd_str = _dfd_str(__int32($newdfd))
-	newpath = user_string_quoted($newname)
-	flags = __int32($flags)
-	flags_str = _at_flag_str(__int32($flags))
-	argstr = sprintf("%s, %s, %s, %s, %s",
-			 olddirfd_str, user_string_quoted($oldname),
-			 newdirfd_str, user_string_quoted($newname),
-			 flags_str)
-}
-probe syscall.linkat.return = kernel.function("sys_linkat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_linkat"), @const("__NR_compat_linkat"))
-	name = "linkat"
-	retstr = return_str(1, $return)
-}
-
 # listen _____________________________________________________
 # long sys_listen(int fd, int backlog)
 probe syscall.listen = __syscall.listen ?, __syscall.socketcall.listen ?,
