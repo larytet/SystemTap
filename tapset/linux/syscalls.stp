@@ -1,23 +1,4 @@
 
-# init_module ________________________________________________
-# long sys_init_module(void __user *umod,
-#		unsigned long len,
-#		const char __user *uargs)
-#
-probe syscall.init_module = kernel.function("sys_init_module").call ?
-{
-	name = "init_module"
-	umod_uaddr = $umod
-	len = __ulong($len)
-	uargs = user_string_quoted($uargs)
-	argstr = sprintf("%p, %u, %s", $umod, len, user_string_quoted($uargs))
-}
-probe syscall.init_module.return = kernel.function("sys_init_module").return ?
-{
-	name = "init_module"
-	retstr = return_str(1, $return)
-}
-
 # inotify_add_watch __________________________________________
 #
 # long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)

@@ -1,25 +1,4 @@
 
-# init_module ________________________________________________
-# long sys_init_module(void __user *umod,
-#		unsigned long len,
-#		const char __user *uargs)
-#
-probe nd_syscall.init_module = kprobe.function("sys_init_module") ?
-{
-	name = "init_module"
-	asmlinkage()
-	umod_uaddr = pointer_arg(1)
-	len = ulong_arg(2)
-	uargs = user_string_quoted(pointer_arg(3))
-	argstr = sprintf("%p, %u, %s", umod_uaddr, len, uargs)
-}
-probe nd_syscall.init_module.return =
-	kprobe.function("sys_init_module").return ?
-{
-	name = "init_module"
-	retstr = returnstr(1)
-}
-
 # inotify_add_watch __________________________________________
 #
 # long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
