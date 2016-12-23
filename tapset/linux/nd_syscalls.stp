@@ -1,17 +1,4 @@
 
-# getpid _____________________________________________________
-# long sys_getpid(void)
-probe nd_syscall.getpid = kprobe.function("sys_getpid")
-{
-	name = "getpid"
-	argstr = ""
-}
-probe nd_syscall.getpid.return = kprobe.function("sys_getpid").return
-{
-	name = "getpid"
-	retstr = returnstr(1)
-}
-
 # getppid ____________________________________________________
 # long sys_getppid(void)
 probe nd_syscall.getppid = kprobe.function("sys_getppid")
