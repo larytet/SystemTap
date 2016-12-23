@@ -1,46 +1,4 @@
 
-# inotify_init _______________________________________________
-#
-# long sys_inotify_init(void)
-# SYSCALL_DEFINE1(inotify_init1, int, flags)
-#
-probe syscall.inotify_init = __syscall.inotify_init1 ?,
-			     __syscall.inotify_init ?
-{
-}
-probe __syscall.inotify_init1 = kernel.function("sys_inotify_init1").call ?
-{
-	@__syscall_compat_gate(@const("__NR_inotify_init1"),
-			       @const("__NR_compat_inotify_init1"))
-	name = "inotify_init1"
-	flags = __int32($flags)
-	argstr = _inotify_init1_flag_str(flags)
-}
-probe __syscall.inotify_init = kernel.function("sys_inotify_init").call ?
-{
-	name = "inotify_init"
-	flags = 0
-	argstr = ""
-}
-probe syscall.inotify_init.return = __syscall.inotify_init1.return ?,
-				    __syscall.inotify_init.return ?
-{
-}
-probe __syscall.inotify_init1.return =
-	kernel.function("sys_inotify_init1").return ?
-{
-	@__syscall_compat_gate(@const("__NR_inotify_init1"),
-			       @const("__NR_compat_inotify_init1"))
-	name = "inotify_init1"
-	retstr = return_str(1, $return)
-}
-probe __syscall.inotify_init.return =
-	kernel.function("sys_inotify_init").return ?
-{
-	name = "inotify_init"
-	retstr = return_str(1, $return)
-}
-
 # inotify_rm_watch ___________________________________________
 #
 # long sys_inotify_rm_watch(int fd, u32 wd)
