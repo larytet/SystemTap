@@ -1,17 +1,3 @@
-
-# fsync ______________________________________________________
-# long sys_fsync(unsigned int fd)
-probe syscall.fsync = kernel.function("sys_fsync").call
-{
-	name = "fsync"
-	fd = __int32($fd)
-	argstr = sprint(fd)
-}
-probe syscall.fsync.return = kernel.function("sys_fsync").return
-{
-	name = "fsync"
-	retstr = return_str(1, $return)
-}
 # ftruncate __________________________________________________
 # long sys_ftruncate(unsigned int fd, unsigned long length)
 # COMPAT_SYSCALL_DEFINE2(ftruncate, unsigned int, fd, compat_ulong_t, length)

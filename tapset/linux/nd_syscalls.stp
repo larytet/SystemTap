@@ -1,18 +1,3 @@
-
-# fsync ______________________________________________________
-# long sys_fsync(unsigned int fd)
-probe nd_syscall.fsync = kprobe.function("sys_fsync") ?
-{
-	name = "fsync"
-	asmlinkage()
-	fd = int_arg(1)
-	argstr = sprint(fd)
-}
-probe nd_syscall.fsync.return = kprobe.function("sys_fsync").return ?
-{
-	name = "fsync"
-	retstr = returnstr(1)
-}
 # ftruncate __________________________________________________
 # long sys_ftruncate(unsigned int fd, unsigned long length)
 # COMPAT_SYSCALL_DEFINE2(ftruncate, unsigned int, fd, compat_ulong_t, length)
