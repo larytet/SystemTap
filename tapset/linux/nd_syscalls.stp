@@ -1,26 +1,4 @@
 
-# fstatfs64 __________________________________________________
-# long sys_fstatfs64(unsigned int fd, size_t sz, struct statfs64 __user *buf)
-# long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct compat_statfs64 __user *buf)
-#
-probe nd_syscall.fstatfs64 = kprobe.function("sys_fstatfs64") ?,
-	kprobe.function("compat_sys_fstatfs64") ?
-{
-	name = "fstatfs64"
-	asmlinkage()
-	fd = int_arg(1)
-	sz = ulong_arg(2)
-	buf_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %u, %p", fd, sz, buf_uaddr)
-}
-probe nd_syscall.fstatfs64.return =
-	kprobe.function("sys_fstatfs64").return ?,
-	kprobe.function("compat_sys_fstatfs64").return ?
-{
-	name = "fstatfs64"
-	retstr = returnstr(1)
-}
-
 # fsync ______________________________________________________
 # long sys_fsync(unsigned int fd)
 probe nd_syscall.fsync = kprobe.function("sys_fsync") ?
