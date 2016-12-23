@@ -1,22 +1,4 @@
 
-# ioprio_get _________________________________________________
-# long sys_ioprio_get(int which, int who)
-#
-probe syscall.ioprio_get = kernel.function("sys_ioprio_get").call ?
-{
-	name = "ioprio_get"
-	which = __int32($which)
-	which_str = _stp_ioprio_which_str(__int32($which))
-	who = __int32($who)
-	argstr = sprintf("%s, %d", _stp_ioprio_which_str(__int32($which)),
-			 __int32($who))
-}
-probe syscall.ioprio_get.return = kernel.function("sys_ioprio_get").return ?
-{
-	name = "ioprio_get"
-	retstr = return_str(1, $return)
-}
-
 # ioprio_set _________________________________________________
 # long sys_ioprio_set(int which, int who, int ioprio)
 #

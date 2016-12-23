@@ -1,22 +1,4 @@
 
-# ioprio_get _________________________________________________
-# long sys_ioprio_get(int which, int who)
-#
-probe nd_syscall.ioprio_get = kprobe.function("sys_ioprio_get") ?
-{
-	name = "ioprio_get"
-	asmlinkage()
-	which = int_arg(1)
-	which_str = _stp_ioprio_which_str(which)
-	who = int_arg(2)
-	argstr = sprintf("%s, %d", _stp_ioprio_which_str(which), who)
-}
-probe nd_syscall.ioprio_get.return = kprobe.function("sys_ioprio_get").return ?
-{
-	name = "ioprio_get"
-	retstr = returnstr(1)
-}
-
 # ioprio_set _________________________________________________
 # long sys_ioprio_set(int which, int who, int ioprio)
 #
