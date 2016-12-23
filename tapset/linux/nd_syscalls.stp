@@ -1,21 +1,3 @@
-# link _______________________________________________________
-# long sys_link(const char __user * oldname,
-#          const char __user * newname)
-probe nd_syscall.link = kprobe.function("sys_link") ?
-{
-	name = "link"
-	asmlinkage()
-	oldpath = user_string_quoted(pointer_arg(1))
-	newpath = user_string_quoted(pointer_arg(2))
-	argstr = sprintf("%s, %s",
-		user_string_quoted(pointer_arg(1)),
-		user_string_quoted(pointer_arg(2)))
-}
-probe nd_syscall.link.return = kprobe.function("sys_link").return ?
-{
-	name = "link"
-	retstr = returnstr(1)
-}
 
 # linkat _____________________________________________________
 # new function with 2.6.16

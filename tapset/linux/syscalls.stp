@@ -1,22 +1,4 @@
 
-# link _______________________________________________________
-# long sys_link(const char __user * oldname,
-#          const char __user * newname)
-probe syscall.link = kernel.function("sys_link").call
-{
-	name = "link"
-	oldpath = user_string_quoted($oldname)
-	newpath = user_string_quoted($newname)
-	argstr = sprintf("%s, %s",
-		user_string_quoted($oldname),
-		user_string_quoted($newname))
-}
-probe syscall.link.return = kernel.function("sys_link").return
-{
-	name = "link"
-	retstr = return_str(1, $return)
-}
-
 # linkat _____________________________________________________
 # new function with 2.6.16
 # long sys_linkat(int olddfd, const char __user *oldname,
