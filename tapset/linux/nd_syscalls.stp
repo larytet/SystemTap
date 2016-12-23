@@ -1,33 +1,4 @@
 
-# lookup_dcookie _____________________________________________
-# long sys_lookup_dcookie(u64 cookie64, char __user * buf, size_t len)
-#
-probe nd_syscall.lookup_dcookie = kprobe.function("sys_lookup_dcookie") ?
-{
-	name = "lookup_dcookie"
-	asmlinkage()
-%( CONFIG_64BIT == "y" %?
-	@__syscall_gate_compat_simple
-	cookie = ulonglong_arg(1)
-	buffer_uaddr = pointer_arg(2)
-	len = ulong_arg(3)
-%:
-	# On a 32-bit kernel, 'long long' arguments take the space of
-	# 2 arguments, so we have to adjust the following argument
-	# numbers.
-	cookie = ulonglong_arg(1)
-	buffer_uaddr = pointer_arg(3)
-	len = ulong_arg(4)
-%)
-	argstr = sprintf("%#lx, %p, %#x", cookie, buffer_uaddr, len)
-}
-probe nd_syscall.lookup_dcookie.return = kprobe.function("sys_lookup_dcookie").return ?
-{
-	@__syscall_gate_compat_simple
-	name = "lookup_dcookie"
-	retstr = returnstr(1)
-}
-
 # lremovexattr _______________________________________________
 # long sys_lremovexattr(char __user *path, char __user *name)
 #

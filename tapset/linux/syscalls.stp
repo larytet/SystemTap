@@ -1,23 +1,4 @@
 
-# lookup_dcookie _____________________________________________
-# long sys_lookup_dcookie(u64 cookie64, char __user * buf, size_t len)
-#
-probe syscall.lookup_dcookie = kernel.function("sys_lookup_dcookie").call ?
-{
-	@__syscall_gate_compat_simple
-	name = "lookup_dcookie"
-	cookie = $cookie64
-	buffer_uaddr = $buf
-	len = __ulong($len)
-	argstr = sprintf("%#lx, %p, %#x", $cookie64, $buf, $len)
-}
-probe syscall.lookup_dcookie.return = kernel.function("sys_lookup_dcookie").return ?
-{
-	@__syscall_gate_compat_simple
-	name = "lookup_dcookie"
-	retstr = return_str(1, $return)
-}
-
 # lremovexattr _______________________________________________
 # long sys_lremovexattr(char __user *path, char __user *name)
 #
