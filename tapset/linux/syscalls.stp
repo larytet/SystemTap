@@ -1,21 +1,4 @@
 
-# membarrier _______________________________________________________
-# SYSCALL_DEFINE2(membarrier, int, cmd, int, flags)
-probe syscall.membarrier = kernel.function("sys_membarrier").call ?
-{
-	name = "membarrier"
-	cmd = __int32($cmd)
-	cmd_str = _membarrier_cmd_str(cmd)
-	flags = __int32($flags)
-	argstr = sprintf("%s, %d", _membarrier_cmd_str(cmd),
-			 __int32($flags))
-}
-probe syscall.membarrier.return = kernel.function("sys_membarrier").return ?
-{
-	name = "membarrier"
-	retstr = return_str(1, $return)
-}
-
 # memfd_create _____________________________________________________
 # long sys_memfd_create (const char __user* uname, unsigned int flags)
 probe syscall.memfd_create = kernel.function("sys_memfd_create").call ?
