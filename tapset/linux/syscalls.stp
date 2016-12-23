@@ -1,33 +1,4 @@
 
-# getrusage __________________________________________________
-# long sys_getrusage(int who, struct rusage __user *ru)
-# COMPAT_SYSCALL_DEFINE2(getrusage, int, who, struct compat_rusage __user *,
-#			 ru)
-#
-probe syscall.getrusage = __syscall.getrusage,
-	kernel.function("compat_sys_getrusage").call ?
-{
-	name = "getrusage"
-	who = __int32($who)
-	who_str = _rusage_who_str(who)
-	usage_uaddr = @__pointer($ru)
-	argstr = sprintf("%s, %p", who_str, usage_uaddr)
-}
-probe __syscall.getrusage = kernel.function("sys_getrusage").call
-{
-	@__syscall_gate(@const("__NR_getrusage"))
-}
-probe syscall.getrusage.return = __syscall.getrusage.return,
-	kernel.function("compat_sys_getrusage").return ?
-{
-	name = "getrusage"
-	retstr = return_str(1, $return)
-}
-probe __syscall.getrusage.return = kernel.function("sys_getrusage").return
-{
-	@__syscall_gate(@const("__NR_getrusage"))
-}
-
 # getsid _____________________________________________________
 # long sys_getsid(pid_t pid)
 probe syscall.getsid = kernel.function("sys_getsid").call

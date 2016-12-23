@@ -1,34 +1,4 @@
 
-# getrusage __________________________________________________
-# long sys_getrusage(int who, struct rusage __user *ru)
-# COMPAT_SYSCALL_DEFINE2(getrusage, int, who, struct compat_rusage __user *,
-#			 ru)
-#
-probe nd_syscall.getrusage = __nd_syscall.getrusage,
-	kprobe.function("compat_sys_getrusage").call ?
-{
-	name = "getrusage"
-	asmlinkage()
-	who = int_arg(1)
-	who_str = _rusage_who_str(who)
-	usage_uaddr = pointer_arg(2)
-	argstr = sprintf("%s, %p", who_str, usage_uaddr)
-}
-probe __nd_syscall.getrusage = kprobe.function("sys_getrusage").call
-{
-	@__syscall_gate(@const("__NR_getrusage"))
-}
-probe nd_syscall.getrusage.return = __nd_syscall.getrusage.return,
-	kprobe.function("compat_sys_getrusage").return ?
-{
-	name = "getrusage"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.getrusage.return = kprobe.function("sys_getrusage").return
-{
-	@__syscall_gate(@const("__NR_getrusage"))
-}
-
 # getsid _____________________________________________________
 # long sys_getsid(pid_t pid)
 probe nd_syscall.getsid = kprobe.function("sys_getsid") ?
