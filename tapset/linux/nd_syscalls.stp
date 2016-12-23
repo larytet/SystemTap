@@ -1,19 +1,4 @@
 
-# io_destroy _________________________________________________
-# long sys_io_destroy(aio_context_t ctx)
-probe nd_syscall.io_destroy = kprobe.function("sys_io_destroy") ?
-{
-	name = "io_destroy"
-	asmlinkage()
-	ctx = ulong_arg(1)
-	argstr = sprintf("%u", ctx)
-}
-probe nd_syscall.io_destroy.return = kprobe.function("sys_io_destroy").return ?
-{
-	name = "io_destroy"
-	retstr = returnstr(1)
-}
-
 # io_getevents _______________________________________________
 # long sys_io_getevents(aio_context_t ctx_id,
 #		long min_nr,

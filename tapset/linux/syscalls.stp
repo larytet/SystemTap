@@ -1,18 +1,4 @@
 
-# io_destroy _________________________________________________
-# long sys_io_destroy(aio_context_t ctx)
-probe syscall.io_destroy = kernel.function("sys_io_destroy").call
-{
-	name = "io_destroy"
-	ctx = __ulong($ctx)
-	argstr = sprintf("%u", ctx)
-}
-probe syscall.io_destroy.return = kernel.function("sys_io_destroy").return
-{
-	name = "io_destroy"
-	retstr = return_str(1, $return)
-}
-
 # io_getevents _______________________________________________
 # long sys_io_getevents(aio_context_t ctx_id,
 #		long min_nr,
