@@ -1,26 +1,4 @@
 
-# getresuid __________________________________________________
-# long sys_getresuid(uid_t __user *ruid,
-#		uid_t __user *euid,
-#		uid_t __user *suid)
-probe syscall.getresuid = kernel.function("sys_getresuid16").call ?,
-                          kernel.function("sys_getresuid").call
-{
-	name = "getresuid"
-	ruid_uaddr = @choose_defined($ruidp, $ruid)
-	euid_uaddr = @choose_defined($euidp, $euid)
-	suid_uaddr = @choose_defined($suidp, $suid)
-	argstr = sprintf("%p, %p, %p", @choose_defined($ruidp, $ruid),
-			 @choose_defined($euidp, $euid),
-			 @choose_defined($suidp, $suid))
-}
-probe syscall.getresuid.return = kernel.function("sys_getresuid16").return ?,
-                                 kernel.function("sys_getresuid").return
-{
-	name = "getresuid"
-	retstr = return_str(1, $return)
-}
-
 # getrlimit __________________________________________________
 # long sys_getrlimit(unsigned int resource, struct rlimit __user *rlim)
 # long sys_old_getrlimit(unsigned int resource, struct rlimit __user *rlim)

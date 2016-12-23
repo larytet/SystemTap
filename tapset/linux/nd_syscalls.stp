@@ -1,25 +1,4 @@
 
-# getresuid __________________________________________________
-# long sys_getresuid(uid_t __user *ruid,
-#		uid_t __user *euid,
-#		uid_t __user *suid)
-probe nd_syscall.getresuid = kprobe.function("sys_getresuid16") ?,
-                             kprobe.function("sys_getresuid") ?
-{
-	name = "getresuid"
-	asmlinkage()
-	ruid_uaddr = pointer_arg(1)
-	euid_uaddr = pointer_arg(2)
-	suid_uaddr = pointer_arg(3)
-	argstr = sprintf("%p, %p, %p", ruid_uaddr, euid_uaddr, suid_uaddr)
-}
-probe nd_syscall.getresuid.return = kprobe.function("sys_getresuid16").return ?,
-                                    kprobe.function("sys_getresuid").return ?
-{
-	name = "getresuid"
-	retstr = returnstr(1)
-}
-
 # getrlimit __________________________________________________
 # long sys_getrlimit(unsigned int resource, struct rlimit __user *rlim)
 # long sys_old_getrlimit(unsigned int resource, struct rlimit __user *rlim)
