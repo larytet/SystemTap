@@ -1,22 +1,4 @@
 
-# getrandom __________________________________________________
-# long sys_getrandom(char __user *buf, size_t count, unsigned int flags)
-probe syscall.getrandom = kernel.function("sys_getrandom").call ?
-{
-	name = "getrandom"
-	buf = user_string_quoted($buf)
-	count = __ulong($count)
-	flags = __uint32($flags)
-	flags_str = _getrandom_flags_str(__uint32($flags))
-	argstr = sprintf("%s, %u, %s", user_string_quoted($buf), count,
-			 flags_str)
-}
-probe syscall.getrandom.return = kernel.function("sys_getrandom").return ?
-{
-	name = "getrandom"
-	retstr = return_str(1, $return)
-}
-
 # getresgid __________________________________________________
 # long sys_getresgid(gid_t __user *rgid,
 #                    gid_t __user *egid,
