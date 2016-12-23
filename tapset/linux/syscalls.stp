@@ -1,28 +1,4 @@
 
-# llseek _____________________________________________________
-# long sys_llseek(unsigned int fd,
-#            unsigned long offset_high,
-#            unsigned long offset_low,
-#            loff_t __user * result,
-#            unsigned int whence)
-probe syscall.llseek = kernel.function("sys_llseek").call ?
-{
-	name = "llseek"
-	fd = __int32($fd)
-	offset_high = $offset_high
-	offset_low = $offset_low
-	result_uaddr = $result
-	whence = @choose_defined($whence, $origin)
-	whence_str = _seek_whence_str(@choose_defined($whence, $origin))
-	argstr = sprintf("%d, 0x%x, 0x%x, %p, %s", fd, $offset_high,
-		$offset_low, $result, whence_str)
-}
-probe syscall.llseek.return = kernel.function("sys_llseek").return ?
-{
-	name = "llseek"
-	retstr = return_str(1, $return)
-}
-
 # lookup_dcookie _____________________________________________
 # long sys_lookup_dcookie(u64 cookie64, char __user * buf, size_t len)
 #

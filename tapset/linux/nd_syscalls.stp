@@ -1,29 +1,4 @@
 
-# llseek _____________________________________________________
-# long sys_llseek(unsigned int fd,
-#            unsigned long offset_high,
-#            unsigned long offset_low,
-#            loff_t __user * result,
-#            unsigned int whence)
-probe nd_syscall.llseek = kprobe.function("sys_llseek") ?
-{
-	name = "llseek"
-	asmlinkage()
-	fd = int_arg(1)
-	offset_high = ulong_arg(2)
-	offset_low = ulong_arg(3)
-	result_uaddr = pointer_arg(4)
-	whence = uint_arg(5)
-	whence_str = _seek_whence_str(whence)
-	argstr = sprintf("%d, 0x%x, 0x%x, %p, %s", fd, offset_high,
-		offset_low, result_uaddr, whence_str)
-}
-probe nd_syscall.llseek.return = kprobe.function("sys_llseek").return ?
-{
-	name = "llseek"
-	retstr = returnstr(1)
-}
-
 # lookup_dcookie _____________________________________________
 # long sys_lookup_dcookie(u64 cookie64, char __user * buf, size_t len)
 #
