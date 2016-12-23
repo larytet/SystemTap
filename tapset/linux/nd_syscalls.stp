@@ -1,37 +1,4 @@
 
-# get_robust_list ____________________________________________
-# SYSCALL_DEFINE3(get_robust_list, int, pid,
-#                 struct robust_list_head __user * __user *, head_ptr,
-#                 size_t __user *, len_ptr)
-# COMPAT_SYSCALL_DEFINE3(get_robust_list, int, pid,
-#                        compat_uptr_t __user *, head_ptr,
-#                        compat_size_t __user *, len_ptr)
-probe nd_syscall.get_robust_list = __nd_syscall.get_robust_list ?,
-                                   kprobe.function("compat_sys_get_robust_list") ?
-{
-	name = "get_robust_list"
-	asmlinkage()
-	pid = int_arg(1)
-	list_head_uaddr = pointer_arg(2)
-	len_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %p, %p", pid, list_head_uaddr, len_uaddr)
-
-}
-probe __nd_syscall.get_robust_list = kprobe.function("sys_get_robust_list")
-{
-	@__syscall_gate_compat_simple
-}
-probe nd_syscall.get_robust_list.return = __nd_syscall.get_robust_list.return ?,
-                                          kprobe.function("compat_sys_get_robust_list").return ?
-{
-	name = "get_robust_list"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.get_robust_list.return = kprobe.function("sys_get_robust_list").return
-{
-	@__syscall_gate_compat_simple
-}
-
 # getrusage __________________________________________________
 # long sys_getrusage(int who, struct rusage __user *ru)
 # COMPAT_SYSCALL_DEFINE2(getrusage, int, who, struct compat_rusage __user *,
