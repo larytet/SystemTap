@@ -1,23 +1,4 @@
 
-# geteuid ____________________________________________________
-# long sys_geteuid(void)
-# long sys32_geteuid16(void)
-#
-probe syscall.geteuid = kernel.function("sys_geteuid16").call ?,
-                        kernel.function("sys32_geteuid16").call ?,
-                        kernel.function("sys_geteuid").call
-{
-	name = "geteuid"
-	argstr = ""
-}
-probe syscall.geteuid.return = kernel.function("sys_geteuid16").return ?,
-                               kernel.function("sys32_geteuid16").return ?,
-                               kernel.function("sys_geteuid").return
-{
-	name = "geteuid"
-	retstr = return_str(1, $return)
-}
-
 # getgid _____________________________________________________
 # long sys_getgid(void)
 # long sys32_getgid16(void)
