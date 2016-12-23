@@ -1,22 +1,4 @@
 
-# lchown16 ___________________________________________________
-# long sys_lchown16(const char __user * filename, old_uid_t user,
-#			old_gid_t group)
-#
-probe syscall.lchown16 = kernel.function("sys_lchown16").call ?
-{
-	name = "lchown16"
-	path = user_string_quoted($filename)
-	owner = __short($user)
-	group = __short($group)
-	argstr = sprintf("%s, %d, %d", user_string_quoted($filename), owner, group)
-}
-probe syscall.lchown16.return = kernel.function("sys_lchown16").return ?
-{
-	name = "lchown16"
-	retstr = return_str(1, $return)
-}
-
 # lgetxattr __________________________________________________
 # ssize_t sys_lgetxattr(char __user *path,
 #               char __user *name,

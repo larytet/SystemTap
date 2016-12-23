@@ -1,22 +1,3 @@
-
-# lchown16 ___________________________________________________
-# long sys_lchown16(const char __user * filename, old_uid_t user,
-#			old_gid_t group)
-#
-probe nd_syscall.lchown16 = kprobe.function("sys_lchown16") ?
-{
-	name = "lchown16"
-	asmlinkage()
-	path = user_string_quoted(pointer_arg(1))
-	owner = __short(uint_arg(2))
-	group = __short(uint_arg(3))
-	argstr = sprintf("%s, %d, %d", user_string_quoted(pointer_arg(1)), owner, group)
-}
-probe nd_syscall.lchown16.return = kprobe.function("sys_lchown16").return ?
-{
-	name = "lchown16"
-	retstr = returnstr(1)
-}
 # lgetxattr __________________________________________________
 # ssize_t sys_lgetxattr(char __user *path,
 #               char __user *name,
