@@ -1,48 +1,4 @@
 
-# listen _____________________________________________________
-# long sys_listen(int fd, int backlog)
-probe syscall.listen = __syscall.listen ?, __syscall.socketcall.listen ?,
-	__syscall.compat_socketcall.listen ?
-{
-	name = "listen"
-	argstr = sprintf("%d, %d", sockfd, backlog)
-}
-probe __syscall.listen = kernel.function("sys_listen").call ?
-{
-	@__syscall_gate(@const("__NR_listen"))
-	sockfd = __int32($fd)
-	backlog = __int32($backlog)
-}
-probe __syscall.socketcall.listen = kernel.function("sys_socketcall").call ?
-{
-	if ($call != @const("SYS_LISTEN")) next;
-	sockfd = __int32(user_ulong(&@cast($args, "ulong")[0]))
-	backlog = __int32(user_ulong(&@cast($args, "ulong")[1]))
-}
-probe __syscall.compat_socketcall.listen =
-	kernel.function("compat_sys_socketcall").call ?
-{
-	if ($call != @const("SYS_LISTEN")) next;
-	sockfd = user_int(&@cast($args, "unsigned int")[0])
-	backlog = user_int(&@cast($args, "unsigned int")[1])
-}
-probe syscall.listen.return = __syscall.listen.return ?,
-	__syscall.socketcall.listen.return ?
-{
-	name = "listen"
-	retstr = return_str(1, $return)
-}
-probe __syscall.listen.return = kernel.function("sys_listen").return ?
-{
-	@__syscall_gate(@const("__NR_listen"))
-}
-probe __syscall.socketcall.listen.return =
-	kernel.function("sys_socketcall").return ?,
-	kernel.function("compat_sys_socketcall").return ?
-{
-	if (@entry($call) != @const("SYS_LISTEN")) next;
-}
-
 # listxattr __________________________________________________
 # ssize_t sys_listxattr(char __user *path, char __user *list, size_t size)
 #
