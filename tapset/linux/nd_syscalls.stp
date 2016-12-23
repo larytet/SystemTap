@@ -1,21 +1,4 @@
 
-# ftruncate64 ________________________________________________
-# long sys_ftruncate64(unsigned int fd, loff_t length)
-probe nd_syscall.ftruncate64 = kprobe.function("sys_ftruncate64") ?
-{
-	name = "ftruncate"
-	asmlinkage()
-	fd = int_arg(1)
-	length = longlong_arg(2)
-	argstr = sprintf("%d, %d", fd, length)
-}
-probe nd_syscall.ftruncate64.return =
-	kprobe.function("sys_ftruncate64").return ?
-{
-	name = "ftruncate"
-	retstr = returnstr(1)
-}
-
 # futex ______________________________________________________
 # long sys_futex(u32 __user *uaddr,
 #           int op,

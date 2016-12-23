@@ -1,19 +1,4 @@
 
-# ftruncate64 ________________________________________________
-# long sys_ftruncate64(unsigned int fd, loff_t length)
-probe syscall.ftruncate64 = kernel.function("sys_ftruncate64").call ?
-{
-	name = "ftruncate"
-	fd = __int32($fd)
-	length = $length
-	argstr = sprintf("%d, %d", fd, length)
-}
-probe syscall.ftruncate64.return = kernel.function("sys_ftruncate64").return ?
-{
-	name = "ftruncate"
-	retstr = return_str(1, $return)
-}
-
 # futex ______________________________________________________
 # long sys_futex(u32 __user *uaddr,
 #           int op,
