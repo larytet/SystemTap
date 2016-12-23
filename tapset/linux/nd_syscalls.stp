@@ -1,35 +1,4 @@
 
-# lchown _____________________________________________________
-# long sys_lchown(const char __user * filename, uid_t user, gid_t group)
-#
-probe nd_syscall.lchown = kprobe.function("sys_lchown") ?
-{
-	// Avoid lchown16() calling lchown().
-%( arch == "x86_64" %?
-	@__syscall_compat_gate(@const("__NR_lchown"), @const("__NR_ia32_lchown32"))
-%)
-%( arch == "i386" %?
-	@__syscall_gate(@const("__NR_lchown32"))
-%)
-	name = "lchown"
-	asmlinkage()
-	path = user_string_quoted(pointer_arg(1))
-	owner = __int32(uint_arg(2))
-	group = __int32(uint_arg(3))
-	argstr = sprintf("%s, %d, %d", user_string_quoted(pointer_arg(1)), owner, group)
-}
-probe nd_syscall.lchown.return = kprobe.function("sys_lchown").return ?
-{
-%( arch == "x86_64" %?
-	@__syscall_compat_gate(@const("__NR_lchown"), @const("__NR_ia32_lchown32"))
-%)
-%( arch == "i386" %?
-	@__syscall_gate(@const("__NR_lchown32"))
-%)
-	name = "lchown"
-	retstr = returnstr(1)
-}
-
 # lchown16 ___________________________________________________
 # long sys_lchown16(const char __user * filename, old_uid_t user,
 #			old_gid_t group)

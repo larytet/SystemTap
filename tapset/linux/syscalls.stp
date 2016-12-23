@@ -1,34 +1,4 @@
 
-# lchown _____________________________________________________
-# long sys_lchown(const char __user * filename, uid_t user, gid_t group)
-#
-probe syscall.lchown = kernel.function("sys_lchown").call
-{
-	// Avoid lchown16() calling lchown().
-%( arch == "x86_64" %?
-	@__syscall_compat_gate(@const("__NR_lchown"), @const("__NR_ia32_lchown32"))
-%)
-%( arch == "i386" %?
-	@__syscall_gate(@const("__NR_lchown32"))
-%)
-	name = "lchown"
-	path = user_string_quoted($filename)
-	owner = __int32($user)
-	group = __int32($group)
-	argstr = sprintf("%s, %d, %d", user_string_quoted($filename), owner, group)
-}
-probe syscall.lchown.return = kernel.function("sys_lchown").return
-{
-%( arch == "x86_64" %?
-	@__syscall_compat_gate(@const("__NR_lchown"), @const("__NR_ia32_lchown32"))
-%)
-%( arch == "i386" %?
-	@__syscall_gate(@const("__NR_lchown32"))
-%)
-	name = "lchown"
-	retstr = return_str(1, $return)
-}
-
 # lchown16 ___________________________________________________
 # long sys_lchown16(const char __user * filename, old_uid_t user,
 #			old_gid_t group)
