@@ -1,41 +1,4 @@
 
-# getcpu _____________________________________________________
-# getcpu() was added in kernel 2.6.19 for x86_64 and i386.
-# Note that the 'tcache' argument is unused since Linux 2.6.24.
-#
-# SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
-#		  struct getcpu_cache __user *, unused)
-probe nd_syscall.getcpu = kprobe.function("sys_getcpu") ?
-{
-	name = "getcpu"
-	asmlinkage()
-	cpu_uaddr = pointer_arg(1)
-	node_uaddr = pointer_arg(2)
-	tcache_uaddr = pointer_arg(3)
-	argstr = sprintf("%p, %p, %p", cpu_uaddr, node_uaddr, tcache_uaddr)
-}
-probe nd_syscall.getcpu.return = kprobe.function("sys_getcpu").return ?
-{
-	name = "getcpu"
-	retstr = returnstr(1)
-}
-
-# getcwd _____________________________________________________
-# long sys_getcwd(char __user *buf, unsigned long size)
-probe nd_syscall.getcwd = kprobe.function("sys_getcwd") ?
-{
-	name = "getcwd"
-	asmlinkage()
-	buf_uaddr = pointer_arg(1)
-	size = ulong_arg(2)
-	argstr = sprintf("%p, %d", buf_uaddr, size)
-}
-probe nd_syscall.getcwd.return = kprobe.function("sys_getcwd").return ?
-{
-	name = "getcwd"
-	retstr = returnstr(1)
-}
-
 # getdents ___________________________________________________
 # long sys_getdents(unsigned int fd, struct linux_dirent __user * dirent, unsigned int count)
 # long compat_sys_getdents(unsigned int fd, struct compat_linux_dirent __user *dirent, unsigned int count)
