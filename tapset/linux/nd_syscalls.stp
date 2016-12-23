@@ -1,35 +1,4 @@
 
-# getrlimit __________________________________________________
-# long sys_getrlimit(unsigned int resource, struct rlimit __user *rlim)
-# long sys_old_getrlimit(unsigned int resource, struct rlimit __user *rlim)
-# long compat_sys_getrlimit (unsigned int resource, struct compat_rlimit __user *rlim)
-probe nd_syscall.getrlimit = __nd_syscall.getrlimit ?,
-	kprobe.function("compat_sys_getrlimit") ?,
-	kprobe.function("sys_old_getrlimit") ?
-{
-	name = "getrlimit"
-	asmlinkage()
-	resource = int_arg(1)
-	rlim_uaddr = pointer_arg(2)
-	argstr = sprintf("%s, %p", _rlimit_resource_str(resource), rlim_uaddr)
-}
-probe __nd_syscall.getrlimit = kprobe.function("sys_getrlimit")
-{
-	@__syscall_gate_compat_simple
-}
-probe nd_syscall.getrlimit.return = __nd_syscall.getrlimit.return ?,
-	kprobe.function("sys_old_getrlimit").return ?,
-	kprobe.function("compat_sys_getrlimit").return ?,
-	__nd_syscall.old_getrlimit.return ?
-{
-	name = "getrlimit"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.getrlimit.return = kprobe.function("sys_getrlimit").return
-{
-	@__syscall_gate_compat_simple
-}
-
 # get_robust_list ____________________________________________
 # SYSCALL_DEFINE3(get_robust_list, int, pid,
 #                 struct robust_list_head __user * __user *, head_ptr,
