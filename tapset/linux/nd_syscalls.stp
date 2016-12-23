@@ -1,30 +1,4 @@
 
-# gettimeofday _______________________________________________
-# long sys_gettimeofday(struct timeval  __user *tv,
-#	struct timezone __user *tz)
-# long sys32_gettimeofday(struct compat_timeval __user *tv,
-#	struct timezone __user *tz)
-# long compat_sys_gettimeofday(struct compat_timeval __user *tv,
-#	struct timezone __user *tz)
-probe nd_syscall.gettimeofday = kprobe.function("compat_sys_gettimeofday") ?,
-                                kprobe.function("sys32_gettimeofday") ?,
-                                kprobe.function("sys_gettimeofday") ?
-{
-	name = "gettimeofday"
-	asmlinkage()
-	tv_uaddr = pointer_arg(1)
-	tz_uaddr = pointer_arg(2)
-	argstr = sprintf("%p, %p", tv_uaddr, tz_uaddr)
-}
-
-probe nd_syscall.gettimeofday.return = kprobe.function("compat_sys_gettimeofday").return ?,
-                                       kprobe.function("sys32_gettimeofday").return ?,
-                                       kprobe.function("sys_gettimeofday").return ?
-{
-	name = "gettimeofday"
-	retstr = returnstr(1)
-}
-
 # getuid _____________________________________________________
 # long sys_getuid(void
 # long sys_getuid16(void)

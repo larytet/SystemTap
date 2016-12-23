@@ -1,29 +1,4 @@
 
-# gettimeofday _______________________________________________
-# long sys_gettimeofday(struct timeval  __user *tv,
-#	struct timezone __user *tz)
-# long sys32_gettimeofday(struct compat_timeval __user *tv,
-#	struct timezone __user *tz)
-# long compat_sys_gettimeofday(struct compat_timeval __user *tv,
-#	struct timezone __user *tz)
-probe syscall.gettimeofday = kernel.function("compat_sys_gettimeofday").call ?,
-                             kernel.function("sys32_gettimeofday").call ?,
-                             kernel.function("sys_gettimeofday").call
-{
-	name = "gettimeofday"
-	tv_uaddr = $tv
-	tz_uaddr = $tz
-	argstr = sprintf("%p, %p", $tv, $tz)
-}
-
-probe syscall.gettimeofday.return = kernel.function("compat_sys_gettimeofday").return ?,
-                                    kernel.function("sys32_gettimeofday").return ?,
-                                    kernel.function("sys_gettimeofday").return
-{
-	name = "gettimeofday"
-	retstr = return_str(1, $return)
-}
-
 # getuid _____________________________________________________
 # long sys_getuid(void
 # long sys_getuid16(void)
