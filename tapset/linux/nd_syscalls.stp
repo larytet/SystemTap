@@ -1,47 +1,4 @@
 
-# get_mempolicy ______________________________________________
-# long sys_get_mempolicy(int __user *policy,
-#                   unsigned long __user *nmask,
-#                   unsigned long maxnode,
-#                   unsigned long addr,
-#                   unsigned long flags)
-# long compat_sys_get_mempolicy(int __user *policy,
-#		     compat_ulong_t __user *nmask,
-#		     compat_ulong_t maxnode,
-#		     compat_ulong_t addr, compat_ulong_t flags)
-#
-probe nd_syscall.get_mempolicy = __nd_syscall.get_mempolicy ?,
-	kprobe.function("compat_sys_get_mempolicy") ?
-{
-	name = "get_mempolicy"
-	asmlinkage()
-	policy_uaddr = pointer_arg(1)
-	nmask_uaddr = pointer_arg(2)
-	maxnode = ulong_arg(3)
-	addr = ulong_arg(4)
-	flags = ulong_arg(5)
-	flags_str = _mempolicy_flags_str(flags)
-	argstr = sprintf("%p, %p, %u, %p, %s", policy_uaddr,
-		nmask_uaddr, maxnode, addr, _mempolicy_flags_str(flags))
-}
-probe __nd_syscall.get_mempolicy = kprobe.function("sys_get_mempolicy") ?
-{
-	asmlinkage()
-	@__syscall_gate_compat_simple
-}
-probe nd_syscall.get_mempolicy.return = __nd_syscall.get_mempolicy.return ?,
-	kprobe.function("compat_sys_get_mempolicy").return ?
-{
-	name = "get_mempolicy"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.get_mempolicy.return =
-	kprobe.function("sys_get_mempolicy").return ?
-{
-	asmlinkage()
-	@__syscall_gate_compat_simple
-}
-
 # getpeername ________________________________________________
 # long sys_getpeername(int fd, struct sockaddr __user *usockaddr,
 #		       int __user *usockaddr_len)

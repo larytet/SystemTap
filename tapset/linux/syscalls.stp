@@ -1,44 +1,4 @@
 
-# get_mempolicy ______________________________________________
-# long sys_get_mempolicy(int __user *policy,
-#                   unsigned long __user *nmask,
-#                   unsigned long maxnode,
-#                   unsigned long addr,
-#                   unsigned long flags)
-# long compat_sys_get_mempolicy(int __user *policy,
-#		     compat_ulong_t __user *nmask,
-#		     compat_ulong_t maxnode,
-#		     compat_ulong_t addr, compat_ulong_t flags)
-#
-probe syscall.get_mempolicy = __syscall.get_mempolicy ?,
-	kernel.function("compat_sys_get_mempolicy").call ?
-{
-	name = "get_mempolicy"
-	policy_uaddr = $policy
-	nmask_uaddr = $nmask
-	maxnode = $maxnode
-	addr = $addr
-	flags = $flags
-	flags_str = _mempolicy_flags_str($flags)
-	argstr = sprintf("%p, %p, %u, %p, %s", $policy, $nmask, $maxnode,
-			 $addr, _mempolicy_flags_str($flags))
-}
-probe __syscall.get_mempolicy = kernel.function("sys_get_mempolicy").call ?
-{
-	@__syscall_gate_compat_simple
-}
-probe syscall.get_mempolicy.return = __syscall.get_mempolicy.return ?,
-	kernel.function("compat_sys_get_mempolicy").return ?
-{
-	name = "get_mempolicy"
-	retstr = return_str(1, $return)
-}
-probe __syscall.get_mempolicy.return =
-	kernel.function("sys_get_mempolicy").return ?
-{
-	@__syscall_gate_compat_simple
-}
-
 # getpeername ________________________________________________
 # long sys_getpeername(int fd, struct sockaddr __user *usockaddr,
 #		       int __user *usockaddr_len)
