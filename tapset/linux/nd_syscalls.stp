@@ -1,21 +1,4 @@
 
-# getpgid ____________________________________________________
-# long sys_getpgid(pid_t pid)
-probe nd_syscall.getpgid = kprobe.function("sys_getpgid") ?
-{
-	@__syscall_compat_gate(@const("__NR_getpgid"), @const("__NR_compat_getpgid"))
-	name = "getpgid"
-	asmlinkage()
-	pid = int_arg(1)
-	argstr = sprintf("%d", pid)
-}
-probe nd_syscall.getpgid.return = kprobe.function("sys_getpgid").return ?
-{
-	@__syscall_compat_gate(@const("__NR_getpgid"), @const("__NR_compat_getpgid"))
-	name = "getpgid"
-	retstr = returnstr(1)
-}
-
 # getpgrp ____________________________________________________
 # long sys_getpgrp(void)
 probe nd_syscall.getpgrp = kprobe.function("sys_getpgrp") ?

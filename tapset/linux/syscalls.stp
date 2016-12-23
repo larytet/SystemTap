@@ -1,20 +1,4 @@
 
-# getpgid ____________________________________________________
-# long sys_getpgid(pid_t pid)
-probe syscall.getpgid = kernel.function("sys_getpgid").call
-{
-	@__syscall_compat_gate(@const("__NR_getpgid"), @const("__NR_compat_getpgid"))
-	name = "getpgid"
-	pid = __int32($pid)
-	argstr = sprintf("%d", __int32($pid))
-}
-probe syscall.getpgid.return = kernel.function("sys_getpgid").return
-{
-	@__syscall_compat_gate(@const("__NR_getpgid"), @const("__NR_compat_getpgid"))
-	name = "getpgid"
-	retstr = return_str(1, $return)
-}
-
 # getpgrp ____________________________________________________
 # long sys_getpgrp(void)
 probe syscall.getpgrp = kernel.function("sys_getpgrp").call ?
