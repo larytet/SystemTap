@@ -1,17 +1,4 @@
 
-# getpgrp ____________________________________________________
-# long sys_getpgrp(void)
-probe nd_syscall.getpgrp = kprobe.function("sys_getpgrp") ?
-{
-	name = "getpgrp"
-	argstr = ""
-}
-probe nd_syscall.getpgrp.return = kprobe.function("sys_getpgrp").return ?
-{
-	name = "getpgrp"
-	retstr = returnstr(1)
-}
-
 # getpid _____________________________________________________
 # long sys_getpid(void)
 probe nd_syscall.getpid = kprobe.function("sys_getpid")

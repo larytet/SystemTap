@@ -1,17 +1,4 @@
 
-# getpgrp ____________________________________________________
-# long sys_getpgrp(void)
-probe syscall.getpgrp = kernel.function("sys_getpgrp").call ?
-{
-	name = "getpgrp"
-	argstr = ""
-}
-probe syscall.getpgrp.return = kernel.function("sys_getpgrp").return ?
-{
-	name = "getpgrp"
-	retstr = return_str(1, $return)
-}
-
 # getpid _____________________________________________________
 # long sys_getpid(void)
 probe syscall.getpid = kernel.function("sys_getpid").call
