@@ -1,24 +1,4 @@
 
-# getegid ____________________________________________________
-# long sys_getegid(void)
-# long sys_getegid16(void)
-# long sys32_getegid16(void)
-#
-probe nd_syscall.getegid = kprobe.function("sys_getegid16") ?,
-                           kprobe.function("sys32_getegid16") ?,
-                           kprobe.function("sys_getegid")
-{
-	name = "getegid"
-	argstr = ""
-}
-probe nd_syscall.getegid.return = kprobe.function("sys_getegid16").return ?,
-                                  kprobe.function("sys32_getegid16").return ?,
-                                  kprobe.function("sys_getegid").return
-{
-	name = "getegid"
-	retstr = returnstr(1)
-}
-
 # geteuid ____________________________________________________
 # long sys_geteuid(void)
 # long sys32_geteuid16(void)

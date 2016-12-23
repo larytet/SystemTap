@@ -1,24 +1,4 @@
 
-# getegid ____________________________________________________
-# long sys_getegid(void)
-# long sys_getegid16(void)
-# long sys32_getegid16(void)
-#
-probe syscall.getegid = kernel.function("sys_getegid16").call ?,
-                        kernel.function("sys32_getegid16").call ?,
-                        kernel.function("sys_getegid").call
-{
-	name = "getegid"
-	argstr = ""
-}
-probe syscall.getegid.return = kernel.function("sys_getegid16").return ?,
-                               kernel.function("sys32_getegid16").return ?,
-                               kernel.function("sys_getegid").return
-{
-	name = "getegid"
-	retstr = return_str(1, $return)
-}
-
 # geteuid ____________________________________________________
 # long sys_geteuid(void)
 # long sys32_geteuid16(void)
