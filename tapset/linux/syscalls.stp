@@ -1,33 +1,4 @@
 
-# ioctl ______________________________________________________
-# long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-# long compat_sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-#
-probe syscall.ioctl = __syscall.ioctl ?,
-	kernel.function("compat_sys_ioctl").call ?
-{
-	name = "ioctl"
-	fd = __int32($fd)
-	request = __int32($cmd)
-	argp = @choose_defined($arg, $arg32)
-	argstr = sprintf("%d, %d, %p", fd, request, argp)
-}
-probe __syscall.ioctl = kernel.function("sys_ioctl").call
-{
-	@__syscall_gate(@const("__NR_ioctl"))
-}
-probe syscall.ioctl.return = 
-	__syscall.ioctl.return ?,
-	kernel.function("compat_sys_ioctl").return ?
-{
-	name = "ioctl"
-	retstr = return_str(1, $return)
-}
-probe __syscall.ioctl.return = kernel.function("sys_ioctl").return
-{
-	@__syscall_gate(@const("__NR_ioctl"))
-}
-
 # io_destroy _________________________________________________
 # long sys_io_destroy(aio_context_t ctx)
 probe syscall.io_destroy = kernel.function("sys_io_destroy").call

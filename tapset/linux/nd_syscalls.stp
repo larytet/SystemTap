@@ -1,34 +1,4 @@
 
-# ioctl ______________________________________________________
-# long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-# long compat_sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-#
-probe nd_syscall.ioctl = __nd_syscall.ioctl,
-	kprobe.function("compat_sys_ioctl") ?
-{
-	asmlinkage()
-	name = "ioctl"
-	fd = int_arg(1)
-	request = int_arg(2)
-	argp = ulong_arg(3)
-	argstr = sprintf("%d, %d, %p", fd, request, argp)
-}
-probe __nd_syscall.ioctl = kprobe.function("sys_ioctl")
-{
-	@__syscall_gate(@const("__NR_ioctl"))
-}
-probe nd_syscall.ioctl.return = 
-	__nd_syscall.ioctl.return,
-	kprobe.function("compat_sys_ioctl").return ?
-{
-	name = "ioctl"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.ioctl.return = kprobe.function("sys_ioctl").return
-{
-	@__syscall_gate(@const("__NR_ioctl"))
-}
-
 # io_destroy _________________________________________________
 # long sys_io_destroy(aio_context_t ctx)
 probe nd_syscall.io_destroy = kprobe.function("sys_io_destroy") ?
