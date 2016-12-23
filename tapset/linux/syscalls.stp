@@ -1,29 +1,4 @@
 
-# getxattr ___________________________________________________
-# ssize_t sys_getxattr(char __user *path, char __user *name,
-#		void __user *value, size_t size)
-probe syscall.getxattr = kernel.function("sys_getxattr").call
-{
-	name = "getxattr"
-	path = user_string_quoted(@choose_defined($pathname, $path))
-# 'name2' should have been 'name_str'.  Deprecate the old name.
-%(systemtap_v <= "1.4" %?
-	name2 = user_string_quoted($name)
-%)
-	name_str = user_string_quoted($name)
-	value_uaddr = $value
-	size = __ulong($size)
-	argstr = sprintf("%s, %s, %p, %u",
-		user_string_quoted(@choose_defined($pathname, $path)),
-		user_string_quoted($name),
-		$value, __ulong($size))
-}
-probe syscall.getxattr.return = kernel.function("sys_getxattr").return
-{
-	name = "getxattr"
-	retstr = return_str(1, $return)
-}
-
 # init_module ________________________________________________
 # long sys_init_module(void __user *umod,
 #		unsigned long len,
