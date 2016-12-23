@@ -1,24 +1,4 @@
 
-# listxattr __________________________________________________
-# ssize_t sys_listxattr(char __user *path, char __user *list, size_t size)
-#
-probe syscall.listxattr = kernel.function("sys_listxattr").call
-{
-	name = "listxattr"
-	list_uaddr = $list
-	size = __ulong($size)
-	path_uaddr = @choose_defined($pathname, $path)
-	path = user_string_quoted(@choose_defined($pathname, $path))
-	argstr = sprintf("%s, %p, %u",
-		user_string_quoted(@choose_defined($pathname, $path)),
-		$list, __ulong($size))
-}
-probe syscall.listxattr.return = kernel.function("sys_listxattr").return
-{
-	name = "listxattr"
-	retstr = return_str(1, $return)
-}
-
 # llistxattr _________________________________________________
 # ssize_t sys_llistxattr(char __user *path, char __user *list, size_t size)
 #
