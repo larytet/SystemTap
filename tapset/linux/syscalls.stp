@@ -1,26 +1,4 @@
 
-# inotify_add_watch __________________________________________
-#
-# long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
-#
-probe syscall.inotify_add_watch = kernel.function("sys_inotify_add_watch").call ?
-{
-	name = "inotify_add_watch"
-	fd = __int32($fd)
-	mask = __uint32($mask)
-	path_uaddr = @choose_defined($pathname, $path)
-	path = user_string_quoted(@choose_defined($pathname, $path))
-	argstr = sprintf("%d, %s, %s", __int32($fd),
-			 user_string_quoted(@choose_defined($pathname, $path)),
-			 _inotify_watch_mask_str(__uint32($mask)))
-}
-
-probe syscall.inotify_add_watch.return = kernel.function("sys_inotify_add_watch").return ?
-{
-	name = "inotify_add_watch"
-	retstr = return_str(1, $return)
-}
-
 # inotify_init _______________________________________________
 #
 # long sys_inotify_init(void)

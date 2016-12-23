@@ -1,25 +1,4 @@
 
-# inotify_add_watch __________________________________________
-#
-# long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
-#
-probe nd_syscall.inotify_add_watch = kprobe.function("sys_inotify_add_watch") ?
-{
-	name = "inotify_add_watch"
-	asmlinkage()
-	fd = int_arg(1)
-	path_uaddr = pointer_arg(2)
-	path = user_string_quoted(path_uaddr)
-	mask = uint_arg(3)
-	argstr = sprintf("%d, %s, %s", fd, user_string_quoted(path_uaddr),
-			 _inotify_watch_mask_str(mask))
-}
-probe nd_syscall.inotify_add_watch.return = kprobe.function("sys_inotify_add_watch").return ?
-{
-	name = "inotify_add_watch"
-	retstr = returnstr(1)
-}
-
 # inotify_init _______________________________________________
 #
 # long sys_inotify_init(void)
