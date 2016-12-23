@@ -1,25 +1,4 @@
 
-# ioprio_set _________________________________________________
-# long sys_ioprio_set(int which, int who, int ioprio)
-#
-probe syscall.ioprio_set = kernel.function("sys_ioprio_set").call ?
-{
-	name = "ioprio_set"
-	which = __int32($which)
-	which_str = _stp_ioprio_which_str(__int32($which))
-	who = __int32($who)
-	ioprio = __int32($ioprio)
-	ioprio_str = _stp_ioprio_value_str(__int32($ioprio))
-	argstr = sprintf("%s, %d, %s", _stp_ioprio_which_str(__int32($which)),
-			 __int32($who),
-			 _stp_ioprio_value_str(__int32($ioprio)))
-}
-probe syscall.ioprio_set.return = kernel.function("sys_ioprio_set").return ?
-{
-	name = "ioprio_set"
-	retstr = return_str(1, $return)
-}
-
 # kcmp _______________________________________________________
 # SYSCALL_DEFINE5(kcmp, pid_t, pid1, pid_t, pid2, int, type,
 #                 unsigned long, idx1, unsigned long, idx2)

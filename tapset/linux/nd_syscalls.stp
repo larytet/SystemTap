@@ -1,24 +1,4 @@
 
-# ioprio_set _________________________________________________
-# long sys_ioprio_set(int which, int who, int ioprio)
-#
-probe nd_syscall.ioprio_set = kprobe.function("sys_ioprio_set") ?
-{
-	name = "ioprio_set"
-	asmlinkage()
-	which = int_arg(1)
-	which_str = _stp_ioprio_which_str(which)
-	who = int_arg(2)
-	ioprio = int_arg(3)
-	ioprio_str = _stp_ioprio_value_str(ioprio)
-	argstr = sprintf("%s, %d, %s", which_str, who, ioprio_str)
-}
-probe nd_syscall.ioprio_set.return = kprobe.function("sys_ioprio_set").return ?
-{
-	name = "ioprio_set"
-	retstr = returnstr(1)
-}
-
 # kcmp _______________________________________________________
 # SYSCALL_DEFINE5(kcmp, pid_t, pid1, pid_t, pid2, int, type,
 #                 unsigned long, idx1, unsigned long, idx2)
