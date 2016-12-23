@@ -1,17 +1,4 @@
 
-# gettid _____________________________________________________
-# long sys_gettid(void)
-probe syscall.gettid = kernel.function("sys_gettid").call
-{
-	name = "gettid"
-	argstr = ""
-}
-probe syscall.gettid.return = kernel.function("sys_gettid").return
-{
-	name = "gettid"
-	retstr = return_str(1, $return)
-}
-
 # gettimeofday _______________________________________________
 # long sys_gettimeofday(struct timeval  __user *tv,
 #	struct timezone __user *tz)

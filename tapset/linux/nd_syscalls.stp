@@ -1,17 +1,4 @@
 
-# gettid _____________________________________________________
-# long sys_gettid(void)
-probe nd_syscall.gettid = kprobe.function("sys_gettid")
-{
-	name = "gettid"
-	argstr = ""
-}
-probe nd_syscall.gettid.return = kprobe.function("sys_gettid").return
-{
-	name = "gettid"
-	retstr = returnstr(1)
-}
-
 # gettimeofday _______________________________________________
 # long sys_gettimeofday(struct timeval  __user *tv,
 #	struct timezone __user *tz)
