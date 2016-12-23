@@ -1,18 +1,4 @@
 
-# getsid _____________________________________________________
-# long sys_getsid(pid_t pid)
-probe syscall.getsid = kernel.function("sys_getsid").call
-{
-	name = "getsid"
-	pid = __int32($pid)
-	argstr = sprint(pid)
-}
-probe syscall.getsid.return = kernel.function("sys_getsid").return
-{
-	name = "getsid"
-	retstr = return_str(1, $return)
-}
-
 # getsockname ________________________________________________
 # long sys_getsockname(int fd,
 #		struct sockaddr __user *usockaddr,
