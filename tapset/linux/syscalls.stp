@@ -1,23 +1,4 @@
 
-# madvise ____________________________________________________
-# long sys_madvise(unsigned long start, size_t len_in, int behavior)
-#
-probe syscall.madvise = kernel.function("sys_madvise").call ?
-{
-	name = "madvise"
-	start = __ulong($start)
-	length = __ulong($len_in)
-	advice = __int32($behavior)
-	advice_str = _madvice_advice_str(advice)
-	argstr = sprintf("%p, %u, %s", start, length,
-			 _madvice_advice_str(advice))
-}
-probe syscall.madvise.return = kernel.function("sys_madvise").return ?
-{
-	name = "madvise"
-	retstr = return_str(1, $return)
-}
-
 # mbind ______________________________________________________
 # long sys_mbind(unsigned long start,
 #	unsigned long len,
