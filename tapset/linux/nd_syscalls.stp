@@ -1,20 +1,4 @@
 
-# getpriority ________________________________________________
-# long sys_getpriority(int which, int who)
-probe nd_syscall.getpriority = kprobe.function("sys_getpriority") ?
-{
-	name = "getpriority"
-	asmlinkage()
-	which = int_arg(1)
-	who = int_arg(2)
-	argstr = sprintf("%s, %d", _priority_which_str(which), who)
-}
-probe nd_syscall.getpriority.return = kprobe.function("sys_getpriority").return ?
-{
-	name = "getpriority"
-	retstr = returnstr(1)
-}
-
 # getrandom __________________________________________________
 # long sys_getrandom(char __user *buf, size_t count, unsigned int flags)
 probe nd_syscall.getrandom = kprobe.function("sys_getrandom") ?

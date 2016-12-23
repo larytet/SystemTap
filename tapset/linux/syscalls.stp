@@ -1,19 +1,4 @@
 
-# getpriority ________________________________________________
-# long sys_getpriority(int which, int who)
-probe syscall.getpriority = kernel.function("sys_getpriority").call
-{
-	name = "getpriority"
-	which = __int32($which)
-	who = __int32($who)
-	argstr = sprintf("%s, %d", _priority_which_str(which), who)
-}
-probe syscall.getpriority.return = kernel.function("sys_getpriority").return
-{
-	name = "getpriority"
-	retstr = return_str(1, $return)
-}
-
 # getrandom __________________________________________________
 # long sys_getrandom(char __user *buf, size_t count, unsigned int flags)
 probe syscall.getrandom = kernel.function("sys_getrandom").call ?
