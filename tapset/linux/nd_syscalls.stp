@@ -1,35 +1,4 @@
 
-# getitimer __________________________________________________
-# sys_getitimer(int which, struct itimerval __user *value)
-#
-probe nd_syscall.getitimer = kprobe.function("sys_getitimer") ?
-{
-	name = "getitimer"
-	asmlinkage()
-	which = int_arg(1)
-	value_uaddr = pointer_arg(2)
-	argstr = sprintf("%s, %p", _itimer_which_str(which), value_uaddr)
-}
-probe nd_syscall.getitimer.return = kprobe.function("sys_getitimer").return ?
-{
-	name = "getitimer"
-	retstr = returnstr(1)
-}
-# long compat_sys_getitimer(int which, struct compat_itimerval __user *it
-probe nd_syscall.compat_getitimer = kprobe.function("compat_sys_getitimer") ?
-{
-	name = "getitimer"
-	asmlinkage()
-	which = int_arg(1)
-	value_uaddr = pointer_arg(2)
-	argstr = sprintf("%s, %p", _itimer_which_str(which), value_uaddr)
-}
-probe nd_syscall.compat_getitimer.return = kprobe.function("compat_sys_getitimer").return ?
-{
-	name = "getitimer"
-	retstr = returnstr(1)
-}
-
 # get_mempolicy ______________________________________________
 # long sys_get_mempolicy(int __user *policy,
 #                   unsigned long __user *nmask,

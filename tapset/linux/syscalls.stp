@@ -1,33 +1,4 @@
 
-# getitimer __________________________________________________
-# sys_getitimer(int which, struct itimerval __user *value)
-#
-probe syscall.getitimer = kernel.function("sys_getitimer").call
-{
-	name = "getitimer"
-	which = __int32($which)
-	value_uaddr = $value
-	argstr = sprintf("%s, %p", _itimer_which_str(which), $value)
-}
-probe syscall.getitimer.return = kernel.function("sys_getitimer").return
-{
-	name = "getitimer"
-	retstr = return_str(1, $return)
-}
-# long compat_sys_getitimer(int which, struct compat_itimerval __user *it
-probe syscall.compat_getitimer = kernel.function("compat_sys_getitimer").call ?
-{
-	name = "getitimer"
-	which = __int32($which)
-	value_uaddr = @__pointer($it)
-	argstr = sprintf("%s, %p", _itimer_which_str(which), value_uaddr)
-}
-probe syscall.compat_getitimer.return = kernel.function("compat_sys_getitimer").return ?
-{
-	name = "getitimer"
-	retstr = return_str(1, $return)
-}
-
 # get_mempolicy ______________________________________________
 # long sys_get_mempolicy(int __user *policy,
 #                   unsigned long __user *nmask,
