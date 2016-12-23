@@ -1,19 +1,4 @@
 
-# gethostname ________________________________________________
-# long sys_gethostname(char __user *name, int len)
-probe syscall.gethostname = kernel.function("sys_gethostname").call ?
-{
-	name = "gethostname"
-	name_uaddr = $name
-	len = __int32($len)
-	argstr = sprintf ("%p, %d", name_uaddr, len)
-}
-probe syscall.gethostname.return = kernel.function("sys_gethostname").return ?
-{
-	name = "gethostname"
-	retstr = return_str(1, $return)
-}
-
 # getitimer __________________________________________________
 # sys_getitimer(int which, struct itimerval __user *value)
 #

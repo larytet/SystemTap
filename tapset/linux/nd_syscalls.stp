@@ -1,20 +1,4 @@
 
-# gethostname ________________________________________________
-# long sys_gethostname(char __user *name, int len)
-probe nd_syscall.gethostname = kprobe.function("sys_gethostname") ?
-{
-	name = "gethostname"
-	asmlinkage()
-	name_uaddr = pointer_arg(1)
-	len = int_arg(2)
-	argstr = sprintf ("%p, %d", name_uaddr, len)
-}
-probe nd_syscall.gethostname.return = kprobe.function("sys_gethostname").return ?
-{
-	name = "gethostname"
-	retstr = returnstr(1)
-}
-
 # getitimer __________________________________________________
 # sys_getitimer(int which, struct itimerval __user *value)
 #
