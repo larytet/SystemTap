@@ -1,23 +1,4 @@
 
-# fstatfs ____________________________________________________
-# long sys_fstatfs(unsigned int fd, struct statfs __user * buf)
-# long compat_sys_fstatfs(unsigned int fd, struct compat_statfs __user *buf)
-#
-probe syscall.fstatfs = kernel.function("compat_sys_fstatfs").call ?,
-                        kernel.function("sys_fstatfs").call
-{
-	name = "fstatfs"
-	fd = __int32($fd)
-	buf_uaddr = $buf
-	argstr = sprintf("%d, %p", __int32($fd), $buf)
-}
-probe syscall.fstatfs.return = kernel.function("compat_sys_fstatfs").return ?,
-                               kernel.function("sys_fstatfs").return
-{
-	name = "fstatfs"
-	retstr = return_str(1, $return)
-}
-
 # fstatfs64 __________________________________________________
 # long sys_fstatfs64(unsigned int fd, size_t sz, struct statfs64 __user *buf)
 # long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct compat_statfs64 __user *buf)
