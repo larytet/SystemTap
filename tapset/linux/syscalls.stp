@@ -1,35 +1,4 @@
 
-# lsetxattr __________________________________________________
-# long sys_lsetxattr(char __user *path,
-#               char __user *name,
-#               void __user *value,
-#               size_t size,
-#               int flags)
-#
-probe syscall.lsetxattr = kernel.function("sys_lsetxattr").call
-{
-	name = "lsetxattr"
-	path_uaddr = @choose_defined($pathname, $path)
-	path = user_string_quoted(@choose_defined($pathname, $path))
-	name_uaddr = $name
-	name_str = user_string_quoted($name)
-	value_uaddr = $value
-	size = __ulong($size)
-	value_str = _stp_xattr_val_str($value, size)
-	flags = __int32($flags)
-	flags_str = _stp_xattr_flags_str(__int32($flags))
-	argstr = sprintf("%s, %s, %s, %u, %s",
-			user_string_quoted(@choose_defined($pathname, $path)),
-			user_string_quoted($name),
-			_stp_xattr_val_str($value, $size), __ulong($size),
-			_stp_xattr_flags_str(__int32($flags)))
-}
-probe syscall.lsetxattr.return = kernel.function("sys_lsetxattr").return
-{
-	name = "lsetxattr"
-	retstr = return_str(1, $return)
-}
-
 # lstat ______________________________________________________
 # long sys_lstat(char __user * filename, struct __old_kernel_stat __user * statbuf)
 # long sys_newlstat(char __user * filename, struct stat __user * statbuf)

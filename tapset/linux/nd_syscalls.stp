@@ -1,36 +1,4 @@
 
-# lsetxattr __________________________________________________
-# long sys_lsetxattr(char __user *path,
-#               char __user *name,
-#               void __user *value,
-#               size_t size,
-#               int flags)
-#
-probe nd_syscall.lsetxattr = kprobe.function("sys_lsetxattr") ?
-{
-	name = "lsetxattr"
-	asmlinkage()
-	path_uaddr = pointer_arg(1)
-	path = user_string_quoted(path_uaddr)
-	name_uaddr = pointer_arg(2)
-	name_str = user_string_quoted(name_uaddr)
-	value_uaddr = pointer_arg(3)
-	size = ulong_arg(4)
-	value_str = _stp_xattr_val_str(value_uaddr, size)
-	flags = int_arg(5)
-	flags_str = _stp_xattr_flags_str(flags)
-	argstr = sprintf("%s, %s, %s, %u, %s",
-			 user_string_quoted(path_uaddr),
-			 user_string_quoted(name_uaddr),
-			 _stp_xattr_val_str(value_uaddr, size),
-			 size, _stp_xattr_flags_str(flags))
-}
-probe nd_syscall.lsetxattr.return = kprobe.function("sys_lsetxattr").return ?
-{
-	name = "lsetxattr"
-	retstr = returnstr(1)
-}
-
 # lstat ______________________________________________________
 # long sys_lstat(char __user * filename, struct __old_kernel_stat __user * statbuf)
 # long sys_newlstat(char __user * filename, struct stat __user * statbuf)
