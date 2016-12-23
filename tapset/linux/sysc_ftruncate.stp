@@ -1,0 +1,73 @@
+# ftruncate __________________________________________________
+# long sys_ftruncate(unsigned int fd, unsigned long length)
+# COMPAT_SYSCALL_DEFINE2(ftruncate, unsigned int, fd, compat_ulong_t, length)
+#
+
+@define _SYSCALL_FTRUNCATE_NAME
+%(
+	name = "ftruncate"
+%)
+
+@define _SYSCALL_FTRUNCATE_ARGSTR
+%(
+	argstr = sprintf("%d, %d", fd, length)
+%)
+
+probe syscall.ftruncate = dw_syscall.ftruncate !, nd_syscall.ftruncate {}
+probe syscall.ftruncate.return = dw_syscall.ftruncate.return !, nd_syscall.ftruncate.return {}
+
+# dw_ftruncate _____________________________________________________
+
+probe dw_syscall.ftruncate = __syscall.ftruncate,
+	kernel.function("compat_sys_ftruncate").call ?
+{
+	@_SYSCALL_FTRUNCATE_NAME
+	fd = __int32($fd)
+	length = @__compat_long($length)
+	@_SYSCALL_FTRUNCATE_ARGSTR
+}
+probe __syscall.ftruncate = kernel.function("sys_ftruncate").call
+{
+	@__syscall_compat_gate(@const("__NR_ftruncate"),
+			       @const("__NR_compat_ftruncate"))
+}
+probe dw_syscall.ftruncate.return = __syscall.ftruncate.return,
+	kernel.function("compat_sys_ftruncate").return ?
+{
+	@_SYSCALL_FTRUNCATE_NAME
+	retstr = return_str(1, $return)
+}
+probe __syscall.ftruncate.return = kernel.function("sys_ftruncate").return
+{
+	@__syscall_compat_gate(@const("__NR_ftruncate"),
+			       @const("__NR_compat_ftruncate"))
+}
+
+# nd_ftruncate _____________________________________________________
+
+probe nd_syscall.ftruncate = __nd_syscall.ftruncate,
+	kprobe.function("compat_sys_ftruncate").call?
+{
+	@_SYSCALL_FTRUNCATE_NAME
+	asmlinkage()
+	fd = int_arg(1)
+	length = long_arg(2)
+	@_SYSCALL_FTRUNCATE_ARGSTR
+}
+probe __nd_syscall.ftruncate = kprobe.function("sys_ftruncate").call
+{
+	@__syscall_compat_gate(@const("__NR_ftruncate"),
+	                       @const("__NR_compat_ftruncate"))
+}
+
+probe nd_syscall.ftruncate.return = __nd_syscall.ftruncate.return,
+	kprobe.function("compat_sys_ftruncate").return ?
+{
+	@_SYSCALL_FTRUNCATE_NAME
+	retstr = returnstr(1)
+}
+probe __nd_syscall.ftruncate.return = kprobe.function("sys_ftruncate").return
+{
+	@__syscall_compat_gate(@const("__NR_ftruncate"),
+	                       @const("__NR_compat_ftruncate"))
+}
