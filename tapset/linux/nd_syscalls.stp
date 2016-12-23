@@ -1,33 +1,4 @@
 
-# io_submit __________________________________________________
-# long sys_io_submit(aio_context_t ctx_id, long nr, struct iocb __user * __user *iocbpp)
-# long compat_sys_io_submit(aio_context_t ctx_id, int nr, u32 __user *iocb)
-#
-probe nd_syscall.io_submit = __nd_syscall.io_submit,
-	kprobe.function("compat_sys_io_submit") ?
-{
-	name = "io_submit"
-	asmlinkage()
-	ctx_id = ulong_arg(1)
-	nr = long_arg(2)
-	iocbpp_uaddr = pointer_arg(3)
-	argstr = sprintf("%u, %d, %p", ctx_id, nr, iocbpp_uaddr)
-}
-probe __nd_syscall.io_submit = kprobe.function("sys_io_submit") ?
-{
-	@__syscall_gate(@const("__NR_io_submit"))
-}
-probe nd_syscall.io_submit.return = __nd_syscall.io_submit.return,
-	kprobe.function("compat_sys_io_submit").return ?
-{
-	name = "io_submit"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.io_submit.return = kprobe.function("sys_io_submit").return ?
-{
-	@__syscall_gate(@const("__NR_io_submit"))
-}
-
 # ioprio_get _________________________________________________
 # long sys_ioprio_get(int which, int who)
 #

@@ -1,32 +1,4 @@
 
-# io_submit __________________________________________________
-# long compat_sys_io_submit(aio_context_t ctx_id, int nr, u32 __user *iocb)
-# long sys_io_submit(aio_context_t ctx_id, long nr, struct iocb __user * __user *iocbpp)
-#
-probe syscall.io_submit = __syscall.io_submit,
-	kernel.function("compat_sys_io_submit").call ?
-{
-	name = "io_submit"
-	ctx_id = __ulong($ctx_id)
-	nr = @__compat_long($nr)
-	iocbpp_uaddr = @choose_defined($iocbpp, $iocb)
-	argstr = sprintf("%u, %d, %p", ctx_id, nr, iocbpp_uaddr)
-}
-probe __syscall.io_submit = kernel.function("sys_io_submit").call
-{
-	@__syscall_gate(@const("__NR_io_submit"))
-}
-probe syscall.io_submit.return = __syscall.io_submit.return,
-	kernel.function("compat_sys_io_submit").return ?
-{
-	name = "io_submit"
-	retstr = return_str(1, $return)
-}
-probe __syscall.io_submit.return = kernel.function("sys_io_submit").return
-{
-	@__syscall_gate(@const("__NR_io_submit"))
-}
-
 # ioprio_get _________________________________________________
 # long sys_ioprio_get(int which, int who)
 #
