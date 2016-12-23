@@ -1,40 +1,4 @@
 
-# kexec_load _________________________________________________
-# long sys_kexec_load(unsigned long entry,
-#                unsigned long nr_segments,
-#                struct kexec_segment __user *segments,
-#                unsigned long flags)
-# long compat_sys_kexec_load(unsigned long entry,
-#		unsigned long nr_segments,
-#		struct compat_kexec_segment __user *segments,
-#		unsigned long flags)
-#
-probe syscall.kexec_load = __syscall.kexec_load.call ?,
-                           kernel.function("compat_sys_kexec_load").call ?
-{
-	name = "kexec_load"
-	entry = __ulong($entry)
-	nr_segments = __ulong($nr_segments)
-	segments_uaddr = $segments
-	flags = __ulong($flags)
-	flags_str = _kexec_flags_str(flags)
-	argstr = sprintf("%p, %u, %p, %s", entry, nr_segments, segments_uaddr, flags_str)
-}
-probe __syscall.kexec_load.call = kernel.function("sys_kexec_load").call
-{
-	@__syscall_gate_compat_simple
-}
-probe syscall.kexec_load.return = __syscall.syscall.kexec_load.return ?,
-                                  kernel.function("compat_sys_kexec_load").return ?
-{
-	name = "kexec_load"
-	retstr = return_str(1, $return)
-}
-probe __syscall.syscall.kexec_load.return = kernel.function("sys_kexec_load").return
-{
-	@__syscall_gate_compat_simple
-}
-
 # keyctl _____________________________________________________
 # long sys_keyctl(int option,
 #            unsigned long arg2,

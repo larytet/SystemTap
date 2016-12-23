@@ -1,41 +1,4 @@
 
-# kexec_load _________________________________________________
-# long sys_kexec_load(unsigned long entry,
-#                unsigned long nr_segments,
-#                struct kexec_segment __user *segments,
-#                unsigned long flags)
-# long compat_sys_kexec_load(unsigned long entry,
-#		unsigned long nr_segments,
-#		struct compat_kexec_segment __user *segments,
-#		unsigned long flags)
-#
-probe nd_syscall.kexec_load = __nd_syscall.kexec_load ?,
-                              kprobe.function("compat_sys_kexec_load") ?
-{
-	name = "kexec_load"
-	asmlinkage()
-	entry = ulong_arg(1)
-	nr_segments = ulong_arg(2)
-	segments_uaddr = pointer_arg(3)
-	flags = ulong_arg(4)
-	flags_str = _kexec_flags_str(flags)
-	argstr = sprintf("%p, %u, %p, %s", entry, nr_segments, segments_uaddr, flags_str)
-}
-probe __nd_syscall.kexec_load = kprobe.function("sys_kexec_load")
-{
-	@__syscall_gate_compat_simple
-}
-probe nd_syscall.kexec_load.return = __nd_syscall.kexec_load.return ?,
-                                     kprobe.function("compat_sys_kexec_load").return ?
-{
-	name = "kexec_load"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.kexec_load.return = kprobe.function("sys_kexec_load").return
-{
-	@__syscall_gate_compat_simple
-}
-
 # keyctl _____________________________________________________
 # long sys_keyctl(int option,
 #            unsigned long arg2,
