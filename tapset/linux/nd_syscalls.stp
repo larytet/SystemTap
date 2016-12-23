@@ -1,31 +1,4 @@
 
-# getdents ___________________________________________________
-# long sys_getdents(unsigned int fd, struct linux_dirent __user * dirent, unsigned int count)
-# long compat_sys_getdents(unsigned int fd, struct compat_linux_dirent __user *dirent, unsigned int count)
-# long sys_getdents64(unsigned int fd, struct linux_dirent64 __user * dirent, unsigned int count)
-# long compat_sys_getdents64(unsigned int fd, struct linux_dirent64 __user * dirent, unsigned int count)
-#
-probe nd_syscall.getdents = kprobe.function("sys_getdents") ?,
-                            kprobe.function("sys_getdents64") ?,
-                            kprobe.function("compat_sys_getdents") ?,
-                            kprobe.function("compat_sys_getdents64") ?
-{
-	name = "getdents"
-	asmlinkage()
-	fd = int_arg(1)
-	dirp_uaddr = pointer_arg(2)
-	count = uint_arg(3)
-	argstr = sprintf("%d, %p, %d", fd, dirp_uaddr, count)
-}
-probe nd_syscall.getdents.return = kprobe.function("sys_getdents").return ?,
-                                   kprobe.function("sys_getdents64").return ?,
-                                   kprobe.function("compat_sys_getdents").return ?,
-                                   kprobe.function("compat_sys_getdents64").return ?
-{
-	name = "getdents"
-	retstr = returnstr(1)
-}
-
 # getegid ____________________________________________________
 # long sys_getegid(void)
 # long sys_getegid16(void)
