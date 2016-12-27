@@ -588,8 +588,13 @@ function task_nice:long (task:long) %{ /* pure */
  */
 function task_cpu:long (task:long)
 {
-    ti = @choose_defined(@task(task)->stack, @task(task)->thread_info);
-    return @cast(ti, "thread_info", "kernel<linux/sched.h>")->cpu
+  if (@defined(@task(task)->cpu))
+      return @task(task)->cpu
+  else
+      {
+        ti = @choose_defined(@task(task)->stack, @task(task)->thread_info);
+        return @cast(ti, "thread_info", "kernel<linux/sched.h>")->cpu
+      }
 }
 
 /**
