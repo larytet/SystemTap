@@ -135,5 +135,5 @@ centralizovány.  V tomto případě použijte volbu
 .IR error::dwarf (7stap),
 .IR error::reporting (7stap),
 .IR error::contextvars (7stap),
-.IR http://fedorahosted.org/elfutils ,
+.IR http://elfutils.org/ ,
 .IR http://fedoraproject.org/wiki/Features/MiniDebugInfo
