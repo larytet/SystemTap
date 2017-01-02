@@ -1,23 +1,4 @@
 
-# rt_sigreturn _______________________________________________
-# int sys_rt_sigreturn(unsigned long __unused)
-#
-probe nd_syscall.rt_sigreturn = kprobe.function("ia64_rt_sigreturn").call !,
-	kprobe.function("sys_rt_sigreturn").call ?,
-	kprobe.function("sys32_rt_sigreturn").call ?
-{
-	name = "rt_sigreturn"
-	argstr = ""
-}
-probe nd_syscall.rt_sigreturn.return =
-	kprobe.function("ia64_rt_sigreturn").return !,
-	kprobe.function("sys_rt_sigreturn").return ?,
-	kprobe.function("sys32_rt_sigreturn").return ?
-{
-	name = "rt_sigreturn"
-	retstr = returnstr(1)
-}
-
 # rt_sigsuspend ______________________________________________
 #
 # SYSCALL_DEFINE2(rt_sigsuspend, sigset_t __user *, unewset, size_t, sigsetsize)

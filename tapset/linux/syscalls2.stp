@@ -1,27 +1,4 @@
 
-# rt_sigreturn _______________________________________________
-# int sys_rt_sigreturn(unsigned long __unused)
-#
-probe syscall.rt_sigreturn = kernel.function("ia64_rt_sigreturn").call !,
-			     kernel.function("sys_rt_sigreturn").call ?,
-                             kernel.function("sys32_rt_sigreturn").call ?
-{
-	name = "rt_sigreturn"
-	argstr = ""
-}
-probe syscall.rt_sigreturn.return =
-	kernel.function("ia64_rt_sigreturn").return !,
-	kernel.function("sys_rt_sigreturn").return ?,
-	kernel.function("sys32_rt_sigreturn").return ?
-{
-	name = "rt_sigreturn"
-%( arch == "mips" %?
-	retstr = "void"
-%:
-	retstr = return_str(1, $return)
-%)
-}
-
 # rt_sigsuspend ______________________________________________
 #
 # SYSCALL_DEFINE2(rt_sigsuspend, sigset_t __user *, unewset, size_t, sigsetsize)
