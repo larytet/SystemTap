@@ -1,21 +1,4 @@
 
-# mlock ______________________________________________________
-#
-# long sys_mlock(unsigned long start, size_t len)
-#
-probe syscall.mlock = kernel.function("sys_mlock").call ?
-{
-	name = "mlock"
-	addr = __ulong($start)
-	len = __ulong($len)
-	argstr = sprintf("%p, %u", addr, len)
-}
-probe syscall.mlock.return = kernel.function("sys_mlock").return ?
-{
-	name = "mlock"
-	retstr = return_str(1, $return)
-}
-
 # mlock2 _____________________________________________________
 #
 # long sys_mlock2(unsigned long start, size_t len, int flags)

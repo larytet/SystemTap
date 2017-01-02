@@ -1,22 +1,4 @@
 
-# mlock ______________________________________________________
-#
-# long sys_mlock(unsigned long start, size_t len)
-#
-probe nd_syscall.mlock = kprobe.function("sys_mlock") ?
-{
-	name = "mlock"
-	asmlinkage()
-	addr = ulong_arg(1)
-	len = ulong_arg(2)
-	argstr = sprintf("%p, %u", addr, len)
-}
-probe nd_syscall.mlock.return = kprobe.function("sys_mlock").return ?
-{
-	name = "mlock"
-	retstr = returnstr(1)
-}
-
 # mlock2 _____________________________________________________
 #
 # long sys_mlock2(unsigned long start, size_t len, int flags)
