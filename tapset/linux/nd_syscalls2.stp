@@ -1,30 +1,4 @@
 
-# remap_file_pages ___________________________________________
-#
-# long sys_remap_file_pages(unsigned long start,
-#			    unsigned long size,
-#			    unsigned long __prot,
-#			    unsigned long pgoff,
-#			    unsigned long flags)
-#
-probe nd_syscall.remap_file_pages = kprobe.function("sys_remap_file_pages") ?
-{
-	name = "remap_file_pages"
-	asmlinkage()
-	start = ulong_arg(1)
-	size = ulong_arg(2)
-	prot = ulong_arg(3)
-	pgoff = ulong_arg(4)
-	flags = ulong_arg(5)
-	argstr = sprintf("%p, %p, %s, %p, %s", start, size,
-	                 _mprotect_prot_str(prot), pgoff, _mmap_flags(flags))
-}
-probe nd_syscall.remap_file_pages.return = kprobe.function("sys_remap_file_pages").return ?
-{
-	name = "remap_file_pages"
-	retstr = returnstr(1)
-}
-
 # removexattr ________________________________________________
 #
 # asmlinkage long
