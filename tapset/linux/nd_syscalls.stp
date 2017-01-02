@@ -1,21 +1,4 @@
 
-# mkdir ______________________________________________________
-# long sys_mkdir(const char __user * pathname, int mode)
-probe nd_syscall.mkdir = kprobe.function("sys_mkdir") ?
-{
-	name = "mkdir"
-	asmlinkage()
-	pathname_uaddr = pointer_arg(1)
-	pathname = user_string_quoted(pathname_uaddr)
-	mode = uint_arg(2)
-	argstr = sprintf("%s, %#o", user_string_quoted(pathname_uaddr), mode)
-}
-probe nd_syscall.mkdir.return = kprobe.function("sys_mkdir").return ?
-{
-	name = "mkdir"
-	retstr = returnstr(1)
-}
-
 # mkdirat ____________________________________________________
 # new function with 2.6.16
 # long sys_mkdirat(int dfd, const char __user *pathname, int mode)

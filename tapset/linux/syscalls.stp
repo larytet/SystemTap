@@ -1,21 +1,4 @@
 
-# mkdir ______________________________________________________
-# long sys_mkdir(const char __user * pathname, int mode)
-probe syscall.mkdir = kernel.function("sys_mkdir").call
-{
-	name = "mkdir"
-	pathname_uaddr = $pathname
-	pathname = user_string_quoted($pathname)
-	mode = __uint32($mode)
-	argstr = sprintf("%s, %#o", user_string_quoted($pathname),
-			 __uint32($mode))
-}
-probe syscall.mkdir.return = kernel.function("sys_mkdir").return
-{
-	name = "mkdir"
-	retstr = return_str(1, $return)
-}
-
 # mkdirat ____________________________________________________
 # new function with 2.6.16
 # long sys_mkdirat(int dfd, const char __user *pathname, int mode)
