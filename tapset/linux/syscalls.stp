@@ -1,48 +1,4 @@
 
-# mq_timedsend _______________________________________________
-# long sys_mq_timedsend(mqd_t mqdes,
-#                  const char __user *u_msg_ptr,
-#                  size_t msg_len,
-#                  unsigned int msg_prio,
-#                  const struct timespec __user *u_abs_timeout)
-#  long compat_sys_mq_timedsend(mqd_t mqdes,
-#			const char __user *u_msg_ptr,
-#			size_t msg_len, unsigned int msg_prio,
-#			const struct compat_timespec __user *u_abs_timeout)
-#
-probe syscall.mq_timedsend =
-	__syscall.mq_timedsend,
-	kernel.function("compat_sys_mq_timedsend").call ?
-{
-	name = "mq_timedsend"
-	mqdes = __int32($mqdes)
-	msg_ptr_uaddr = $u_msg_ptr
-	msg_prio = __uint32($msg_prio)
-	abs_timeout_uaddr = $u_abs_timeout
-%( CONFIG_64BIT == "y" %?
-	msg_len = @__compat_ulong($msg_len)
-%:
-	msg_len = __uint32($msg_len)
-%)
-	argstr = sprintf("%d, %p, %u, %u, %p", mqdes, $u_msg_ptr, msg_len,
-		__uint32($msg_prio), $u_abs_timeout)
-}
-probe __syscall.mq_timedsend = kernel.function("sys_mq_timedsend").call
-{
-        @__syscall_gate(@const("__NR_mq_timedsend"))
-}
-probe syscall.mq_timedsend.return =
-        __syscall.mq_timedsend.return,
-        kernel.function("compat_sys_mq_timedsend").return ?
-{
-	name = "mq_timedsend"
-	retstr = return_str(1, $return)
-}
-probe __syscall.mq_timedsend.return = kernel.function("sys_mq_timedsend").return
-{
-	@__syscall_gate_compat_simple
-}
-
 # mq_unlink __________________________________________________
 # long sys_mq_unlink(const char __user *u_name)
 #
