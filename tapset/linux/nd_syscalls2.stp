@@ -1,28 +1,4 @@
 
-# sched_setaffinity __________________________________________
-# long sys_sched_setaffinity(pid_t pid,
-#	unsigned int len,
-#	unsigned long __user *user_mask_ptr)
-#
-probe nd_syscall.sched_setaffinity =
-	kprobe.function("sys_sched_setaffinity") ?,
-	kprobe.function("compat_sys_sched_setaffinity") ?
-{
-	name = "sched_setaffinity"
-	asmlinkage()
-	pid = int_arg(1)
-	len = uint_arg(2)
-	mask_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %u, %p", pid, len, mask_uaddr)
-}
-probe nd_syscall.sched_setaffinity.return =
-	kprobe.function("sys_sched_setaffinity").return ?,
-	kprobe.function("compat_sys_sched_setaffinity").return ?
-{
-	name = "sched_setaffinity"
-	retstr = returnstr(1)
-}
-
 # sched_setparam _____________________________________________
 #
 # long sys_sched_setparam(pid_t pid, struct sched_param __user *param)
