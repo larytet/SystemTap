@@ -1,17 +1,4 @@
 
-# munlockall _________________________________________________
-# long sys_munlockall(void)
-probe nd_syscall.munlockall = kprobe.function("sys_munlockall") ?
-{
-	name = "munlockall"
-	argstr = ""
-}
-probe nd_syscall.munlockall.return = kprobe.function("sys_munlockall").return ?
-{
-	name = "munlockall"
-	retstr = returnstr(1)
-}
-
 # munmap _____________________________________________________
 # long sys_munmap(unsigned long addr, size_t len)
 probe nd_syscall.munmap = kprobe.function("sys_munmap") ?

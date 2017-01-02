@@ -1,17 +1,4 @@
 
-# munlockall _________________________________________________
-# long sys_munlockall(void)
-probe syscall.munlockall = kernel.function("sys_munlockall").call ?
-{
-	name = "munlockall"
-	argstr = ""
-}
-probe syscall.munlockall.return = kernel.function("sys_munlockall").return ?
-{
-	name = "munlockall"
-	retstr = return_str(1, $return)
-}
-
 # munmap _____________________________________________________
 # long sys_munmap(unsigned long addr, size_t len)
 probe syscall.munmap = kernel.function("sys_munmap").call
