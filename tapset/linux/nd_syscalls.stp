@@ -1,21 +1,4 @@
 
-# msync ______________________________________________________
-# long sys_msync(unsigned long start, size_t len, int flags)
-probe nd_syscall.msync = kprobe.function("sys_msync") ?
-{
-	name = "msync"
-	asmlinkage()
-	start = ulong_arg(1)
-	length = ulong_arg(2)
-	flags = int_arg(3)
-	argstr = sprintf("%p, %u, %s", start, length, _msync_flag_str(flags))
-}
-probe nd_syscall.msync.return = kprobe.function("sys_msync").return ?
-{
-	name = "msync"
-	retstr = returnstr(1)
-}
-
 # munlock ____________________________________________________
 # long sys_munlock(unsigned long start, size_t len)
 probe nd_syscall.munlock = kprobe.function("sys_munlock") ?

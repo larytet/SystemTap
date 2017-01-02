@@ -1,20 +1,4 @@
 
-# msync ______________________________________________________
-# long sys_msync(unsigned long start, size_t len, int flags)
-probe syscall.msync = kernel.function("sys_msync").call ?
-{
-	name = "msync"
-	start = $start
-	length = __ulong($len)
-	flags = __int32($flags)
-	argstr = sprintf("%p, %u, %s", start, length, _msync_flag_str(flags))
-}
-probe syscall.msync.return = kernel.function("sys_msync").return ?
-{
-	name = "msync"
-	retstr = return_str(1, $return)
-}
-
 # munlock ____________________________________________________
 # long sys_munlock(unsigned long start, size_t len)
 probe syscall.munlock = kernel.function("sys_munlock").call ?
