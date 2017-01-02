@@ -1,0 +1,60 @@
+# msgrcv _____________________________________________________
+# long sys_msgrcv (int msqid,
+#             struct msgbuf __user *msgp,
+#             size_t msgsz,
+#             long msgtyp,
+#             int msgflg)
+#
+
+@define _SYSCALL_MSGRCV_NAME
+%(
+	name = "msgrcv"
+%)
+
+@define _SYSCALL_MSGRCV_ARGSTR
+%(
+	argstr = sprintf("%d, %p, %u, %d, %s", msqid, msgp_uaddr, msgsz,
+	                 msgtyp, msgflg_str)
+%)
+
+probe syscall.msgrcv = dw_syscall.msgrcv !, nd_syscall.msgrcv {}
+probe syscall.msgrcv.return = dw_syscall.msgrcv.return !, nd_syscall.msgrcv.return {}
+
+# dw_msgrcv _____________________________________________________
+
+probe dw_syscall.msgrcv = kernel.function("sys_msgrcv").call ?
+{
+	@_SYSCALL_MSGRCV_NAME
+	msqid = __int32($msqid)
+	msgp_uaddr = $msgp
+	msgsz = __ulong($msgsz)
+	msgtyp = $msgtyp
+	msgflg = __int32($msgflg)
+	msgflg_str = _stp_msgflg_str(__int32($msgflg))
+	@_SYSCALL_MSGRCV_ARGSTR
+}
+probe dw_syscall.msgrcv.return = kernel.function("sys_msgrcv").return ?
+{
+	@_SYSCALL_MSGRCV_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_msgrcv _____________________________________________________
+
+probe nd_syscall.msgrcv = kprobe.function("sys_msgrcv") ?
+{
+	@_SYSCALL_MSGRCV_NAME
+	asmlinkage()
+	msqid = int_arg(1)
+	msgp_uaddr = pointer_arg(2)
+	msgsz = ulong_arg(3)
+	msgtyp = long_arg(4)
+	msgflg = int_arg(5)
+	msgflg_str = _stp_msgflg_str(msgflg)
+	@_SYSCALL_MSGRCV_ARGSTR
+}
+probe nd_syscall.msgrcv.return = kprobe.function("sys_msgrcv").return ?
+{
+	@_SYSCALL_MSGRCV_NAME
+	retstr = returnstr(1)
+}

@@ -1,29 +1,3 @@
-
-# msgrcv _____________________________________________________
-# long sys_msgrcv (int msqid,
-#             struct msgbuf __user *msgp,
-#             size_t msgsz,
-#             long msgtyp,
-#             int msgflg)
-#
-probe nd_syscall.msgrcv = kprobe.function("sys_msgrcv") ?
-{
-	name = "msgrcv"
-	asmlinkage()
-	msqid = int_arg(1)
-	msgp_uaddr = pointer_arg(2)
-	msgsz = ulong_arg(3)
-	msgtyp = long_arg(4)
-	msgflg = int_arg(5)
-	msgflg_str = _stp_msgflg_str(msgflg)
-	argstr = sprintf("%d, %p, %u, %d, %s", msqid, msgp_uaddr, msgsz,
-			 msgtyp, msgflg_str)
-}
-probe nd_syscall.msgrcv.return = kprobe.function("sys_msgrcv").return ?
-{
-	name = "msgrcv"
-	retstr = returnstr(1)
-}
 # compat_sys_msgrcv ________________________________________
 #
 # kernels < 3.15:
