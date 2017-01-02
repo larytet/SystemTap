@@ -1,46 +1,4 @@
 
-# move_pages ____________________________________________________
-# long sys_move_pages(pid_t pid, unsigned long nr_pages,
-#			const void __user * __user *pages,
-#			const int __user *nodes,
-#			int __user *status,
-#			int flags)
-#
-# long compat_sys_move_pages(pid_t pid, unsigned long nr_pages,
-#                compat_uptr_t __user *pages32,
-#                const int __user *nodes,
-#                int __user *status,
-#                int flags)
-#
-probe syscall.move_pages = __syscall.move_pages ?,
-                           kernel.function("compat_sys_move_pages").call ?
-{
-	name = "move_pages"
-	pages = @choose_defined($pages32, $pages)
-	pid = __int32($pid)
-	nodes = $nodes
-	status = $status
-	flags = __int32($flags)
-	flags_str = _mempolicy_flags_str(flags)
-	nr_pages = @__compat_ulong($nr_pages)
-	argstr = sprintf("%d, %u, %p, %p, %p, %s", pid, nr_pages, pages,
-	                 nodes, status, flags_str)
-}
-probe __syscall.move_pages = kernel.function("sys_move_pages").call
-{
-	@__syscall_gate(@const("__NR_move_pages"))
-}
-probe syscall.move_pages.return = __syscall.move_pages.return ?,
-                                  kernel.function("compat_sys_move_pages").return ?
-{
-	name = "move_pages"
-	retstr = return_str(1, $return)
-}
-probe __syscall.move_pages.return = kernel.function("sys_move_pages").return
-{
-	@__syscall_gate(@const("__NR_move_pages"))
-}
-
 # mount ______________________________________________________
 # long sys_mount(char __user * dev_name,
 # 		char __user * dir_name,
