@@ -1,36 +1,4 @@
 
-# rt_tgsigqueueinfo ____________________________________________
-#
-# SYSCALL_DEFINE4(rt_tgsigqueueinfo, pid_t, tgid, pid_t, pid, int, sig,
-#		siginfo_t __user *, uinfo)
-# COMPAT_SYSCALL_DEFINE4(rt_tgsigqueueinfo,
-#			compat_pid_t, tgid,
-#			compat_pid_t, pid,
-#			int, sig,
-#			struct compat_siginfo __user *, uinfo)
-#
-probe nd_syscall.rt_tgsigqueueinfo =
-	kprobe.function("sys_rt_tgsigqueueinfo") ?,
-	kprobe.function("compat_sys_rt_tgsigqueueinfo") ?
-{
-	name = "rt_tgsigqueueinfo"
-	asmlinkage()
-	tgid = int_arg(1)
-	tid = int_arg(2)
-	sig = int_arg(3)
-	uinfo_uaddr = pointer_arg(4)
-	argstr = sprintf("%d, %d, %s, %s", tgid, tid, _signal_name(sig),
-			 (@__compat_task ? _stp_compat_siginfo_u(uinfo_uaddr)
-			  : _stp_siginfo_u(uinfo_uaddr)))
-}
-probe nd_syscall.rt_tgsigqueueinfo.return =
-	kprobe.function("sys_rt_tgsigqueueinfo").return ?,
-	kprobe.function("compat_sys_rt_tgsigqueueinfo").return ?
-{
-	name = "rt_tgsigqueueinfo"
-	retstr = returnstr(1)
-}
-
 # sched_getaffinity __________________________________________
 #
 # asmlinkage long

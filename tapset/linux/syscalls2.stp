@@ -1,36 +1,4 @@
 
-# rt_tgsigqueueinfo ____________________________________________
-#
-# SYSCALL_DEFINE4(rt_tgsigqueueinfo, pid_t, tgid, pid_t, pid, int, sig,
-#		siginfo_t __user *, uinfo)
-# COMPAT_SYSCALL_DEFINE4(rt_tgsigqueueinfo,
-#			compat_pid_t, tgid,
-#			compat_pid_t, pid,
-#			int, sig,
-#			struct compat_siginfo __user *, uinfo)
-#
-probe syscall.rt_tgsigqueueinfo =
-	kernel.function("sys_rt_tgsigqueueinfo").call ?,
-	kernel.function("compat_sys_rt_tgsigqueueinfo").call ?
-{
-	name = "rt_tgsigqueueinfo"
-	tgid = __int32($tgid)
-	tid = __int32($pid)
-	sig = __int32($sig)
-	uinfo_uaddr = $uinfo
-	argstr = sprintf("%d, %d, %s, %s", tgid, tid, _signal_name(sig),
-			 (@__compat_task
-			  ? _stp_compat_siginfo_u(uinfo_uaddr)
-			  : _stp_siginfo_u(uinfo_uaddr)))
-}
-probe syscall.rt_tgsigqueueinfo.return =
-	kernel.function("sys_rt_tgsigqueueinfo").return ?,
-	kernel.function("compat_sys_rt_tgsigqueueinfo").return ?
-{
-	name = "rt_tgsigqueueinfo"
-	retstr = return_str(1, $return)
-}
-
 # sched_getaffinity __________________________________________
 #
 # asmlinkage long
