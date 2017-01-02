@@ -1,31 +1,4 @@
 
-# renameat ___________________________________________________
-# new function with 2.6.16
-# long sys_renameat(int olddfd, const char __user *oldname,
-#	int newdfd, const char __user *newname)
-probe syscall.renameat = kernel.function("sys_renameat").call ?
-{
-	@__syscall_compat_gate(@const("__NR_renameat"), @const("__NR_compat_renameat"))
-	name = "renameat"
-	olddfd = __int32($olddfd)
-	olddfd_str = _dfd_str(__int32($olddfd))
-	oldname = $oldname
-	oldname_str = user_string_quoted($oldname)
-	newdfd = __int32($newdfd)
-	newdfd_str = _dfd_str(__int32($newdfd))
-	newname = $newname
-	newname_str = user_string_quoted($newname)
-	argstr = sprintf("%s, %s, %s, %s", olddfd_str,
-			 user_string_quoted($oldname),
-			 newdfd_str, user_string_quoted($newname))
-}
-probe syscall.renameat.return = kernel.function("sys_renameat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_renameat"), @const("__NR_compat_renameat"))
-	name = "renameat"
-	retstr = return_str(1, $return)
-}
-
 # renameat2 ___________________________________________________
 # renameat2() was added to Linux in kernel 3.15.
 #
