@@ -1,26 +1,4 @@
 
-# readlink ___________________________________________________
-#
-# long sys_readlink(const char __user * path,
-#		  char __user * buf,
-#		  int bufsiz)
-#
-probe nd_syscall.readlink = kprobe.function("sys_readlink") ?
-{
-	name = "readlink"
-	asmlinkage()
-	path = user_string_quoted(pointer_arg(1))
-	buf_uaddr = pointer_arg(2)
-	bufsiz = int_arg(3)
-	argstr = sprintf("%s, %p, %d", user_string_quoted(pointer_arg(1)),
-			buf_uaddr, bufsiz)
-}
-probe nd_syscall.readlink.return = kprobe.function("sys_readlink").return ?
-{
-	name = "readlink"
-	retstr = returnstr(1)
-}
-
 # readlinkat ___________________________________________________
 #
 # long sys_readlinkat(int dfd, const char __user * path,

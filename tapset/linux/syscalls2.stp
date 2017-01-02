@@ -1,25 +1,4 @@
 
-# readlink ___________________________________________________
-#
-# long sys_readlink(const char __user * path,
-#		  char __user * buf,
-#		  int bufsiz)
-#
-probe syscall.readlink = kernel.function("sys_readlink").call
-{
-	name = "readlink"
-	path = user_string_quoted($path)
-	buf_uaddr = $buf
-	bufsiz = __int32($bufsiz)
-	argstr = sprintf("%s, %p, %d", user_string_quoted($path),
-		$buf, __int32($bufsiz))
-}
-probe syscall.readlink.return = kernel.function("sys_readlink").return
-{
-	name = "readlink"
-	retstr = return_str(1, $return)
-}
-
 # readlinkat ___________________________________________________
 #
 # long sys_readlinkat(int dfd, const char __user * path,
