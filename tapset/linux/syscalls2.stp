@@ -1,27 +1,4 @@
 
-# rt_sigaction _______________________________________________
-#
-# sys_rt_sigaction(int sig,
-#			const struct sigaction __user *act,
-#			struct sigaction __user *oact,
-#			size_t sigsetsize)
-#
-probe syscall.rt_sigaction = kernel.function("sys_rt_sigaction").call ?
-{
-	name = "rt_sigaction"
-	sig = __int32($sig)
-	act_uaddr = $act
-	oact_uaddr = $oact
-	sigsetsize = $sigsetsize
-	argstr = sprintf("%s, {%s}, %p, %d", _signal_name(sig),
-			 _struct_sigaction_u($act), $oact, $sigsetsize)
-}
-probe syscall.rt_sigaction.return = kernel.function("sys_rt_sigaction").return ?
-{
-	name = "rt_sigaction"
-	retstr = return_str(1, $return)
-}
-
 #
 # long sys32_rt_sigaction(int sig,
 #		struct sigaction32 __user *act,

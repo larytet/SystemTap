@@ -1,29 +1,4 @@
 
-# rt_sigaction _______________________________________________
-#
-# sys_rt_sigaction(int sig,
-#			const struct sigaction __user *act,
-#			struct sigaction __user *oact,
-#			size_t sigsetsize)
-#
-probe nd_syscall.rt_sigaction = kprobe.function("sys_rt_sigaction") ?
-{
-	name = "rt_sigaction"
-	asmlinkage()
-	sig = int_arg(1)
-	act_uaddr = pointer_arg(2)
-	oact_uaddr = pointer_arg(3)
-	sigsetsize = ulong_arg(4)
-	argstr = sprintf("%s, {%s}, %p, %d", _signal_name(sig),
-			_struct_sigaction_u(act_uaddr), oact_uaddr, sigsetsize)
-}
-probe nd_syscall.rt_sigaction.return =
-	kprobe.function("sys_rt_sigaction").return ?
-{
-	name = "rt_sigaction"
-	retstr = returnstr(1)
-}
-
 #
 # long sys32_rt_sigaction(int sig,
 #		struct sigaction32 __user *act,
