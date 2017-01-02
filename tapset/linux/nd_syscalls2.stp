@@ -1,38 +1,4 @@
 
-# renameat2 ___________________________________________________
-# renameat2() was added to Linux in kernel 3.15.
-#
-# SYSCALL_DEFINE5(renameat2, int, olddfd, const char __user *, oldname,
-#		int, newdfd, const char __user *, newname, unsigned int, flags)
-probe nd_syscall.renameat2 = kprobe.function("sys_renameat2") ?
-{
-	@__syscall_compat_gate(@const("__NR_renameat2"),
-			       @const("__NR_compat_renameat2"))
-	name = "renameat2"
-	asmlinkage()
-	olddfd = int_arg(1)
-	olddfd_str = _dfd_str(olddfd)
-	oldname = pointer_arg(2)
-	oldname_str = user_string_quoted(oldname)
-	newdfd = int_arg(3)
-	newdfd_str = _dfd_str(newdfd)
-	newname = pointer_arg(4)
-	newname_str = user_string_quoted(newname)
-	flags = uint_arg(5)
-	flags_str = _renameat2_flags_str(flags)
-	argstr = sprintf("%s, %s, %s, %s, %s", olddfd_str,
-			 user_string_quoted(oldname),
-			 newdfd_str, user_string_quoted(newname),
-			 _renameat2_flags_str(flags))
-}
-probe nd_syscall.renameat2.return = kprobe.function("sys_renameat2").return ?
-{
-	@__syscall_compat_gate(@const("__NR_renameat2"),
-			       @const("__NR_compat_renameat2"))
-	name = "renameat2"
-	retstr = returnstr(1)
-}
-
 # request_key ________________________________________________
 #
 # long sys_request_key(const char __user *_type,
