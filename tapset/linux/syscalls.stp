@@ -1,26 +1,3 @@
-
-# msgsnd _____________________________________________________
-# long sys_msgsnd (int msqid,
-#             struct msgbuf __user *msgp,
-#             size_t msgsz,
-#             int msgflg)
-#
-probe syscall.msgsnd = kernel.function("sys_msgsnd").call ?
-{
-	name = "msgsnd"
-	msqid = __int32($msqid)
-	msgp_uaddr = $msgp
-	msgsz = __ulong($msgsz)
-	msgflg = __int32($msgflg)
-	msgflg_str = _stp_msgflg_str(__int32($msgflg))
-	argstr = sprintf("%d, %p, %u, %s", __int32($msqid), $msgp, msgsz,
-			 _stp_msgflg_str(__int32($msgflg)))
-}
-probe syscall.msgsnd.return = kernel.function("sys_msgsnd").return ?
-{
-	name = "msgsnd"
-	retstr = return_str(1, $return)
-}
 # compat_sys_msgsnd ________________________________________
 #
 # long compat_sys_msgsnd(int first, int second, int third, void __user *uptr)

@@ -1,0 +1,56 @@
+# msgsnd _____________________________________________________
+# long sys_msgsnd (int msqid,
+#             struct msgbuf __user *msgp,
+#             size_t msgsz,
+#             int msgflg)
+#
+
+@define _SYSCALL_MSGSND_NAME
+%(
+	name = "msgsnd"
+%)
+
+@define _SYSCALL_MSGSND_ARGSTR
+%(
+	argstr = sprintf("%d, %p, %u, %s", msqid, msgp_uaddr, msgsz, msgflg_str)
+%)
+
+probe syscall.msgsnd = dw_syscall.msgsnd !, nd_syscall.msgsnd {}
+probe syscall.msgsnd.return = dw_syscall.msgsnd.return !, nd_syscall.msgsnd.return {}
+
+# dw_msgsnd _____________________________________________________
+
+probe dw_syscall.msgsnd = kernel.function("sys_msgsnd").call ?
+{
+	@_SYSCALL_MSGSND_NAME
+	msqid = __int32($msqid)
+	msgp_uaddr = $msgp
+	msgsz = __ulong($msgsz)
+	msgflg = __int32($msgflg)
+	msgflg_str = _stp_msgflg_str(__int32($msgflg))
+	@_SYSCALL_MSGSND_ARGSTR
+}
+probe dw_syscall.msgsnd.return = kernel.function("sys_msgsnd").return ?
+{
+	@_SYSCALL_MSGSND_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_msgsnd _____________________________________________________
+
+probe nd_syscall.msgsnd = kprobe.function("sys_msgsnd") ?
+{
+	@_SYSCALL_MSGSND_NAME
+	asmlinkage()
+	msqid = int_arg(1)
+	msgp_uaddr = pointer_arg(2)
+	msgsz = ulong_arg(3)
+	msgflg = int_arg(4)
+	msgflg_str = _stp_msgflg_str(msgflg)
+	@_SYSCALL_MSGSND_ARGSTR
+}
+probe nd_syscall.msgsnd.return = kprobe.function("sys_msgsnd").return ?
+{
+	@_SYSCALL_MSGSND_NAME
+	retstr = returnstr(1)
+}
