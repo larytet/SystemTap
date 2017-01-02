@@ -1,32 +1,4 @@
 
-# ptrace _____________________________________________________
-#
-# int sys_ptrace(long request,
-#		long pid,
-#		long addr,
-#		long data)
-#
-probe nd_syscall.ptrace = kprobe.function("sys_ptrace") ?,
-	kprobe.function("compat_sys_ptrace") ?
-{
-	name = "ptrace"
-	asmlinkage()
-	request = long_arg(1)
-	pid = int_arg(2)
-	addr = ulong_arg(3)
-	data = ulong_arg(4)
-	argstr = _ptrace_argstr(request, pid, addr, data)
-}
-probe nd_syscall.ptrace.return = kprobe.function("sys_ptrace").return ?,
-	kprobe.function("compat_sys_ptrace").return ?
-{
-	name = "ptrace"
-	retstr = returnstr(1)
-
-	geteventmsg_data = 0
-	arch_prctl_addr = 0
-}
-
 # pwrite64 ___________________________________________________
 #
 # ssize_t sys_pwrite64(unsigned int fd,

@@ -1,31 +1,4 @@
 
-# ptrace _____________________________________________________
-#
-# int sys_ptrace(long request,
-#		long pid,
-#		long addr,
-#		long data)
-#
-probe syscall.ptrace = kernel.function("sys_ptrace").call ?,
-		kernel.function("compat_sys_ptrace").call ? 
-{
-	name = "ptrace"
-	request = $request
-	pid = __int32($pid)
-	addr = @__compat_ulong($addr)
-	data = @__compat_ulong(@choose_defined($data, $cdata))
-	argstr = _ptrace_argstr($request, pid, addr, data)
-}
-probe syscall.ptrace.return = kernel.function("sys_ptrace").return ?,
-	kernel.function("compat_sys_ptrace").return ?
-{
-	name = "ptrace"
-	retstr = return_str(1, $return)
-
-	geteventmsg_data = _ptrace_return_geteventmsg_data(@entry($request), @entry($data))
-	arch_prctl_addr = _ptrace_return_arch_prctl_addr(@entry($request), @entry($addr), @entry($data))
-}
-
 # pwrite64 ___________________________________________________
 #
 # ssize_t sys_pwrite64(unsigned int fd,
