@@ -1,29 +1,4 @@
 
-# perf_event_open ____________________________________________
-#
-# SYSCALL_DEFINE5(perf_event_open,
-#		struct perf_event_attr __user *, attr_uptr,
-#		pid_t, pid, int, cpu, int, group_fd, unsigned long, flags)
-probe nd_syscall.perf_event_open = kprobe.function("sys_perf_event_open") ?
-{
-	name = "perf_event_open"
-	asmlinkage()
-	attr_uaddr = pointer_arg(1)
-	pid = int_arg(2)
-	cpu = int_arg(3)
-	group_fd = int_arg(4)
-	flags = ulong_arg(5)
-	flags_str = _perf_event_open_flags_str(flags)
-	argstr = sprintf("%p, %d, %d, %d, %s", attr_uaddr, pid, cpu, group_fd,
-			 _perf_event_open_flags_str(flags))
-}
-probe nd_syscall.perf_event_open.return =
-	kprobe.function("sys_perf_event_open").return ?
-{
-	name = "perf_event_open"
-	retstr = returnstr(1)
-}
-
 # pciconfig_iobase ___________________________________________
 #
 # asmlinkage long
