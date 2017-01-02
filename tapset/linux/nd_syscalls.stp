@@ -1,22 +1,4 @@
 
-# mincore ____________________________________________________
-# long sys_mincore(unsigned long start, size_t len, unsigned char __user * vec)
-#
-probe nd_syscall.mincore = kprobe.function("sys_mincore") ?
-{
-	name = "mincore"
-	asmlinkage()
-	start = pointer_arg(1)
-	length = ulong_arg(2)
-	vec_uaddr = pointer_arg(3)
-	argstr = sprintf("%p, %u, %p", start, length, vec_uaddr)
-}
-probe nd_syscall.mincore.return = kprobe.function("sys_mincore").return ?
-{
-	name = "mincore"
-	retstr = returnstr(1)
-}
-
 # mkdir ______________________________________________________
 # long sys_mkdir(const char __user * pathname, int mode)
 probe nd_syscall.mkdir = kprobe.function("sys_mkdir") ?
