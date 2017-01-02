@@ -1,23 +1,4 @@
 
-# mlock2 _____________________________________________________
-#
-# long sys_mlock2(unsigned long start, size_t len, int flags)
-#
-probe syscall.mlock2 = kernel.function("sys_mlock2").call ?
-{
-	name = "mlock2"
-	addr = __ulong($start)
-	len = __ulong($len)
-	flags = __int32($flags)
-	flags_str = _stp_mlock2_str(__int32($flags))
-	argstr = sprintf("%p, %u, %s", addr, len, flags_str)
-}
-probe syscall.mlock2.return = kernel.function("sys_mlock2").return ?
-{
-	name = "mlock2"
-	retstr = return_str(1, $return)
-}
-
 # mlockall ___________________________________________________
 #
 # long sys_mlockall(int flags)
