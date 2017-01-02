@@ -1,20 +1,4 @@
 
-# memfd_create _____________________________________________________
-# long sys_memfd_create (const char __user* uname, unsigned int flags)
-probe syscall.memfd_create = kernel.function("sys_memfd_create").call ?
-{
-	name = "memfd_create"
-	uname = user_string_quoted($uname)
-	flags = $flags
-	flags_str = _mfd_flags_str($flags)
-	argstr = sprintf("%s, %s", user_string_quoted($uname), flags_str)
-}
-probe syscall.memfd_create.return = kernel.function("sys_memfd_create").return ?
-{
-	name = "memfd_create"
-	retstr = return_str(1, $return)
-}
-
 # migrate_pages ____________________________________________________
 # long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 #		const unsigned long __user *old_nodes,

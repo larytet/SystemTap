@@ -1,21 +1,4 @@
 
-# memfd_create _____________________________________________________
-# long sys_memfd_create (const char __user* uname, unsigned int flags)
-probe nd_syscall.memfd_create = kprobe.function("sys_memfd_create") ?
-{
-	name = "memfd_create"
-	asmlinkage()
-	uname = user_string_quoted(pointer_arg(1))
-	flags = uint_arg(2)
-	flags_str = _mfd_flags_str(uint_arg(2))
-	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)), flags_str)
-}
-probe nd_syscall.memfd_create.return = kprobe.function("sys_memfd_create").return ?
-{
-	name = "memfd_create"
-	retstr = returnstr(1)
-}
-
 # migrate_pages ____________________________________________________
 # long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 #		const unsigned long __user *old_nodes,
