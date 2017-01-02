@@ -1,30 +1,4 @@
 
-# prctl ______________________________________________________
-#
-# asmlinkage long
-# sys_prctl(int option,
-#	     unsigned long arg2,
-#	     unsigned long arg3,
-#	     unsigned long arg4,
-#	     unsigned long arg5)
-#
-probe nd_syscall.prctl = kprobe.function("sys_prctl") ?
-{
-	name = "prctl"
-	asmlinkage()
-	option = int_arg(1)
-	arg2 = ulong_arg(2)
-	arg3 = ulong_arg(3)
-	arg4 = ulong_arg(4)
-	arg5 = ulong_arg(5)
-	argstr = _prctl_argstr(option, arg2, arg3, arg4, arg5)
-}
-probe nd_syscall.prctl.return = kprobe.function("sys_prctl").return ?
-{
-	name = "prctl"
-	retstr = returnstr(1)
-}
-
 # pread64 ____________________________________________________
 #
 # ssize_t sys_pread64(unsigned int fd,
