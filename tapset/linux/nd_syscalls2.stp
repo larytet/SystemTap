@@ -1,40 +1,4 @@
 
-# compat_sys_recvmsg ________________________________________
-#
-# long compat_sys_recvmsg(int fd,
-#				struct compat_msghdr __user *msg,
-#				unsigned int flags)
-#
-# On all tested kernels/architectures, the compat recvmsg() syscall
-# goes through compat_sys_socketcall(). compat_sys_socketcall() then
-# calls an inlined version of compat_sys_recvmsg() on some
-# architectures (like ppc64). So, the only reliable thing to do here
-# is just probe compat_sys_socketcall().
-#
-# Note that this probe should have been either called
-# 'syscall.compat_recvmsg' or just merged with 'syscall.recvmsg'.
-#
-probe nd_syscall.compat_sys_recvmsg =
-	kprobe.function("compat_sys_socketcall").call ?
-{
-	asmlinkage()
-	if (int_arg(1) != @const("SYS_RECVMSG")) next;
-	name = "recvmsg"
-	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
-	s = user_int(&(__args)[0])
-	msg_uaddr = user_uint32(&(__args)[1])
-	flags = user_uint32(&(__args)[2])
-	flags_str = _msg_flags_str(flags)
-	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _msg_flags_str(flags))
-}
-probe nd_syscall.compat_sys_recvmsg.return =
-	kprobe.function("compat_sys_socketcall").return ?
-{
-	if (@entry(__asmlinkage_int_arg(1)) != @const("SYS_RECVMSG")) next;
-	name = "compat_sys_recvmsg"
-	retstr = returnstr(1)
-}
-
 # remap_file_pages ___________________________________________
 #
 # long sys_remap_file_pages(unsigned long start,

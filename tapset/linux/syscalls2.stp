@@ -1,38 +1,4 @@
 
-# compat_sys_recvmsg ________________________________________
-#
-# long compat_sys_recvmsg(int fd,
-#				struct compat_msghdr __user *msg,
-#				unsigned int flags)
-#
-# On all tested kernels/architectures, the compat recvmsg() syscall
-# goes through compat_sys_socketcall(). compat_sys_socketcall() then
-# calls an inlined version of compat_sys_recvmsg() on some
-# architectures (like ppc64). So, the only reliable thing to do here
-# is just probe compat_sys_socketcall().
-#
-# Note that this probe should have been either called
-# 'syscall.compat_recvmsg' or just merged with 'syscall.recvmsg'.
-#
-probe syscall.compat_sys_recvmsg =
-	kernel.function("compat_sys_socketcall").call ?
-{
-	if ($call != @const("SYS_RECVMSG")) next;
-	name = "recvmsg"
-	s = user_int(&@cast($args, "unsigned int")[0])
-	msg_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
-	flags = user_uint32(&@cast($args, "unsigned int")[2])
-	flags_str = _msg_flags_str(flags)
-	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _msg_flags_str(flags))
-}
-probe syscall.compat_sys_recvmsg.return =
- 	kernel.function("compat_sys_socketcall").return ?
-{
-	if (@entry($call) != @const("SYS_RECVMSG")) next;
-	name = "recvmsg"
-	retstr = return_str(1, $return)
-}
-
 # remap_file_pages ___________________________________________
 #
 # long sys_remap_file_pages(unsigned long start,
