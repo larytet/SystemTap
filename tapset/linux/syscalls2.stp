@@ -1,32 +1,4 @@
 
-# pselect6 _____________________________________________________
-#
-# long sys_pselect6(int n, fd_set __user *inp, fd_set __user *outp,
-#	fd_set __user *exp, struct timespec __user *tsp, void __user *sig)
-#
-probe syscall.pselect6 = kernel.function("sys_pselect6").call ?
-{
-	name = "pselect6"
-	argstr = sprintf("%d, %p, %p, %p, %s, %p", __int32($n), $inp, $outp,
-			 $exp, _struct_timespec_u($tsp, 1), $sig)
-}
-probe syscall.pselect6.return = kernel.function("sys_pselect6").return ?
-{
-	name = "pselect6"
-	retstr = return_str(1, $return)
-}
-probe syscall.compat_pselect6 = kernel.function("compat_sys_pselect6").call ?
-{
-	name = "pselect6"
-	argstr = sprintf("%d, %p, %p, %p, %s, %p", __int32($n), $inp, $outp,
-			 $exp, _struct_compat_timespec_u($tsp, 1), $sig)
-}
-probe syscall.compat_pselect6.return = kernel.function("compat_sys_pselect6").return ?
-{
-	name = "pselect6"
-	retstr = return_str(1, $return)
-}
-
 # pselect7 _____________________________________________________
 #
 # long sys_pselect7(int n, fd_set __user *inp, fd_set __user *outp,

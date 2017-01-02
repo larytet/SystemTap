@@ -1,34 +1,4 @@
 
-# pselect6 _____________________________________________________
-#
-# long sys_pselect6(int n, fd_set __user *inp, fd_set __user *outp,
-#	fd_set __user *exp, struct timespec __user *tsp, void __user *sig)
-#
-probe nd_syscall.pselect6 = kprobe.function("sys_pselect6") ?
-{
-	name = "pselect6"
-	asmlinkage()
-	argstr = sprintf("%d, %p, %p, %p, %s, %p", int_arg(1) , pointer_arg(2), pointer_arg(3), pointer_arg(4),
-				_struct_timespec_u(pointer_arg(5), 1), pointer_arg(6))
-}
-probe nd_syscall.pselect6.return = kprobe.function("sys_pselect6").return ?
-{
-	name = "pselect6"
-	retstr = returnstr(1)
-}
-probe nd_syscall.compat_pselect6 = kprobe.function("compat_sys_pselect6") ?
-{
-	name = "pselect6"
-	asmlinkage()
-	argstr = sprintf("%d, %p, %p, %p, %s, %p", int_arg(1), pointer_arg(2), pointer_arg(3), pointer_arg(4),
-				_struct_compat_timespec_u(pointer_arg(5), 1), pointer_arg(6))
-}
-probe nd_syscall.compat_pselect6.return = kprobe.function("compat_sys_pselect6").return ?
-{
-	name = "pselect6"
-	retstr = returnstr(1)
-}
-
 # pselect7 _____________________________________________________
 #
 # long sys_pselect7(int n, fd_set __user *inp, fd_set __user *outp,
