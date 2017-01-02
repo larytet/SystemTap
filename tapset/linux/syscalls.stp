@@ -1,19 +1,4 @@
 
-# munlock ____________________________________________________
-# long sys_munlock(unsigned long start, size_t len)
-probe syscall.munlock = kernel.function("sys_munlock").call ?
-{
-	name = "munlock"
-	addr = $start
-	len = $len
-	argstr = sprintf("%p, %d", addr, len)
-}
-probe syscall.munlock.return = kernel.function("sys_munlock").return ?
-{
-	name = "munlock"
-	retstr = return_str(1, $return)
-}
-
 # munlockall _________________________________________________
 # long sys_munlockall(void)
 probe syscall.munlockall = kernel.function("sys_munlockall").call ?

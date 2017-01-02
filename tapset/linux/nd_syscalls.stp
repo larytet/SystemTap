@@ -1,20 +1,4 @@
 
-# munlock ____________________________________________________
-# long sys_munlock(unsigned long start, size_t len)
-probe nd_syscall.munlock = kprobe.function("sys_munlock") ?
-{
-	name = "munlock"
-	asmlinkage()
-	addr = ulong_arg(1)
-	len = ulong_arg(2)
-	argstr = sprintf("%p, %d", addr, len)
-}
-probe nd_syscall.munlock.return = kprobe.function("sys_munlock").return ?
-{
-	name = "munlock"
-	retstr = returnstr(1)
-}
-
 # munlockall _________________________________________________
 # long sys_munlockall(void)
 probe nd_syscall.munlockall = kprobe.function("sys_munlockall") ?
