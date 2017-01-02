@@ -1,20 +1,4 @@
 
-# nice _______________________________________________________
-# long sys_nice(int increment)
-#
-probe nd_syscall.nice = kprobe.function("sys_nice") ?
-{
-	name = "nice"
-	asmlinkage()
-	inc = int_arg(1)
-	argstr = sprintf("%d", inc)
-}
-probe nd_syscall.nice.return = kprobe.function("sys_nice").return ?
-{
-	name = "nice"
-	retstr = returnstr(1)
-}
-
 # ni_syscall _________________________________________________
 #
 # long sys_ni_syscall(void)

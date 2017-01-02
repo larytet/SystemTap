@@ -1,19 +1,4 @@
 
-# nice _______________________________________________________
-# long sys_nice(int increment)
-#
-probe syscall.nice = kernel.function("sys_nice").call ?
-{
-	name = "nice"
-	inc = __int32($increment)
-	argstr = sprintf("%d", inc)
-}
-probe syscall.nice.return = kernel.function("sys_nice").return ?
-{
-	name = "nice"
-	retstr = return_str(1, $return)
-}
-
 # ni_syscall _________________________________________________
 #
 # long sys_ni_syscall(void)
