@@ -1,22 +1,4 @@
 
-# rmdir ______________________________________________________
-#
-# asmlinkage long
-# sys_rmdir(const char __user * pathname)
-#
-probe nd_syscall.rmdir = kprobe.function("sys_rmdir") ?
-{
-	name = "rmdir"
-	asmlinkage()
-	pathname = user_string_quoted(pointer_arg(1))
-	argstr = user_string_quoted(pointer_arg(1))
-}
-probe nd_syscall.rmdir.return = kprobe.function("sys_rmdir").return ?
-{
-	name = "rmdir"
-	retstr = returnstr(1)
-}
-
 # rt_sigaction _______________________________________________
 #
 # sys_rt_sigaction(int sig,
