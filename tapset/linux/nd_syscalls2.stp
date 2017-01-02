@@ -1,48 +1,4 @@
 
-# rt_sigpending ______________________________________________
-#
-# long sys_rt_sigpending(sigset_t __user *set, size_t sigsetsize)
-# COMPAT_SYSCALL_DEFINE2(rt_sigpending, compat_sigset_t __user *, uset,
-#		compat_size_t, sigsetsize)
-# asmlinkage long sys32_rt_sigpending(compat_sigset_t __user *set,
-#				    compat_size_t sigsetsize)
-#
-probe nd_syscall.rt_sigpending = __nd_syscall.rt_sigpending ?,
-				 __nd_syscall.compat_rt_sigpending ?
-{
-	name = "rt_sigpending"
-	asmlinkage()
-	set_uaddr = pointer_arg(1)
-	sigsetsize = ulong_arg(2)
-	argstr = sprintf("%p, %u", set_uaddr, sigsetsize)
-}
-probe __nd_syscall.rt_sigpending = kprobe.function("sys_rt_sigpending") ?
-{
-	@__syscall_gate(@const("__NR_rt_sigpending"))
-}
-probe __nd_syscall.compat_rt_sigpending =
-	kprobe.function("compat_sys_rt_sigpending") !,
-	kprobe.function("sys32_rt_sigpending") ?
-{
-}
-probe nd_syscall.rt_sigpending.return =
-	__nd_syscall.rt_sigpending.return ?,
-	__nd_syscall.compat_rt_sigpending.return ?
-{
-	name = "rt_sigpending"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.rt_sigpending.return =
-	kprobe.function("sys_rt_sigpending").return ?
-{
-	@__syscall_gate(@const("__NR_rt_sigpending"))
-}
-probe __nd_syscall.compat_rt_sigpending.return =
-	kprobe.function("compat_sys_rt_sigpending").return !,
-	kprobe.function("sys32_rt_sigpending").return ?
-{
-}
-
 # rt_sigprocmask _____________________________________________
 # long sys_rt_sigprocmask(int how, sigset_t __user *set, sigset_t __user *oset,
 #			  size_t sigsetsize)

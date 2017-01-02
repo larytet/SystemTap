@@ -1,38 +1,4 @@
 
-# rt_sigpending ______________________________________________
-#
-# long sys_rt_sigpending(sigset_t __user *set, size_t sigsetsize)
-# COMPAT_SYSCALL_DEFINE2(rt_sigpending, compat_sigset_t __user *, uset,
-#		compat_size_t, sigsetsize)
-# asmlinkage long sys32_rt_sigpending(compat_sigset_t __user *set,
-#				    compat_size_t sigsetsize)
-#
-probe syscall.rt_sigpending = __syscall.rt_sigpending ?,
-                              kernel.function("compat_sys_rt_sigpending").call !,
-                              kernel.function("sys32_rt_sigpending").call ?
-{
-	name = "rt_sigpending"
-	set_uaddr = @choose_defined($uset, $set)
-	sigsetsize = @__compat_ulong($sigsetsize)
-	argstr = sprintf("%p, %u", set_uaddr, sigsetsize)
-}
-probe __syscall.rt_sigpending = kernel.function("sys_rt_sigpending").call ?
-{
-	@__syscall_gate(@const("__NR_rt_sigpending"))
-}
-probe syscall.rt_sigpending.return = __syscall.rt_sigpending.return ?,
-                                     kernel.function("compat_sys_rt_sigpending").return !,
-                                     kernel.function("sys32_rt_sigpending").return ?
-{
-	name = "rt_sigpending"
-	retstr = return_str(1, $return)
-}
-probe __syscall.rt_sigpending.return =
-	kernel.function("sys_rt_sigpending").return ?
-{
-	@__syscall_gate(@const("__NR_rt_sigpending"))
-}
-
 # rt_sigprocmask _____________________________________________
 # long sys_rt_sigprocmask(int how, sigset_t __user *set, sigset_t __user *oset,
 #			  size_t sigsetsize)
