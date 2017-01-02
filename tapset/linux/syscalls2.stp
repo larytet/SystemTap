@@ -1,42 +1,4 @@
 
-# read _______________________________________________________
-# ssize_t sys_read(unsigned int fd, char __user * buf, size_t count)
-probe syscall.read =
-%( arch == "s390" %?
-	__syscall.read, kernel.function("sys32_read").call ?
-%:
-	__syscall.read
-%)
-{
-	name = "read"
-	fd = __int32($fd)
-	buf_uaddr = $buf
-	count = __ulong($count)
-	argstr = sprintf("%d, %p, %u", __int32($fd), $buf, __ulong($count))
-}
-probe __syscall.read = kernel.function("sys_read").call
-{
-%( arch == "s390" %?
-	@__syscall_gate(@const("__NR_read"))
-%)
-}
-probe syscall.read.return =
-%( arch == "s390" %?
-	__syscall.read.return, kernel.function("sys32_read").return ?
-%:
-	__syscall.read.return
-%)
-{
-	name = "read"
-	retstr = return_str(1, $return)
-}
-probe __syscall.read.return = kernel.function("sys_read").return
-{
-%( arch == "s390" %?
-	@__syscall_gate(@const("__NR_read"))
-%)
-}
-
 # readahead __________________________________________________
 #
 # asmlinkage ssize_t

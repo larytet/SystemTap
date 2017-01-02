@@ -1,43 +1,4 @@
 
-# read _______________________________________________________
-# ssize_t sys_read(unsigned int fd, char __user * buf, size_t count)
-probe nd_syscall.read =
-%( arch == "s390" %?
-	__nd_syscall.read, kprobe.function("sys32_read").call ?
-%:
-	__nd_syscall.read
-%)
-{
-	name = "read"
-	asmlinkage()
-	fd = int_arg(1)
-	buf_uaddr = pointer_arg(2)
-	count = ulong_arg(3)
-	argstr = sprintf("%d, %p, %u", fd, buf_uaddr, count)
-}
-probe __nd_syscall.read = kprobe.function("sys_read")
-{
-%( arch == "s390" %?
-	@__syscall_gate(@const("__NR_read"))
-%)
-}
-probe nd_syscall.read.return =
-%( arch == "s390" %?
-	__nd_syscall.read.return, kprobe.function("sys32_read").return ?
-%:
-	__nd_syscall.read.return
-%)
-{
-	name = "read"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.read.return = kprobe.function("sys_read").return
-{
-%( arch == "s390" %?
-	@__syscall_gate(@const("__NR_read"))
-%)
-}
-
 # readahead __________________________________________________
 #
 # asmlinkage ssize_t
