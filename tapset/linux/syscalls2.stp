@@ -1,34 +1,4 @@
 
-#
-# long sys32_rt_sigaction(int sig,
-#		struct sigaction32 __user *act,
-#		struct sigaction32 __user *oact,
-#		unsigned int sigsetsize)
-# ppc only
-# compat_sys_rt_sigaction(int sig,
-#			const struct sigaction32 __user *act,
-#			struct sigaction32 __user *oact,
-#			size_t sigsetsize)
-
-probe syscall.rt_sigaction32 = kernel.function("sys32_rt_sigaction").call ?,
-                               kernel.function("compat_sys_rt_sigaction").call ?
-{
-	name = "rt_sigaction"
-	sig = __int32($sig)
-	act_uaddr = @__pointer($act)
-	oact_uaddr = $oact
-	sigsetsize = $sigsetsize
-	argstr = sprintf("%s, {%s}, %p, %d", _signal_name(sig),
-		_struct_sigaction32_u(act_uaddr), $oact, $sigsetsize)
-}
-probe syscall.rt_sigaction32.return =
-	kernel.function("sys32_rt_sigaction").return ?,
-	kernel.function("compat_sys_rt_sigaction").return ?
-{
-	name = "rt_sigaction"
-	retstr = return_str(1, $return)
-}
-
 # rt_sigpending ______________________________________________
 #
 # long sys_rt_sigpending(sigset_t __user *set, size_t sigsetsize)
