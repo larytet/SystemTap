@@ -1,34 +1,4 @@
 
-# openat _______________________________________________________
-# long sys_openat(int dfd, const char __user *filename, int flags, int mode)
-# long compat_sys_openat(unsigned int dfd, const char __user *filename, int flags, int mode)
-#
-probe nd_syscall.openat = kprobe.function("compat_sys_openat") ?,
-                          kprobe.function("sys_openat") ?
-{
-	name = "openat"
-	asmlinkage()
-	dfd = int_arg(1)
-	dfd_str = _dfd_str(dfd)
-	filename = user_string_quoted(pointer_arg(2))
-	flags = int_arg(3)
-	mode = uint_arg(4)
-	if (flags & @const("O_CREAT"))
-		argstr = sprintf("%s, %s, %s, %#o", _dfd_str(dfd),
-				 user_string_quoted(pointer_arg(2)),
-				 _sys_open_flag_str(flags), mode)
-	else
-		argstr = sprintf("%s, %s, %s", _dfd_str(dfd),
-				 user_string_quoted(pointer_arg(2)),
-				 _sys_open_flag_str(flags))
-}
-probe nd_syscall.openat.return = kprobe.function("compat_sys_openat").return ?,
-                                 kprobe.function("sys_openat").return ?
-{
-	name = "openat"
-	retstr = returnstr(1)
-}
-
 # pause ______________________________________________________
 #
 # sys_pause(void)
