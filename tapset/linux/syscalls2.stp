@@ -1,29 +1,4 @@
 
-# recvmmsg ___________________________________________________
-#
-# long sys_recvmmsg(int fd, struct mmsghdr __user *mmsg,
-#		    unsigned int vlen, unsigned int flags,
-#		    struct timespec __user *timeout)
-#
-probe syscall.recvmmsg = kernel.function("sys_recvmmsg").call ?
-{
-	name = "recvmmsg"
-	s = __int32($fd)
-	mmsg_uaddr = $mmsg
-	vlen = __uint32($vlen)
-	flags = __uint32($flags)
-	flags_str = _msg_flags_str(flags)
-	timeout_uaddr = $timeout
-	argstr = sprintf("%d, %p, %u, %s, %s", s, $mmsg, vlen,
-			 _msg_flags_str(flags),
-			 _struct_timespec_u($timeout, 1))
-}
-probe syscall.recvmmsg.return = kernel.function("sys_recvmmsg").return ?
-{
-	name = "recvmmsg"
-	retstr = return_str(1, $return)
-}
-
 # compat_recvmmsg ___________________________________________________
 #
 # long compat_sys_recvmmsg(int fd, struct compat_mmsghdr __user *mmsg,

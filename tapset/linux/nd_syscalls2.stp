@@ -1,30 +1,4 @@
 
-# recvmmsg ___________________________________________________
-#
-# long sys_recvmmsg(int fd, struct mmsghdr __user *mmsg,
-#		    unsigned int vlen, unsigned int flags,
-#		    struct timespec __user *timeout)
-#
-probe nd_syscall.recvmmsg = kprobe.function("sys_recvmmsg").call ?
-{
-	name = "recvmmsg"
-	asmlinkage()
-	s = int_arg(1)
-	mmsg_uaddr = pointer_arg(2)
-	vlen = uint_arg(3)
-	flags = uint_arg(4)
-	flags_str = _msg_flags_str(flags)
-	timeout_uaddr = pointer_arg(5)
-	argstr = sprintf("%d, %p, %u, %s, %s", s, mmsg_uaddr, vlen,
-			 _msg_flags_str(flags),
-			 _struct_timespec_u(timeout_uaddr, 1))
-}
-probe nd_syscall.recvmmsg.return = kprobe.function("sys_recvmmsg").return ?
-{
-	name = "recvmmsg"
-	retstr = returnstr(1)
-}
-
 # compat_recvmmsg ___________________________________________________
 #
 # long compat_sys_recvmmsg(int fd, struct compat_mmsghdr __user *mmsg,
