@@ -1,27 +1,3 @@
-# long compat_sys_select(int n,
-#		compat_ulong_t __user *inp,
-#		compat_ulong_t __user *outp,
-#		compat_ulong_t __user *exp,
-#		struct compat_timeval __user *tvp)
-#
-probe nd_syscall.compat_select = kprobe.function("compat_sys_select") ?
-{
-	name = "select"
-	asmlinkage()
-	n = int_arg(1)
-	readfds_uaddr = pointer_arg(2)
-	writefds_uaddr = pointer_arg(3)
-	exceptfds_uaddr = pointer_arg(4)
-	timeout_uaddr = pointer_arg(5)
-	argstr = sprintf("%d, %p, %p, %p, %s", n, readfds_uaddr,
-		writefds_uaddr, exceptfds_uaddr,
-		_struct_compat_timeval_u(timeout_uaddr, 1))
-}
-probe nd_syscall.compat_select.return = kprobe.function("compat_sys_select").return ?
-{
-	name = "select"
-	retstr = returnstr(1)
-}
 
 # semctl _____________________________________________________
 # long sys_semctl (int semid,
