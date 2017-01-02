@@ -1,33 +1,4 @@
 
-# mq_notify __________________________________________________
-# long sys_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification)
-# long compat_sys_mq_notify(mqd_t mqdes, const struct compat_sigevent __user *u_notification)
-#
-probe syscall.mq_notify =
-        __syscall.mq_notify,
-        kernel.function("compat_sys_mq_notify").call ?
-{
-	name = "mq_notify"
-	mqdes = __int32($mqdes)
-	notification_uaddr = $u_notification
-	argstr = sprintf("%d, %p", mqdes, $u_notification)
-}
-probe __syscall.mq_notify = kernel.function("sys_mq_notify").call
-{
-        @__syscall_gate(@const("__NR_mq_notify"))
-}
-probe syscall.mq_notify.return =
-        __syscall.mq_notify.return,
-        kernel.function("compat_sys_mq_notify").return ?
-{
-	name = "mq_notify"
-	retstr = return_str(1, $return)
-}
-probe __syscall.mq_notify.return = kernel.function("sys_mq_notify").return
-{
-        @__syscall_gate(@const("__NR_mq_notify"))
-}
-
 # mq_open ____________________________________________________
 # long  sys_mq_open(const char __user *u_name,
 #             int oflag,
