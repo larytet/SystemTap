@@ -1,25 +1,3 @@
-probe nd_syscall.compat_rt_sigprocmask =
-	kprobe.function("compat_sys_rt_sigprocmask") ?,
-	kprobe.function("sys32_rt_sigprocmask") ?
-{
-	name = "rt_sigprocmask"
-	if (ppfunc() != "compat_sys_rt_sigprocmask")
-		asmlinkage()
-	how = int_arg(1)
-	how_str = _sigprocmask_how_str(how)
-	set_uaddr = pointer_arg(2)
-	oldset_uaddr = pointer_arg(3)
-	argstr = sprintf("%s, %s, %p, %d", how_str,
-			 _stp_compat_sigset_u(set_uaddr), oldset_uaddr,
-			 uint_arg(4))
-}
-probe nd_syscall.compat_rt_sigprocmask.return =
-	kprobe.function("compat_sys_rt_sigprocmask").return ?,
-	kprobe.function("sys32_rt_sigprocmask").return ?
-{
-	name = "rt_sigprocmask"
-	retstr = returnstr(1)
-}
 
 # rt_sigqueueinfo ____________________________________________
 #
