@@ -1,23 +1,4 @@
 
-# pause ______________________________________________________
-#
-# sys_pause(void)
-#
-probe nd_syscall.pause = kprobe.function("sys_pause") ?,
-                         kprobe.function("sys32_pause") ?,
-                         kprobe.function("compat_sys_pause") ?
-{
-	name = "pause"
-	argstr = ""
-}
-probe nd_syscall.pause.return = kprobe.function("sys_pause").return ?,
-                                kprobe.function("sys32_pause").return ?,
-                                kprobe.function("compat_sys_pause").return ?
-{
-	name = "pause"
-	retstr = returnstr(1)
-}
-
 # perf_event_open ____________________________________________
 #
 # SYSCALL_DEFINE5(perf_event_open,
