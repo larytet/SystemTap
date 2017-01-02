@@ -1,23 +1,4 @@
 
-# poll _______________________________________________________
-#
-# long sys_poll(struct pollfd __user * ufds, unsigned int nfds, int timeout)
-#
-probe syscall.poll = kernel.function("sys_poll").call
-{
-	name = "poll"
-	ufds_uaddr = $ufds
-	nfds = __uint32($nfds)
-	timeout = __int32(@choose_defined($timeout_msecs, $timeout))
-	argstr = sprintf("%p, %u, %d", $ufds, __uint32($nfds),
-			 __int32(@choose_defined($timeout_msecs, $timeout)))
-}
-probe syscall.poll.return = kernel.function("sys_poll").return
-{
-	name = "poll"
-	retstr = return_str(1, $return)
-}
-
 # ppoll _______________________________________________________
 #
 # long sys_ppoll(struct pollfd __user *ufds, unsigned int nfds,
