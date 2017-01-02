@@ -1,35 +1,4 @@
 
-%( kernel_v >= "2.6.33" %?
-# In newer kernels (2.6.33+), all the sys_mmap() variants are just 
-# wrappers around sys_mmap_pgoff(), which is in arch-generic code.
-#
-# long sys_mmap_pgoff(unsigned long addr, unsigned long len,
-#		unsigned long prot, unsigned long flags,
-#		unsigned long fd, unsigned long pgoff)
-probe syscall.mmap2 = kernel.function("sys_mmap_pgoff") ?
-{
-	name = "mmap2"
-	start = $addr
-	length = __ulong($len)
-	prot = $prot
-	flags = $flags
-	# Although the kernel gets an unsigned long fd, on the
-	# user-side it is a signed int.  Fix this.
-	fd = __int32($fd)
-	# $pgoff is the number of pages. Convert this back into a
-	# number of bytes.
-	pgoffset = $pgoff * @const("PAGE_SIZE")
-	argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr, __ulong($len),
-		_mprotect_prot_str($prot), _mmap_flags($flags),
-		__int32($fd), pgoffset)
-}
-probe syscall.mmap2.return = kernel.function("sys_mmap_pgoff").return ?
-{
-        name = "mmap2"
-        retstr = return_str(2, $return)
-}
-%)
-
 # mprotect ___________________________________________________
 # long sys_mprotect(unsigned long start, size_t len, unsigned long prot)
 #
