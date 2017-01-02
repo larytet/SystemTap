@@ -1,38 +1,4 @@
 
-# nanosleep __________________________________________________
-#
-# long sys_nanosleep(struct timespec __user *rqtp,
-#		struct timespec __user *rmtp)
-# long compat_sys_nanosleep(struct compat_timespec __user *rqtp,
-#		struct compat_timespec __user *rmtp)
-#
-probe nd_syscall.nanosleep = kprobe.function("sys_nanosleep").call ?
-{
-	name = "nanosleep"
-	asmlinkage()
-	req_uaddr = pointer_arg(1)
-	rem_uaddr = pointer_arg(2)
-	argstr = sprintf("%s, %p", _struct_timespec_u(req_uaddr, 1), rem_uaddr)
-}
-probe nd_syscall.nanosleep.return = kprobe.function("sys_nanosleep").return ?
-{
-	name = "nanosleep"
-	retstr = returnstr(1)
-}
-probe nd_syscall.compat_nanosleep = kprobe.function("compat_sys_nanosleep") ?
-{
-	name = "nanosleep"
-	asmlinkage()
-	req_uaddr = pointer_arg(1)
-	rem_uaddr = pointer_arg(2)
-	argstr = sprintf("%s, %p", _struct_compat_timespec_u(req_uaddr, 1), rem_uaddr)
-}
-probe nd_syscall.compat_nanosleep.return = kprobe.function("compat_sys_nanosleep").return ?
-{
-	name = "nanosleep"
-	retstr = returnstr(1)
-}
-
 # nfsservctl _________________________________________________
 #
 # long sys_nfsservctl(int cmd, struct nfsctl_arg __user *arg, void __user *res)
