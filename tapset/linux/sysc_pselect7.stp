@@ -13,7 +13,7 @@
 @define _SYSCALL_PSELECT7_ARGSTR
 %(
 	argstr = sprintf("%d, %p, %p, %p, %s, %p, %d", nfds, readfds, writefds,
-	                 exceptfds, timeout_str, sigmask)
+	                 exceptfds, timeout_str, sigmask, sigsetsize)
 %)
 
 probe syscall.pselect7 = dw_syscall.pselect7 !, nd_syscall.pselect7 {}
