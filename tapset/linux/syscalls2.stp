@@ -1,18 +1,3 @@
-# sched_getscheduler _________________________________________
-#
-# long sys_sched_getscheduler(pid_t pid)
-#
-probe syscall.sched_getscheduler = kernel.function("sys_sched_getscheduler").call
-{
-	name = "sched_getscheduler"
-	pid = __int32($pid)
-	argstr = sprint(pid)
-}
-probe syscall.sched_getscheduler.return = kernel.function("sys_sched_getscheduler").return
-{
-	name = "sched_getscheduler"
-	retstr = return_str(1, $return)
-}
 
 # sched_rr_get_interval ______________________________________
 #

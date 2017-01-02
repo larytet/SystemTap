@@ -1,21 +1,4 @@
 
-# sched_getscheduler _________________________________________
-#
-# long sys_sched_getscheduler(pid_t pid)
-#
-probe nd_syscall.sched_getscheduler = kprobe.function("sys_sched_getscheduler") ?
-{
-	name = "sched_getscheduler"
-	asmlinkage()
-	pid = int_arg(1)
-	argstr = sprint(pid)
-}
-probe nd_syscall.sched_getscheduler.return = kprobe.function("sys_sched_getscheduler").return ?
-{
-	name = "sched_getscheduler"
-	retstr = returnstr(1)
-}
-
 # sched_rr_get_interval ______________________________________
 #
 # long sys_sched_rr_get_interval(pid_t pid, struct timespec __user *interval)
