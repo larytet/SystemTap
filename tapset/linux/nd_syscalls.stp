@@ -1,22 +1,4 @@
 
-# mknod ______________________________________________________
-# long sys_mknod(const char __user * filename, int mode, unsigned dev)
-probe nd_syscall.mknod = kprobe.function("sys_mknod") ?
-{
-	name = "mknod"
-	asmlinkage()
-	pathname = user_string_quoted(pointer_arg(1))
-	mode = uint_arg(2)
-	dev = uint_arg(3)
-	argstr = sprintf("%s, %s, %u", pathname, _mknod_mode_str(mode), dev)
-}
-
-probe nd_syscall.mknod.return = kprobe.function("sys_mknod").return ?
-{
-	name = "mknod"
-	retstr = returnstr(1)
-}
-
 # mknodat ____________________________________________________
 # new function with 2.6.16
 # long sys_mknodat(int dfd, const char __user *filename,

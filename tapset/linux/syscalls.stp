@@ -1,21 +1,4 @@
 
-# mknod ______________________________________________________
-# long sys_mknod(const char __user * filename, int mode, unsigned dev)
-probe syscall.mknod = kernel.function("sys_mknod").call
-{
-	name = "mknod"
-	pathname = user_string_quoted($filename)
-	mode = __uint32($mode)
-	dev = __uint32($dev)
-	argstr = sprintf("%s, %s, %u", pathname, _mknod_mode_str(mode), dev)
-}
-
-probe syscall.mknod.return = kernel.function("sys_mknod").return
-{
-	name = "mknod"
-	retstr = return_str(1, $return)
-}
-
 # mknodat ____________________________________________________
 # new function with 2.6.16
 # long sys_mknodat(int dfd, const char __user *filename,
