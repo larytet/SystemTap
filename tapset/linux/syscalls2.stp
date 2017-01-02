@@ -1,25 +1,4 @@
 
-# sched_setattr ______________________________________________
-#
-# SYSCALL_DEFINE3(sched_setattr, pid_t, pid, struct sched_attr __user *, uattr,
-#                 unsigned int, flags)
-#
-probe syscall.sched_setattr = kernel.function("sys_sched_setattr") ?
-{
-	name = "sched_setattr"
-	pid = __int32($pid)
-	sched_attr_uaddr = $uattr
-	sched_attr_str = _struct_sched_attr_u(sched_attr_uaddr)
-	flags = __uint32($flags)
-	argstr = sprintf("%d, %s, %u", pid, sched_attr_str, flags)
-}
-probe syscall.sched_setattr.return =
-	kernel.function("sys_sched_setattr").return ?
-{
-	name = "sched_setattr"
-	retstr = return_str(1, $return)
-}
-
 # sched_setaffinity __________________________________________
 # long sys_sched_setaffinity(pid_t pid,
 #	unsigned int len,
