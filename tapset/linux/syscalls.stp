@@ -1,21 +1,4 @@
 
-# modify_ldt _________________________________________________
-# int sys_modify_ldt(int func, void __user *ptr, unsigned long bytecount)
-#
-probe syscall.modify_ldt = kernel.function("sys_modify_ldt").call ?
-{
-	name = "modify_ldt"
-	func = __int32($func)
-	ptr_uaddr = $ptr
-	bytecount = __ulong($bytecount)
-	argstr = sprintf("%d, %p, %u", $func, $ptr, __ulong($bytecount))
-}
-probe syscall.modify_ldt.return = kernel.function("sys_modify_ldt").return ?
-{
-	name = "modify_ldt"
-	retstr = return_str(1, $return)
-}
-
 # move_pages ____________________________________________________
 # long sys_move_pages(pid_t pid, unsigned long nr_pages,
 #			const void __user * __user *pages,
