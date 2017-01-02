@@ -1,26 +1,4 @@
 
-# prlimit64 ____________________________________________________
-#
-# SYSCALL_DEFINE4(prlimit64, pid_t, pid, unsigned int, resource,
-#		const struct rlimit64 __user *, new_rlim,
-#		struct rlimit64 __user *, old_rlim)
-probe nd_syscall.prlimit64 = kprobe.function("sys_prlimit64") ?
-{
-	name = "prlimit64"
-	asmlinkage()
-	pid = int_arg(1)
-	resource = int_arg(2)
-	new_rlim_uaddr = pointer_arg(3)
-	old_rlim_uaddr = pointer_arg(4)
-	argstr = sprintf("%d, %s, %s, %p", pid, _rlimit_resource_str(resource),
-			 _struct_rlimit_u(new_rlim_uaddr), old_rlim_uaddr)
-}
-probe nd_syscall.prlimit64.return = kprobe.function("sys_prlimit64").return ?
-{
-	name = "prlimit64"
-	retstr = returnstr(1)
-}
-
 # process_vm_readv _____________________________________________
 # process_vm_readv was added in linux 3.2.
 #
