@@ -1,22 +1,4 @@
 
-# sched_setparam _____________________________________________
-#
-# long sys_sched_setparam(pid_t pid, struct sched_param __user *param)
-#
-probe nd_syscall.sched_setparam = kprobe.function("sys_sched_setparam") ?
-{
-	name = "sched_setparam"
-	asmlinkage()
-	pid = int_arg(1)
-	p_uaddr = pointer_arg(2)
-	argstr = sprintf("%d, %p", pid, p_uaddr)
-}
-probe nd_syscall.sched_setparam.return = kprobe.function("sys_sched_setparam").return ?
-{
-	name = "sched_setparam"
-	retstr = returnstr(1)
-}
-
 # sched_setscheduler _________________________________________
 #
 # long sys_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)

@@ -1,21 +1,4 @@
 
-# sched_setparam _____________________________________________
-#
-# long sys_sched_setparam(pid_t pid, struct sched_param __user *param)
-#
-probe syscall.sched_setparam = kernel.function("sys_sched_setparam").call ?
-{
-	name = "sched_setparam"
-	pid = __int32($pid)
-	p_uaddr = $param
-	argstr = sprintf("%d, %p", pid, p_uaddr)
-}
-probe syscall.sched_setparam.return = kernel.function("sys_sched_setparam").return ?
-{
-	name = "sched_setparam"
-	retstr = return_str(1, $return)
-}
-
 # sched_setscheduler _________________________________________
 #
 # long sys_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
