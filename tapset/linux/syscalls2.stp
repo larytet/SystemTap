@@ -1,22 +1,3 @@
-# long sys32_pwrite64(unsigned int fd, const char __user *ubuf,
-#				size_t count, u32 poshi, u32 poslo)
-probe syscall.pwrite32 = kernel.function("sys32_pwrite64").call ?
-{
-	name = "pwrite"
-	fd = __int32($fd)
-	count = $count
-	offset = ($poshi << 32) + $poslo
-	buf_uaddr = @choose_defined($buf, $ubuf)
-	argstr = sprintf("%d, %s, %u, %d", __int32($fd),
-			 user_buffer_quoted(buf_uaddr, $count,
-					       syscall_string_trunc),
-			 $count, ($poshi << 32) + $poslo)
-}
-probe syscall.pwrite32.return = kernel.function("sys32_pwrite64").return ?
-{
-	name = "pwrite"
-	retstr = return_str(1, $return)
-}
 
 # pwritev ___________________________________________________
 #
