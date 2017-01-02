@@ -1,40 +1,4 @@
 
-# process_vm_writev ____________________________________________
-# process_vm_writev was added in linux 3.2.
-#
-# SYSCALL_DEFINE6(process_vm_writev, pid_t, pid,
-#		const struct iovec __user *, lvec,
-#		unsigned long, liovcnt, const struct iovec __user *, rvec,
-#		unsigned long, riovcnt,	unsigned long, flags)
-# COMPAT_SYSCALL_DEFINE6(process_vm_writev, compat_pid_t, pid,
-#		       const struct compat_iovec __user *, lvec,
-#		       compat_ulong_t, liovcnt,
-#		       const struct compat_iovec __user *, rvec,
-#		       compat_ulong_t, riovcnt,
-#		       compat_ulong_t, flags)
-probe nd_syscall.process_vm_writev =
-	kprobe.function("sys_process_vm_writev") ?,
-	kprobe.function("compat_sys_process_vm_writev") ?
-{
-	name = "process_vm_writev"
-	asmlinkage()
-	pid = int_arg(1)
-	local_iov_uaddr = pointer_arg(2)
-	liovcnt = ulong_arg(3)
-	remote_iov_uaddr = pointer_arg(4)
-	riovcnt = ulong_arg(5)
-	flags = ulong_arg(6)
-	argstr = sprintf("%d, %p, %u, %p, %u, %u", pid, local_iov_uaddr,
-			 liovcnt, remote_iov_uaddr, riovcnt, flags)
-}
-probe nd_syscall.process_vm_writev.return =
-	kprobe.function("sys_process_vm_writev").return ?,
-	kprobe.function("compat_sys_process_vm_writev").return ?
-{
-	name = "process_vm_writev"
-	retstr = returnstr(1)
-}
-
 # pselect6 _____________________________________________________
 #
 # long sys_pselect6(int n, fd_set __user *inp, fd_set __user *outp,
