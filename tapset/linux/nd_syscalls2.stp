@@ -1,30 +1,4 @@
 
-# readv ______________________________________________________
-#
-# ssize_t sys_readv(unsigned long fd,
-#		const struct iovec __user *vec,
-#		unsigned long vlen)
-# ssize_t compat_sys_readv(unsigned long fd,
-#		const struct compat_iovec __user *vec,
-#		unsigned long vlen)
-#
-probe nd_syscall.readv = kprobe.function("compat_sys_readv") ?,
-                         kprobe.function("sys_readv") ?
-{
-	name = "readv"
-	asmlinkage()
-	vector_uaddr = pointer_arg(2)
-	count = int_arg(3)
-	fd = int_arg(1)
-	argstr = sprintf("%d, %p, %d", fd, vector_uaddr, count)
-}
-probe nd_syscall.readv.return = kprobe.function("compat_sys_readv").return ?,
-                                kprobe.function("sys_readv").return ?
-{
-	name = "readv"
-	retstr = returnstr(1)
-}
-
 # reboot _____________________________________________________
 #
 # long sys_reboot(int magic1,
