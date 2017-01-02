@@ -1,23 +1,4 @@
 
-# msgget _____________________________________________________
-# long sys_msgget (key_t key, int msgflg)
-#
-probe syscall.msgget = kernel.function("sys_msgget").call ?
-{
-	name = "msgget"
-	key = __int32($key)
-	key_str = _stp_msgget_key_str(__int32($key))
-	msgflg = __int32($msgflg)
-	msgflg_str = __sem_flags(__int32($msgflg))
-	argstr = sprintf("%s, %s", _stp_msgget_key_str(__int32($key)),
-			 __sem_flags(__int32($msgflg)))
-}
-probe syscall.msgget.return = kernel.function("sys_msgget").return ?
-{
-	name = "msgget"
-	retstr = return_str(1, $return)
-}
-
 # msgrcv _____________________________________________________
 # long sys_msgrcv (int msqid,
 #             struct msgbuf __user *msgp,
