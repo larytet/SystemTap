@@ -1,45 +1,4 @@
 
-# quotactl ___________________________________________________
-#
-# long sys_quotactl(unsigned int cmd,
-#		  const char __user *special,
-#		  qid_t id,
-#		  void __user *addr)
-# asmlinkage long sys32_quotactl(unsigned int cmd, const char __user *special,
-#						qid_t id, void __user *addr)
-#
-probe syscall.quotactl = __syscall.quotactl ?,
-	kernel.function("sys32_quotactl").call ?
-{
-	name = "quotactl"
-	cmd = __uint32($cmd)
-	cmd_str = _quotactl_cmd_str(__uint32($cmd))
-	special = $special
-	special_str = user_string_quoted($special)
-	id = __int32($id)
-	addr_uaddr = $addr
-	@__quotactl_argstr(_quotactl_subcmd(cmd), cmd, special, id, addr_uaddr)
-}
-probe __syscall.quotactl = kernel.function("sys_quotactl").call ?
-{
-# sys32_quotactl() was introduced in 2.6.23.
-%( arch != "powerpc" && arch != "s390" && kernel_v >= "2.6.23" %?
-	@__syscall_gate_compat_simple
-%)
-}
-probe syscall.quotactl.return = __syscall.quotactl.return ?,
-	kernel.function("sys32_quotactl").return ?
-{
-	name = "quotactl"
-	retstr = return_str(1, $return)
-}
-probe __syscall.quotactl.return = kernel.function("sys_quotactl").return ?
-{
-%( arch != "powerpc" && arch != "s390" && kernel_v >= "2.6.23" %?
-	@__syscall_gate_compat_simple
-%)
-}
-
 # read _______________________________________________________
 # ssize_t sys_read(unsigned int fd, char __user * buf, size_t count)
 probe syscall.read =
