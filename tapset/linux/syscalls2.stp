@@ -1,22 +1,4 @@
 
-# pivot_root _________________________________________________
-#
-# long sys_pivot_root(const char __user *new_root, const char __user *put_old)
-#
-probe syscall.pivot_root = kernel.function("sys_pivot_root").call
-{
-	name = "pivot_root"
-	new_root_str = user_string_quoted($new_root)
-	old_root_str = user_string_quoted($put_old)
-	argstr = sprintf("%s, %s", user_string_quoted($new_root),
-		user_string_quoted($put_old))
-}
-probe syscall.pivot_root.return = kernel.function("sys_pivot_root").return
-{
-	name = "pivot_root"
-	retstr = return_str(1, $return)
-}
-
 # poll _______________________________________________________
 #
 # long sys_poll(struct pollfd __user * ufds, unsigned int nfds, int timeout)

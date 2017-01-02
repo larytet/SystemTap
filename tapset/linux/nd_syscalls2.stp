@@ -1,23 +1,4 @@
 
-# pivot_root _________________________________________________
-#
-# long sys_pivot_root(const char __user *new_root, const char __user *put_old)
-#
-probe nd_syscall.pivot_root = kprobe.function("sys_pivot_root") ?
-{
-	name = "pivot_root"
-	asmlinkage()
-	new_root_str = user_string_quoted(pointer_arg(1))
-	old_root_str = user_string_quoted(pointer_arg(2))
-	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)),
-		user_string_quoted(pointer_arg(2)))
-}
-probe nd_syscall.pivot_root.return = kprobe.function("sys_pivot_root").return ?
-{
-	name = "pivot_root"
-	retstr = returnstr(1)
-}
-
 # poll _______________________________________________________
 #
 # long sys_poll(struct pollfd __user * ufds, unsigned int nfds, int timeout)
