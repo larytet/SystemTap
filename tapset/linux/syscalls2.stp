@@ -1,33 +1,4 @@
 
-# readlinkat ___________________________________________________
-#
-# long sys_readlinkat(int dfd, const char __user * path,
-#		  char __user * buf,
-#		  int bufsiz)
-#
-probe syscall.readlinkat = kernel.function("sys_readlinkat").call ?
-{
-	@__syscall_compat_gate(@const("__NR_readlinkat"),
-			       @const("__NR_compat_readlinkat"))
-	name = "readlinkat"
-	dfd = __int32($dfd)
-	dfd_str = _dfd_str(__int32($dfd))
-	buf_uaddr = $buf
-	bufsiz = __int32($bufsiz)
-	path = user_string_quoted(@choose_defined($pathname, $path))
-	argstr = sprintf("%s, %s, %p, %d", _dfd_str(__int32($dfd)),
-		user_string_quoted(@choose_defined($pathname, $path)),
-		$buf, __int32($bufsiz))
-}
-
-probe syscall.readlinkat.return = kernel.function("sys_readlinkat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_readlinkat"),
-			       @const("__NR_compat_readlinkat"))
-	name = "readlinkat"
-	retstr = return_str(1, $return)
-}
-
 # readv ______________________________________________________
 #
 # ssize_t sys_readv(unsigned long fd,

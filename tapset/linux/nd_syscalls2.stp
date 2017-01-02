@@ -1,32 +1,4 @@
 
-# readlinkat ___________________________________________________
-#
-# long sys_readlinkat(int dfd, const char __user * path,
-#		  char __user * buf,
-#		  int bufsiz)
-#
-probe nd_syscall.readlinkat = kprobe.function("sys_readlinkat") ?
-{
-	@__syscall_compat_gate(@const("__NR_readlinkat"),
-			       @const("__NR_compat_readlinkat"))
-	name = "readlinkat"
-	asmlinkage()
-	dfd = int_arg(1)
-	dfd_str = _dfd_str(dfd)
-	path = user_string_quoted(pointer_arg(2))
-	buf_uaddr = pointer_arg(3)
-	bufsiz = int_arg(4)
-	argstr = sprintf("%s, %s, %p, %d", _dfd_str(dfd),
-			 user_string_quoted(pointer_arg(2)), buf_uaddr, bufsiz)
-}
-probe nd_syscall.readlinkat.return = kprobe.function("sys_readlinkat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_readlinkat"),
-			       @const("__NR_compat_readlinkat"))
-	name = "readlinkat"
-	retstr = returnstr(1)
-}
-
 # readv ______________________________________________________
 #
 # ssize_t sys_readv(unsigned long fd,
