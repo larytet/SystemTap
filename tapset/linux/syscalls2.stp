@@ -1,27 +1,3 @@
-
-# select _____________________________________________________
-# long sys_select(int n,
-#		fd_set __user *inp,
-#		fd_set __user *outp,
-#		fd_set __user *exp,
-#		struct timeval __user *tvp)
-#
-probe syscall.select = kernel.function("sys_select").call
-{
-	name = "select"
-	n = __int32($n)
-	readfds_uaddr = $inp
-	writefds_uaddr = $outp
-	exceptfds_uaddr = $exp
-	timeout_uaddr = $tvp
-	argstr = sprintf("%d, %p, %p, %p, %s", n, $inp, $outp, $exp,
-		_struct_timeval_u($tvp, 1))
-}
-probe syscall.select.return = kernel.function("sys_select").return
-{
-	name = "select"
-	retstr = return_str(1, $return)
-}
 # long compat_sys_select(int n,
 #		compat_ulong_t __user *inp,
 #		compat_ulong_t __user *outp,

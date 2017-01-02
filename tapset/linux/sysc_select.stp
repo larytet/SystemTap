@@ -1,0 +1,60 @@
+# select _____________________________________________________
+# long sys_select(int n,
+#		fd_set __user *inp,
+#		fd_set __user *outp,
+#		fd_set __user *exp,
+#		struct timeval __user *tvp)
+#
+
+@define _SYSCALL_SELECT_NAME
+%(
+	name = "select"
+%)
+
+@define _SYSCALL_SELECT_ARGSTR
+%(
+	argstr = sprintf("%d, %p, %p, %p, %s", n, readfds_uaddr, writefds_uaddr,
+	                 exceptfds_uaddr, timeout_str)
+%)
+
+probe syscall.select = dw_syscall.select !, nd_syscall.select {}
+probe syscall.select.return = dw_syscall.select.return !, nd_syscall.select.return {}
+
+# dw_select _____________________________________________________
+
+probe dw_syscall.select = kernel.function("sys_select").call
+{
+	@_SYSCALL_SELECT_NAME
+	n = __int32($n)
+	readfds_uaddr = $inp
+	writefds_uaddr = $outp
+	exceptfds_uaddr = $exp
+	timeout_uaddr = $tvp
+	timeout_str = _struct_timeval_u(timeout_uaddr, 1)
+	@_SYSCALL_SELECT_ARGSTR
+}
+probe dw_syscall.select.return = kernel.function("sys_select").return
+{
+	@_SYSCALL_SELECT_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_select _____________________________________________________
+
+probe nd_syscall.select = kprobe.function("sys_select") ?
+{
+	@_SYSCALL_SELECT_NAME
+	asmlinkage()
+	n = int_arg(1)
+	readfds_uaddr = pointer_arg(2)
+	writefds_uaddr = pointer_arg(3)
+	exceptfds_uaddr = pointer_arg(4)
+	timeout_uaddr = pointer_arg(5)
+	timeout_str = _struct_timeval_u(timeout_uaddr, 1)
+	@_SYSCALL_SELECT_ARGSTR
+}
+probe nd_syscall.select.return = kprobe.function("sys_select").return ?
+{
+	@_SYSCALL_SELECT_NAME
+	retstr = returnstr(1)
+}
