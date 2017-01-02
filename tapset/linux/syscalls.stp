@@ -1,38 +1,4 @@
 
-# mq_getsetattr ______________________________________________
-# long sys_mq_getsetattr(mqd_t mqdes,
-#                  const struct mq_attr __user *u_mqstat,
-#                  struct mq_attr __user *u_omqstat)
-# long compat_sys_mq_getsetattr(mqd_t mqdes,
-#			const struct compat_mq_attr __user *u_mqstat,
-#			struct compat_mq_attr __user *u_omqstat)
-#
-probe syscall.mq_getsetattr =
-        __syscall.mq_getsetattr,
-        kernel.function("compat_sys_mq_getsetattr").call ?
-{
-	name = "mq_getsetattr"
-	mqdes = __int32($mqdes)
-	u_mqstat_uaddr = $u_mqstat
-	u_omqstat_uaddr = $u_omqstat
-	argstr = sprintf("%d, %p, %p", mqdes, u_mqstat_uaddr, u_omqstat_uaddr)
-}
-probe __syscall.mq_getsetattr = kernel.function("sys_mq_getsetattr").call
-{
-        @__syscall_gate(@const("__NR_mq_getsetattr"))
-}
-probe syscall.mq_getsetattr.return =
-        __syscall.mq_getsetattr.return,
-        kernel.function("compat_sys_mq_getsetattr").return ?
-{
-	name = "mq_getsetattr"
-	retstr = return_str(1, $return)
-}
-probe __syscall.mq_getsetattr.return = kernel.function("sys_mq_getsetattr").return
-{
-        @__syscall_gate(@const("__NR_mq_getsetattr"))
-}
-
 # mq_notify __________________________________________________
 # long sys_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification)
 # long compat_sys_mq_notify(mqd_t mqdes, const struct compat_sigevent __user *u_notification)
