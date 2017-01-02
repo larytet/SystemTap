@@ -1,19 +1,4 @@
 
-# ni_syscall _________________________________________________
-#
-# long sys_ni_syscall(void)
-#
-probe nd_syscall.ni_syscall = kprobe.function("sys_ni_syscall")
-{
-	name = "ni_syscall"
-	argstr = ""
-}
-probe nd_syscall.ni_syscall.return = kprobe.function("sys_ni_syscall").return
-{
-	name = "ni_syscall"
-	retstr = returnstr(1)
-}
-
 # open_by_handle_at ___________________________________________
 #
 # SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,

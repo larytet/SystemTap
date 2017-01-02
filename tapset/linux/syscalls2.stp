@@ -1,19 +1,4 @@
 
-# ni_syscall _________________________________________________
-#
-# long sys_ni_syscall(void)
-#
-probe syscall.ni_syscall = kernel.function("sys_ni_syscall").call
-{
-	name = "ni_syscall"
-	argstr = ""
-}
-probe syscall.ni_syscall.return = kernel.function("sys_ni_syscall").return
-{
-	name = "ni_syscall"
-	retstr = return_str(1, $return)
-}
-
 # open_by_handle_at ___________________________________________
 #
 # SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,
