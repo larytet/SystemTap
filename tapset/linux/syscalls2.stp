@@ -1,38 +1,4 @@
 
-# process_vm_readv _____________________________________________
-# process_vm_readv was added in linux 3.2.
-#
-# SYSCALL_DEFINE6(process_vm_readv, pid_t, pid,
-#		const struct iovec __user *, lvec,
-#		unsigned long, liovcnt, const struct iovec __user *, rvec,
-#		unsigned long, riovcnt,	unsigned long, flags)
-# COMPAT_SYSCALL_DEFINE6(process_vm_readv, compat_pid_t, pid,
-#		       const struct compat_iovec __user *, lvec,
-#		       compat_ulong_t, liovcnt,
-#		       const struct compat_iovec __user *, rvec,
-#		       compat_ulong_t, riovcnt,
-#		       compat_ulong_t, flags)
-probe syscall.process_vm_readv = kernel.function("sys_process_vm_readv").call ?,
-	kernel.function("compat_sys_process_vm_readv").call ?
-{
-	name = "process_vm_readv"
-	pid = __int32($pid)
-	local_iov_uaddr = $lvec
-	liovcnt = @__compat_ulong($liovcnt)
-	remote_iov_uaddr = $rvec
-	riovcnt = @__compat_ulong($riovcnt)
-	flags = @__compat_ulong($flags)
-	argstr = sprintf("%d, %p, %u, %p, %u, %u", pid, local_iov_uaddr,
-			 liovcnt, remote_iov_uaddr, riovcnt, flags)
-}
-probe syscall.process_vm_readv.return =
-	kernel.function("sys_process_vm_readv").return ?,
-	kernel.function("compat_sys_process_vm_readv").return ?
-{
-	name = "process_vm_readv"
-	retstr = return_str(1, $return)
-}
-
 # process_vm_writev ____________________________________________
 # process_vm_writev was added in linux 3.2.
 #
