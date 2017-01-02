@@ -1,34 +1,3 @@
-
-# pwrite64 ___________________________________________________
-#
-# ssize_t sys_pwrite64(unsigned int fd,
-#		  const char __user *buf,
-#		  size_t count,
-#		  loff_t pos)
-#
-probe nd_syscall.pwrite = kprobe.function("sys_pwrite64") ?
-{
-%( arch == "s390" %?
-	@__syscall_gate(@const("__NR_pwrite64"))
-%)
-	name = "pwrite"
-	asmlinkage()
-	fd = int_arg(1)
-	buf_uaddr = pointer_arg(2)
-	count = ulong_arg(3)
-	offset = longlong_arg(4)
-	argstr = sprintf("%d, %s, %u, %d", fd,
-			 user_buffer_quoted(buf_uaddr, count, syscall_string_trunc),
-				count, offset)
-}
-probe nd_syscall.pwrite.return = kprobe.function("sys_pwrite64").return ?
-{
-%( arch == "s390" %?
-	@__syscall_gate(@const("__NR_pwrite64"))
-%)
-	name = "pwrite"
-	retstr = returnstr(1)
-}
 # long sys32_pwrite64(unsigned int fd, const char __user *ubuf,
 #				size_t count, u32 poshi, u32 poslo)
 probe nd_syscall.pwrite32 = kprobe.function("sys32_pwrite64") ?

@@ -1,33 +1,3 @@
-
-# pwrite64 ___________________________________________________
-#
-# ssize_t sys_pwrite64(unsigned int fd,
-#		  const char __user *buf,
-#		  size_t count,
-#		  loff_t pos)
-#
-probe syscall.pwrite = kernel.function("sys_pwrite64").call
-{
-%( arch == "s390" %?
-	@__syscall_gate(@const("__NR_pwrite64"))
-%)
-	name = "pwrite"
-	fd = __int32($fd)
-	buf_uaddr = $buf
-	count = __ulong($count)
-	offset = $pos
-	argstr = sprintf("%d, %s, %u, %d", __int32($fd),
-		user_buffer_quoted($buf, $count, syscall_string_trunc),
-		__ulong($count), $pos)
-}
-probe syscall.pwrite.return = kernel.function("sys_pwrite64").return
-{
-%( arch == "s390" %?
-	@__syscall_gate(@const("__NR_pwrite64"))
-%)
-	name = "pwrite"
-	retstr = return_str(1, $return)
-}
 # long sys32_pwrite64(unsigned int fd, const char __user *ubuf,
 #				size_t count, u32 poshi, u32 poslo)
 probe syscall.pwrite32 = kernel.function("sys32_pwrite64").call ?

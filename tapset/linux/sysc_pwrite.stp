@@ -1,0 +1,69 @@
+# pwrite64 ___________________________________________________
+#
+# ssize_t sys_pwrite64(unsigned int fd,
+#		  const char __user *buf,
+#		  size_t count,
+#		  loff_t pos)
+#
+
+@define _SYSCALL_PWRITE_NAME
+%(
+	name = "pwrite"
+%)
+
+@define _SYSCALL_PWRITE_ARGSTR
+%(
+	argstr = sprintf("%d, %s, %u, %d", fd, buf_str, count, offset)
+%)
+
+probe syscall.pwrite = dw_syscall.pwrite !, nd_syscall.pwrite {}
+probe syscall.pwrite.return = dw_syscall.pwrite.return !, nd_syscall.pwrite.return {}
+
+# dw_pwrite _____________________________________________________
+
+probe dw_syscall.pwrite = kernel.function("sys_pwrite64").call
+{
+%( arch == "s390" %?
+	@__syscall_gate(@const("__NR_pwrite64"))
+%)
+	@_SYSCALL_PWRITE_NAME
+	fd = __int32($fd)
+	buf_uaddr = $buf
+	count = __ulong($count)
+	buf_str = user_buffer_quoted(buf_uaddr, count, syscall_string_trunc)
+	offset = $pos
+	@_SYSCALL_PWRITE_ARGSTR
+}
+probe dw_syscall.pwrite.return = kernel.function("sys_pwrite64").return
+{
+%( arch == "s390" %?
+	@__syscall_gate(@const("__NR_pwrite64"))
+%)
+	@_SYSCALL_PWRITE_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_pwrite _____________________________________________________
+
+probe nd_syscall.pwrite = kprobe.function("sys_pwrite64") ?
+{
+%( arch == "s390" %?
+	@__syscall_gate(@const("__NR_pwrite64"))
+%)
+	@_SYSCALL_PWRITE_NAME
+	asmlinkage()
+	fd = int_arg(1)
+	buf_uaddr = pointer_arg(2)
+	count = ulong_arg(3)
+	buf_str = user_buffer_quoted(buf_uaddr, count, syscall_string_trunc)
+	offset = longlong_arg(4)
+	@_SYSCALL_PWRITE_ARGSTR
+}
+probe nd_syscall.pwrite.return = kprobe.function("sys_pwrite64").return ?
+{
+%( arch == "s390" %?
+	@__syscall_gate(@const("__NR_pwrite64"))
+%)
+	@_SYSCALL_PWRITE_NAME
+	retstr = returnstr(1)
+}
