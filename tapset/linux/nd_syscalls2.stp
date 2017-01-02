@@ -1,18 +1,4 @@
 
-# sched_yield ________________________________________________
-# long sys_sched_yield(void)
-#
-probe nd_syscall.sched_yield = kprobe.function("sys_sched_yield")
-{
-	name = "sched_yield"
-	argstr = ""
-}
-probe nd_syscall.sched_yield.return = kprobe.function("sys_sched_yield").return
-{
-	name = "sched_yield"
-	retstr = returnstr(1)
-}
-
 # seccomp ____________________________________________________
 # long sys_seccomp(unsigned int op, unsigned int flags, const char __user* uargs)
 probe nd_syscall.seccomp = kprobe.function("sys_seccomp") ?

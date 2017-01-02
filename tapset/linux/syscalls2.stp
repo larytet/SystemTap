@@ -1,18 +1,4 @@
 
-# sched_yield ________________________________________________
-# long sys_sched_yield(void)
-#
-probe syscall.sched_yield = kernel.function("sys_sched_yield").call
-{
-	name = "sched_yield"
-	argstr = ""
-}
-probe syscall.sched_yield.return = kernel.function("sys_sched_yield").return
-{
-	name = "sched_yield"
-	retstr = return_str(1, $return)
-}
-
 # seccomp ____________________________________________________
 # long sys_seccomp(unsigned int op, unsigned int flags, const char __user* uargs)
 probe syscall.seccomp = kernel.function("sys_seccomp").call ?
