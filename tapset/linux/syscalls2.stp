@@ -1,42 +1,4 @@
 
-# open _______________________________________________________
-# long sys_open(const char __user * filename, int flags, int mode)
-# (obsolete) long sys32_open(const char * filename, int flags, int mode)
-#
-probe syscall.open = __syscall.compat_open ?, __syscall.open
-{
-	@__syscall_compat_gate(@const("__NR_open"), @const("__NR_compat_open"))
-	name = "open"
-	flags = __int32($flags)
-	if ($flags & @const("O_CREAT"))
-		argstr = sprintf("%s, %s, %#o", filename,
-				 _sys_open_flag_str(__int32($flags)), mode)
-	else
-		argstr = sprintf("%s, %s", filename,
-				 _sys_open_flag_str(__int32($flags)))
-}
-probe __syscall.compat_open = kernel.function("compat_sys_open").call ?,
-			      kernel.function("sys32_open").call ?
-{
-	// On some platforms, $filename and $mode are longs on the
-	// kernel side. Truncate these down to 32 bits.
-	filename = user_string_quoted(__uint32($filename))
-	mode = __uint32($mode)
-}
-probe __syscall.open = kernel.function("sys_open").call
-{
-	filename = user_string_quoted($filename)
-	mode = __uint32($mode)
-}
-probe syscall.open.return = kernel.function("compat_sys_open").return ?,
-                            kernel.function("sys32_open").return ?,
-                            kernel.function("sys_open").return ?
-{
-	@__syscall_compat_gate(@const("__NR_open"), @const("__NR_compat_open"))
-	name = "open"
-	retstr = return_str(1, $return)
-}
-
 # openat _______________________________________________________
 # long sys_openat(int dfd, const char __user *filename, int flags, int mode)
 # long compat_sys_openat(unsigned int dfd, const char __user *filename, int flags, int mode)

@@ -1,35 +1,4 @@
 
-# open _______________________________________________________
-# long sys_open(const char __user * filename, int flags, int mode)
-# (obsolete) long sys32_open(const char * filename, int flags, int mode)
-#
-probe nd_syscall.open = kprobe.function("compat_sys_open") ?,
-                        kprobe.function("sys32_open") ?,
-                        kprobe.function("sys_open") ?
-{
-	@__syscall_compat_gate(@const("__NR_open"), @const("__NR_compat_open"))
-	name = "open"
-	asmlinkage()
-	filename = user_string_quoted(pointer_arg(1))
-	flags = int_arg(2)
-	mode = uint_arg(3)
-	if (flags & @const("O_CREAT"))
-		argstr = sprintf("%s, %s, %#o",
-				 user_string_quoted(pointer_arg(1)),
-				 _sys_open_flag_str(flags), mode)
-	else
-		argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)),
-				 _sys_open_flag_str(flags))
-}
-probe nd_syscall.open.return = kprobe.function("compat_sys_open").return ?,
-                               kprobe.function("sys32_open").return ?,
-                               kprobe.function("sys_open").return ?
-{
-	@__syscall_compat_gate(@const("__NR_open"), @const("__NR_compat_open"))
-	name = "open"
-	retstr = returnstr(1)
-}
-
 # openat _______________________________________________________
 # long sys_openat(int dfd, const char __user *filename, int flags, int mode)
 # long compat_sys_openat(unsigned int dfd, const char __user *filename, int flags, int mode)
