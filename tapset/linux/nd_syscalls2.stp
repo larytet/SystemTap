@@ -1,42 +1,4 @@
 
-# readahead __________________________________________________
-#
-# asmlinkage ssize_t
-# sys_readahead(int fd,
-#		   loff_t offset,
-#		   size_t count)
-#
-probe nd_syscall.readahead = kprobe.function("sys_readahead") ?
-{
-	@__syscall_gate_compat_simple
-	name = "readahead"
-	asmlinkage()
-	fd = int_arg(1)
-%( CONFIG_64BIT == "y" %?
-	offset = longlong_arg(2)
-	count = ulong_arg(3)
-%:
-%( arch == "arm" %?
-	# arm has some odd rules regarding long long arguments.
-	offset = longlong_arg(3)
-	count = ulong_arg(5)
-%:
-	# On a 32-bit kernel, 'long long' arguments take the space of
-	# 2 arguments, so we have to adjust the following argument
-	# numbers.
-	offset = longlong_arg(2)
-	count = ulong_arg(4)
-%)
-%)
-	argstr = sprintf("%d, %d, %u", fd, offset, count)
-}
-probe nd_syscall.readahead.return = kprobe.function("sys_readahead").return ?
-{
-	@__syscall_gate_compat_simple
-	name = "readahead"
-	retstr = returnstr(1)
-}
-
 # readdir ___________________________________________________
 #
 # long compat_sys_old_readdir(unsigned int fd, struct compat_old_linux_dirent __user *dirent, unsigned int count)

@@ -1,31 +1,4 @@
 
-# readahead __________________________________________________
-#
-# asmlinkage ssize_t
-# sys_readahead(int fd,
-#		   loff_t offset,
-#		   size_t count)
-#
-probe syscall.readahead = kernel.function("sys_readahead").call
-{
-	@__syscall_gate_compat_simple
-	name = "readahead"
-	fd = __int32($fd)
-	offset = $offset
-%( CONFIG_64BIT == "y" %?
-	count = $count
-%:
-	count = __uint32($count)
-%)
-	argstr = sprintf("%d, %d, %u", fd, offset, count)
-}
-probe syscall.readahead.return = kernel.function("sys_readahead").return
-{
-	@__syscall_gate_compat_simple
-	name = "readahead"
-	retstr = return_str(1, $return)
-}
-
 # readdir ___________________________________________________
 #
 # long compat_sys_old_readdir(unsigned int fd, struct compat_old_linux_dirent __user *dirent, unsigned int count)
