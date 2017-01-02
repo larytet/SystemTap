@@ -1,20 +1,4 @@
 
-# restart_syscall ____________________________________________
-#
-# asmlinkage long
-# sys_restart_syscall(void)
-#
-probe nd_syscall.restart_syscall = kprobe.function("sys_restart_syscall")
-{
-	name = "restart_syscall"
-	argstr = ""
-}
-probe nd_syscall.restart_syscall.return = kprobe.function("sys_restart_syscall").return
-{
-	name = "restart_syscall"
-	retstr = returnstr(1)
-}
-
 # rmdir ______________________________________________________
 #
 # asmlinkage long
