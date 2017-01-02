@@ -1,29 +1,4 @@
 
-# rt_sigsuspend ______________________________________________
-#
-# SYSCALL_DEFINE2(rt_sigsuspend, sigset_t __user *, unewset, size_t, sigsetsize)
-#
-probe nd_syscall.rt_sigsuspend = kprobe.function("sys_rt_sigsuspend") ?,
-	kprobe.function("ia64_rt_sigsuspend") ?,
-	kprobe.function("compat_sys_rt_sigsuspend") ?
-{
-	asmlinkage()
-	name = "rt_sigsuspend"
-	set_uaddr = pointer_arg(1)
-	sigsetsize = ulong_arg(2)
-	argstr = sprintf("%s, %u",
-			 (@__compat_task ? _stp_compat_sigset_u(set_uaddr)
-			  : _stp_sigset_u(set_uaddr)), sigsetsize)
-}
-probe nd_syscall.rt_sigsuspend.return =
-	kprobe.function("sys_rt_sigsuspend").return ?,
-	kprobe.function("ia64_rt_sigsuspend").return ?,
-	kprobe.function("compat_sys_rt_sigsuspend").return ?
-{
-	name = "rt_sigsuspend"
-	retstr = returnstr(1)
-}
-
 # rt_sigtimedwait ____________________________________________
 #
 # long sys_rt_sigtimedwait(const sigset_t __user *uthese,
