@@ -1,43 +1,4 @@
 
-# rt_sigtimedwait ____________________________________________
-#
-# long sys_rt_sigtimedwait(const sigset_t __user *uthese,
-#		   siginfo_t __user *uinfo,
-#		   const struct timespec __user *uts,
-#		   size_t sigsetsize)
-# long compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
-#		struct compat_siginfo __user *uinfo,
-#		struct compat_timespec __user *uts, compat_size_t sigsetsize)
-#
-probe syscall.rt_sigtimedwait =
-	kernel.function("compat_sys_rt_sigtimedwait").call ?,
-	kernel.function("sys_rt_sigtimedwait").call
-{
-	name = "rt_sigtimedwait"
-	uthese_uaddr = @__pointer($uthese)
-	uinfo_uaddr = @__pointer($uinfo)
-	uts_uaddr = @__pointer($uts)
-	sigsetsize = $sigsetsize
-	if (@__compat_task)
-		argstr = sprintf("%s, %s, %s, %d",
-				 _stp_compat_sigset_u(uthese_uaddr),
-			 	 _stp_compat_siginfo_u(uinfo_uaddr),
-				 _struct_compat_timespec_u(uts_uaddr, 1),
-				 sigsetsize)
-	else
-		argstr = sprintf("%s, %s, %s, %d",
-				 _stp_sigset_u(uthese_uaddr),
-				 _stp_siginfo_u(uinfo_uaddr),
-				 _struct_timespec_u(uts_uaddr, 1), sigsetsize)
-}
-probe syscall.rt_sigtimedwait.return =
-	kernel.function("compat_sys_rt_sigtimedwait").return ?,
-	kernel.function("sys_rt_sigtimedwait").return
-{
-	name = "rt_sigtimedwait"
-	retstr = return_str(1, $return)
-}
-
 # rt_tgsigqueueinfo ____________________________________________
 #
 # SYSCALL_DEFINE4(rt_tgsigqueueinfo, pid_t, tgid, pid_t, pid, int, sig,
