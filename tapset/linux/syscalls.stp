@@ -1,25 +1,4 @@
 
-# mkdirat ____________________________________________________
-# new function with 2.6.16
-# long sys_mkdirat(int dfd, const char __user *pathname, int mode)
-probe syscall.mkdirat = kernel.function("sys_mkdirat").call ?
-{
-	@__syscall_compat_gate(@const("__NR_mkdirat"), @const("__NR_compat_mkdirat"))
-	name = "mkdirat"
-	dirfd = __int32($dfd)
-	dirfd_str = _dfd_str(__int32($dfd))
-	pathname = user_string_quoted($pathname)
-	mode = __uint32($mode)
-	argstr = sprintf("%s, %s, %#o", _dfd_str(__int32($dfd)),
-			 user_string_quoted($pathname), __uint32($mode))
-}
-probe syscall.mkdirat.return = kernel.function("sys_mkdirat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_mkdirat"), @const("__NR_compat_mkdirat"))
-	name = "mkdirat"
-	retstr = return_str(1, $return)
-}
-
 # mknod ______________________________________________________
 # long sys_mknod(const char __user * filename, int mode, unsigned dev)
 probe syscall.mknod = kernel.function("sys_mknod").call
