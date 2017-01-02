@@ -1,28 +1,4 @@
 
-# mknodat ____________________________________________________
-# new function with 2.6.16
-# long sys_mknodat(int dfd, const char __user *filename,
-#	int mode, unsigned dev)
-probe syscall.mknodat = kernel.function("sys_mknodat").call ?
-{
-	@__syscall_compat_gate(@const("__NR_mknodat"), @const("__NR_compat_mknodat"))
-	name = "mknodat"
-	dirfd = __int32($dfd)
-	dirfd_str = _dfd_str(dirfd)
-	pathname = user_string_quoted($filename)
-	mode = __uint32($mode)
-	mode_str = _mknod_mode_str(mode)
-	dev = __uint32($dev)
-	argstr = sprintf("%s, %s, %s, %u",
-		dirfd_str, pathname, mode_str, dev)
-}
-probe syscall.mknodat.return = kernel.function("sys_mknodat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_mknodat"), @const("__NR_compat_mknodat"))
-	name = "mknodat"
-	retstr = return_str(1, $return)
-}
-
 # mlock ______________________________________________________
 #
 # long sys_mlock(unsigned long start, size_t len)
