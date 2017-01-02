@@ -1,27 +1,4 @@
 
-# sched_getattr ______________________________________________
-#
-# SYSCALL_DEFINE4(sched_getattr, pid_t, pid, struct sched_attr __user *, uattr,
-#                 unsigned int, size, unsigned int, flags)
-#
-probe nd_syscall.sched_getattr = kprobe.function("sys_sched_getattr") ?
-{
-	name = "sched_getattr"
-	asmlinkage()
-	pid = int_arg(1)
-	sched_attr_uaddr = pointer_arg(2)
-	sched_attr_str = _struct_sched_attr_u(sched_attr_uaddr)
-	size = uint_arg(3)
-	flags = uint_arg(4)
-	argstr = sprintf("%d, %s, %u, %u", pid, sched_attr_str, size, flags)
-}
-probe nd_syscall.sched_getattr.return =
-	kprobe.function("sys_sched_getattr").return ?
-{
-	name = "sched_getattr"
-	retstr = returnstr(1)
-}
-
 # sched_getparam _____________________________________________
 #
 # asmlinkage long
