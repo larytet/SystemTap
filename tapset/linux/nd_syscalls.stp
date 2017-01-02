@@ -1,21 +1,4 @@
 
-# mq_unlink __________________________________________________
-# long sys_mq_unlink(const char __user *u_name)
-#
-probe nd_syscall.mq_unlink = kprobe.function("sys_mq_unlink") ?
-{
-	name = "mq_unlink"
-	asmlinkage()
-	u_name_uaddr = pointer_arg(1)
-	u_name = user_string_quoted(u_name_uaddr)
-	argstr = user_string_quoted(u_name_uaddr)
-}
-probe nd_syscall.mq_unlink.return = kprobe.function("sys_mq_unlink").return ?
-{
-	name = "mq_unlink"
-	retstr = returnstr(1)
-}
-
 # mremap _____________________________________________________
 # unsigned long sys_mremap(unsigned long addr,
 #            unsigned long old_len,

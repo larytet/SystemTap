@@ -1,20 +1,4 @@
 
-# mq_unlink __________________________________________________
-# long sys_mq_unlink(const char __user *u_name)
-#
-probe syscall.mq_unlink = kernel.function("sys_mq_unlink").call ?
-{
-	name = "mq_unlink"
-	u_name_uaddr = $u_name
-	u_name = user_string_quoted($u_name)
-	argstr = user_string_quoted($u_name)
-}
-probe syscall.mq_unlink.return = kernel.function("sys_mq_unlink").return ?
-{
-	name = "mq_unlink"
-	retstr = return_str(1, $return)
-}
-
 # mremap _____________________________________________________
 # unsigned long sys_mremap(unsigned long addr,
 #            unsigned long old_len,
