@@ -1,30 +1,4 @@
 
-# reboot _____________________________________________________
-#
-# long sys_reboot(int magic1,
-#		int magic2,
-#		unsigned int cmd,
-#		void __user * arg)
-#
-probe syscall.reboot = kernel.function("sys_reboot").call
-{
-	name = "reboot"
-	magic = __int32($magic1)
-	magic_str = _reboot_magic_str(__int32($magic1))
-	magic2 = __int32($magic2)
-	magic2_str =_reboot_magic_str(__int32($magic2))
-	flag = __uint32($cmd)
-	flag_str =  _reboot_flag_str(__uint32($cmd))
-	arg_uaddr = $arg
-	argstr = sprintf("%s, %s, %s, %p", magic_str, magic2_str,
-		flag_str, $arg)
-}
-probe syscall.reboot.return = kernel.function("sys_reboot").return
-{
-	name = "reboot"
-	retstr = return_str(1, $return)
-}
-
 # recv _______________________________________________________
 #
 # long sys_recv(int fd, void __user *ubuf, size_t size, unsigned flags)

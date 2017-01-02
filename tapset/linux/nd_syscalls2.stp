@@ -1,31 +1,4 @@
 
-# reboot _____________________________________________________
-#
-# long sys_reboot(int magic1,
-#		int magic2,
-#		unsigned int cmd,
-#		void __user * arg)
-#
-probe nd_syscall.reboot = kprobe.function("sys_reboot") ?
-{
-	name = "reboot"
-	asmlinkage()
-	magic = int_arg(1)
-	magic_str = _reboot_magic_str(magic)
-	magic2 = int_arg(2)
-	magic2_str =_reboot_magic_str(magic2)
-	flag = uint_arg(3)
-	flag_str =  _reboot_flag_str(flag)
-	arg_uaddr = pointer_arg(4)
-	argstr = sprintf("%s, %s, %s, %p", magic_str, magic2_str,
-				flag_str, arg_uaddr)
-}
-probe nd_syscall.reboot.return = kprobe.function("sys_reboot").return ?
-{
-	name = "reboot"
-	retstr = returnstr(1)
-}
-
 # recv _______________________________________________________
 #
 # long sys_recv(int fd, void __user *ubuf, size_t size, unsigned flags)
