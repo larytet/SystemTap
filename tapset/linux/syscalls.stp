@@ -1,48 +1,4 @@
 
-# mq_timedreceive ____________________________________________
-# ssize_t sys_mq_timedreceive(mqd_t mqdes,
-#                     char __user *u_msg_ptr,
-#                     size_t msg_len,
-#                     unsigned int __user *u_msg_prio,
-#                     const struct timespec __user *u_abs_timeout)
-# ssize_t compat_sys_mq_timedreceive(mqd_t mqdes,
-#			char __user *u_msg_ptr,
-#			size_t msg_len, unsigned int __user *u_msg_prio,
-#			const struct compat_timespec __user *u_abs_timeout)
-#
-probe syscall.mq_timedreceive =
-	__syscall.mq_timedreceive ?,
-	kernel.function("compat_sys_mq_timedreceive").call ?
-{
-	name = "mq_timedreceive"
-	mqdes = __int32($mqdes)
-	msg_ptr_uaddr = $u_msg_ptr
-	msg_prio_uaddr = $u_msg_prio
-	abs_timeout_uaddr = $u_abs_timeout
-%( CONFIG_64BIT == "y" %?
-	msg_len = @__compat_ulong($msg_len)
-%:
-	msg_len = __uint32($msg_len)
-%)
-	argstr = sprintf("%d, %p, %u, %p, %p", mqdes, $u_msg_ptr, msg_len,
-		$u_msg_prio, $u_abs_timeout)
-}
-probe __syscall.mq_timedreceive = kernel.function("sys_mq_timedreceive").call
-{
-        @__syscall_gate(@const("__NR_mq_timedreceive"))
-}
-probe syscall.mq_timedreceive.return =
-        __syscall.mq_timedreceive.return,
-        kernel.function("compat_sys_mq_timedreceive").return ?
-{
-	name = "mq_timedreceive"
-	retstr = return_str(1, $return)
-}
-probe __syscall.mq_timedreceive.return = kernel.function("sys_mq_timedreceive").return
-{
-	@__syscall_gate_compat_simple
-}
-
 # mq_timedsend _______________________________________________
 # long sys_mq_timedsend(mqd_t mqdes,
 #                  const char __user *u_msg_ptr,
