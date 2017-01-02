@@ -1,38 +1,4 @@
 
-# migrate_pages ____________________________________________________
-# long sys_migrate_pages(pid_t pid, unsigned long maxnode,
-#		const unsigned long __user *old_nodes,
-#		const unsigned long __user *new_nodes)
-probe nd_syscall.migrate_pages = __nd_syscall.migrate_pages ?,
-                                 kprobe.function("compat_sys_migrate_pages") ?
-{
-	name = "migrate_pages"
-	asmlinkage()
-	pid = int_arg(1)
-	maxnode = ulong_arg(2)
-	old_nodes = pointer_arg(3)
-	new_nodes = pointer_arg(4)
-	argstr = sprintf("%d, %u, %p, %p", pid, maxnode, old_nodes, new_nodes)
-}
-probe __nd_syscall.migrate_pages = kprobe.function("sys_migrate_pages")
-{
-%( arch == "powerpc" %?
-	@__syscall_gate_compat_simple
-%)
-}
-probe nd_syscall.migrate_pages.return = __nd_syscall.migrate_pages.return ?,
-                                        kprobe.function("compat_sys_migrate_pages").return ?
-{
-	name = "migrate_pages"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.migrate_pages.return = kprobe.function("sys_migrate_pages").return
-{
-%( arch == "powerpc" %?
-	@__syscall_gate_compat_simple
-%)
-}
-
 # mincore ____________________________________________________
 # long sys_mincore(unsigned long start, size_t len, unsigned char __user * vec)
 #
