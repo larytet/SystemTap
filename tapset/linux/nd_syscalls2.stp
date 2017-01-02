@@ -1,31 +1,4 @@
 
-# readdir ___________________________________________________
-#
-# long compat_sys_old_readdir(unsigned int fd, struct compat_old_linux_dirent __user *dirent, unsigned int count)
-# int old32_readdir(unsigned int fd, struct old_linux_dirent32 *dirent, unsigned int count)
-# long sys_old_readdir(unsigned int fd, struct old_linux_dirent __user *dirent, unsigned int count);
-#
-probe nd_syscall.readdir = kprobe.function("compat_sys_old_readdir") ?,
-                           kprobe.function("old32_readdir") ?,
-                           kprobe.function("old_readdir") ?,
-                           kprobe.function("sys_old_readdir").call ?
-{
-	name = "readdir"
-	asmlinkage()
-	fd = uint_arg(1)
-	dirent = pointer_arg(2)
-	count = uint_arg(3)
-	argstr = sprintf("%u, %p, %u", fd, dirent, count)
-}
-probe nd_syscall.readdir.return = kprobe.function("compat_sys_old_readdir").return ?,
-                                  kprobe.function("old32_readdir").return ?,
-                                  kprobe.function("old_readdir").return ?,
-                                  kprobe.function("sys_old_readdir").return ?
-{
-	name = "readdir"
-	retstr = returnstr(1)
-}
-
 # readlink ___________________________________________________
 #
 # long sys_readlink(const char __user * path,
