@@ -1,38 +1,4 @@
 
-# nfsservctl _________________________________________________
-#
-# long sys_nfsservctl(int cmd, struct nfsctl_arg __user *arg, void __user *res)
-# long compat_sys_nfsservctl(int cmd, struct compat_nfsctl_arg __user *arg,
-#					union compat_nfsctl_res __user *res)
-#
-# nfsservctl was removed in kernel 3.0/2.6.40.
-%( kernel_v < "2.6.40" && CONFIG_NFSD == "[ym]" %?
-probe syscall.nfsservctl = __syscall.nfsservctl ?,
-	kernel.function("compat_sys_nfsservctl").call ?
-{
-	name = "nfsservctl"
-	cmd = __int32($cmd)
-	argp_uaddr = @choose_defined($arg, $notused)
-	resp_uaddr = @choose_defined($res, $notused2)
-	argstr = sprintf("%s, %p, %p", _nfsctl_cmd_str(__int32($cmd)),
-			 argp_uaddr, resp_uaddr)
-}
-probe __syscall.nfsservctl = kernel.function("sys_nfsservctl").call ?
-{
-	@__syscall_gate_compat_simple
-}
-probe syscall.nfsservctl.return = __syscall.nfsservctl.return ?,
-	kernel.function("compat_sys_nfsservctl").return ?
-{
-	name = "nfsservctl"
-	retstr = return_str(1, $return)
-}
-probe __syscall.nfsservctl.return = kernel.function("sys_nfsservctl").return ?
-{
-	@__syscall_gate_compat_simple
-}
-%)
-
 # nice _______________________________________________________
 # long sys_nice(int increment)
 #
