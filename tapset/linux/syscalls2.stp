@@ -1,31 +1,4 @@
 
-# open_by_handle_at ___________________________________________
-#
-# SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,
-#		struct file_handle __user *, handle,
-#		int, flags)
-# COMPAT_SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,
-#			     struct file_handle __user *, handle, int, flags)
-probe syscall.open_by_handle_at =
-	kernel.function("sys_open_by_handle_at").call ?,
-	kernel.function("compat_sys_open_by_handle_at").call ?
-{
-	name = "open_by_handle_at"
-	mount_dfd = __int32($mountdirfd)
-	mount_dfd_str = _dfd_str(mount_dfd)
-	handle_uaddr = @__pointer($handle)
-	flags = __int32($flags)
-	flags_str = _sys_open_flag_str(flags)
-	argstr = sprintf("%s, %p, %s", mount_dfd_str, handle_uaddr, flags_str)
-}
-probe syscall.open_by_handle_at.return =
-	kernel.function("sys_open_by_handle_at").return ?,
-	kernel.function("compat_sys_open_by_handle_at").return ?
-{
-	name = "open_by_handle_at"
-	retstr = return_str(1, $return)
-}
-
 # open _______________________________________________________
 # long sys_open(const char __user * filename, int flags, int mode)
 # (obsolete) long sys32_open(const char * filename, int flags, int mode)
