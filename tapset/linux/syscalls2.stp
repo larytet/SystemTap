@@ -1,25 +1,4 @@
 
-# pselect7 _____________________________________________________
-#
-# long sys_pselect7(int n, fd_set __user *inp, fd_set __user *outp,
-#	fd_set __user *exp, struct timespec __user *tsp,
-#	const sigset_t __user *sigmask, size_t sigsetsize)
-#
-probe syscall.pselect7 = kernel.function("sys_pselect7").call ?
-{
-	@__syscall_gate(@const("__NR_pselect7"))
-	name = "pselect7"
-	argstr = sprintf("%d, %p, %p, %p, %s, %p, %d", __int32($n), $inp,
-			 $outp, $exp, _struct_timespec_u($tsp, 1),
-			 $sigmask, $sigsetsize)
-}
-probe syscall.pselect7.return = kernel.function("sys_pselect7").return ?
-{
-	@__syscall_gate(@const("__NR_pselect7"))
-	name = "pselect7"
-	retstr = return_str(1, $return)
-}
-
 # Through a typo, 'compat_pselect7' was misnamed as
 # 'compat_pselect7a' (notice the trailing 'a').  The old name is
 # deprecated.  To use the old name without changing your script, use
