@@ -1,31 +1,4 @@
 
-# mremap _____________________________________________________
-# unsigned long sys_mremap(unsigned long addr,
-#            unsigned long old_len,
-#            unsigned long new_len,
-#            unsigned long flags,
-#            unsigned long new_addr)
-#
-probe nd_syscall.mremap = kprobe.function("ia64_mremap") ?,
-                          kprobe.function("sys_mremap") ?
-{
-	name = "mremap"
-	asmlinkage()
-	old_address = ulong_arg(1)
-	old_size = ulong_arg(2)
-	new_size = ulong_arg(3)
-	flags = ulong_arg(4)
-	new_address = ulong_arg(5)
-	argstr = sprintf("%p, %d, %d, %s, %p", old_address, old_size, new_size,
-		_mremap_flags(flags), new_address)
-}
-probe nd_syscall.mremap.return = kprobe.function("ia64_mremap").return ?,
-                                 kprobe.function("sys_mremap").return ?
-{
-	name = "mremap"
-	retstr = returnstr(2)
-}
-
 # msgctl _____________________________________________________
 # long sys_msgctl (int msqid, int cmd, struct msqid_ds __user *buf)
 #

@@ -1,30 +1,4 @@
 
-# mremap _____________________________________________________
-# unsigned long sys_mremap(unsigned long addr,
-#            unsigned long old_len,
-#            unsigned long new_len,
-#            unsigned long flags,
-#            unsigned long new_addr)
-#
-probe syscall.mremap = kernel.function("ia64_mremap").call ?,
-                       kernel.function("sys_mremap").call ?
-{
-	name = "mremap"
-	old_address = $addr
-	old_size = $old_len
-	new_size = $new_len
-	flags = $flags
-	new_address = $new_addr
-	argstr = sprintf("%p, %d, %d, %s, %p", $addr, $old_len, $new_len,
-		_mremap_flags($flags), $new_addr)
-}
-probe syscall.mremap.return = kernel.function("ia64_mremap").return ?,
-                              kernel.function("sys_mremap").return ?
-{
-	name = "mremap"
-	retstr = return_str(2, $return)
-}
-
 # msgctl _____________________________________________________
 # long sys_msgctl (int msqid, int cmd, struct msqid_ds __user *buf)
 #
