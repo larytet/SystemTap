@@ -1,42 +1,4 @@
 
-# preadv ____________________________________________________
-#
-# SYSCALL_DEFINE5(preadv, unsigned long, fd,
-#		  const struct iovec __user *, vec,
-#		  unsigned long, vlen, unsigned long, pos_l,
-#		  unsigned long, pos_h)
-# COMPAT_SYSCALL_DEFINE5(preadv, unsigned long, fd,
-#		const struct compat_iovec __user *,vec,
-#		unsigned long, vlen, u32, pos_low, u32, pos_high)
-#
-probe nd_syscall.preadv = __nd_syscall.preadv ?, __nd_syscall.compat_preadv ?
-{
-	name = "preadv"
-}
-probe __nd_syscall.preadv = kprobe.function("sys_preadv")
-{
-	asmlinkage()
-	fd = int_arg(1)
-	vector_uaddr = pointer_arg(2)
-	count = int_arg(3)
-	offset = (ulong_arg(5) << @const("BITS_PER_LONG")) + ulong_arg(4)
-	argstr = sprintf("%d, %p, %d, 0x%x", fd, vector_uaddr, count, offset)
-}
-probe __nd_syscall.compat_preadv = kprobe.function("compat_sys_preadv")
-{
-	fd = int_arg(1)
-	vector_uaddr = pointer_arg(2)
-	count = int_arg(3)
-	offset = (u32_arg(5) << 32) + u32_arg(4)
-	argstr = sprintf("%d, %p, %d, 0x%x", fd, vector_uaddr, count, offset)
-}
-probe nd_syscall.preadv.return = kprobe.function("sys_preadv").return ?,
-				 kprobe.function("compat_sys_preadv").return ?
-{
-	name = "preadv"
-	retstr = returnstr(1)
-}
-
 # preadv2 __________________________________________________
 #
 # SYSCALL_DEFINE6(preadv2, unsigned long, fd, const struct iovec __user *, vec,
