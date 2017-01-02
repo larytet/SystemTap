@@ -1,30 +1,4 @@
 
-# request_key ________________________________________________
-#
-# long sys_request_key(const char __user *_type,
-#		     const char __user *_description,
-#		     const char __user *_callout_info,
-#		     key_serial_t destringid)
-# compat_sys_request_key() calls sys_request_key, so don't need probe there.
-#
-probe nd_syscall.request_key = kprobe.function("sys_request_key") ?
-{
-	name = "request_key"
-	asmlinkage()
-	type_uaddr = pointer_arg(1)
-	description_uaddr = pointer_arg(2)
-	callout_info_uaddr = pointer_arg(3)
-	destringid = int_arg(4)
-	argstr = sprintf("%s, %s, %p, %d", user_string_quoted(type_uaddr),
-                         user_string_quoted(description_uaddr),
-                         callout_info_uaddr, destringid)
-}
-probe nd_syscall.request_key.return = kprobe.function("sys_request_key").return ?
-{
-	name = "request_key"
-	retstr = returnstr(1)
-}
-
 # restart_syscall ____________________________________________
 #
 # asmlinkage long

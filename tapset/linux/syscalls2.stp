@@ -1,29 +1,4 @@
 
-# request_key ________________________________________________
-#
-# long sys_request_key(const char __user *_type,
-#		     const char __user *_description,
-#		     const char __user *_callout_info,
-#		     key_serial_t destringid)
-# compat_sys_request_key() calls sys_request_key, so don't need probe there.
-#
-probe syscall.request_key = kernel.function("sys_request_key").call ?
-{
-	name = "request_key"
-	type_uaddr = $_type
-	description_uaddr = $_description
-	callout_info_uaddr = $_callout_info
-	destringid = __int32($destringid)
-	argstr = sprintf("%s, %s, %p, %d", user_string_quoted($_type),
-                         user_string_quoted($_description), $_callout_info,
-                         __int32($destringid))
-}
-probe syscall.request_key.return = kernel.function("sys_request_key").return ?
-{
-	name = "request_key"
-	retstr = return_str(1, $return)
-}
-
 # restart_syscall ____________________________________________
 #
 # asmlinkage long
