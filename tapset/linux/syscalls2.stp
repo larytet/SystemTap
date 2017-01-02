@@ -1,21 +1,3 @@
-# compat_ppoll ________________________________________________
-# 
-# long compat_sys_ppoll(struct pollfd __user *ufds,
-#	unsigned int nfds, struct compat_timespec __user *tsp,
-#	const compat_sigset_t __user *sigmask, compat_size_t sigsetsize)
-#
-probe syscall.compat_ppoll = kernel.function("compat_sys_ppoll").call ?
-{
-	name = "ppoll"
-	argstr = sprintf("%p, %u, %s, %p, %d", $ufds, __uint32($nfds),
-			 _struct_compat_timespec_u($tsp, 1), $sigmask,
-			 $sigsetsize)
-}
-probe syscall.compat_ppoll.return = kernel.function("compat_sys_ppoll").return ?
-{
-	name = "ppoll"
-	retstr = return_str(1, $return)
-}
 
 # prctl ______________________________________________________
 #
