@@ -1,45 +1,4 @@
 
-# mq_open ____________________________________________________
-# long  sys_mq_open(const char __user *u_name,
-#             int oflag,
-#             mode_t mode,
-#             struct mq_attr __user *u_attr)
-# long compat_sys_mq_open(const char __user *u_name,
-#			int oflag, compat_mode_t mode,
-#			struct compat_mq_attr __user *u_attr)
-#
-probe syscall.mq_open = __syscall.mq_open,
-                        kernel.function("compat_sys_mq_open").call ?
-{
-	name = "mq_open"
-	name_uaddr = $u_name
-	filename = user_string_quoted($u_name)
-	u_attr_uaddr = $u_attr
-	oflag = __int32($oflag)
-	mode = (@__compat_task ? __ushort($mode) : __uint32($mode))
-	if (oflag & 64)
-		argstr = sprintf("%s, %s, %#o, %p", user_string_quoted($u_name),
-			_sys_open_flag_str(oflag), mode, $u_attr)
-	else
-		argstr = sprintf("%s, %s", user_string_quoted($u_name), _sys_open_flag_str(oflag))
-}
-
-probe __syscall.mq_open = kernel.function("sys_mq_open").call
-{
-	@__syscall_gate_compat_simple
-}
-probe syscall.mq_open.return =
-        __syscall.mq_open.return,
-        kernel.function("compat_sys_mq_open").return ?
-{
-	name = "mq_open"
-	retstr = return_str(1, $return)
-}
-probe __syscall.mq_open.return = kernel.function("sys_mq_open").return
-{
-        @__syscall_gate(@const("__NR_mq_open"))
-}
-
 # mq_timedreceive ____________________________________________
 # ssize_t sys_mq_timedreceive(mqd_t mqdes,
 #                     char __user *u_msg_ptr,
