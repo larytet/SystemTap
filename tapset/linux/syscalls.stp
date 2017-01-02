@@ -1,38 +1,4 @@
 
-# mount ______________________________________________________
-# long sys_mount(char __user * dev_name,
-# 		char __user * dir_name,
-# 		char __user * type,
-# 		unsigned long flags,
-# 		void __user * data)
-# long compat_sys_mount(char __user * dev_name,
-#		char __user * dir_name,
-#		char __user * type,
-#		unsigned long flags,
-#		void __user * data)
-probe syscall.mount = kernel.function("compat_sys_mount").call ?,
-                      kernel.function("sys_mount").call
-{
-	name = "mount"
-	source = user_string_quoted($dev_name)
-	target = user_string_quoted($dir_name)
-	filesystemtype = user_string_quoted($type)
-	mountflags = $flags
-	mountflags_str = _mountflags_str($flags)
-	data = user_string_n_quoted($data, syscall_string_trunc)
-	argstr = sprintf("%s, %s, %s, %s, %s",
-		user_string_quoted($dev_name),
-		user_string_quoted($dir_name),
-		user_string_quoted($type),
-		mountflags_str, data)
-}
-probe syscall.mount.return = kernel.function("compat_sys_mount").return ?,
-                             kernel.function("sys_mount").return
-{
-	name = "mount"
-	retstr = return_str(1, $return)
-}
-
 %( kernel_v >= "2.6.33" %?
 # In newer kernels (2.6.33+), all the sys_mmap() variants are just 
 # wrappers around sys_mmap_pgoff(), which is in arch-generic code.
