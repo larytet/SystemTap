@@ -1,22 +1,4 @@
 
-# mprotect ___________________________________________________
-# long sys_mprotect(unsigned long start, size_t len, unsigned long prot)
-#
-probe syscall.mprotect = kernel.function("sys_mprotect").call ?
-{
-	name = "mprotect"
-	addr = $start
-	len = $len
-	prot = $prot
-	prot_str = _mprotect_prot_str($prot)
-	argstr = sprintf("%p, %d, %s", $start, $len, _mprotect_prot_str($prot))
-}
-probe syscall.mprotect.return = kernel.function("sys_mprotect").return ?
-{
-	name = "mprotect"
-	retstr = return_str(1, $return)
-}
-
 # mq_getsetattr ______________________________________________
 # long sys_mq_getsetattr(mqd_t mqdes,
 #                  const struct mq_attr __user *u_mqstat,

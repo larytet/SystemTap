@@ -1,23 +1,4 @@
 
-# mprotect ___________________________________________________
-# long sys_mprotect(unsigned long start, size_t len, unsigned long prot)
-#
-probe nd_syscall.mprotect = kprobe.function("sys_mprotect") ?
-{
-	name = "mprotect"
-	asmlinkage()
-	addr = ulong_arg(1)
-	len = ulong_arg(2)
-	prot = ulong_arg(3)
-	prot_str = _mprotect_prot_str(prot)
-	argstr = sprintf("%p, %d, %s", addr, len, _mprotect_prot_str(prot))
-}
-probe nd_syscall.mprotect.return = kprobe.function("sys_mprotect").return ?
-{
-	name = "mprotect"
-	retstr = returnstr(1)
-}
-
 # mq_getsetattr ______________________________________________
 # long sys_mq_getsetattr(mqd_t mqdes,
 #                  const struct mq_attr __user *u_mqstat,
