@@ -1,24 +1,4 @@
 
-# rename _____________________________________________________
-#
-# asmlinkage long
-# sys_rename(const char __user * oldname,
-#		const char __user * newname)
-#
-probe syscall.rename = kernel.function("sys_rename").call
-{
-	name = "rename"
-	oldpath = user_string_quoted($oldname)
-	newpath = user_string_quoted($newname)
-	argstr = sprintf("%s, %s", user_string_quoted($oldname),
-		user_string_quoted($newname))
-}
-probe syscall.rename.return = kernel.function("sys_rename").return
-{
-	name = "rename"
-	retstr = return_str(1, $return)
-}
-
 # renameat ___________________________________________________
 # new function with 2.6.16
 # long sys_renameat(int olddfd, const char __user *oldname,

@@ -1,25 +1,4 @@
 
-# rename _____________________________________________________
-#
-# asmlinkage long
-# sys_rename(const char __user * oldname,
-#		const char __user * newname)
-#
-probe nd_syscall.rename = kprobe.function("sys_rename") ?
-{
-	name = "rename"
-	asmlinkage()
-	oldpath = user_string_quoted(pointer_arg(1))
-	newpath = user_string_quoted(pointer_arg(2))
-	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)),
-			user_string_quoted(pointer_arg(2)))
-}
-probe nd_syscall.rename.return = kprobe.function("sys_rename").return ?
-{
-	name = "rename"
-	retstr = returnstr(1)
-}
-
 # renameat ___________________________________________________
 # new function with 2.6.16
 # long sys_renameat(int olddfd, const char __user *oldname,
