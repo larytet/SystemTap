@@ -1,40 +1,4 @@
 
-# rt_sigqueueinfo ____________________________________________
-#
-# long sys_rt_sigqueueinfo(int pid, int sig, siginfo_t __user *uinfo)
-#
-probe syscall.rt_sigqueueinfo =
-	__syscall.rt_sigqueueinfo ?,
-	kernel.function("sys32_rt_sigqueueinfo").call ?,
-	kernel.function("compat_sys_rt_sigqueueinfo").call ?
-{
-	name = "rt_sigqueueinfo"
-	pid = __int32($pid)
-	sig = __int32($sig)
-	uinfo_uaddr = $uinfo
-	argstr = sprintf("%d, %s, %s", pid, _signal_name(sig),
-			 (@__compat_task
-			  ? _stp_compat_siginfo_u($uinfo)
-			  : _stp_siginfo_u($uinfo)))
-}
-probe __syscall.rt_sigqueueinfo = kernel.function("sys_rt_sigqueueinfo").call
-{
-	@__syscall_gate(@const("__NR_rt_sigqueueinfo"))
-}
-probe syscall.rt_sigqueueinfo.return =
-	__syscall.rt_sigqueueinfo.return ?,
-	kernel.function("sys32_rt_sigqueueinfo").return ?,
-	kernel.function("compat_sys_rt_sigqueueinfo").return ?
-{
-	name = "rt_sigqueueinfo"
-	retstr = return_str(1, $return)
-}
-probe __syscall.rt_sigqueueinfo.return =
-	kernel.function("sys_rt_sigqueueinfo").return
-{
-	@__syscall_gate(@const("__NR_rt_sigqueueinfo"))
-}
-
 # rt_sigreturn _______________________________________________
 # int sys_rt_sigreturn(unsigned long __unused)
 #

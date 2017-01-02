@@ -1,40 +1,4 @@
 
-# rt_sigqueueinfo ____________________________________________
-#
-# long sys_rt_sigqueueinfo(int pid, int sig, siginfo_t __user *uinfo)
-#
-probe nd_syscall.rt_sigqueueinfo =
-	__nd_syscall.rt_sigqueueinfo ?,
-	kprobe.function("sys32_rt_sigqueueinfo") ?,
-	kprobe.function("compat_sys_rt_sigqueueinfo") ?
-{
-	name = "rt_sigqueueinfo"
-	asmlinkage()
-	pid = int_arg(1)
-	sig = int_arg(2)
-	uinfo_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %s, %s", pid, _signal_name(sig),
-			 (@__compat_task ? _stp_compat_siginfo_u(uinfo_uaddr)
-			  : _stp_siginfo_u(uinfo_uaddr)))
-}
-probe __nd_syscall.rt_sigqueueinfo = kprobe.function("sys_rt_sigqueueinfo")
-{
-	@__syscall_gate(@const("__NR_rt_sigqueueinfo"))
-}
-probe nd_syscall.rt_sigqueueinfo.return =
-	__nd_syscall.rt_sigqueueinfo.return ?,
-	kprobe.function("sys32_rt_sigqueueinfo").return ?,
-	kprobe.function("compat_sys_rt_sigqueueinfo").return ?
-{
-	name = "rt_sigqueueinfo"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.rt_sigqueueinfo.return =
-	kprobe.function("sys_rt_sigqueueinfo").return
-{
-	@__syscall_gate(@const("__NR_rt_sigqueueinfo"))
-}
-
 # rt_sigreturn _______________________________________________
 # int sys_rt_sigreturn(unsigned long __unused)
 #
