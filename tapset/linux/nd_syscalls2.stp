@@ -1,25 +1,4 @@
 
-# removexattr ________________________________________________
-#
-# asmlinkage long
-# sys_removexattr(char __user *path,
-#		     char __user *name)
-#
-probe nd_syscall.removexattr = kprobe.function("sys_removexattr") ?
-{
-	name = "removexattr"
-	asmlinkage()
-	path = user_string_quoted(pointer_arg(1))
-	name_str = user_string_quoted(pointer_arg(2))
-	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)),
-		user_string_quoted(pointer_arg(2)))
-}
-probe nd_syscall.removexattr.return = kprobe.function("sys_removexattr").return ?
-{
-	name = "removexattr"
-	retstr = returnstr(1)
-}
-
 # rename _____________________________________________________
 #
 # asmlinkage long

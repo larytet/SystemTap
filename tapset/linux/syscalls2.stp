@@ -1,26 +1,4 @@
 
-# removexattr ________________________________________________
-#
-# asmlinkage long
-# sys_removexattr(char __user *path,
-#		     char __user *name)
-#
-probe syscall.removexattr = kernel.function("sys_removexattr").call
-{
-	name = "removexattr"
-	name_str = user_string_quoted($name)
-
-	path = user_string_quoted(@choose_defined($pathname, $path))
-	argstr = sprintf("%s, %s",
-		user_string_quoted(@choose_defined($pathname, $path)),
-		user_string_quoted($name))
-}
-probe syscall.removexattr.return = kernel.function("sys_removexattr").return
-{
-	name = "removexattr"
-	retstr = return_str(1, $return)
-}
-
 # rename _____________________________________________________
 #
 # asmlinkage long
