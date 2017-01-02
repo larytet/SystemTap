@@ -1,21 +1,4 @@
 
-# mlockall ___________________________________________________
-#
-# long sys_mlockall(int flags)
-#
-probe nd_syscall.mlockall = kprobe.function("sys_mlockall") ?
-{
-	name = "mlockall"
-	asmlinkage()
-	flags = int_arg(1)
-	argstr = _mlockall_flags_str(flags)
-}
-probe nd_syscall.mlockall.return = kprobe.function("sys_mlockall").return ?
-{
-	name = "mlockall"
-	retstr = returnstr(1)
-}
-
 # modify_ldt _________________________________________________
 # int sys_modify_ldt(int func, void __user *ptr, unsigned long bytecount)
 #

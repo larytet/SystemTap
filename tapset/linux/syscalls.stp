@@ -1,20 +1,4 @@
 
-# mlockall ___________________________________________________
-#
-# long sys_mlockall(int flags)
-#
-probe syscall.mlockall = kernel.function("sys_mlockall").call ?
-{
-	name = "mlockall"
-	flags = __int32($flags)
-	argstr = _mlockall_flags_str(flags)
-}
-probe syscall.mlockall.return = kernel.function("sys_mlockall").return ?
-{
-	name = "mlockall"
-	retstr = return_str(1, $return)
-}
-
 # modify_ldt _________________________________________________
 # int sys_modify_ldt(int func, void __user *ptr, unsigned long bytecount)
 #
