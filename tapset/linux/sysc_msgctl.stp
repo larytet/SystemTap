@@ -1,0 +1,55 @@
+# msgctl _____________________________________________________
+# long sys_msgctl (int msqid, int cmd, struct msqid_ds __user *buf)
+#
+
+@define _SYSCALL_MSGCTL_NAME
+%(
+	name = "msgctl"
+%)
+
+@define _SYSCALL_MSGCTL_ARGSTR
+%(
+	argstr = sprintf("%d, %s, %p", msqid, cmd_str, buf_uaddr)
+%)
+
+probe syscall.msgctl = dw_syscall.msgctl !, nd_syscall.msgctl {}
+probe syscall.msgctl.return = dw_syscall.msgctl.return !, nd_syscall.msgctl.return {}
+
+# dw_msgctl _____________________________________________________
+
+probe dw_syscall.msgctl = kernel.function("sys_msgctl").call ?
+{
+	@__syscall_gate2(@const("__NR_msgctl"), @const("__NR_ipc"))
+	@_SYSCALL_MSGCTL_NAME
+	msqid = __int32($msqid)
+	cmd = __int32($cmd)
+	cmd_str = _stp_msgctl_cmd_str(__int32($cmd))
+	buf_uaddr = $buf
+	@_SYSCALL_MSGCTL_ARGSTR
+}
+probe dw_syscall.msgctl.return = kernel.function("sys_msgctl").return ?
+{
+	@__syscall_gate2(@const("__NR_msgctl"), @const("__NR_ipc"))
+	@_SYSCALL_MSGCTL_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_msgctl _____________________________________________________
+
+probe nd_syscall.msgctl = kprobe.function("sys_msgctl") ?
+{
+	@__syscall_gate2(@const("__NR_msgctl"), @const("__NR_ipc"))
+	@_SYSCALL_MSGCTL_NAME
+	asmlinkage()
+	msqid = int_arg(1)
+	cmd = int_arg(2)
+	cmd_str = _stp_msgctl_cmd_str(cmd)
+	buf_uaddr = pointer_arg(3)
+	@_SYSCALL_MSGCTL_ARGSTR
+}
+probe nd_syscall.msgctl.return = kprobe.function("sys_msgctl").return ?
+{
+	@__syscall_gate2(@const("__NR_msgctl"), @const("__NR_ipc"))
+	@_SYSCALL_MSGCTL_NAME
+	retstr = returnstr(1)
+}

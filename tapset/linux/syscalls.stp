@@ -1,24 +1,3 @@
-
-# msgctl _____________________________________________________
-# long sys_msgctl (int msqid, int cmd, struct msqid_ds __user *buf)
-#
-probe syscall.msgctl = kernel.function("sys_msgctl").call ?
-{
-	@__syscall_gate2(@const("__NR_msgctl"), @const("__NR_ipc"))
-	name = "msgctl"
-	msqid = __int32($msqid)
-	cmd = __int32($cmd)
-	cmd_str = _stp_msgctl_cmd_str(__int32($cmd))
-	buf_uaddr = $buf
-	argstr = sprintf("%d, %s, %p", __int32($msqid),
-			 _stp_msgctl_cmd_str(__int32($cmd)), $buf)
-}
-probe syscall.msgctl.return = kernel.function("sys_msgctl").return ?
-{
-	@__syscall_gate2(@const("__NR_msgctl"), @const("__NR_ipc"))
-	name = "msgctl"
-	retstr = return_str(1, $return)
-}
 # compat_sys_msgctl ________________________________________
 #
 # long compat_sys_msgctl(int first, int second, void __user *uptr)

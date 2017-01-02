@@ -1,24 +1,3 @@
-
-# msgctl _____________________________________________________
-# long sys_msgctl (int msqid, int cmd, struct msqid_ds __user *buf)
-#
-probe nd_syscall.msgctl = kprobe.function("sys_msgctl") ?
-{
-	@__syscall_gate2(@const("__NR_msgctl"), @const("__NR_ipc"))
-	name = "msgctl"
-	asmlinkage()
-	msqid = int_arg(1)
-	cmd = int_arg(2)
-	cmd_str = _stp_msgctl_cmd_str(cmd)
-	buf_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %s, %p", msqid, cmd_str, buf_uaddr)
-}
-probe nd_syscall.msgctl.return = kprobe.function("sys_msgctl").return ?
-{
-	@__syscall_gate2(@const("__NR_msgctl"), @const("__NR_ipc"))
-	name = "msgctl"
-	retstr = returnstr(1)
-}
 # compat_sys_msgctl ________________________________________
 #
 # long compat_sys_msgctl(int first, int second, void __user *uptr)
