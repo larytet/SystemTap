@@ -1,32 +1,4 @@
 
-# sched_getaffinity __________________________________________
-#
-# asmlinkage long
-# sys_sched_getaffinity(pid_t pid,
-#			     unsigned int len,
-#			     unsigned long __user *user_mask_ptr)
-# COMPAT_SYSCALL_DEFINE3(sched_getaffinity, compat_pid_t,  pid,
-#			 unsigned int, len,
-#			 compat_ulong_t __user *, user_mask_ptr)
-#
-probe syscall.sched_getaffinity =
-	kernel.function("sys_sched_getaffinity").call ?,
-	kernel.function("compat_sys_sched_getaffinity").call ?
-{
-	name = "sched_getaffinity"
-	pid = __int32($pid)
-	len = __uint32($len)
-	mask_uaddr = $user_mask_ptr
-	argstr = sprintf("%d, %u, %p", pid, len, mask_uaddr)
-}
-probe syscall.sched_getaffinity.return =
-	kernel.function("sys_sched_getaffinity").return ?,
-	kernel.function("compat_sys_sched_getaffinity").return ?
-{
-	name = "sched_getaffinity"
-	retstr = return_str(1, $return)
-}
-
 # sched_getattr ______________________________________________
 #
 # SYSCALL_DEFINE4(sched_getattr, pid_t, pid, struct sched_attr __user *, uattr,
