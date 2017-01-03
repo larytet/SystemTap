@@ -1,15 +1,4 @@
 
-# ustat ______________________________________________________
-# long sys_ustat(unsigned dev, struct ustat __user * ubuf)
-#
-probe syscall.ustat = kernel.function("sys_ustat").call
-{
-	name = "ustat"
-	dev = __uint32($dev)
-	ubuf_uaddr = $ubuf
-	argstr = sprintf("%u, %p", __uint32($dev), $ubuf)
-}
-
 # long sys32_ustat(unsigned dev, struct ustat32 __user *u32p)
 # long compat_sys_ustat(unsigned dev, struct compat_ustat __user *u)
 #
@@ -22,11 +11,6 @@ probe syscall.ustat32 = kernel.function("compat_sys_ustat").call ?,
 	argstr = sprintf("%u, %p", __uint32($dev), @choose_defined($u, $u32p))
 }
 
-probe syscall.ustat.return = kernel.function("sys_ustat").return ?
-{
-	name = "ustat"
-	retstr = return_str(1, $return)
-}
 
 probe syscall.ustat32.return = kernel.function("sys32_ustat").return ?,
                                kernel.function("compat_sys_ustat").return ?
