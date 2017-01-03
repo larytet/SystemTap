@@ -1,32 +1,4 @@
 
-# shmctl _____________________________________________________
-#
-# long sys_shmctl (int shmid,
-#		 int cmd,
-#		 struct shmid_ds __user *buf)
-#
-probe nd_syscall.shmctl = kprobe.function("sys_shmctl") ?
-{
-#%( arch == "powerpc" || arch == "s390" %?
-	@__syscall_gate_compat_simple
-#%)
-	name = "shmctl"
-	asmlinkage()
-	shmid = int_arg(1)
-	cmd = int_arg(2)
-	cmd_str = _semctl_cmd(cmd)
-	buf_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %s, %p", shmid, _semctl_cmd(cmd), buf_uaddr)
-}
-probe nd_syscall.shmctl.return = kprobe.function("sys_shmctl").return ?
-{
-#%( arch == "powerpc" || arch == "s390" %?
-	@__syscall_gate_compat_simple
-#%)
-	name = "shmctl"
-	retstr = returnstr(1)
-}
-
 # compat_sys_shmctl ________________________________________
 #
 # long compat_sys_shmctl(int first, int second, void __user *uptr)

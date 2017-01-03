@@ -1,32 +1,4 @@
 
-# shmctl _____________________________________________________
-#
-# long sys_shmctl (int shmid,
-#		 int cmd,
-#		 struct shmid_ds __user *buf)
-#
-probe syscall.shmctl = kernel.function("sys_shmctl").call ?
-{
-#%( arch == "powerpc" || arch == "s390" %?
-	@__syscall_gate_compat_simple
-#%)
-	name = "shmctl"
-	shmid = __int32($shmid)
-	cmd = __int32($cmd)
-	cmd_str = _semctl_cmd(__int32($cmd))
-	buf_uaddr = $buf
-	argstr = sprintf("%d, %s, %p", __int32($shmid),
-			 _semctl_cmd(__int32($cmd)), $buf)
-}
-probe syscall.shmctl.return = kernel.function("sys_shmctl").return ?
-{
-#%( arch == "powerpc" || arch == "s390" %?
-	@__syscall_gate_compat_simple
-#%)
-	name = "shmctl"
-	retstr = return_str(1, $return)
-}
-
 # compat_sys_shmctl ________________________________________
 #
 # long compat_sys_shmctl(int first, int second, void __user *uptr)

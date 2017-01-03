@@ -1,0 +1,67 @@
+# shmctl _____________________________________________________
+#
+# long sys_shmctl (int shmid,
+#                  int cmd,
+#                  struct shmid_ds __user *buf)
+#
+
+@define _SYSCALL_SHMCTL_NAME
+%(
+	name = "shmctl"
+%)
+
+@define _SYSCALL_SHMCTL_ARGSTR
+%(
+	argstr = sprintf("%d, %s, %p", shmid, cmd_str, buf_uaddr)
+%)
+
+probe syscall.shmctl = dw_syscall.shmctl !, nd_syscall.shmctl {}
+probe syscall.shmctl.return = dw_syscall.shmctl.return !,
+                              nd_syscall.shmctl.return {}
+
+# dw_shmctl _____________________________________________________
+
+probe dw_syscall.shmctl = kernel.function("sys_shmctl").call ?
+{
+#%( arch == "powerpc" || arch == "s390" %?
+	@__syscall_gate_compat_simple
+#%)
+	@_SYSCALL_SHMCTL_NAME
+	shmid = __int32($shmid)
+	cmd = __int32($cmd)
+	cmd_str = _semctl_cmd(__int32($cmd))
+	buf_uaddr = $buf
+	@_SYSCALL_SHMCTL_ARGSTR
+}
+probe dw_syscall.shmctl.return = kernel.function("sys_shmctl").return ?
+{
+#%( arch == "powerpc" || arch == "s390" %?
+	@__syscall_gate_compat_simple
+#%)
+	@_SYSCALL_SHMCTL_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_shmctl _____________________________________________________
+
+probe nd_syscall.shmctl = kprobe.function("sys_shmctl") ?
+{
+#%( arch == "powerpc" || arch == "s390" %?
+	@__syscall_gate_compat_simple
+#%)
+	@_SYSCALL_SHMCTL_NAME
+	asmlinkage()
+	shmid = int_arg(1)
+	cmd = int_arg(2)
+	cmd_str = _semctl_cmd(cmd)
+	buf_uaddr = pointer_arg(3)
+	@_SYSCALL_SHMCTL_ARGSTR
+}
+probe nd_syscall.shmctl.return = kprobe.function("sys_shmctl").return ?
+{
+#%( arch == "powerpc" || arch == "s390" %?
+	@__syscall_gate_compat_simple
+#%)
+	@_SYSCALL_SHMCTL_NAME
+	retstr = returnstr(1)
+}
