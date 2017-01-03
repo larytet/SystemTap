@@ -1,17 +1,3 @@
-# sgetmask ___________________________________________________
-#
-# sys_sgetmask(void)
-#
-probe syscall.sgetmask = kernel.function("sys_sgetmask").call ?
-{
-	name = "sgetmask"
-	argstr = ""
-}
-probe syscall.sgetmask.return = kernel.function("sys_sgetmask").return ?
-{
-	name = "sgetmask"
-	retstr = return_str(1, $return)
-}
 
 # shmat ______________________________________________________
 #

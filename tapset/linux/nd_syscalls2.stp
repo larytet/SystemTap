@@ -1,19 +1,4 @@
 
-# sgetmask ___________________________________________________
-#
-# sys_sgetmask(void)
-#
-probe nd_syscall.sgetmask = kprobe.function("sys_sgetmask") ?
-{
-	name = "sgetmask"
-	argstr = ""
-}
-probe nd_syscall.sgetmask.return = kprobe.function("sys_sgetmask").return ?
-{
-	name = "sgetmask"
-	retstr = returnstr(1)
-}
-
 # shmat ______________________________________________________
 #
 # long sys_shmat(int shmid, char __user *shmaddr, int shmflg)
