@@ -1,49 +1,4 @@
 
-%( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
-# sigaltstack ________________________________________________
-# int sys_sigaltstack(unsigned long ebx)
-#
-# NOTE: args vary between archs.
-#
-probe syscall.sigaltstack = kernel.function("sys_sigaltstack")
-{
-	name = "sigaltstack"
-# 'ussp' should have been 'uss_uaddr.  Deprecate the old name.
-%(systemtap_v <= "1.4" %?
-	ussp = %( kernel_vr < "2.6.25" %? $ebx %: %( kernel_vr < "2.6.30" %? $bx %: $regs->bx %) %)
-%)
-	if (@defined($regs)) {
-		uss_uaddr = @choose_defined($uss, $regs->bx)
-		uoss_uaddr = @choose_defined($uoss, $regs->cx)
-%(systemtap_v < "2.3" %?
-		regs = $regs
-%)
-	}
-	else if (@defined($bx)) {	# kernels < "2.6.30"
-		uss_uaddr = $bx
-		# Make sure the register value didn't get sign extended.
-		uoss_uaddr = __ulong(@cast(&$bx, "pt_regs", "kernel<asm/ptrace.h>")->cx)
-%(systemtap_v < "2.3" %?
-		regs = &$bx
-%)
-	}
-	else {				# kernels < "2.6.25"
-		uss_uaddr = $ebx
-		# Make sure the register value didn't get sign extended.
-		uoss_uaddr = __ulong(@cast(&$ebx, "pt_regs", "kernel<asm/ptrace.h>")->ecx)
-%(systemtap_v < "2.3" %?
-		regs = &$ebx
-%)
-	}
-	argstr = sprintf("%s, %p", _stp_sigaltstack_u(uss_uaddr), uoss_uaddr)
-}
-probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
-{
-	name = "sigaltstack"
-	retstr = return_str(1, $return)
-}
-%)
-
 # vm86 _______________________________________________________
 #
 # int sys_vm86(struct pt_regs regs)
