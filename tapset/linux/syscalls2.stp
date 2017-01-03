@@ -1,26 +1,4 @@
 
-# waitpid ____________________________________________________
-#
-# (waitpid is usually implemented via wait4 but not always)
-# SYSCALL_DEFINE3(waitpid, pid_t, pid, int __user *, stat_addr, int, options)
-#
-probe syscall.waitpid = kernel.function("sys_waitpid").call ?,
-	kernel.function("sys32_waitpid").call ?
-{
-	name = "waitpid"
-	pid = __int32($pid)
-	status_uaddr = $stat_addr
-	options = __int32($options)
-	options_str = _wait4_opt_str(options)
-	argstr = sprintf("%d, %p, %s", __int32($pid), $stat_addr, options_str)
-}
-probe syscall.waitpid.return = kernel.function("sys_waitpid").return ?,
-	kernel.function("sys32_waitpid").return ?
-{
-	name = "waitpid"
-	retstr = return_str(1, $return)
-}
-
 # write ______________________________________________________
 #
 # ssize_t sys_write(unsigned int fd,

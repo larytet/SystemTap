@@ -1,27 +1,4 @@
 
-# waitpid ____________________________________________________
-#
-# (waitpid is usually implemented via wait4 but not always)
-# SYSCALL_DEFINE3(waitpid, pid_t, pid, int __user *, stat_addr, int, options)
-#
-probe nd_syscall.waitpid = kprobe.function("sys_waitpid") ?,
-	kprobe.function("sys32_waitpid").call ?
-{
-	name = "waitpid"
-	asmlinkage()
-	pid = int_arg(1)
-	status_uaddr = pointer_arg(2)
-	options = int_arg(3)
-	options_str = _wait4_opt_str(options)
-	argstr = sprintf("%d, %p, %s", pid, status_uaddr, options_str)
-}
-probe nd_syscall.waitpid.return = kprobe.function("sys_waitpid").return ?,
-	kprobe.function("sys32_waitpid").return ?
-{
-	name = "waitpid"
-	retstr = returnstr(1)
-}
-
 # write ______________________________________________________
 #
 # ssize_t sys_write(unsigned int fd,
