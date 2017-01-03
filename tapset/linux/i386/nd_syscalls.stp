@@ -1,23 +1,4 @@
 
-# set_thread_area ____________________________________________
-/*
- * asmlinkage int
- * sys_set_thread_area(struct user_desc __user *u_info)
- */
-probe nd_syscall.set_thread_area = kprobe.function("sys_set_thread_area")
-{
-	name = "set_thread_area"
-	// u_info_uaddr = $u_info
-	asmlinkage()
-	u_info_uaddr = pointer_arg(1)
-	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
-}
-probe nd_syscall.set_thread_area.return = kprobe.function("sys_set_thread_area").return
-{
-	name = "set_thread_area"
-	retstr = returnstr(1)
-}
-
 # set_zone_reclaim ___________________________________________
 /*
  * asmlinkage long

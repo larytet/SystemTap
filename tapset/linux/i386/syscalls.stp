@@ -1,21 +1,4 @@
 
-# set_thread_area ____________________________________________
-/*
- * asmlinkage int
- * sys_set_thread_area(struct user_desc __user *u_info)
- */
-probe syscall.set_thread_area = kernel.function("sys_set_thread_area")
-{
-	name = "set_thread_area"
-	u_info_uaddr = $u_info
-	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
-}
-probe syscall.set_thread_area.return = kernel.function("sys_set_thread_area").return
-{
-	name = "set_thread_area"
-	retstr = return_str(1, $return)
-}
-
 # set_zone_reclaim ___________________________________________
 /*
  * asmlinkage long
