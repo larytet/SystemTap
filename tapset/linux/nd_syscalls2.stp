@@ -1,20 +1,4 @@
 
-# sigreturn __________________________________________________
-# int sys_sigreturn(unsigned long __unused)
-#
-probe nd_syscall.sigreturn = kprobe.function("sys_sigreturn") ?,
-                             kprobe.function("sys32_sigreturn") ?
-{
-	name = "sigreturn"
-	argstr = ""
-}
-probe nd_syscall.sigreturn.return = kprobe.function("sys_sigreturn").return ?,
-                                    kprobe.function("sys32_sigreturn").return ?
-{
-	name = "sigreturn"
-	retstr = returnstr(1)
-}
-
 # sigsuspend _________________________________________________
 # #ifdef CONFIG_OLD_SIGSUSPEND
 # SYSCALL_DEFINE1(sigsuspend, old_sigset_t, mask)
