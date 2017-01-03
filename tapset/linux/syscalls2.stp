@@ -1,22 +1,4 @@
 
-# syslog _____________________________________________________
-#
-# long sys_syslog(int type, char __user * buf, int len)
-#
-probe syscall.syslog = kernel.function("sys_syslog").call
-{
-	name = "syslog"
-	type = __int32($type)
-	bufp_uaddr = $buf
-	len = __int32($len)
-	argstr = sprintf("%d, %p, %d", __int32($type), $buf, __int32($len))
-}
-probe syscall.syslog.return = kernel.function("sys_syslog").return
-{
-	name = "syslog"
-	retstr = return_str(1, $return)
-}
-
 # tee _____________________________________________________
 #
 # long sys_tee(int fdin, int fdout, size_t len, unsigned int flags)

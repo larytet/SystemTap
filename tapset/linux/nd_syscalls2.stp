@@ -1,23 +1,4 @@
 
-# syslog _____________________________________________________
-#
-# long sys_syslog(int type, char __user * buf, int len)
-#
-probe nd_syscall.syslog = kprobe.function("sys_syslog") ?
-{
-	name = "syslog"
-	asmlinkage()
-	type = int_arg(1)
-	bufp_uaddr = pointer_arg(2)
-	len = int_arg(3)
-	argstr = sprintf("%d, %p, %d", type, bufp_uaddr, len)
-}
-probe nd_syscall.syslog.return = kprobe.function("sys_syslog").return ?
-{
-	name = "syslog"
-	retstr = returnstr(1)
-}
-
 # tee _____________________________________________________
 #
 # long sys_tee(int fdin, int fdout, size_t len, unsigned int flags)
