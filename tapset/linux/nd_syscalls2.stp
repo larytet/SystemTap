@@ -1,22 +1,3 @@
-
-# settimeofday _______________________________________________
-#
-# long sys_settimeofday(struct timeval __user *tv,
-#			struct timezone __user *tz)
-#
-probe nd_syscall.settimeofday = kprobe.function("sys_settimeofday") ?
-{
-	name = "settimeofday"
-	asmlinkage()
-	tv_uaddr = pointer_arg(1)
-	tz_uaddr = pointer_arg(2)
-	argstr = sprintf("%s, %s", _struct_timeval_u(tv_uaddr, 1), _struct_timezone_u(tz_uaddr))
-}
-probe nd_syscall.settimeofday.return = kprobe.function("sys_settimeofday").return ?
-{
-	name = "settimeofday"
-	retstr = returnstr(1)
-}
 #
 # long sys32_settimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
 # long compat_sys_settimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
