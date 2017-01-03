@@ -1,25 +1,3 @@
-
-# setitimer __________________________________________________
-#
-# long sys_setitimer(int which,
-#		   struct itimerval __user *value,
-#		   struct itimerval __user *ovalue)
-#
-probe nd_syscall.setitimer = kprobe.function("sys_setitimer") ?
-{
-	name = "setitimer"
-	asmlinkage()
-	which = int_arg(1)
-	value_uaddr = pointer_arg(2)
-	ovalue_uaddr = pointer_arg(3)
-	argstr = sprintf("%s, %s, %p", _itimer_which_str(which),
-		_struct_itimerval_u(value_uaddr), ovalue_uaddr)
-}
-probe nd_syscall.setitimer.return = kprobe.function("sys_setitimer").return ?
-{
-	name = "setitimer"
-	retstr = returnstr(1)
-}
 #
 # long compat_sys_setitimer(int which,
 #		struct compat_itimerval __user *in,
