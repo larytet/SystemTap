@@ -1,23 +1,10 @@
-
-# vmsplice ___________________________________________________
+# compat_vmsplice ___________________________________________________
 #
 # long sys_vmsplice(int fd, const struct iovec __user *iov,
 #	    unsigned long nr_segs, unsigned int flags)
 # long compat_sys_vmsplice(int fd, const struct compat_iovec __user *iov32,
 #	    unsigned int nr_segs, unsigned int flags)
 #
-probe nd_syscall.vmsplice = kprobe.function("sys_vmsplice") ?
-{
-	@__syscall_gate_compat_simple
-	name = "vmsplice"
-	asmlinkage()
-	fd = int_arg(1)
-	iov = pointer_arg(2)
-	nr_segs = ulong_arg(3)
-	flags = uint_arg(4)
-	flags_str = _stp_splice_flags_str(flags)
-	argstr = sprintf("%d, %p, %u, %s", fd, iov, nr_segs, flags_str)
-}
 probe nd_syscall.compat_vmsplice = kprobe.function("compat_sys_vmsplice") ?
 {
 	name = "vmsplice"
@@ -28,12 +15,6 @@ probe nd_syscall.compat_vmsplice = kprobe.function("compat_sys_vmsplice") ?
 	flags = uint_arg(4)
 	flags_str = _stp_splice_flags_str(flags)
 	argstr = sprintf("%d, %p, %u, %s", fd, iov, nr_segs, flags_str)
-}
-probe nd_syscall.vmsplice.return = kprobe.function("sys_vmsplice").return ?
-{
-	@__syscall_gate_compat_simple
-	name = "vmsplice"
-	retstr = returnstr(1)
 }
 probe nd_syscall.compat_vmsplice.return = kprobe.function("compat_sys_vmsplice").return ?
 {

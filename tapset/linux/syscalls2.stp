@@ -1,22 +1,10 @@
-
-# vmsplice ___________________________________________________
+# compat_vmsplice ____________________________________________
 #
 # long sys_vmsplice(int fd, const struct iovec __user *iov,
 #	    unsigned long nr_segs, unsigned int flags)
 # long compat_sys_vmsplice(int fd, const struct compat_iovec __user *iov32,
 #	    unsigned int nr_segs, unsigned int flags)
 #
-probe syscall.vmsplice = kernel.function("sys_vmsplice").call ?
-{
-	@__syscall_gate_compat_simple
-	name = "vmsplice"
-	fd = __int32($fd)
-	iov = $iov
-	nr_segs = __ulong($nr_segs)
-	flags = $flags
-	flags_str = _stp_splice_flags_str(flags)
-	argstr = sprintf("%d, %p, %u, %s", fd, iov, nr_segs, flags_str)
-}
 probe syscall.compat_vmsplice = kernel.function("compat_sys_vmsplice").call ?
 {
 	name = "vmsplice"
@@ -26,12 +14,6 @@ probe syscall.compat_vmsplice = kernel.function("compat_sys_vmsplice").call ?
 	flags = $flags
 	flags_str = _stp_splice_flags_str(flags)
 	argstr = sprintf("%d, %p, %u, %s", fd, iov, nr_segs, flags_str)
-}
-probe syscall.vmsplice.return = kernel.function("sys_vmsplice").return ?
-{
-	@__syscall_gate_compat_simple
-	name = "vmsplice"
-	retstr = return_str(1, $return)
 }
 probe syscall.compat_vmsplice.return = kernel.function("compat_sys_vmsplice").return ?
 {
