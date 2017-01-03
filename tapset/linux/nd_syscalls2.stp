@@ -1,24 +1,4 @@
 
-# tee _____________________________________________________
-#
-# long sys_tee(int fdin, int fdout, size_t len, unsigned int flags)
-#
-probe nd_syscall.tee = kprobe.function("sys_tee") ?
-{
-	name = "tee"
-	asmlinkage()
-	fdin = int_arg(1)
-	fdout = int_arg(2)
-	len = ulong_arg(3)
-	flags = uint_arg(4)
-	argstr = sprintf("%d, %d, %u, 0x%x", fdin, fdout, len, flags)
-}
-probe nd_syscall.tee.return = kprobe.function("sys_tee").return ?
-{
-	name = "tee"
-	retstr = returnstr(1)
-}
-
 # tgkill _____________________________________________________
 #
 # asmlinkage long

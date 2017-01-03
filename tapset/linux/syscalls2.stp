@@ -1,23 +1,4 @@
 
-# tee _____________________________________________________
-#
-# long sys_tee(int fdin, int fdout, size_t len, unsigned int flags)
-#
-probe syscall.tee = kernel.function("sys_tee").call ?
-{
-	name = "tee"
-	fdin = __int32($fdin)
-	fdout = __int32($fdout)
-	len = @__compat_ulong($len)
-	flags = __uint32($flags)
-	argstr = sprintf("%d, %d, %u, 0x%x", fdin, fdout, len, flags)
-}
-probe syscall.tee.return = kernel.function("sys_tee").return ?
-{
-	name = "tee"
-	retstr = return_str(1, $return)
-}
-
 # tgkill _____________________________________________________
 #
 # asmlinkage long
