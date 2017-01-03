@@ -1,23 +1,4 @@
 
-# uselib _____________________________________________________
-#
-# asmlinkage long
-# sys_uselib(const char __user * library)
-#
-probe nd_syscall.uselib = kprobe.function("sys_uselib") ?
-{
-	name = "uselib"
-	asmlinkage()
-	library_uaddr = pointer_arg(1)
-	library = user_string_quoted(library_uaddr)
-	argstr = user_string_quoted(library_uaddr)
-}
-probe nd_syscall.uselib.return = kprobe.function("sys_uselib").return ?
-{
-	name = "uselib"
-	retstr = returnstr(1)
-}
-
 # userfaultfd ________________________________________________
 # SYSCALL_DEFINE2(userfaultfd, int, flags)
 probe nd_syscall.userfaultfd = kprobe.function("sys_userfaultfd").call ?

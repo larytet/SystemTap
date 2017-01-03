@@ -1,22 +1,4 @@
 
-# uselib _____________________________________________________
-#
-# asmlinkage long
-# sys_uselib(const char __user * library)
-#
-probe syscall.uselib = kernel.function("sys_uselib").call ?
-{
-	name = "uselib"
-	library_uaddr = $library
-	library = user_string_quoted($library)
-	argstr = user_string_quoted($library)
-}
-probe syscall.uselib.return = kernel.function("sys_uselib").return ?
-{
-	name = "uselib"
-	retstr = return_str(1, $return)
-}
-
 # userfaultfd ________________________________________________
 # SYSCALL_DEFINE2(userfaultfd, int, flags)
 probe syscall.userfaultfd = kernel.function("sys_userfaultfd").call ?
