@@ -1,25 +1,4 @@
 
-# setresgid16 ________________________________________________
-#
-# long sys_setresgid16(old_gid_t rgid,
-#		     old_gid_t egid,
-#		     old_gid_t sgid)
-#
-probe nd_syscall.setresgid16 = kprobe.function("sys_setresgid16") ?
-{
-	name = "setresgid"
-	asmlinkage()
-	rgid = __short(uint_arg(1))
-	egid = __short(uint_arg(2))
-	sgid = __short(uint_arg(3))
-	argstr = sprintf("%d, %d, %d", rgid, egid, sgid)
-}
-probe nd_syscall.setresgid16.return = kprobe.function("sys_setresgid16").return ?
-{
-	name = "setresgid16"
-	retstr = returnstr(1)
-}
-
 # setresuid __________________________________________________
 #
 # long sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
