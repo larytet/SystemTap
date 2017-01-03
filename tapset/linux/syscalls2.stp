@@ -1,19 +1,4 @@
 
-# userfaultfd ________________________________________________
-# SYSCALL_DEFINE2(userfaultfd, int, flags)
-probe syscall.userfaultfd = kernel.function("sys_userfaultfd").call ?
-{
-	name = "userfaultfd"
-	flags = __int32($flags)
-	flags_str = _userfaultfd_flags_str(flags)
-	argstr = sprintf("%s", _userfaultfd_flags_str(flags))
-}
-probe syscall.userfaultfd.return = kernel.function("sys_userfaultfd").return ?
-{
-	name = "userfaultfd"
-	retstr = return_str(1, $return)
-}
-
 # ustat ______________________________________________________
 # long sys_ustat(unsigned dev, struct ustat __user * ubuf)
 #
