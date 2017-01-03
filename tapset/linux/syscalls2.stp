@@ -1,22 +1,3 @@
-
-# utimes _____________________________________________________
-#
-# long sys_utimes(char __user * filename, struct timeval __user * utimes)
-#
-probe syscall.utimes = kernel.function("sys_utimes").call
-{
-	name = "utimes"
-	filename_uaddr = $filename
-	filename = user_string_quoted($filename)
-	tvp_uaddr = $utimes
-	argstr = sprintf("%s, %s", user_string_quoted($filename),
-		_struct_timeval_u($utimes, 2))
-}
-probe syscall.utimes.return = kernel.function("sys_utimes").return
-{
-	name = "utimes"
-	retstr = return_str(1, $return)
-}
 # compat_sys_utimes ________________________________________
 #
 # long compat_sys_utimes(char __user *filename, struct compat_timeval __user *t)

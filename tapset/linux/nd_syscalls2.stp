@@ -1,24 +1,4 @@
 
-# utimes _____________________________________________________
-#
-# long sys_utimes(char __user * filename, struct timeval __user * utimes)
-#
-probe nd_syscall.utimes = kprobe.function("sys_utimes") ?
-{
-	name = "utimes"
-	asmlinkage()
-	filename_uaddr = pointer_arg(1)
-	filename = user_string_quoted(filename_uaddr)
-	tvp_uaddr = pointer_arg(2)
-	argstr = sprintf("%s, %s", user_string_quoted(filename_uaddr),
-		_struct_timeval_u(tvp_uaddr, 2))
-}
-probe nd_syscall.utimes.return = kprobe.function("sys_utimes").return ?
-{
-	name = "utimes"
-	retstr = returnstr(1)
-}
-
 # compat_sys_utimes ________________________________________
 #
 # long compat_sys_utimes(char __user *filename, struct compat_timeval __user *t)
