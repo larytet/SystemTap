@@ -1,26 +1,4 @@
 
-# unlinkat ___________________________________________________
-# new function with 2.6.16
-# long sys_unlinkat(int dfd, const char __user *pathname,
-#	int flag)
-probe nd_syscall.unlinkat = kprobe.function("sys_unlinkat") ?
-{
-	name = "unlinkat"
-	asmlinkage()
-	dfd = int_arg(1)
-	dfd_str = _dfd_str(dfd)
-	pathname = pointer_arg(2)
-	pathname_str = user_string_quoted(pathname)
-	flag = uint_arg(3)
-	flag_str = _at_flag_str(flag)
-	argstr = sprintf("%s, %s, %s", dfd_str, user_string_quoted(pathname), flag_str)
-}
-probe nd_syscall.unlinkat.return = kprobe.function("sys_unlinkat").return ?
-{
-	name = "unlinkat"
-	retstr = returnstr(1)
-}
-
 # unshare ____________________________________________________
 # new function with 2.6.16
 # long sys_unshare(unsigned long unshare_flags)
