@@ -1,39 +1,4 @@
 
-# uname ______________________________________________________
-#
-# int sys_uname(struct old_utsname __user *name)
-# long sys_newuname(struct new_utsname __user * name)
-# int sys_olduname(struct oldold_utsname __user * name)
-# int sys32_olduname(struct oldold_utsname __user * name)
-# long sys32_uname(struct old_utsname __user * name)
-#
-probe nd_syscall.uname = kprobe.function("sys_uname") ?,
-                         kprobe.function("sys_olduname") ?,
-                         kprobe.function("sys32_olduname") ?,
-                         kprobe.function("sys32_uname") ?,
-                         kprobe.function("sys_newuname") ?
-{
-	name = "uname"
-	_func_name = ppfunc()
-	if (_func_name != "sys32_uname") {
-		if (_func_name == "sys_uname" || _func_name == "sys_olduname") {
-			%( arch != "powerpc" %? asmlinkage() %)
-		} else
-			asmlinkage()
-	}
-	argstr = sprintf("%p", pointer_arg(1))
-}
-
-probe nd_syscall.uname.return = kprobe.function("sys_uname").return ?,
-                                kprobe.function("sys_olduname").return ?,
-                                kprobe.function("sys32_olduname").return ?,
-                                kprobe.function("sys32_uname").return ?,
-                                kprobe.function("sys_newuname").return ?
-{
-	name = "uname"
-	retstr = returnstr(1)
-}
-
 # unlink _____________________________________________________
 # long sys_unlink(const char __user * pathname)
 #

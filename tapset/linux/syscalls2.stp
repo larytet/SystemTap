@@ -1,32 +1,4 @@
 
-# uname ______________________________________________________
-#
-# int sys_uname(struct old_utsname __user *name)
-# long sys_newuname(struct new_utsname __user * name)
-# int sys_olduname(struct oldold_utsname __user * name)
-# int sys32_olduname(struct oldold_utsname __user * name)
-# long sys32_uname(struct old_utsname __user * name)
-#
-probe syscall.uname = kernel.function("sys_uname").call ?,
-                      kernel.function("sys_olduname").call ?,
-                      kernel.function("sys32_olduname").call ?,
-                      kernel.function("sys32_uname").call ?,
-                      kernel.function("sys_newuname").call ?
-{
-	name = "uname"
-	argstr = sprintf("%p", $name)
-}
-
-probe syscall.uname.return = kernel.function("sys_uname").return ?,
-                             kernel.function("sys_olduname").return ?,
-                             kernel.function("sys32_olduname").return ?,
-                             kernel.function("sys32_uname").return ?,
-                             kernel.function("sys_newuname").return ?
-{
-	name = "uname"
-	retstr = return_str(1, $return)
-}
-
 # unlink _____________________________________________________
 # long sys_unlink(const char __user * pathname)
 #
