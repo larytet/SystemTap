@@ -1,24 +1,4 @@
 
-# utime ______________________________________________________
-# long sys_utime(char __user * filename, struct utimbuf __user * times)
-probe nd_syscall.utime = kprobe.function("sys_utime") ?
-{
-	name = "utime"
-	asmlinkage()
-	filename_uaddr = pointer_arg(1)
-	filename = user_string_quoted(filename_uaddr)
-	buf_uaddr = pointer_arg(2)
-	actime = _struct_utimbuf_actime(buf_uaddr)
-	modtime = _struct_utimbuf_modtime(buf_uaddr)
-	argstr = sprintf("%s, [%s, %s]", filename,
-	       	 	 ctime(actime), ctime(modtime))
-}
-probe nd_syscall.utime.return = kprobe.function("sys_utime").return ?
-{
-	name = "utime"
-	retstr = returnstr(1)
-}
-
 # long compat_sys_utime(char __user *filename, struct compat_utimbuf __user *t)
 probe nd_syscall.compat_utime = kprobe.function("compat_sys_utime") ?
 {

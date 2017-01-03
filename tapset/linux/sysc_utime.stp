@@ -1,0 +1,55 @@
+# utime ______________________________________________________
+# long sys_utime(char __user * filename, struct utimbuf __user * times)
+
+@define _SYSCALL_UTIME_NAME
+%(
+	name = "utime"
+%)
+
+@define _SYSCALL_UTIME_ARGSTR
+%(
+	argstr = sprintf("%s, [%s, %s]", filename,
+	                 ctime(actime), ctime(modtime))
+%)
+
+probe syscall.utime = dw_syscall.utime !, nd_syscall.utime {}
+probe syscall.utime.return = dw_syscall.utime.return !,
+                             nd_syscall.utime.return {}
+
+# dw_utime _____________________________________________________
+
+probe dw_syscall.utime = kernel.function("sys_utime").call ?
+{
+	@_SYSCALL_UTIME_NAME
+	filename_uaddr = $filename
+	filename = user_string_quoted($filename)
+	buf_uaddr = $times
+	# On s390, '$times' is a long, so the @cast() is needed.
+	actime = user_long(&@cast($times, "utimbuf")->actime)
+	modtime = user_long(&@cast($times, "utimbuf")->modtime)
+	@_SYSCALL_UTIME_ARGSTR
+}
+probe dw_syscall.utime.return = kernel.function("sys_utime").return ?
+{
+	@_SYSCALL_UTIME_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_utime _____________________________________________________
+
+probe nd_syscall.utime = kprobe.function("sys_utime") ?
+{
+	@_SYSCALL_UTIME_NAME
+	asmlinkage()
+	filename_uaddr = pointer_arg(1)
+	filename = user_string_quoted(filename_uaddr)
+	buf_uaddr = pointer_arg(2)
+	actime = _struct_utimbuf_actime(buf_uaddr)
+	modtime = _struct_utimbuf_modtime(buf_uaddr)
+	@_SYSCALL_UTIME_ARGSTR
+}
+probe nd_syscall.utime.return = kprobe.function("sys_utime").return ?
+{
+	@_SYSCALL_UTIME_NAME
+	retstr = returnstr(1)
+}

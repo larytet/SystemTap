@@ -1,24 +1,4 @@
 
-# utime ______________________________________________________
-# long sys_utime(char __user * filename, struct utimbuf __user * times)
-probe syscall.utime = kernel.function("sys_utime").call ?
-{
-	name = "utime"
-	filename_uaddr = $filename
-	filename = user_string_quoted($filename)
-	buf_uaddr = $times
-	# On s390, '$times' is a long, so the @cast() is needed.
-	actime = user_long(&@cast($times, "utimbuf")->actime)
-	modtime = user_long(&@cast($times, "utimbuf")->modtime)
-	argstr = sprintf("%s, [%s, %s]", user_string_quoted($filename),
-		ctime(actime), ctime(modtime))
-}
-probe syscall.utime.return = kernel.function("sys_utime").return ?
-{
-	name = "utime"
-	retstr = return_str(1, $return)
-}
-
 # long compat_sys_utime(char __user *filename, struct compat_utimbuf __user *t)
 probe syscall.compat_utime = kernel.function("compat_sys_utime").call ?
 {
