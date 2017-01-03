@@ -1,27 +1,4 @@
 
-# setgroups __________________________________________________
-#
-# long sys_setgroups(int gidsetsize, gid_t __user *grouplist)
-# long sys_setgroups16(int gidsetsize, old_gid_t __user *grouplist)
-# long sys32_setgroups16(int gidsetsize, u16 __user *grouplist)
-#
-probe syscall.setgroups = kernel.function("sys_setgroups16").call ?,
-                          kernel.function("sys32_setgroups16").call ?,
-                          kernel.function("sys_setgroups").call ?
-{
-	name = "setgroups"
-	size = __int32($gidsetsize)
-	list_uaddr = $grouplist
-	argstr = sprintf("%d, %p", __int32($gidsetsize), $grouplist)
-}
-probe syscall.setgroups.return = kernel.function("sys_setgroups16").return ?,
-                                 kernel.function("sys32_setgroups16").return ?,
-                                 kernel.function("sys_setgroups").return ?
-{
-	name = "setgroups"
-	retstr = return_str(1, $return)
-}
-
 # sethostname ________________________________________________
 #
 # asmlinkage long

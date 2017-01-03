@@ -1,28 +1,4 @@
 
-# setgroups __________________________________________________
-#
-# long sys_setgroups(int gidsetsize, gid_t __user *grouplist)
-# long sys_setgroups16(int gidsetsize, old_gid_t __user *grouplist)
-# long sys32_setgroups16(int gidsetsize, u16 __user *grouplist)
-#
-probe nd_syscall.setgroups = kprobe.function("sys_setgroups16") ?,
-                             kprobe.function("sys32_setgroups16") ?,
-                             kprobe.function("sys_setgroups") ?
-{
-	name = "setgroups"
-	asmlinkage()
-	size = int_arg(1)
-	list_uaddr = pointer_arg(2)
-	argstr = sprintf("%d, %p", size, list_uaddr)
-}
-probe nd_syscall.setgroups.return = kprobe.function("sys_setgroups16").return ?,
-                                    kprobe.function("sys32_setgroups16").return ?,
-                                    kprobe.function("sys_setgroups").return ?
-{
-	name = "setgroups"
-	retstr = returnstr(1)
-}
-
 # sethostname ________________________________________________
 #
 # asmlinkage long
