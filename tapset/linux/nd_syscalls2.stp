@@ -1,32 +1,3 @@
-#
-# long sys32_ustat(unsigned dev, struct ustat32 __user *u32p)
-#
-# Since 2.6.30 sys32_ustat is called compat_sys_ustat and is now asmlinkage:
-#
-# asmlinkage long compat_sys_ustat(unsigned dev, struct compat_ustat __user *u)
-#
-probe nd_syscall.ustat32 = __nd_syscall.ustat32 ?, __nd_syscall.compat_ustat ?
-{
-	name = "ustat"
-	argstr = sprintf("%u, %p", dev, ubuf_uaddr)
-}
-probe __nd_syscall.ustat32 = kprobe.function("sys32_ustat") ?
-{
-	dev = uint_arg(1)
-	ubuf_uaddr = pointer_arg(2)
-}
-probe __nd_syscall.compat_ustat = kprobe.function("compat_sys_ustat") ?
-{
-	asmlinkage()
-	dev = uint_arg(1)
-	ubuf_uaddr = pointer_arg(2)
-}
-probe nd_syscall.ustat32.return = kprobe.function("sys32_ustat").return ?,
-                                  kprobe.function("compat_sys_ustat").return ?
-{
-	name = "ustat"
-	retstr = returnstr(1)
-}
 
 # utime ______________________________________________________
 # long sys_utime(char __user * filename, struct utimbuf __user * times)

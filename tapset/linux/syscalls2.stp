@@ -1,24 +1,4 @@
 
-# long sys32_ustat(unsigned dev, struct ustat32 __user *u32p)
-# long compat_sys_ustat(unsigned dev, struct compat_ustat __user *u)
-#
-probe syscall.ustat32 = kernel.function("compat_sys_ustat").call ?,
-      		        kernel.function("sys32_ustat").call ?
-{
-	name = "ustat"
-	dev = __uint32($dev)
-	ubuf_uaddr = @choose_defined($u, $u32p)
-	argstr = sprintf("%u, %p", __uint32($dev), @choose_defined($u, $u32p))
-}
-
-
-probe syscall.ustat32.return = kernel.function("sys32_ustat").return ?,
-                               kernel.function("compat_sys_ustat").return ?
-{
-	name = "ustat"
-	retstr = return_str(1, $return)
-}
-
 # utime ______________________________________________________
 # long sys_utime(char __user * filename, struct utimbuf __user * times)
 probe syscall.utime = kernel.function("sys_utime").call ?
