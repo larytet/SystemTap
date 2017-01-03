@@ -1,23 +1,4 @@
 
-# setgid _____________________________________________________
-#
-# long sys_setgid(gid_t gid)
-# long sys_setgid16(old_gid_t gid)
-#
-probe syscall.setgid = kernel.function("sys_setgid16").call ?,
-                       kernel.function("sys_setgid").call ?
-{
-	name = "setgid"
-	gid = __int32($gid)
-	argstr = sprint(gid)
-}
-probe syscall.setgid.return = kernel.function("sys_setgid16").return ?,
-                              kernel.function("sys_setgid").return ?
-{
-	name = "setgid"
-	retstr = return_str(1, $return)
-}
-
 # setgroups __________________________________________________
 #
 # long sys_setgroups(int gidsetsize, gid_t __user *grouplist)

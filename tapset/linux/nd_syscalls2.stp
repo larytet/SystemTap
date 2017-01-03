@@ -1,24 +1,4 @@
 
-# setgid _____________________________________________________
-#
-# long sys_setgid(gid_t gid)
-# long sys_setgid16(old_gid_t gid)
-#
-probe nd_syscall.setgid = kprobe.function("sys_setgid16") ?,
-                          kprobe.function("sys_setgid") ?
-{
-	name = "setgid"
-	asmlinkage()
-	gid = int_arg(1)
-	argstr = sprint(gid)
-}
-probe nd_syscall.setgid.return = kprobe.function("sys_setgid16").return ?,
-                                 kprobe.function("sys_setgid").return ?
-{
-	name = "setgid"
-	retstr = returnstr(1)
-}
-
 # setgroups __________________________________________________
 #
 # long sys_setgroups(int gidsetsize, gid_t __user *grouplist)
