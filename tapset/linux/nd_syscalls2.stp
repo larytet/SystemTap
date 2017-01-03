@@ -1,21 +1,4 @@
 
-# timer_delete _______________________________________________
-#
-# long sys_timer_delete(timer_t timer_id)
-#
-probe nd_syscall.timer_delete = kprobe.function("sys_timer_delete") ?
-{
-	name = "timer_delete"
-	asmlinkage()
-	timerid = int_arg(1)
-	argstr = sprint(timerid)
-}
-probe nd_syscall.timer_delete.return = kprobe.function("sys_timer_delete").return ?
-{
-	name = "timer_delete"
-	retstr = returnstr(1)
-}
-
 # timer_getoverrun ___________________________________________
 #
 # long sys_timer_getoverrun(timer_t timer_id)
