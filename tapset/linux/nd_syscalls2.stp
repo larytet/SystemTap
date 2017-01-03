@@ -1,38 +1,4 @@
 
-# setrlimit __________________________________________________
-#
-# asmlinkage long
-# sys_setrlimit(unsigned int resource,
-#               struct rlimit __user *rlim)
-# asmlinkage long
-# compat_sys_setrlimit(unsigned int resource,
-#                      struct compat_rlimit __user *rlim)
-#
-probe nd_syscall.setrlimit = __nd_syscall.setrlimit ?,
-	kprobe.function("compat_sys_setrlimit") ?
-{
-	name = "setrlimit"
-	asmlinkage()
-	resource = uint_arg(1)
-	rlim_uaddr = pointer_arg(2)
-	argstr = sprintf("%s, %s", _rlimit_resource_str(resource),
-				_struct_rlimit_u(rlim_uaddr))
-}
-probe __nd_syscall.setrlimit = kprobe.function("sys_setrlimit")
-{
-	@__syscall_gate(@const("__NR_setrlimit"))
-}
-probe nd_syscall.setrlimit.return = __nd_syscall.setrlimit.return ?,
-	kprobe.function("compat_sys_setrlimit").return ?
-{
-	name = "setrlimit"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.setrlimit.return = kprobe.function("sys_setrlimit").return
-{
-	@__syscall_gate(@const("__NR_setrlimit"))
-}
-
 # set_robust_list ____________________________________________
 # SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
 #                 size_t, len)
