@@ -1,22 +1,4 @@
 
-# compat_sys_utimes ________________________________________
-#
-# long compat_sys_utimes(char __user *filename, struct compat_timeval __user *t)
-#
-probe nd_syscall.compat_sys_utimes = kprobe.function("compat_sys_utimes") ?
-{
-	name = "utimes"
-	asmlinkage()
-	filename = user_string_quoted(pointer_arg(1))
-	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)),
-				 _struct_compat_timeval_u(pointer_arg(2), 2))
-}
-probe nd_syscall.compat_sys_utimes.return = kprobe.function("compat_sys_utimes").return ?
-{
-	name = "utimes"
-	retstr = returnstr(1)
-}
-
 # utimensat ____________________________________________________
 # long sys_utimensat(int dfd, char __user *filename, struct timespec __user *utimes, int flags)
 # long compat_sys_utimensat(unsigned int dfd, char __user *filename, struct compat_timespec __user *t, int flags)
