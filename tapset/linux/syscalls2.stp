@@ -1,48 +1,4 @@
 
-# waitid _____________________________________________________
-#
-# long sys_waitid(int which,
-#		pid_t pid,
-#		struct siginfo __user *infop,
-#		int options,
-#		struct rusage __user *ru)
-# COMPAT_SYSCALL_DEFINE5(waitid,
-#		int, which, compat_pid_t, pid,
-#		struct compat_siginfo __user *, uinfo, int, options,
-#		struct compat_rusage __user *, uru)
-#
-probe syscall.waitid = __syscall.waitid,
-	kernel.function("compat_sys_waitid").call ?
-{
-	name = "waitid"
-	which = __int32($which)
-	which_str = _waitid_which_str(__int32($which))
-	pid = __int32(@choose_defined($upid, $pid))
-	infop_uaddr = @__pointer(@choose_defined($infop, $uinfo))
-	options = $options
-	options_str = _wait4_opt_str($options)
-	rusage_uaddr = @choose_defined($ru, $uru)
-	argstr = sprintf("%s, %d, %p, %s, %p",
-			 _waitid_which_str(__int32($which)),
-			 __int32(@choose_defined($upid, $pid)),
-			 infop_uaddr, _wait4_opt_str($options),
-			 @__pointer(@choose_defined($ru, $uru)))
-}
-probe __syscall.waitid = kernel.function("sys_waitid").call
-{
-	@__syscall_gate_compat_simple
-}
-probe syscall.waitid.return = __syscall.waitid.return,
-	kernel.function("compat_sys_waitid").return ?
-{
-	name = "waitid"
-	retstr = return_str(1, $return)
-}
-probe __syscall.waitid.return = kernel.function("sys_waitid").return
-{
-	@__syscall_gate_compat_simple
-}
-
 # waitpid ____________________________________________________
 #
 # (waitpid is usually implemented via wait4 but not always)

@@ -1,47 +1,4 @@
 
-# waitid _____________________________________________________
-#
-# long sys_waitid(int which,
-#		pid_t pid,
-#		struct siginfo __user *infop,
-#		int options,
-#		struct rusage __user *ru)
-# COMPAT_SYSCALL_DEFINE5(waitid,
-#		int, which, compat_pid_t, pid,
-#		struct compat_siginfo __user *, uinfo, int, options,
-#		struct compat_rusage __user *, uru)
-#
-probe nd_syscall.waitid = __nd_syscall.waitid,
-	kprobe.function("compat_sys_waitid") ?
-{
-	name = "waitid"
-	asmlinkage()
-	which = int_arg(1)
-	which_str = _waitid_which_str(which)
-	pid = int_arg(2)
-	infop_uaddr = pointer_arg(3)
-	options = int_arg(4)
-	options_str = _wait4_opt_str(options)
-	rusage_uaddr = pointer_arg(5)
-	argstr = sprintf("%s, %d, %p, %s, %p", _waitid_which_str(which),
-			 pid, infop_uaddr, _wait4_opt_str(options),
-			 rusage_uaddr)
-}
-probe __nd_syscall.waitid = kprobe.function("sys_waitid")
-{
-	@__syscall_gate_compat_simple
-}
-probe nd_syscall.waitid.return = __nd_syscall.waitid.return,
-	kprobe.function("compat_sys_waitid").return ?
-{
-	name = "waitid"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.waitid.return = kprobe.function("sys_waitid").return
-{
-	@__syscall_gate_compat_simple
-}
-
 # waitpid ____________________________________________________
 #
 # (waitpid is usually implemented via wait4 but not always)
