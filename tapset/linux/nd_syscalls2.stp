@@ -1,29 +1,4 @@
 
-# timerfd ______________________________________________
-#
-# Note that timerfd() only existed between kernels 2.6.22 and 2.6.25
-# and was replaced by timerfd_create(), timerfd_gettime(),
-# and timerfd_settime().
-#
-# long sys_timerfd(int ufd, int clockid, int flags,
-#	    const struct itimerspec __user *utmr)
-# long compat_sys_timerfd(int ufd, int clockid, int flags,
-#  	   const struct compat_itimerspec __user *utmr)
-#
-probe nd_syscall.timerfd = kprobe.function("sys_timerfd") ?,
-                           kprobe.function("compat_sys_timerfd") ?
-{
-	name = "timerfd"
-	asmlinkage()
-	argstr = sprintf("%d, %d, 0x%x", int_arg(1), int_arg(2), int_arg(3))
-}
-probe nd_syscall.timerfd.return = kprobe.function("sys_timerfd").return ?,
-                                  kprobe.function("compat_sys_timerfd").return ?
-{
-	name = "timerfd"
-	retstr = returnstr(1)
-}
-
 # timerfd_create _____________________________________________
 #
 # SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
