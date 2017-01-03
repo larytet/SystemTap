@@ -1,49 +1,4 @@
 
-# timer_create _______________________________________________
-#
-# long sys_timer_create(clockid_t which_clock,
-#			struct sigevent __user *timer_event_spec,
-#			timer_t __user * created_timer_id)
-# long compat_sys_timer_create(clockid_t which_clock,
-#			struct sigevent __user *timer_event_spec,
-#			timer_t __user * created_timer_id)
-#
-probe nd_syscall.timer_create = __nd_syscall.timer_create,
-                                __nd_syscall.compat_timer_create ?
-{
-	name = "timer_create"
-}
-probe __nd_syscall.timer_create = kprobe.function("sys_timer_create")
-{
-	@__syscall_gate(@const("__NR_timer_create"))
-	asmlinkage()
-	clockid = int_arg(1)
-	clockid_str = _get_wc_str(clockid)
-	evp_uaddr = pointer_arg(2)
-	timerid_uaddr = pointer_arg(3)
-	argstr = sprintf("%s, %p, %p", clockid_str, evp_uaddr, timerid_uaddr)
-}
-probe __nd_syscall.compat_timer_create = kprobe.function("compat_sys_timer_create") ?
-{
-	asmlinkage()
-	clockid = int_arg(1)
-	clockid_str = _get_wc_str(clockid)
-	evp_uaddr = pointer_arg(2)
-	timerid_uaddr = pointer_arg(3)
-	argstr = sprintf("%s, %p, %p", clockid_str, evp_uaddr, timerid_uaddr)
-}
-probe nd_syscall.timer_create.return =
-	__nd_syscall.timer_create.return,
-	kprobe.function("compat_sys_timer_create").return ?
-{
-	name = "timer_create"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.timer_create.return = kprobe.function("sys_timer_create").return
-{
-	@__syscall_gate(@const("__NR_timer_create"))
-}
-
 # timer_delete _______________________________________________
 #
 # long sys_timer_delete(timer_t timer_id)

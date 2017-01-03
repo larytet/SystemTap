@@ -1,39 +1,4 @@
 
-# timer_create _______________________________________________
-#
-# long sys_timer_create(clockid_t which_clock,
-#			struct sigevent __user *timer_event_spec,
-#			timer_t __user * created_timer_id)
-# long compat_sys_timer_create(clockid_t which_clock,
-#			struct sigevent __user *timer_event_spec,
-#			timer_t __user * created_timer_id)
-#
-probe syscall.timer_create = __syscall.timer_create,
-                             kernel.function("compat_sys_timer_create").call ?
-{
-	name = "timer_create"
-	clockid = __int32($which_clock)
-	clockid_str = _get_wc_str(__int32($which_clock))
-	evp_uaddr = $timer_event_spec
-	timerid_uaddr = $created_timer_id
-	argstr = sprintf("%s, %p, %p", clockid_str, $timer_event_spec, $created_timer_id)
-}
-probe __syscall.timer_create = kernel.function("sys_timer_create").call
-{
-	@__syscall_gate(@const("__NR_timer_create"))
-}
-probe syscall.timer_create.return =
-	__syscall.timer_create.return,
-	kernel.function("compat_sys_timer_create").return ?
-{
-	name = "timer_create"
-	retstr = return_str(1, $return)
-}
-probe __syscall.timer_create.return = kernel.function("sys_timer_create").return
-{
-	@__syscall_gate(@const("__NR_timer_create"))
-}
-
 # timer_delete _______________________________________________
 #
 # long sys_timer_delete(timer_t timer_id)
