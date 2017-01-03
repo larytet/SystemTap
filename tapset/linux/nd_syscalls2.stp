@@ -1,19 +1,4 @@
 
-# setsid _____________________________________________________
-#
-# long sys_setsid(void)
-#
-probe nd_syscall.setsid = kprobe.function("sys_setsid")
-{
-	name = "setsid"
-	argstr = ""
-}
-probe nd_syscall.setsid.return = kprobe.function("sys_setsid").return
-{
-	name = "setsid"
-	retstr = returnstr(1)
-}
-
 # setsockopt _________________________________________________
 #
 # long sys_setsockopt(int fd,

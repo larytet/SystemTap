@@ -1,19 +1,4 @@
 
-# setsid _____________________________________________________
-#
-# long sys_setsid(void)
-#
-probe syscall.setsid = kernel.function("sys_setsid").call
-{
-	name = "setsid"
-	argstr = ""
-}
-probe syscall.setsid.return = kernel.function("sys_setsid").return
-{
-	name = "setsid"
-	retstr = return_str(1, $return)
-}
-
 # setsockopt _________________________________________________
 #
 # long sys_setsockopt(int fd,
