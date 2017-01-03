@@ -1,22 +1,4 @@
 
-# times ______________________________________________________
-#
-# long sys_times(struct tms __user * tbuf)
-# long compat_sys_times(struct compat_tms __user *tbuf)
-probe syscall.times = kernel.function("compat_sys_times").call ?,
-                      kernel.function("sys_times").call ?
-{
-	name = "times"
-	buf_uaddr = $tbuf
-	argstr = sprintf("%s", _struct_tms_u(buf_uaddr))
-}
-probe syscall.times.return = kernel.function("compat_sys_times").return ?,
-                             kernel.function("sys_times").return ?
-{
-	name = "times"
-	retstr = return_str(1, $return)
-}
-
 # tkill ______________________________________________________
 #
 # asmlinkage long
