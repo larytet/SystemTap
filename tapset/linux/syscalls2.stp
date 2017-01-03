@@ -1,40 +1,4 @@
 
-# In kernel 3.8, CONFIG_GENERIC_SIGALTSTACK was added by 
-# kernel commit 6bf9adfc90370b695cb111116e15fdc0e1906270.
-#
-# Then, in kernel 3.9, all architectures were switched to using the
-# generic sigaltstack by kernel commit
-# d64008a8f30e0b381b292788ec6f3ee509b3bb40, which also removed the
-# CONFIG_GENERIC_SIGALTSTACK config variable.
-#
-# Thus the following preprocessor test.
-%( CONFIG_GENERIC_SIGALTSTACK == "y" || kernel_v >= "3.9" %?
-
-# sigaltstack ________________________________________________
-# SYSCALL_DEFINE2(sigaltstack,const stack_t __user *,uss, stack_t __user *,uoss)
-# COMPAT_SYSCALL_DEFINE2(sigaltstack,
-#			const compat_stack_t __user *, uss_ptr,
-#			compat_stack_t __user *, uoss_ptr)
-#
-probe syscall.sigaltstack = kernel.function("sys_sigaltstack").call,
-	kernel.function("compat_sys_sigaltstack").call ?
-{
-	name = "sigaltstack"
-	uss_uaddr = @__pointer(@choose_defined($uss, $uss_ptr))
-	uoss_uaddr = @__pointer(@choose_defined($uoss, $uoss_ptr))
-	argstr = sprintf("%s, %p",
-			 (@__compat_task
-			  ? _stp_compat_sigaltstack_u(uss_uaddr)
-			  : _stp_sigaltstack_u(uss_uaddr)), uoss_uaddr)
-}
-probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return,
-	kernel.function("compat_sys_sigaltstack").return ?
-{
-	name = "sigaltstack"
-	retstr = return_str(1, $return)
-}
-%)
-
 # signal _____________________________________________________
 # unsigned long sys_signal(int sig, __sighandler_t handler)
 #
