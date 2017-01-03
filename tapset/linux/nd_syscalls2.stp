@@ -1,21 +1,4 @@
 
-# unlink _____________________________________________________
-# long sys_unlink(const char __user * pathname)
-#
-probe nd_syscall.unlink = kprobe.function("sys_unlink") ?
-{
-	name = "unlink"
-	asmlinkage()
-	pathname_uaddr = pointer_arg(1)
-	pathname = user_string_quoted(pathname_uaddr)
-	argstr = user_string_quoted(pathname_uaddr)
-}
-probe nd_syscall.unlink.return = kprobe.function("sys_unlink").return ?
-{
-	name = "unlink"
-	retstr = returnstr(1)
-}
-
 # unlinkat ___________________________________________________
 # new function with 2.6.16
 # long sys_unlinkat(int dfd, const char __user *pathname,

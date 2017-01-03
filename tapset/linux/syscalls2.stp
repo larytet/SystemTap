@@ -1,20 +1,4 @@
 
-# unlink _____________________________________________________
-# long sys_unlink(const char __user * pathname)
-#
-probe syscall.unlink = kernel.function("sys_unlink").call
-{
-	name = "unlink"
-	pathname_uaddr = $pathname
-	pathname = user_string_quoted($pathname)
-	argstr = user_string_quoted($pathname)
-}
-probe syscall.unlink.return = kernel.function("sys_unlink").return
-{
-	name = "unlink"
-	retstr = return_str(1, $return)
-}
-
 # unlinkat ___________________________________________________
 # new function with 2.6.16
 # long sys_unlinkat(int dfd, const char __user *pathname,
