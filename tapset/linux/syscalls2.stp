@@ -1,34 +1,3 @@
-
-# setxattr ___________________________________________________
-# long sys_setxattr(char __user *path,
-#		  char __user *name,
-#		  void __user *value,
-#		  size_t size,
-#		  int flags)
-#
-probe syscall.setxattr = kernel.function("sys_setxattr").call
-{
-	name = "setxattr"
-	path_uaddr = @choose_defined($pathname, $path)
-	path = user_string_quoted(@choose_defined($pathname, $path))
-	name_uaddr = $name
-	name_str = user_string_quoted($name)
-	value_uaddr = $value
-	value_str = _stp_xattr_val_str($value, $size)
-	size = __ulong($size)
-	flags = __int32($flags)
-	flags_str = _stp_xattr_flags_str(__int32($flags))
-	argstr = sprintf("%s, %s, %s, %u, %s",
-			user_string_quoted(@choose_defined($pathname, $path)),
-			user_string_quoted($name),
-			_stp_xattr_val_str($value, $size), __ulong($size),
-			_stp_xattr_flags_str(__int32($flags)))
-}
-probe syscall.setxattr.return = kernel.function("sys_setxattr").return
-{
-	name = "setxattr"
-	retstr = return_str(1, $return)
-}
 # sgetmask ___________________________________________________
 #
 # sys_sgetmask(void)
