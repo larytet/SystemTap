@@ -1,39 +1,4 @@
 
-# sync_file_range ____________________________________________
-#
-# Why is there a 'sync_file_range' and a 'sync_file_range2'? As the
-# man page says:
-#
-#   Some architectures (e.g., PowerPC, ARM) need 64-bit arguments to be
-#   aligned in a suitable pair of registers. On such architectures, the
-#   call signature of sync_file_range()... would force a register to be
-#   be wasted as padding between the 'fd' and 'offset' arguments.
-#
-# SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
-#				unsigned int, flags)
-# SYSCALL_DEFINE4(sync_file_range2, int, fd, unsigned int, flags,
-#				 loff_t, offset, loff_t, nbytes)
-#
-# But, sync_file_range2() is just a wrapper around sync_file_range, so
-# we can just probe that.
-probe syscall.sync_file_range = kernel.function("sys_sync_file_range").call ?
-{
-	name = "sync_file_range"
-	fd = __int32($fd)
-	offset = $offset
-	nbytes = $nbytes
-	flags = __uint32($flags)
-	flags_str = _sync_file_range_flags_str(flags)
-	argstr = sprintf("%d, %d, %d, %s", fd, $offset, $nbytes,
-			 _sync_file_range_flags_str(flags))
-}
-probe syscall.sync_file_range.return =
-	kernel.function("sys_sync_file_range").return ?
-{
-	name = "sync_file_range"
-	retstr = return_str(1, $return)
-}
-
 # syncfs _____________________________________________________
 #
 # SYSCALL_DEFINE1(syncfs, int, fd)
