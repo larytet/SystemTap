@@ -1,21 +1,4 @@
 
-# signal _____________________________________________________
-# unsigned long sys_signal(int sig, __sighandler_t handler)
-#
-probe syscall.signal = kernel.function("sys_signal").call ?
-{
-	name = "signal"
-	sig = __int32($sig)
-	handler = $handler
-	argstr = sprintf("%s, %s", _signal_name(sig),
-			 _sighandler_str($handler))
-}
-probe syscall.signal.return = kernel.function("sys_signal").return ?
-{
-	name = "signal"
-	retstr = return_str(1, $return)
-}
-
 # signalfd _____________________________________________________
 #
 # long sys_signalfd(int ufd, sigset_t __user *user_mask, size_t sizemask)

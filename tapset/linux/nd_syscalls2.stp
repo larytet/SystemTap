@@ -1,21 +1,4 @@
 
-# signal _____________________________________________________
-# unsigned long sys_signal(int sig, __sighandler_t handler)
-#
-probe nd_syscall.signal = kprobe.function("sys_signal") ?
-{
-	name = "signal"
-	asmlinkage()
-	sig = int_arg(1)
-	handler =  pointer_arg(2)
-	argstr = sprintf("%s, %s", _signal_name(sig), _sighandler_str(handler))
-}
-probe nd_syscall.signal.return = kprobe.function("sys_signal").return ?
-{
-	name = "signal"
-	retstr = returnstr(1)
-}
-
 # signalfd _____________________________________________________
 #
 # long sys_signalfd(int ufd, sigset_t __user *user_mask, size_t sizemask)
