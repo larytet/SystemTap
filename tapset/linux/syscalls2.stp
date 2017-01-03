@@ -1,22 +1,4 @@
 
-# setfsgid ___________________________________________________
-# long sys_setfsgid(gid_t gid)
-# long sys_setfsgid16(old_gid_t gid)
-#
-probe syscall.setfsgid = kernel.function("sys_setfsgid16").call ?,
-                         kernel.function("sys_setfsgid").call ?
-{
-	name = "setfsgid"
-	fsgid = __int32($gid)
-	argstr = sprint(fsgid)
-}
-probe syscall.setfsgid.return = kernel.function("sys_setfsgid16").return ?,
-                                kernel.function("sys_setfsgid").return ?
-{
-	name = "setfsgid"
-	retstr = return_str(1, $return)
-}
-
 # setfsuid ___________________________________________________
 # long sys_setfsuid(uid_t uid)
 # long sys_setfsuid16(old_uid_t uid)

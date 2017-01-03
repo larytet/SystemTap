@@ -1,23 +1,4 @@
 
-# setfsgid ___________________________________________________
-# long sys_setfsgid(gid_t gid)
-# long sys_setfsgid16(old_gid_t gid)
-#
-probe nd_syscall.setfsgid = kprobe.function("sys_setfsgid16") ?,
-                            kprobe.function("sys_setfsgid") ?
-{
-	name = "setfsgid"
-	asmlinkage()
-	fsgid = int_arg(1)
-	argstr = sprint(fsgid)
-}
-probe nd_syscall.setfsgid.return = kprobe.function("sys_setfsgid16").return ?,
-                                   kprobe.function("sys_setfsgid").return ?
-{
-	name = "setfsgid"
-	retstr = returnstr(1)
-}
-
 # setfsuid ___________________________________________________
 # long sys_setfsuid(uid_t uid)
 # long sys_setfsuid16(old_uid_t uid)
