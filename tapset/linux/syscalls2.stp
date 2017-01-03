@@ -1,22 +1,3 @@
-
-# sigaction __________________________________________________
-# sys_sigaction(int sig, const struct old_sigaction __user *act, struct old_sigaction __user *oact)
-# sys32_sigaction(int sig, struct old_sigaction32 __user *act, struct old_sigaction32 __user *oact)
-#
-probe syscall.sigaction = kernel.function("sys_sigaction").call ?
-{
-	name = "sigaction"
-	sig = __int32($sig)
-	act_uaddr = @__pointer($act)
-	oact_uaddr = $oact
-	argstr = sprintf("%s, {%s}, %p", _signal_name(sig),
-			 _struct_sigaction_u(act_uaddr), oact_uaddr)
-}
-probe syscall.sigaction.return = kernel.function("sys_sigaction").return ?
-{
-	name = "sigaction"
-	retstr = return_str(1, $return)
-}
 probe syscall.sigaction32 = kernel.function("sys32_sigaction").call ?,
 			    kernel.function("compat_sys_sigaction").call ?
 {
