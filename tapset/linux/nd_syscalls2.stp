@@ -1,25 +1,4 @@
 
-# stime ______________________________________________________
-#
-# long sys_stime(time_t __user *tptr)
-# long compat_sys_stime(compat_time_t __user *tptr)
-#
-probe nd_syscall.stime = kprobe.function("compat_sys_stime") ?,
-                         kprobe.function("sys_stime") ?
-{
-	name = "stime"
-	/* FIXME. Decode time */
-	asmlinkage()
-	t_uaddr = pointer_arg(1)
-	argstr = sprintf("%p", t_uaddr)
-}
-probe nd_syscall.stime.return = kprobe.function("compat_sys_stime").return ?,
-                                kprobe.function("sys_stime").return ?
-{
-	name = "stime"
-	retstr = returnstr(1)
-}
-
 # swapoff ____________________________________________________
 #
 # asmlinkage long

@@ -1,24 +1,4 @@
 
-# stime ______________________________________________________
-#
-# long sys_stime(time_t __user *tptr)
-# long compat_sys_stime(compat_time_t __user *tptr)
-#
-probe syscall.stime = kernel.function("compat_sys_stime").call ?,
-                      kernel.function("sys_stime").call ?
-{
-	name = "stime"
-	t_uaddr = $tptr
-	/* FIXME. Decode time */
-	argstr = sprintf("%p", $tptr)
-}
-probe syscall.stime.return = kernel.function("compat_sys_stime").return ?,
-                             kernel.function("sys_stime").return ?
-{
-	name = "stime"
-	retstr = return_str(1, $return)
-}
-
 # swapoff ____________________________________________________
 #
 # asmlinkage long
