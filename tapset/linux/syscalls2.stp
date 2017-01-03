@@ -1,21 +1,4 @@
 
-# symlink ____________________________________________________
-# long sys_symlink(const char __user * oldname,
-#		 const char __user * newname)
-probe syscall.symlink = kernel.function("sys_symlink").call
-{
-	name = "symlink"
-	oldpath = user_string_quoted($oldname)
-	newpath = user_string_quoted($newname)
-	argstr = sprintf("%s, %s", user_string_quoted($oldname),
-		user_string_quoted($newname))
-}
-probe syscall.symlink.return = kernel.function("sys_symlink").return
-{
-	name = "symlink"
-	retstr = return_str(1, $return)
-}
-
 # symlinkat __________________________________________________
 # new function with 2.6.16
 # long sys_symlinkat(const char __user *oldname, int newdfd,

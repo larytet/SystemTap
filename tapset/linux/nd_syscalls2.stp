@@ -1,22 +1,4 @@
 
-# symlink ____________________________________________________
-# long sys_symlink(const char __user * oldname,
-#		 const char __user * newname)
-probe nd_syscall.symlink = kprobe.function("sys_symlink") ?
-{
-	name = "symlink"
-	asmlinkage()
-	oldpath = user_string_quoted(pointer_arg(1))
-	newpath = user_string_quoted(pointer_arg(2))
-	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)),
-			user_string_quoted(pointer_arg(2)))
-}
-probe nd_syscall.symlink.return = kprobe.function("sys_symlink").return ?
-{
-	name = "symlink"
-	retstr = returnstr(1)
-}
-
 # symlinkat __________________________________________________
 # new function with 2.6.16
 # long sys_symlinkat(const char __user *oldname, int newdfd,
