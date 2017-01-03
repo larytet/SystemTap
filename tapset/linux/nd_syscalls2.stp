@@ -1,49 +1,4 @@
 
-# semop ______________________________________________________
-#
-# long sys_semop (int semid,
-#		struct sembuf __user *tsops,
-#		unsigned nsops)
-#
-probe nd_syscall.semop = __nd_syscall.semop ?, __nd_syscall.compat_semop ?
-{
-	name = "semop"
-	argstr = sprintf("%d, %p, %u", semid, sops_uaddr, nsops)
-}
-probe __nd_syscall.semop = kprobe.function("sys_semop") ?
-{
-	asmlinkage()
-	semid = int_arg(1)
-%( systemtap_v < "2.3" %?
-	tsops_uaddr = pointer_arg(2)
-%)
-	sops_uaddr = pointer_arg(2)
-	nsops = uint_arg(3)
-}
-probe __nd_syscall.compat_semop = kprobe.function("compat_sys_ipc") ?,
-        kprobe.function("sys32_ipc") ?
-{
-	if (int_arg(1) != @const("SEMOP")) next;
-	semid = int_arg(2)
-%( systemtap_v < "2.3" %?
-	tsops_uaddr = pointer_arg(5)
-%)
-        sops_uaddr = pointer_arg(5)
-        nsops = uint_arg(3)
-}
-probe nd_syscall.semop.return = kprobe.function("sys_semop").return ?,
-	__nd_syscall.compat_semop.return ?
-{
-	name = "semop"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.compat_semop.return =
-	kprobe.function("compat_sys_ipc").return ?,
-	kprobe.function("sys32_ipc").return ?
-{
-	if (@entry(int_arg(1)) != @const("SEMOP")) next;
-}
-
 # semtimedop _________________________________________________
 #
 # long sys_semtimedop(int semid,

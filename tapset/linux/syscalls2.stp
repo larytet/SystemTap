@@ -1,48 +1,4 @@
 
-# semop ______________________________________________________
-#
-# long sys_semop (int semid,
-#		struct sembuf __user *tsops,
-#		unsigned nsops)
-#
-probe syscall.semop = __syscall.semop ?, __syscall.compat_semop ?
-{
-	name = "semop"
-	argstr = sprintf("%d, %p, %u", semid, sops_uaddr, nsops)
-}
-probe __syscall.semop = kernel.function("sys_semop").call ?
-{
-	semid = __int32($semid)
-%( systemtap_v < "2.3" %?
-	tsops_uaddr = $tsops
-%)
-	sops_uaddr = $tsops
-	nsops = __uint32($nsops)
-}
-probe __syscall.compat_semop = kernel.function("compat_sys_ipc").call ?,
-        kernel.function("sys32_ipc").call ?
-{
-        if ($call != @const("SEMOP")) next;
-        semid = __int32($first)
-%( systemtap_v < "2.3" %?
-	tsops_uaddr = $ptr
-%)
-        sops_uaddr = $ptr
-        nsops = __uint32($second)
-}
-probe syscall.semop.return = kernel.function("sys_semop").return ?,
-	__syscall.compat_semop.return ?
-{
-	name = "semop"
-	retstr = return_str(1, $return)
-}
-probe __syscall.compat_semop.return =
-	kernel.function("compat_sys_ipc").return ?,
-	kernel.function("sys32_ipc").return ?
-{
-	if (@entry($call) != @const("SEMOP")) next;
-}
-
 # semtimedop _________________________________________________
 #
 # long sys_semtimedop(int semid,
