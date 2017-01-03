@@ -1,40 +1,4 @@
 
-# set_mempolicy ______________________________________________
-# long sys_set_mempolicy(int mode,
-#	unsigned long __user *nmask,
-#	unsigned long maxnode)
-#
-probe syscall.set_mempolicy = __syscall.set_mempolicy ?,
-	kernel.function("compat_sys_set_mempolicy").call ?
-{
-	name = "set_mempolicy"
-	mode = __int32($mode)
-	mode_str = _mempolicy_mode_str(__int32($mode))
-	nmask_uaddr = $nmask
-	maxnode = $maxnode
-	argstr = sprintf("%s, %p, %u", _mempolicy_mode_str(__int32($mode)),
-			 $nmask, $maxnode)
-}
-probe __syscall.set_mempolicy = kernel.function("sys_set_mempolicy") ?
-{
-%( arch == "powerpc" %?
-	@__syscall_gate_compat_simple
-%)
-}
-probe syscall.set_mempolicy.return = __syscall.set_mempolicy.return ?,
-	kernel.function("compat_sys_set_mempolicy").return ?
-{
-	name = "set_mempolicy"
-	retstr = return_str(1, $return)
-}
-probe __syscall.set_mempolicy.return =
-	kernel.function("sys_set_mempolicy").return ?
-{
-%( arch == "powerpc" %?
-	@__syscall_gate_compat_simple
-%)
-}
-
 # setpgid ____________________________________________________
 #
 # asmlinkage long
