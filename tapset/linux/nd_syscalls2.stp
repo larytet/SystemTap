@@ -1,22 +1,4 @@
 
-# sysctl _____________________________________________________
-#
-# long sys_sysctl(struct __sysctl_args __user *args)
-#
-probe nd_syscall.sysctl = kprobe.function("compat_sys_sysctl") ?,
-                          kprobe.function("sys_sysctl") ?
-{
-	name = "sysctl"
-	asmlinkage()
-	argstr = sprintf("%p", pointer_arg(1))
-}
-probe nd_syscall.sysctl.return = kprobe.function("compat_sys_sysctl").return ?,
-                                 kprobe.function("sys_sysctl").return ?
-{
-	name = "sysctl"
-	retstr = returnstr(1)
-}
-
 # sysfs ______________________________________________________
 #
 # asmlinkage long

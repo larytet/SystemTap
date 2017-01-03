@@ -1,21 +1,4 @@
 
-# sysctl _____________________________________________________
-#
-# long sys_sysctl(struct __sysctl_args __user *args)
-#
-probe syscall.sysctl = kernel.function("compat_sys_sysctl").call ?,
-                       kernel.function("sys_sysctl").call ?
-{
-	name = "sysctl"
-	argstr = sprintf("%p", $args)
-}
-probe syscall.sysctl.return = kernel.function("compat_sys_sysctl").return ?,
-                              kernel.function("sys_sysctl").return ?
-{
-	name = "sysctl"
-	retstr = return_str(1, $return)
-}
-
 # sysfs ______________________________________________________
 #
 # asmlinkage long
