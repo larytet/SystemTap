@@ -1,25 +1,3 @@
-# compat_vmsplice ____________________________________________
-#
-# long sys_vmsplice(int fd, const struct iovec __user *iov,
-#	    unsigned long nr_segs, unsigned int flags)
-# long compat_sys_vmsplice(int fd, const struct compat_iovec __user *iov32,
-#	    unsigned int nr_segs, unsigned int flags)
-#
-probe syscall.compat_vmsplice = kernel.function("compat_sys_vmsplice").call ?
-{
-	name = "vmsplice"
-	fd = __int32($fd)
-	iov = @__pointer($iov32)
-	nr_segs = __uint32($nr_segs)
-	flags = $flags
-	flags_str = _stp_splice_flags_str(flags)
-	argstr = sprintf("%d, %p, %u, %s", fd, iov, nr_segs, flags_str)
-}
-probe syscall.compat_vmsplice.return = kernel.function("compat_sys_vmsplice").return ?
-{
-	name = "vmsplice"
-	retstr = return_str(1, $return)
-}
 
 # wait4 ______________________________________________________
 #
