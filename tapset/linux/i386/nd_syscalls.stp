@@ -1,25 +1,3 @@
-# 32-bit x86-specific system calls
-# These are typically defined in arch/i386
-#
-
-# get_thread_area ____________________________________________
-/*
- * asmlinkage int
- * sys_get_thread_area(struct user_desc __user *u_info)
- */
-probe nd_syscall.get_thread_area = kprobe.function("sys_get_thread_area")
-{
-	name = "get_thread_area"
-	// u_info_uaddr = $u_info
-	asmlinkage()
-	u_info_uaddr = pointer_arg(1)
-	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
-}
-probe nd_syscall.get_thread_area.return = kprobe.function("sys_get_thread_area").return
-{
-	name = "get_thread_area"
-	retstr = returnstr(1)
-}
 
 # iopl _______________________________________________________
 # NOTE. This function is only in i386 and x86_64 and its args vary
