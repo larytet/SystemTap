@@ -1,22 +1,3 @@
-
-# setpgid ____________________________________________________
-#
-# asmlinkage long
-# sys_setpgid(pid_t pid,
-#		 pid_t pgid)
-#
-probe syscall.setpgid = kernel.function("sys_setpgid").call
-{
-	name = "setpgid"
-	pid = __int32($pid)
-	pgid = __int32($pgid)
-	argstr = sprintf("%d, %d", __int32($pid), __int32($pgid))
-}
-probe syscall.setpgid.return = kernel.function("sys_setpgid").return
-{
-	name = "setpgid"
-	retstr = return_str(1, $return)
-}
 # setpriority ________________________________________________
 #
 # asmlinkage long

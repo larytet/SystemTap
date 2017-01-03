@@ -1,24 +1,4 @@
 
-# setpgid ____________________________________________________
-#
-# asmlinkage long
-# sys_setpgid(pid_t pid,
-#		 pid_t pgid)
-#
-probe nd_syscall.setpgid = kprobe.function("sys_setpgid") ?
-{
-	name = "setpgid"
-	asmlinkage()
-	pid = int_arg(1)
-	pgid = int_arg(2)
-	argstr = sprintf("%d, %d", pid, pgid)
-}
-probe nd_syscall.setpgid.return = kprobe.function("sys_setpgid").return ?
-{
-	name = "setpgid"
-	retstr = returnstr(1)
-}
-
 # setpriority ________________________________________________
 #
 # asmlinkage long
