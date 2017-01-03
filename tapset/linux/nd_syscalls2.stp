@@ -1,38 +1,4 @@
 
-# compat_sys_shmat ________________________________________
-#
-# long compat_sys_shmat(int first, int second, compat_uptr_t third,
-#			int version, void __user *uptr)
-# COMPAT_SYSCALL_DEFINE3(shmat, int, shmid, compat_uptr_t, shmaddr,
-#			 int, shmflg)
-#
-probe nd_syscall.compat_sys_shmat = kprobe.function("compat_sys_shmat") ?
-{
-	name = "shmat"
-
-%( systemtap_v < "2.3" %?
-	first = int_arg(1)
-	second = int_arg(2)
-	third = u32_arg(3)
-	uptr_uaddr = pointer_arg(5)
-%)
-	shmid = int_arg(1)
-%( kernel_v > "3.9" || CONFIG_ARCH_WANT_OLD_COMPAT_IPC == "y" %?
-	shmflg = int_arg(3)
-	shmaddr_uaddr = pointer_arg(2)
-%:
-	shmflg = int_arg(2)
-	shmaddr_uaddr = pointer_arg(5)
-%)
-	argstr = sprintf("%d, %p, %s", shmid, shmaddr_uaddr,
-	 		 _shmat_flags_str(shmflg))
-}
-probe nd_syscall.compat_sys_shmat.return = kprobe.function("compat_sys_shmat").return ?
-{
-	name = "shmat"
-	retstr = returnstr(1)
-}
-
 # shmctl _____________________________________________________
 #
 # long sys_shmctl (int shmid,
