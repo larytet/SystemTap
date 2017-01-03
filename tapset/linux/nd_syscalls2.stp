@@ -1,24 +1,4 @@
 
-# tkill ______________________________________________________
-#
-# asmlinkage long
-# sys_tkill(int pid,
-#	     int sig)
-#
-probe nd_syscall.tkill = kprobe.function("sys_tkill") ?
-{
-	name = "tkill"
-	asmlinkage()
-	pid = int_arg(1)
-	sig = int_arg(2)
-	argstr = sprintf("%d, %s", pid, _signal_name(sig))
-}
-probe nd_syscall.tkill.return = kprobe.function("sys_tkill").return ?
-{
-	name = "tkill"
-	retstr = returnstr(1)
-}
-
 # truncate ___________________________________________________
 #
 # sys_truncate(const char __user * path, unsigned long length)
