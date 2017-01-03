@@ -1,23 +1,4 @@
 
-# vm86 _______________________________________________________
-#
-# int sys_vm86(struct pt_regs regs)
-#
-probe syscall.vm86 = kernel.function("sys_vm86") ?
-{
-	name = "vm86"
-      /*
-       * unsupported type identifier '$regs'
-       * regs = $regs
-       */
-	argstr = ""
-}
-probe syscall.vm86.return = kernel.function("sys_vm86").return ?
-{
-	name = "vm86"
-	retstr = return_str(1, $return)
-}
-
 # vm86old ____________________________________________________
 #
 # int sys_vm86old(struct pt_regs regs)

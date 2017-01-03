@@ -1,23 +1,4 @@
 
-# vm86 _______________________________________________________
-#
-# int sys_vm86(struct pt_regs regs)
-#
-probe nd_syscall.vm86 = kprobe.function("sys_vm86") ?
-{
-	name = "vm86"
-	/*
-	 * unsupported type identifier '$regs'
-	 * regs = $regs
-	 */
-	argstr = ""
-}
-probe nd_syscall.vm86.return = kprobe.function("sys_vm86").return ?
-{
-	name = "vm86"
-	retstr = returnstr(1)
-}
-
 # vm86old ____________________________________________________
 #
 # int sys_vm86old(struct pt_regs regs)
