@@ -1,22 +1,4 @@
 
-# ssetmask ___________________________________________________
-#
-# long sys_ssetmask(int newmask)
-#
-probe nd_syscall.ssetmask = kprobe.function("sys_ssetmask") ?
-{
-	name = "ssetmask"
-	asmlinkage()
-	newmask = int_arg(1)
-	newmask_str = _stp_sigmask_str(newmask)
-	argstr = _stp_sigmask_str(newmask)
-}
-probe nd_syscall.ssetmask.return = kprobe.function("sys_ssetmask").return ?
-{
-	name = "ssetmask"
-	retstr = returnstr(1)
-}
-
 # stat _______________________________________________________
 # long sys_stat(char __user * filename, struct __old_stat __user * statbuf)
 # long sys32_stat64(char __user * filename, struct stat64 __user *statbuf)

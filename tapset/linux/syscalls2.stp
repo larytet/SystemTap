@@ -1,21 +1,4 @@
 
-# ssetmask ___________________________________________________
-#
-# long sys_ssetmask(int newmask)
-#
-probe syscall.ssetmask = kernel.function("sys_ssetmask").call ?
-{
-	name = "ssetmask"
-	newmask = __int32($newmask)
-	newmask_str = _stp_sigmask_str(__int32($newmask))
-	argstr = _stp_sigmask_str(__int32($newmask))
-}
-probe syscall.ssetmask.return = kernel.function("sys_ssetmask").return ?
-{
-	name = "ssetmask"
-	retstr = return_str(1, $return)
-}
-
 # stat _______________________________________________________
 # long sys_stat(char __user * filename, struct __old_stat __user * statbuf)
 # long sys32_stat64(char __user * filename, struct stat64 __user *statbuf)
