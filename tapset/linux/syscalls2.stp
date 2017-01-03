@@ -1,27 +1,4 @@
 
-# statfs64 ___________________________________________________
-#
-# long sys_statfs64(const char __user *path, size_t sz, struct statfs64 __user *buf)
-# long compat_sys_statfs64(const char __user *path, compat_size_t sz, struct compat_statfs64 __user *buf)
-#
-probe syscall.statfs64 = kernel.function("sys_statfs64").call ?,
-	kernel.function("compat_sys_statfs64").call ?
-{
-	name = "statfs64"
-	path = user_string_quoted(@choose_defined($pathname, $path))
-	sz = __ulong($sz)
-	buf_uaddr = $buf
-	argstr = sprintf("%s, %u, %p",
-			 user_string_quoted(@choose_defined($pathname, $path)),
-			 sz, $buf)
-}
-probe syscall.statfs64.return = kernel.function("sys_statfs64").return ?,
-	kernel.function("compat_sys_statfs64").return ?
-{
-	name = "statfs64"
-	retstr = return_str(1, $return)
-}
-
 # stime ______________________________________________________
 #
 # long sys_stime(time_t __user *tptr)
