@@ -1,19 +1,3 @@
-
-# setreuid ___________________________________________________
-# long sys_setreuid(uid_t ruid, uid_t euid)
-#
-probe syscall.setreuid = kernel.function("sys_setreuid").call
-{
-	name = "setreuid"
-	ruid = __int32($ruid)
-	euid = __int32($euid)
-	argstr = sprintf("%d, %d", ruid, euid)
-}
-probe syscall.setreuid.return = kernel.function("sys_setreuid").return
-{
-	name = "setreuid"
-	retstr = return_str(1, $return)
-}
 # setreuid16 _________________________________________________
 # long sys_setreuid16(old_uid_t ruid, old_uid_t euid)
 #

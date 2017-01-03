@@ -1,21 +1,4 @@
 
-# setreuid ___________________________________________________
-# long sys_setreuid(uid_t ruid, uid_t euid)
-#
-probe nd_syscall.setreuid = kprobe.function("sys_setreuid") ?
-{
-	name = "setreuid"
-	asmlinkage()
-	ruid = __int32(uint_arg(1))
-	euid = __int32(uint_arg(2))
-	argstr = sprintf("%d, %d", ruid, euid)
-}
-probe nd_syscall.setreuid.return = kprobe.function("sys_setreuid").return ?
-{
-	name = "setreuid"
-	retstr = returnstr(1)
-}
-
 # setreuid16 _________________________________________________
 # long sys_setreuid16(old_uid_t ruid, old_uid_t euid)
 #
