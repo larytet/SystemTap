@@ -1,0 +1,70 @@
+# compat_sys_sendmsg ________________________________________
+#
+# long compat_sys_sendmsg(int fd, struct compat_msghdr __user *msg, unsigned flags)
+#
+# On all tested kernels/architectures, the compat sendmsg() syscall
+# goes through compat_sys_socketcall(). compat_sys_socketcall() then
+# calls an inlined version of compat_sys_sendmsg() on some
+# architectures (like x86_64 and ppc64). So, the only reliable thing
+# to do here is just probe compat_sys_socketcall().
+#
+# Note that this probe should have been either called
+# 'syscall.compat_sendmsg' or just merged with 'syscall.sendmsg'.
+#
+
+@define _SYSCALL_COMPAT_SYS_SENDMSG_NAME
+%(
+	name = "sendmsg"
+%)
+
+@define _SYSCALL_COMPAT_SYS_SENDMSG_ARGSTR
+%(
+	argstr = sprintf("%d, %p, %s", s, msg_uaddr, flags_str)
+%)
+
+probe syscall.compat_sys_sendmsg = dw_syscall.compat_sys_sendmsg !, nd_syscall.compat_sys_sendmsg {}
+probe syscall.compat_sys_sendmsg.return = dw_syscall.compat_sys_sendmsg.return !, nd_syscall.compat_sys_sendmsg.return {}
+
+# dw_compat_sys_sendmsg _____________________________________________________
+
+probe dw_syscall.compat_sys_sendmsg =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != @const("SYS_SENDMSG")) next;
+	@_SYSCALL_COMPAT_SYS_SENDMSG_NAME
+	s = user_int(&@cast($args, "unsigned int")[0])
+	msg_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
+	flags = user_uint32(&@cast($args, "unsigned int")[2])
+	flags_str = _msg_flags_str(flags)
+	@_SYSCALL_COMPAT_SYS_SENDMSG_ARGSTR
+}
+probe dw_syscall.compat_sys_sendmsg.return =
+ 	kernel.function("compat_sys_socketcall").return ?
+{
+	if (@entry($call) != @const("SYS_SENDMSG")) next;
+	@_SYSCALL_COMPAT_SYS_SENDMSG_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_compat_sys_sendmsg _____________________________________________________
+
+probe nd_syscall.compat_sys_sendmsg =
+	kprobe.function("compat_sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != @const("SYS_SENDMSG")) next;
+	@_SYSCALL_COMPAT_SYS_SENDMSG_NAME
+	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	s = user_int(&(__args)[0])
+	msg_uaddr = user_uint32(&(__args)[1])
+	flags = user_uint32(&(__args)[2])
+	flags_str = _msg_flags_str(flags)
+	@_SYSCALL_COMPAT_SYS_SENDMSG_ARGSTR
+}
+probe nd_syscall.compat_sys_sendmsg.return =
+	kprobe.function("compat_sys_socketcall").return ?
+{
+	if (@entry(__asmlinkage_int_arg(1)) != @const("SYS_SENDMSG")) next;
+	@_SYSCALL_COMPAT_SYS_SENDMSG_NAME
+	retstr = returnstr(1)
+}
