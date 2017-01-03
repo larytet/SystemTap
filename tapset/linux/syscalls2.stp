@@ -1,25 +1,3 @@
-
-# tgkill _____________________________________________________
-#
-# asmlinkage long
-# sys_tgkill(int tgid,
-#		int pid,
-#		int sig)
-#
-probe syscall.tgkill = kernel.function("sys_tgkill").call
-{
-	name = "tgkill"
-	tgid = __int32($tgid)
-	pid = __int32($pid)
-	sig = __int32($sig)
-	argstr = sprintf("%d, %d, %s", __int32($tgid), __int32($pid),
-			 _signal_name(__int32($sig)))
-}
-probe syscall.tgkill.return = kernel.function("sys_tgkill").return
-{
-	name = "tgkill"
-	retstr = return_str(1, $return)
-}
 # time _______________________________________________________
 #
 # long sys_time(time_t __user * tloc)
