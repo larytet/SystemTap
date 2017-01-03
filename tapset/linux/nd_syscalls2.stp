@@ -1,47 +1,4 @@
 
-# sigsuspend _________________________________________________
-# #ifdef CONFIG_OLD_SIGSUSPEND
-# SYSCALL_DEFINE1(sigsuspend, old_sigset_t, mask)
-# #endif
-# #ifdef CONFIG_OLD_SIGSUSPEND3
-# SYSCALL_DEFINE3(sigsuspend, int, unused1, int, unused2, old_sigset_t, mask)
-# #endif
-# asmlinkage long
-# sys32_sigsuspend(int history0, int history1, old_sigset_t mask)
-# long compat_sys_sigsuspend(old_sigset_t mask)
-probe nd_syscall.sigsuspend = __nd_syscall.sisguspend ?,
-	__nd_syscall.compat_sys_sigsuspsend ?
-{
-	name = "sigsuspend"
-	argstr = sprintf("%s", _stp_sigmask_str(mask))
-}
-probe __nd_syscall.sisguspend = kprobe.function("sys_sigsuspend") ?,
-	kprobe.function("sys32_sigsuspend") ?
-{
-	asmlinkage()
-%( CONFIG_OLD_SIGSUSPEND == "y" %?
-	mask = ulong_arg(1)
-%:
-	# Both CONFIG_OLD_SIGSUSPEND3 and sys32_sigsuspend have mask
-	# as the 3rd argument.
-	mask = ulong_arg(3)
-%)
-}
-probe __nd_syscall.compat_sys_sigsuspsend = 
-	kprobe.function("compat_sys_sigsuspend") ?
-{
-	asmlinkage()
-	mask = ulong_arg(1)
-}
-probe nd_syscall.sigsuspend.return =
-	kprobe.function("sys_sigsuspend").return ?,
-	kprobe.function("sys32_sigsuspend").return ?,
-	kprobe.function("compat_sys_sigsuspend").return ?
-{
-	name = "sigsuspend"
-	retstr = returnstr(1)
-}
-
 # socket _____________________________________________________
 # long sys_socket(int family, int type, int protocol)
 #

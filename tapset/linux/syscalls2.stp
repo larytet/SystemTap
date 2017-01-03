@@ -1,34 +1,4 @@
 
-# sigsuspend _________________________________________________
-# #ifdef CONFIG_OLD_SIGSUSPEND
-# SYSCALL_DEFINE1(sigsuspend, old_sigset_t, mask)
-# #endif
-# #ifdef CONFIG_OLD_SIGSUSPEND3
-# SYSCALL_DEFINE3(sigsuspend, int, unused1, int, unused2, old_sigset_t, mask)
-# #endif
-# asmlinkage long
-# sys32_sigsuspend(int history0, int history1, old_sigset_t mask)
-# long sys_sigsuspend(old_sigset_t mask)
-probe syscall.sigsuspend = kernel.function("sys_sigsuspend").call ?,
-	kernel.function("sys32_sigsuspend").call ?,
-	kernel.function("compat_sys_sigsuspend").call ?
-{
-	name = "sigsuspend"
-%( arch == "mips" && CONFIG_TRAD_SIGNALS == "y" %?
-	mask = __ulong($uset)
-%:
-	mask = __ulong($mask)
-%)
-	argstr = sprintf("%s", _stp_sigmask_str(mask))
-}
-probe syscall.sigsuspend.return = kernel.function("sys_sigsuspend").return ?,
-	kernel.function("sys32_sigsuspend").return ?,
-	kernel.function("compat_sys_sigsuspend").return ?
-{
-	name = "sigsuspend"
-	retstr = return_str(1, $return)
-}
-
 # socket _____________________________________________________
 # long sys_socket(int family, int type, int protocol)
 #
