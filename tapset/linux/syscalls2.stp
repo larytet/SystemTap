@@ -1,18 +1,3 @@
-# setregid16 _________________________________________________
-# long sys_setregid16(old_gid_t rgid, old_gid_t egid)
-#
-probe syscall.setregid16 = kernel.function("sys_setregid16").call ?
-{
-	name = "setregid"
-	rgid = __short($rgid)
-	egid = __short($egid)
-	argstr = sprintf("%d, %d", rgid, egid)
-}
-probe syscall.setregid16.return = kernel.function("sys_setregid16").return ?
-{
-	name = "setregid"
-	retstr = return_str(1, $return)
-}
 # setresgid __________________________________________________
 # long sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 #
