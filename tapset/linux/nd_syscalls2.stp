@@ -1,25 +1,4 @@
 
-# semget _____________________________________________________
-# long sys_semget (key_t key, int nsems, int semflg)
-#
-probe nd_syscall.semget = kprobe.function("sys_semget") ?
-{
-	name = "semget"
-	asmlinkage()
-	key = int_arg(1)
-	key_str = _stp_msgget_key_str(key)
-	nsems = int_arg(2)
-	semflg = int_arg(3)
-	semflg_str = __sem_flags(semflg)
-	argstr = sprintf("%s, %d, %s", _stp_msgget_key_str(key), nsems,
-			 __sem_flags(semflg))
-}
-probe nd_syscall.semget.return = kprobe.function("sys_semget").return ?
-{
-	name = "semget"
-	retstr = returnstr(1)
-}
-
 # semop ______________________________________________________
 #
 # long sys_semop (int semid,

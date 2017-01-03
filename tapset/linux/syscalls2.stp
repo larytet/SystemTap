@@ -1,24 +1,4 @@
 
-# semget _____________________________________________________
-# long sys_semget (key_t key, int nsems, int semflg)
-#
-probe syscall.semget = kernel.function("sys_semget").call ?
-{
-	name = "semget"
-	key = __int32($key)
-	key_str = _stp_msgget_key_str(__int32($key))
-	nsems = __int32($nsems)
-	semflg = __int32($semflg)
-	semflg_str = __sem_flags(__int32($semflg))
-	argstr = sprintf("%s, %d, %s", _stp_msgget_key_str(__int32($key)),
-			 __int32($nsems), __sem_flags(__int32($semflg)))
-}
-probe syscall.semget.return = kernel.function("sys_semget").return ?
-{
-	name = "semget"
-	retstr = return_str(1, $return)
-}
-
 # semop ______________________________________________________
 #
 # long sys_semop (int semid,
