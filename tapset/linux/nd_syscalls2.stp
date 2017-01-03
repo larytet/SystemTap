@@ -1,21 +1,4 @@
 
-# shmdt ______________________________________________________
-#
-# long sys_shmdt(char __user *shmaddr)
-#
-probe nd_syscall.shmdt = kprobe.function("sys_shmdt") ?
-{
-	name = "shmdt"
-	asmlinkage()
-	shmaddr_uaddr = pointer_arg(1)
-	argstr = sprintf("%p", shmaddr_uaddr)
-}
-probe nd_syscall.shmdt.return = kprobe.function("sys_shmdt").return ?
-{
-	name = "shmdt"
-	retstr = returnstr(1)
-}
-
 # shmget _____________________________________________________
 #
 # long sys_shmget (key_t key,

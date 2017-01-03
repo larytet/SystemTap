@@ -1,20 +1,4 @@
 
-# shmdt ______________________________________________________
-#
-# long sys_shmdt(char __user *shmaddr)
-#
-probe syscall.shmdt = kernel.function("sys_shmdt").call ?
-{
-	name = "shmdt"
-	shmaddr_uaddr = $shmaddr
-	argstr = sprintf("%p", $shmaddr)
-}
-probe syscall.shmdt.return = kernel.function("sys_shmdt").return ?
-{
-	name = "shmdt"
-	retstr = return_str(1, $return)
-}
-
 # shmget _____________________________________________________
 #
 # long sys_shmget (key_t key,
