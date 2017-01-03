@@ -1,48 +1,4 @@
 
-# write ______________________________________________________
-#
-# ssize_t sys_write(unsigned int fd,
-#	     const char __user * buf,
-#	     size_t count)
-#
-probe syscall.write =
-%( arch == "s390" %?
-	__syscall.write, kernel.function("sys32_write").call ?
-%:
-	__syscall.write
-%)
-{
-	name = "write"
-	fd = __int32($fd)
-	buf_uaddr = $buf
-	count = __ulong($count)
-	argstr = sprintf("%d, %s, %u", __int32($fd),
-		user_buffer_quoted($buf, $count, syscall_string_trunc),
-		__ulong($count))
-}
-probe __syscall.write = kernel.function("sys_write").call
-{
-%( arch == "s390" %?
-	@__syscall_gate(@const("__NR_write"))
-%)
-}
-probe syscall.write.return =
-%( arch == "s390" %?
-	__syscall.write.return, kernel.function("sys32_write").return ?
-%:
-	__syscall.write.return
-%)
-{
-	name = "write"
-	retstr = return_str(1, $return)
-}
-probe __syscall.write.return = kernel.function("sys_write").return
-{
-%( arch == "s390" %?
-	@__syscall_gate(@const("__NR_write"))
-%)
-}
-
 # writev _____________________________________________________
 #
 # ssize_t sys_writev(unsigned long fd,
