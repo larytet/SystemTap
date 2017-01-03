@@ -1,24 +1,7 @@
-
-# utimensat ____________________________________________________
+# compat_utimensat _____________________________________________
 # long sys_utimensat(int dfd, char __user *filename, struct timespec __user *utimes, int flags)
 # long compat_sys_utimensat(unsigned int dfd, char __user *filename, struct compat_timespec __user *t, int flags)
 #
-probe nd_syscall.utimensat = kprobe.function("sys_utimensat") ?
-{
-	name = "utimensat"
-	asmlinkage()
-	dfd = int_arg(1)
-	dfd_str = _dfd_str(dfd)
-	filename_uaddr = pointer_arg(2)
-	filename = user_string_quoted(filename_uaddr)
-	tsp_uaddr = pointer_arg(3)
-	flags = int_arg(4)
-	flags_str = _at_flag_str(flags)
-	argstr = sprintf("%s, %s, %s, %s", _dfd_str(dfd),
-			 user_string_quoted(filename_uaddr),
-			 _struct_timespec_u(tsp_uaddr, 2),
-			 _at_flag_str(flags))
-}
 probe nd_syscall.compat_utimensat = kprobe.function("compat_sys_utimensat") ?
 {
 	name = "utimensat"
@@ -34,11 +17,6 @@ probe nd_syscall.compat_utimensat = kprobe.function("compat_sys_utimensat") ?
 			 user_string_quoted(filename_uaddr),
 			 _struct_compat_timespec_u(tsp_uaddr, 2),
 			 _at_flag_str(flags))
-}
-probe nd_syscall.utimensat.return = kprobe.function("sys_utimensat").return ?
-{
-	name = "utimensat"
-	retstr = returnstr(1)
 }
 probe nd_syscall.compat_utimensat.return = kprobe.function("compat_sys_utimensat").return ?
 {
