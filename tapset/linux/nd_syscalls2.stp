@@ -1,42 +1,4 @@
 
-# umount _____________________________________________________
-# long sys_umount(char __user * name, int flags)
-# SYSCALL_DEFINE1(oldumount, char __user *, name)
-#
-probe nd_syscall.umount = __nd_syscall.umount, __nd_syscall.oldumount ?
-{
-	name = "umount"
-}
-probe __nd_syscall.umount = kprobe.function("sys_umount")
-{
-	@__syscall_compat_gate(@const("__NR_umount2"), @const("__NR_compat_umount2"))
-	asmlinkage()
-	target = user_string_quoted(pointer_arg(1))
-	flags = int_arg(2)
-	flags_str = _umountflags_str(flags)
-	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)),
-			 flags_str)
-}
-probe __nd_syscall.oldumount = kprobe.function("sys_oldumount") ?
-{
-	asmlinkage()
-	target = user_string_quoted(pointer_arg(1))
-	flags = 0
-	flags_str = _umountflags_str(0)
-	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)),
-			 flags_str)
-}
-probe nd_syscall.umount.return = __nd_syscall.umount.return,
-				 kprobe.function("sys_oldumount").return ?
-{
-	name = "umount"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.umount.return = kprobe.function("sys_umount").return
-{
-	@__syscall_compat_gate(@const("__NR_umount2"), @const("__NR_compat_umount2"))
-}
-
 # uname ______________________________________________________
 #
 # int sys_uname(struct old_utsname __user *name)

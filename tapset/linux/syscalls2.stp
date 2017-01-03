@@ -1,38 +1,4 @@
 
-# umount _____________________________________________________
-# long sys_umount(char __user * name, int flags)
-# SYSCALL_DEFINE1(oldumount, char __user *, name)
-#
-probe syscall.umount = __syscall.umount, __syscall.oldumount ?
-{
-	name = "umount"
-}
-probe __syscall.umount = kernel.function("sys_umount").call
-{
-	@__syscall_compat_gate(@const("__NR_umount2"), @const("__NR_compat_umount2"))
-	target = user_string_quoted($name)
-	flags = $flags
-	flags_str = _umountflags_str($flags)
-	argstr = sprintf("%s, %s", user_string_quoted($name), flags_str)
-}
-probe __syscall.oldumount = kernel.function("sys_oldumount").call ?
-{
-	target = user_string_quoted($name)
-	flags = 0
-	flags_str = _umountflags_str(0)
-	argstr = sprintf("%s, %s", user_string_quoted($name), flags_str)
-}
-probe syscall.umount.return = __syscall.umount.return,
-			      kernel.function("sys_oldumount").return ?
-{
-	name = "umount"
-	retstr = return_str(1, $return)
-}
-probe __syscall.umount.return = kernel.function("sys_umount").return
-{
-	@__syscall_compat_gate(@const("__NR_umount2"), @const("__NR_compat_umount2"))
-}
-
 # uname ______________________________________________________
 #
 # int sys_uname(struct old_utsname __user *name)
