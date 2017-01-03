@@ -1,25 +1,4 @@
 
-# set_zone_reclaim ___________________________________________
-/*
- * asmlinkage long
- * sys_set_zone_reclaim(unsigned int node,
- *                      unsigned int zone,
- *                      unsigned int state)
- */
-probe syscall.set_zone_reclaim = kernel.function("sys_set_zone_reclaim") ?
-{
-	name = "set_zone_reclaim"
-	node = $node
-	zone = $zone
-	state = $state
-	argstr = sprintf("%d, %d, %d", $node, $zone, $state)
-}
-probe syscall.set_zone_reclaim.return = kernel.function("sys_set_zone_reclaim").return ?
-{
-	name = "set_zone_reclaim"
-	retstr = return_str(1, $return)
-}
-
 %( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
 # sigaltstack ________________________________________________
 # int sys_sigaltstack(unsigned long ebx)
