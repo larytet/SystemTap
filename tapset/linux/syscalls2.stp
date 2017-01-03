@@ -1,23 +1,4 @@
 
-# setuid _____________________________________________________
-#
-# long sys_setuid(uid_t uid)
-# long sys_setuid16(old_uid_t uid)
-#
-probe syscall.setuid = kernel.function("sys_setuid16").call ?,
-                       kernel.function("sys_setuid").call
-{
-	name = "setuid"
-	uid = __int32($uid)
-	argstr = sprint(uid)
-}
-probe syscall.setuid.return = kernel.function("sys_setuid16").return ?,
-                              kernel.function("sys_setuid").return
-{
-	name = "setuid"
-	retstr = return_str(1, $return)
-}
-
 # setxattr ___________________________________________________
 # long sys_setxattr(char __user *path,
 #		  char __user *name,
