@@ -1,31 +1,4 @@
 
-# sigpending _________________________________________________
-# SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
-# COMPAT_SYSCALL_DEFINE1(sigpending, compat_old_sigset_t __user *, set)
-#
-probe nd_syscall.sigpending = __nd_syscall.sigpending ?,
-	kprobe.function("compat_sys_sigpending") ?
-{
-	name = "sigpending"
-	asmlinkage()
-	argstr = sprintf("%p", pointer_arg(1))
-}
-probe __nd_syscall.sigpending = kprobe.function("sys_sigpending") ?
-{
-	@__syscall_gate_compat_simple
-}
-probe nd_syscall.sigpending.return = __nd_syscall.sigpending.return ?,
-	kprobe.function("compat_sys_sigpending").return ?
-{
-	name = "sigpending"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.sigpending.return =
-	kprobe.function("sys_sigpending").return ?
-{
-	@__syscall_gate_compat_simple
-}
-
 # sigprocmask ________________________________________________
 # long sys_sigprocmask(int how, old_sigset_t __user *set, old_sigset_t __user *oset)
 # asmlinkage long compat_sys_sigprocmask(int how,

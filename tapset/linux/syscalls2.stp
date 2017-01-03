@@ -1,29 +1,4 @@
 
-# sigpending _________________________________________________
-# SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
-# COMPAT_SYSCALL_DEFINE1(sigpending, compat_old_sigset_t __user *, set)
-#
-probe syscall.sigpending = __syscall.sigpending ?,
-	kernel.function("compat_sys_sigpending").call ?
-{
-	name = "sigpending"
-	argstr = sprintf("%p", $set)
-}
-probe __syscall.sigpending = kernel.function("sys_sigpending").call ?
-{
-	@__syscall_gate_compat_simple
-}
-probe syscall.sigpending.return = __syscall.sigpending.return ?,
-	kernel.function("compat_sys_sigpending").return ?
-{
-	name = "sigpending"
-	retstr = return_str(1, $return)
-}
-probe __syscall.sigpending.return = kernel.function("sys_sigpending").return ?
-{
-	@__syscall_gate_compat_simple
-}
-
 # sigprocmask ________________________________________________
 # long sys_sigprocmask(int how, old_sigset_t __user *set, old_sigset_t __user *oset)
 # asmlinkage long compat_sys_sigprocmask(int how,
