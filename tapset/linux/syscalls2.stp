@@ -1,28 +1,3 @@
-
-# semtimedop _________________________________________________
-#
-# long sys_semtimedop(int semid,
-#		    struct sembuf __user *tsops,
-#		    unsigned nsops,
-#		    const struct timespec __user *timeout)
-#
-probe syscall.semtimedop = kernel.function("sys_semtimedop").call ?
-{
-	@__syscall_gate_compat_simple
-	name = "semtimedop"
-	semid = __int32($semid)
-	sops_uaddr = $tsops
-	nsops = __uint32($nsops)
-	timeout_uaddr = $timeout
-	argstr = sprintf("%d, %p, %u, %s", __int32($semid), $tsops,
-			 __uint32($nsops), _struct_timespec_u($timeout, 1))
-}
-probe syscall.semtimedop.return = kernel.function("sys_semtimedop").return ?
-{
-	@__syscall_gate_compat_simple
-	name = "semtimedop"
-	retstr = return_str(1, $return)
-}
 # compat_sys_semtimedop ________________________________________
 #
 # long compat_sys_semtimedop(int semid, struct sembuf __user *tsems,
