@@ -1,0 +1,52 @@
+# shmat ______________________________________________________
+#
+# long sys_shmat(int shmid, char __user *shmaddr, int shmflg)
+#
+
+@define _SYSCALL_SHMAT_NAME
+%(
+	name = "shmat"
+%)
+
+@define _SYSCALL_SHMAT_ARGSTR
+%(
+	argstr = sprintf("%d, %p, %s", shmid, shmaddr_uaddr, shmflg_str)
+%)
+
+probe syscall.shmat = dw_syscall.shmat !, nd_syscall.shmat {}
+probe syscall.shmat.return = dw_syscall.shmat.return !, nd_syscall.shmat.return {}
+
+# dw_shmat _____________________________________________________
+
+probe dw_syscall.shmat = kernel.function("sys_shmat").call ?
+{
+	@_SYSCALL_SHMAT_NAME
+	shmid = $shmid
+	shmaddr_uaddr = $shmaddr
+	shmflg = $shmflg
+	shmflg_str = _shmat_flags_str(shmflg)
+	@_SYSCALL_SHMAT_ARGSTR
+}
+probe dw_syscall.shmat.return = kernel.function("sys_shmat").return ?
+{
+	@_SYSCALL_SHMAT_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_shmat _____________________________________________________
+
+probe nd_syscall.shmat = kprobe.function("sys_shmat") ?
+{
+	@_SYSCALL_SHMAT_NAME
+	asmlinkage()
+	shmid = int_arg(1)
+	shmaddr_uaddr = pointer_arg(2)
+	shmflg = int_arg(3)
+	shmflg_str = _shmat_flags_str(shmflg)
+	@_SYSCALL_SHMAT_ARGSTR
+}
+probe nd_syscall.shmat.return = kprobe.function("sys_shmat").return ?
+{
+	@_SYSCALL_SHMAT_NAME
+	retstr = returnstr(1)
+}

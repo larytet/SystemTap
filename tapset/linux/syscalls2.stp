@@ -1,21 +1,3 @@
-
-# shmat ______________________________________________________
-#
-# long sys_shmat(int shmid, char __user *shmaddr, int shmflg)
-#
-probe syscall.shmat = kernel.function("sys_shmat").call ?
-{
-	name = "shmat"
-	shmid = $shmid
-	shmaddr_uaddr = $shmaddr
-	shmflg = $shmflg
-	argstr = sprintf("%d, %p, %s", $shmid, $shmaddr, _shmat_flags_str($shmflg))
-}
-probe syscall.shmat.return = kernel.function("sys_shmat").return ?
-{
-	name = "shmat"
-	retstr = return_str(1, $return)
-}
 # compat_sys_shmat ________________________________________
 #
 # long compat_sys_shmat(int first, int second, compat_uptr_t third,

@@ -1,23 +1,4 @@
 
-# shmat ______________________________________________________
-#
-# long sys_shmat(int shmid, char __user *shmaddr, int shmflg)
-#
-probe nd_syscall.shmat = kprobe.function("sys_shmat") ?
-{
-	name = "shmat"
-	asmlinkage()
-	shmid = int_arg(1)
-	shmaddr_uaddr = pointer_arg(2)
-	shmflg = int_arg(3)
-	argstr = sprintf("%d, %p, %s", shmid, shmaddr_uaddr, _shmat_flags_str(shmflg))
-}
-probe nd_syscall.shmat.return = kprobe.function("sys_shmat").return ?
-{
-	name = "shmat"
-	retstr = returnstr(1)
-}
-
 # compat_sys_shmat ________________________________________
 #
 # long compat_sys_shmat(int first, int second, compat_uptr_t third,
