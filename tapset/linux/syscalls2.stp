@@ -1,22 +1,4 @@
 
-# setfsuid ___________________________________________________
-# long sys_setfsuid(uid_t uid)
-# long sys_setfsuid16(old_uid_t uid)
-#
-probe syscall.setfsuid = kernel.function("sys_setfsuid16").call ?,
-                         kernel.function("sys_setfsuid").call ?
-{
-	name = "setfsuid"
-	fsuid = __int32($uid)
-	argstr = sprint(fsuid)
-}
-probe syscall.setfsuid.return = kernel.function("sys_setfsuid16").return ?,
-                                kernel.function("sys_setfsuid").return ?
-{
-	name = "setfsuid"
-	retstr = return_str(1, $return)
-}
-
 # setgid _____________________________________________________
 #
 # long sys_setgid(gid_t gid)

@@ -1,23 +1,4 @@
 
-# setfsuid ___________________________________________________
-# long sys_setfsuid(uid_t uid)
-# long sys_setfsuid16(old_uid_t uid)
-#
-probe nd_syscall.setfsuid = kprobe.function("sys_setfsuid16") ?,
-                            kprobe.function("sys_setfsuid") ?
-{
-	name = "setfsuid"
-	asmlinkage()
-	fsuid = int_arg(1)
-	argstr = sprint(fsuid)
-}
-probe nd_syscall.setfsuid.return = kprobe.function("sys_setfsuid16").return ?,
-                                   kprobe.function("sys_setfsuid").return ?
-{
-	name = "setfsuid"
-	retstr = returnstr(1)
-}
-
 # setgid _____________________________________________________
 #
 # long sys_setgid(gid_t gid)
