@@ -1,20 +1,4 @@
 
-# tux ________________________________________________________
-# long sys_tux (unsigned int action, user_req_t *u_info)
-#
-probe syscall.tux = kernel.function("sys_tux").call ?
-{
-	name = "tux"
-	action = $action
-	u_info_uaddr = $u_info
-	argstr = sprintf("%d, %p", $action, $u_info)
-}
-probe syscall.tux.return = kernel.function("sys_tux").return ?
-{
-	name = "tux"
-	retstr = return_str(1, $return)
-}
-
 # umask ______________________________________________________
 # long sys_umask(int mask)
 #

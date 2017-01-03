@@ -1,21 +1,4 @@
 
-# tux ________________________________________________________
-# long sys_tux (unsigned int action, user_req_t *u_info)
-#
-probe nd_syscall.tux = kprobe.function("sys_tux") ?
-{
-	name = "tux"
-	asmlinkage()
-	action = uint_arg(1)
-	u_info_uaddr = pointer_arg(2)
-	argstr = sprintf("%d, %p", action, u_info_uaddr)
-}
-probe nd_syscall.tux.return = kprobe.function("sys_tux").return ?
-{
-	name = "tux"
-	retstr = returnstr(1)
-}
-
 # umask ______________________________________________________
 # long sys_umask(int mask)
 #
