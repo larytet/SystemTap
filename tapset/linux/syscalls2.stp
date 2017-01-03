@@ -1,26 +1,4 @@
 
-# statfs _____________________________________________________
-# long sys_statfs(const char __user * path, struct statfs __user * buf)
-# long compat_sys_statfs(const char __user *path, struct compat_statfs __user *buf)
-#
-probe syscall.statfs = kernel.function("compat_sys_statfs").call ?,
-                       kernel.function("sys_statfs").call ?
-{
-	name = "statfs"
-	buf_uaddr = $buf
-	path = user_string_quoted(@choose_defined($pathname, $path))
-	argstr = sprintf("%s, %p",
-		user_string_quoted(@choose_defined($pathname, $path)),
-		$buf)
-}
-
-probe syscall.statfs.return = kernel.function("compat_sys_statfs").return ?,
-                              kernel.function("sys_statfs").return ?
-{
-	name = "statfs"
-	retstr = return_str(1, $return)
-}
-
 # statfs64 ___________________________________________________
 #
 # long sys_statfs64(const char __user *path, size_t sz, struct statfs64 __user *buf)
