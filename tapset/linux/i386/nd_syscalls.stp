@@ -1,25 +1,4 @@
 
-# iopl _______________________________________________________
-# NOTE. This function is only in i386 and x86_64 and its args vary
-# between those two archs:
-# el5: asmlinkage long sys_iopl(unsigned long unused)
-# el6: long sys_iopl(struct pt_regs *regs)
-#      [ ... ] unsigned int level = regs->bx;
-# f20: SYSCALL_DEFINE1(iopl, unsigned int, level)
-#
-probe nd_syscall.iopl = kprobe.function("sys_iopl")
-{
-	name = "iopl"
-	asmlinkage()
-	level = uint_arg(1)
-	argstr = sprint(level)
-}
-probe nd_syscall.iopl.return = kprobe.function("sys_iopl").return
-{
-	name = "iopl"
-	retstr = returnstr(1)
-}
-
 %( systemtap_v <= "2.7" %?
 # sys32_ipc() is just a syscall multiplexer (similar to
 # sys_socketcall()). So, we don't really need to probe it, since we'll
