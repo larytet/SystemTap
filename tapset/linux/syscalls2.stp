@@ -1,19 +1,4 @@
 
-# sync _______________________________________________________
-#
-# sys_sync(void)
-#
-probe syscall.sync = kernel.function("sys_sync").call
-{
-	name = "sync"
-	argstr = ""
-}
-probe syscall.sync.return = kernel.function("sys_sync").return
-{
-	name = "sync"
-	retstr = return_str(1, $return)
-}
-
 # sync_file_range ____________________________________________
 #
 # Why is there a 'sync_file_range' and a 'sync_file_range2'? As the

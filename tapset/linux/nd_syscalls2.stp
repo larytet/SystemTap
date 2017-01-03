@@ -1,19 +1,4 @@
 
-# sync _______________________________________________________
-#
-# sys_sync(void)
-#
-probe nd_syscall.sync = kprobe.function("sys_sync")
-{
-	name = "sync"
-	argstr = ""
-}
-probe nd_syscall.sync.return = kprobe.function("sys_sync").return
-{
-	name = "sync"
-	retstr = returnstr(1)
-}
-
 # sync_file_range ____________________________________________
 #
 # Why is there a 'sync_file_range' and a 'sync_file_range2'? As the
