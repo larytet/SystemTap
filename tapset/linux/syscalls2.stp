@@ -1,19 +1,4 @@
 
-# umask ______________________________________________________
-# long sys_umask(int mask)
-#
-probe syscall.umask = kernel.function("sys_umask").call
-{
-	name = "umask"
-	mask = __uint32($mask)
-	argstr = sprintf("%#o", __uint32($mask))
-}
-probe syscall.umask.return = kernel.function("sys_umask").return
-{
-	name = "umask"
-	retstr = return_str(3, $return)
-}
-
 # umount _____________________________________________________
 # long sys_umount(char __user * name, int flags)
 # SYSCALL_DEFINE1(oldumount, char __user *, name)

@@ -1,20 +1,4 @@
 
-# umask ______________________________________________________
-# long sys_umask(int mask)
-#
-probe nd_syscall.umask = kprobe.function("sys_umask") ?
-{
-	name = "umask"
-	asmlinkage()
-	mask = uint_arg(1)
-	argstr = sprintf("%#o", mask)
-}
-probe nd_syscall.umask.return = kprobe.function("sys_umask").return ?
-{
-	name = "umask"
-	retstr = returnstr(3)
-}
-
 # umount _____________________________________________________
 # long sys_umount(char __user * name, int flags)
 # SYSCALL_DEFINE1(oldumount, char __user *, name)
