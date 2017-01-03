@@ -1,25 +1,3 @@
-# setpriority ________________________________________________
-#
-# asmlinkage long
-# sys_setpriority(int which,
-#		     int who,
-#		     int niceval)
-#
-probe syscall.setpriority = kernel.function("sys_setpriority").call
-{
-	name = "setpriority"
-	which = __int32($which)
-	which_str = _priority_which_str(__int32($which))
-	who = __int32($who)
-	prio = __int32($niceval)
-	argstr = sprintf("%s, %d, %d", which_str, __int32($who),
-			 __int32($niceval))
-}
-probe syscall.setpriority.return = kernel.function("sys_setpriority").return
-{
-	name = "setpriority"
-	retstr = return_str(1, $return)
-}
 
 # setregid ___________________________________________________
 # long sys_setregid(gid_t rgid, gid_t egid)

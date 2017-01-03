@@ -1,27 +1,4 @@
 
-# setpriority ________________________________________________
-#
-# asmlinkage long
-# sys_setpriority(int which,
-#		     int who,
-#		     int niceval)
-#
-probe nd_syscall.setpriority = kprobe.function("sys_setpriority") ?
-{
-	name = "setpriority"
-	asmlinkage()
-	which = int_arg(1)
-	which_str = _priority_which_str(which)
-	who = int_arg(2)
-	prio = int_arg(3)
-	argstr = sprintf("%s, %d, %d", which_str, who, prio)
-}
-probe nd_syscall.setpriority.return = kprobe.function("sys_setpriority").return ?
-{
-	name = "setpriority"
-	retstr = returnstr(1)
-}
-
 # setregid ___________________________________________________
 # long sys_setregid(gid_t rgid, gid_t egid)
 #
