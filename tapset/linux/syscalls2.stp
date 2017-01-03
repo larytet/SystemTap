@@ -1,19 +1,4 @@
 
-# syncfs _____________________________________________________
-#
-# SYSCALL_DEFINE1(syncfs, int, fd)
-probe syscall.syncfs = kernel.function("sys_syncfs").call ?
-{
-	name = "syncfs"
-	fd = __int32($fd)
-	argstr = sprintf("%d", fd)
-}
-probe syscall.syncfs.return = kernel.function("sys_syncfs").return ?
-{
-	name = "syncfs"
-	retstr = return_str(1, $return)
-}
-
 # sysctl _____________________________________________________
 #
 # long sys_sysctl(struct __sysctl_args __user *args)

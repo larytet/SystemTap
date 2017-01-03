@@ -1,20 +1,4 @@
 
-# syncfs _____________________________________________________
-#
-# SYSCALL_DEFINE1(syncfs, int, fd)
-probe nd_syscall.syncfs = kprobe.function("sys_syncfs") ?
-{
-	asmlinkage()
-	name = "syncfs"
-	fd = int_arg(1)
-	argstr = sprintf("%d", fd)
-}
-probe nd_syscall.syncfs.return = kprobe.function("sys_syncfs").return ?
-{
-	name = "syncfs"
-	retstr = returnstr(1)
-}
-
 # sysctl _____________________________________________________
 #
 # long sys_sysctl(struct __sysctl_args __user *args)
