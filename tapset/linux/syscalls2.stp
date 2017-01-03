@@ -1,20 +1,4 @@
 
-# vhangup ____________________________________________________
-#
-# asmlinkage long
-# sys_vhangup(void)
-#
-probe syscall.vhangup = kernel.function("sys_vhangup").call
-{
-	name = "vhangup"
-	argstr = ""
-}
-probe syscall.vhangup.return = kernel.function("sys_vhangup").return
-{
-	name = "vhangup"
-	retstr = return_str(1, $return)
-}
-
 # vmsplice ___________________________________________________
 #
 # long sys_vmsplice(int fd, const struct iovec __user *iov,
