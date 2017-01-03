@@ -1,19 +1,4 @@
 
-# unshare ____________________________________________________
-# new function with 2.6.16
-# long sys_unshare(unsigned long unshare_flags)
-probe syscall.unshare = kernel.function("sys_unshare").call ?
-{
-	name = "unshare"
-	unshare_flags = $unshare_flags
-	argstr = __fork_flags(unshare_flags)
-}
-probe syscall.unshare.return = kernel.function("sys_unshare").return ?
-{
-	name = "unshare"
-	retstr = return_str(1, $return)
-}
-
 # uselib _____________________________________________________
 #
 # asmlinkage long

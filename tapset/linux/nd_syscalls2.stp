@@ -1,20 +1,4 @@
 
-# unshare ____________________________________________________
-# new function with 2.6.16
-# long sys_unshare(unsigned long unshare_flags)
-probe nd_syscall.unshare = kprobe.function("sys_unshare") ?
-{
-	name = "unshare"
-	asmlinkage()
-	unshare_flags = ulong_arg(1)
-	argstr = __fork_flags(unshare_flags)
-}
-probe nd_syscall.unshare.return = kprobe.function("sys_unshare").return ?
-{
-	name = "unshare"
-	retstr = returnstr(1)
-}
-
 # uselib _____________________________________________________
 #
 # asmlinkage long
