@@ -1,24 +1,4 @@
 
-# timerfd_create _____________________________________________
-#
-# SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
-probe nd_syscall.timerfd_create = kprobe.function("sys_timerfd_create").call ?
-{
-	name = "timerfd_create"
-	asmlinkage()
-	clockid = int_arg(1)
-	clockid_str = _get_wc_str(clockid)
-	flags = int_arg(2)
-	flags_str = _stp_timerfd_flags_str(flags)
-	argstr = sprintf("%s, %s", clockid_str, flags_str)
-}
-probe nd_syscall.timerfd_create.return =
-	kprobe.function("sys_timerfd_create").return ?
-{
-	name = "timerfd_create"
-	retstr = returnstr(1)
-}
-
 # timerfd_gettime_____________________________________________
 #
 # SYSCALL_DEFINE2(timerfd_gettime, int, ufd, struct itimerspec __user *, otmr)

@@ -1,23 +1,4 @@
 
-# timerfd_create _____________________________________________
-#
-# SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
-probe syscall.timerfd_create = kernel.function("sys_timerfd_create").call ?
-{
-	name = "timerfd_create"
-	clockid = __int32($clockid)
-	clockid_str = _get_wc_str(clockid)
-	flags = __int32($flags)
-	flags_str = _stp_timerfd_flags_str(flags)
-	argstr = sprintf("%s, %s", clockid_str, flags_str)
-}
-probe syscall.timerfd_create.return =
-	kernel.function("sys_timerfd_create").return ?
-{
-	name = "timerfd_create"
-	retstr = return_str(1, $return)
-}
-
 # timerfd_gettime_____________________________________________
 #
 # SYSCALL_DEFINE2(timerfd_gettime, int, ufd, struct itimerspec __user *, otmr)
