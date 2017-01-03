@@ -1,22 +1,3 @@
-#
-# long compat_sys_setitimer(int which,
-#		struct compat_itimerval __user *in,
-#		struct compat_itimerval __user *out)
-#
-probe syscall.compat_setitimer = kernel.function("compat_sys_setitimer").call ?
-{
-	name = "setitimer"
-	which = __int32($which)
-	value_uaddr = @__pointer($in)
-	ovalue_uaddr = @__pointer($out)
-	argstr = sprintf("%s, %s, %p", _itimer_which_str(which),
-			 _struct_compat_itimerval_u(value_uaddr), ovalue_uaddr)
-}
-probe syscall.compat_setitimer.return = kernel.function("compat_sys_setitimer").return ?
-{
-	name = "setitimer"
-	retstr = return_str(1, $return)
-}
 
 # setns ______________________________________________________
 # SYSCALL_DEFINE2(setns, int, fd, int, nstype)
