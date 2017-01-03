@@ -1,0 +1,49 @@
+# setresgid __________________________________________________
+# long sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
+#
+
+@define _SYSCALL_SETRESGID_NAME
+%(
+	name = "setresgid"
+%)
+
+@define _SYSCALL_SETRESGID_ARGSTR
+%(
+	argstr = sprintf("%d, %d, %d", rgid, egid, sgid)
+%)
+
+probe syscall.setresgid = dw_syscall.setresgid !, nd_syscall.setresgid {}
+probe syscall.setresgid.return = dw_syscall.setresgid.return !, nd_syscall.setresgid.return {}
+
+# dw_setresgid _____________________________________________________
+
+probe dw_syscall.setresgid = kernel.function("sys_setresgid").call
+{
+	@_SYSCALL_SETRESGID_NAME
+	rgid = __int32($rgid)
+	egid = __int32($egid)
+	sgid = __int32($sgid)
+	@_SYSCALL_SETRESGID_ARGSTR
+}
+probe dw_syscall.setresgid.return = kernel.function("sys_setresgid").return
+{
+	@_SYSCALL_SETRESGID_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_setresgid _____________________________________________________
+
+probe nd_syscall.setresgid = kprobe.function("sys_setresgid") ?
+{
+	@_SYSCALL_SETRESGID_NAME
+	asmlinkage()
+	rgid = __int32(uint_arg(1))
+	egid = __int32(uint_arg(2))
+	sgid = __int32(uint_arg(3))
+	@_SYSCALL_SETRESGID_ARGSTR
+}
+probe nd_syscall.setresgid.return = kprobe.function("sys_setresgid").return ?
+{
+	@_SYSCALL_SETRESGID_NAME
+	retstr = returnstr(1)
+}
