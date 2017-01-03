@@ -1,19 +1,4 @@
 
-# setns ______________________________________________________
-# SYSCALL_DEFINE2(setns, int, fd, int, nstype)
-probe syscall.setns = kernel.function("sys_setns") ?
-{
-	name = "setns"
-	fd = __int32($fd)
-	nstype = __int32($nstype)
-	argstr = sprintf("%d, %s", fd, __fork_flags(nstype));
-}
-probe syscall.setns.return = kernel.function("sys_setns").return ?
-{
-	name = "setns"
-	retstr = return_str(1, $return)
-}
-
 # set_mempolicy ______________________________________________
 # long sys_set_mempolicy(int mode,
 #	unsigned long __user *nmask,
