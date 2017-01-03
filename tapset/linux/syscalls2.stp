@@ -1,48 +1,4 @@
 
-# sendfile ___________________________________________________
-#
-# ssize_t sys_sendfile[64](int out_fd,
-#		  int in_fd,
-#		  off_t __user *offset,
-#		  size_t count)
-# SYSCALL_DEFINE4(sendfile64, int, out_fd, int, in_fd, loff_t __user *, offset,
-#		 size_t, count)
-# COMPAT_SYSCALL_DEFINE4(sendfile, int, out_fd, int, in_fd,
-#		compat_off_t __user *, offset, compat_size_t, count)
-# COMPAT_SYSCALL_DEFINE4(sendfile64, int, out_fd, int, in_fd,
-#		compat_loff_t __user *, offset, compat_size_t, count)
-#
-probe syscall.sendfile = __syscall.sendfile ?,
-	kernel.function("compat_sys_sendfile").call ?,
-	kernel.function("compat_sys_sendfile64").call ?,
-	kernel.function("sys32_sendfile").call ?
-{
-	name = "sendfile"
-	out_fd = __int32($out_fd)
-	in_fd = __int32($in_fd)
-	offset_uaddr = $offset
-	count = @__compat_ulong($count)
-	argstr = sprintf("%d, %d, %p, %u", out_fd, in_fd, $offset, count)
-}
-probe __syscall.sendfile = kernel.function("sys_sendfile").call ?,
-	kernel.function("sys_sendfile64").call ?
-{
-	@__syscall_gate2(@const("__NR_sendfile"), @const("__NR_sendfile64"))
-}
-probe syscall.sendfile.return = __syscall.sendfile.return ?,
-	kernel.function("compat_sys_sendfile").return ?,
-	kernel.function("compat_sys_sendfile64").return ?,
-	kernel.function("sys32_sendfile").return ?
-{
-	name = "sendfile"
-	retstr = return_str(1, $return)
-}
-probe __syscall.sendfile.return = kernel.function("sys_sendfile").return ?,
-	kernel.function("sys_sendfile64").return ?
-{
-	@__syscall_gate2(@const("__NR_sendfile"), @const("__NR_sendfile64"))
-}
-
 # sendmsg ____________________________________________________
 #
 # long sys_sendmsg(int fd, struct msghdr __user *msg, unsigned flags)
