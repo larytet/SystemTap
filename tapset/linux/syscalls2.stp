@@ -1,19 +1,4 @@
 
-# vfork _______________________________________________________
-#
-# SYSCALL_DEFINE0(vfork)
-#
-probe syscall.vfork = kernel.function("sys_vfork").call ?
-{
-	name = "vfork"
-	argstr = ""
-}
-probe syscall.vfork.return = kernel.function("sys_vfork").return ?
-{
-	name = "vfork"
-	retstr = return_str(1, $return)
-}
-
 # vhangup ____________________________________________________
 #
 # asmlinkage long

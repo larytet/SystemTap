@@ -1,19 +1,4 @@
 
-# vfork _______________________________________________________
-#
-# SYSCALL_DEFINE0(vfork)
-#
-probe nd_syscall.vfork = kprobe.function("sys_vfork").call ?
-{
-	name = "vfork"
-	argstr = ""
-}
-probe nd_syscall.vfork.return = kprobe.function("sys_vfork").return ?
-{
-	name = "vfork"
-	retstr = returnstr(1)
-}
-
 # vhangup ____________________________________________________
 #
 # asmlinkage long
