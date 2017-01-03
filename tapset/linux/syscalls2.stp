@@ -1,29 +1,4 @@
 
-# splice ___________________________________________________
-#
-# long sys_splice(int fd_in, loff_t __user *off_in,
-#		   int fd_out, loff_t __user *off_out,
-#		   size_t len, unsigned int flags)
-#
-probe syscall.splice = kernel.function("sys_splice").call ?
-{
-	name = "splice"
-	fd_in = __int32($fd_in)
-	off_in = $off_in
-	fd_out = __int32($fd_out)
-	off_out = $off_out
-	len = __ulong($len)
-	flags = $flags
-	flags_str = (_stp_splice_flags_str(flags))
-	argstr = sprintf("%d, %p, %d, %p, %u, %s", fd_in, off_in, fd_out,
-	                 off_out, len, flags_str);
-}
-probe syscall.splice.return = kernel.function("sys_splice").return ?
-{
-	name = "splice"
-	retstr = return_str(1, $return)
-}
-
 # ssetmask ___________________________________________________
 #
 # long sys_ssetmask(int newmask)
