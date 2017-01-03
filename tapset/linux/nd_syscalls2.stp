@@ -1,21 +1,4 @@
 
-# setregid ___________________________________________________
-# long sys_setregid(gid_t rgid, gid_t egid)
-#
-probe nd_syscall.setregid = kprobe.function("sys_setregid") ?
-{
-	name = "setregid"
-	asmlinkage()
-	rgid = __int32(uint_arg(1))
-	egid = __int32(uint_arg(2))
-	argstr = sprintf("%d, %d", rgid, egid)
-}
-probe nd_syscall.setregid.return = kprobe.function("sys_setregid").return ?
-{
-	name = "setregid"
-	retstr = returnstr(1)
-}
-
 # setregid16 _________________________________________________
 # long sys_setregid16(old_gid_t rgid, old_gid_t egid)
 #
