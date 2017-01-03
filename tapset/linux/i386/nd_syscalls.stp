@@ -1,23 +1,4 @@
 
-# vm86old ____________________________________________________
-#
-# int sys_vm86old(struct pt_regs regs)
-#
-probe nd_syscall.vm86old = kprobe.function("sys_vm86old") ?
-{
-	name = "vm86old"
-	/*
-	 * unsupported type identifier '$regs'
-	 * regs = $regs
-	 */
-	argstr = ""
-}
-probe nd_syscall.vm86old.return = kprobe.function("sys_vm86old").return ?
-{
-	name = "vm86old"
-	retstr = returnstr(1)
-}
-
 %( kernel_v < "3.7" %?
 # execve _____________________________________________________
 #
