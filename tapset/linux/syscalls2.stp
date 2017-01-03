@@ -1,36 +1,4 @@
 
-# sigprocmask ________________________________________________
-# long sys_sigprocmask(int how, old_sigset_t __user *set, old_sigset_t __user *oset)
-# asmlinkage long compat_sys_sigprocmask(int how,
-# 				         compat_old_sigset_t __user *nset,
-#				         compat_old_sigset_t __user *oset)
-#
-probe syscall.sigprocmask = __syscall.sigprocmask ?,
-                            kernel.function("compat_sys_sigprocmask").call ?
-{
-	name = "sigprocmask"
-	how = __int32($how)
-	how_str = _sigprocmask_how_str(how)
-	set_uaddr = @__pointer(@choose_defined($set, $nset))
-	oldset_uaddr = @__compat_ulong($oset)
-	argstr = sprintf("%s, %p, %p", how_str, set_uaddr, oldset_uaddr)
-}
-probe __syscall.sigprocmask = kernel.function("sys_sigprocmask").call ?
-{
-	@__syscall_gate(@const("__NR_sigprocmask"))
-}
-probe syscall.sigprocmask.return = __syscall.sigprocmask.return ?,
-	kernel.function("compat_sys_sigprocmask").return ?
-{
-	name = "sigprocmask"
-	retstr = return_str(1, $return)
-}
-probe __syscall.sigprocmask.return =
-	kernel.function("sys_sigprocmask").return ?
-{
-	@__syscall_gate(@const("__NR_sigprocmask"))
-}
-
 # sigreturn __________________________________________________
 # int sys_sigreturn(unsigned long __unused)
 #
