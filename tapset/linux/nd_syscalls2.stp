@@ -1,25 +1,4 @@
 
-# sethostname ________________________________________________
-#
-# asmlinkage long
-# sys_sethostname(char __user *name,
-#		     int len)
-#
-probe nd_syscall.sethostname = kprobe.function("sys_sethostname") ?
-{
-	name = "sethostname"
-	asmlinkage()
-	hostname_uaddr = pointer_arg(1)
-	name_str = user_string_quoted(hostname_uaddr)
-	len = int_arg(2)
-	argstr = sprintf("%s, %d", user_string_quoted(hostname_uaddr), len)
-}
-probe nd_syscall.sethostname.return = kprobe.function("sys_sethostname").return ?
-{
-	name = "sethostname"
-	retstr = returnstr(1)
-}
-
 # setitimer __________________________________________________
 #
 # long sys_setitimer(int which,
