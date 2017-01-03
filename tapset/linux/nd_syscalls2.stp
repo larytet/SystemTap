@@ -1,22 +1,4 @@
 
-# set_tid_address ____________________________________________
-#
-# asmlinkage long
-# sys_set_tid_address(int __user *tidptr)
-#
-probe nd_syscall.set_tid_address = kprobe.function("sys_set_tid_address") ?
-{
-	name = "set_tid_address"
-	asmlinkage()
-	tidptr_uaddr = pointer_arg(1)
-	argstr = sprintf("%p", tidptr_uaddr)
-}
-probe nd_syscall.set_tid_address.return = kprobe.function("sys_set_tid_address").return ?
-{
-	name = "set_tid_address"
-	retstr = returnstr(1)
-}
-
 # settimeofday _______________________________________________
 #
 # long sys_settimeofday(struct timeval __user *tv,
