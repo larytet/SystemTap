@@ -1,35 +1,4 @@
 
-# timerfd_gettime_____________________________________________
-#
-# SYSCALL_DEFINE2(timerfd_gettime, int, ufd, struct itimerspec __user *, otmr)
-# COMPAT_SYSCALL_DEFINE2(timerfd_gettime, int, ufd,
-#		struct compat_itimerspec __user *, otmr)
-probe nd_syscall.timerfd_gettime = __nd_syscall.timerfd_gettime ?,
-	kprobe.function("compat_sys_timerfd_gettime").call ?
-{
-	name = "timerfd_gettime"
-	asmlinkage()
-	fd = int_arg(1)
-	value_uaddr = pointer_arg(2)
-	argstr = sprintf("%d, %p", fd, value_uaddr)
-}
-probe __nd_syscall.timerfd_gettime =
-	kprobe.function("sys_timerfd_gettime").call ?
-{
-	@__syscall_gate_compat_simple
-}
-probe nd_syscall.timerfd_gettime.return = __nd_syscall.timerfd_gettime.return ?,
-	kprobe.function("compat_sys_timerfd_gettime").return ?
-{
-	name = "timerfd_gettime"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.timerfd_gettime.return =
-	kprobe.function("sys_timerfd_gettime").return ?
-{
-	@__syscall_gate_compat_simple
-}
-
 # timerfd_settime ____________________________________________
 #
 # SYSCALL_DEFINE4(timerfd_settime, int, ufd, int, flags,
