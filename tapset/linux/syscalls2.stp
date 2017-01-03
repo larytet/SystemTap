@@ -1,27 +1,4 @@
 
-# setdomainname ______________________________________________
-#
-# asmlinkage long
-# sys_setdomainname(char __user *name,
-#			 int len)
-#
-probe syscall.setdomainname = kernel.function("sys_setdomainname").call
-{
-	name = "setdomainname"
-	domainname_uaddr = $name
-%( systemtap_v <= "2.8" %?
-	hostname_uaddr = domainname_uaddr
-%)
-        domainname_str = user_string_quoted(domainname_uaddr)
-	len = __int32($len)
-	argstr = sprintf("%s, %d", domainname_str, len)
-}
-probe syscall.setdomainname.return = kernel.function("sys_setdomainname").return
-{
-	name = "setdomainname"
-	retstr = return_str(1, $return)
-}
-
 # setfsgid ___________________________________________________
 # long sys_setfsgid(gid_t gid)
 # long sys_setfsgid16(old_gid_t gid)
