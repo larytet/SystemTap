@@ -1,21 +1,4 @@
 
-# setreuid16 _________________________________________________
-# long sys_setreuid16(old_uid_t ruid, old_uid_t euid)
-#
-probe nd_syscall.setreuid16 = kprobe.function("sys_setreuid16") ?
-{
-	name = "setreuid"
-	asmlinkage()
-	ruid = __short(uint_arg(1))
-	euid = __short(uint_arg(2))
-	argstr = sprintf("%d, %d", ruid, euid)
-}
-probe nd_syscall.setreuid16.return = kprobe.function("sys_setreuid16").return ?
-{
-	name = "setreuid"
-	retstr = returnstr(1)
-}
-
 # setrlimit __________________________________________________
 #
 # asmlinkage long

@@ -1,18 +1,3 @@
-# setreuid16 _________________________________________________
-# long sys_setreuid16(old_uid_t ruid, old_uid_t euid)
-#
-probe syscall.setreuid16 = kernel.function("sys_setreuid16").call ?
-{
-	name = "setreuid"
-	ruid = __short($ruid)
-	euid = __short($euid)
-	argstr = sprintf("%d, %d", ruid, euid)
-}
-probe syscall.setreuid16.return = kernel.function("sys_setreuid16").return ?
-{
-	name = "setreuid"
-	retstr = return_str(1, $return)
-}
 
 # setrlimit __________________________________________________
 #
