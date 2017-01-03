@@ -1,27 +1,3 @@
-# time _______________________________________________________
-#
-# long sys_time(time_t __user * tloc)
-# long sys_time64(long __user * tloc)
-# long sys32_time(compat_time_t __user * tloc)
-# long compat_sys_time(compat_time_t __user * tloc)
-#
-probe syscall.time = kernel.function("sys32_time").call ?,
-                     kernel.function("sys_time64").call ?,
-                     kernel.function("compat_sys_time").call ?,
-                     kernel.function("sys_time").call ?
-{
-	name = "time"
-	t_uaddr = $tloc
-	argstr = sprintf("%p", $tloc)
-}
-probe syscall.time.return = kernel.function("sys32_time").return ?,
-                            kernel.function("sys_time64").return ?,
-                            kernel.function("compat_sys_time").return ?,
-                            kernel.function("sys_time").return ?
-{
-	name = "time"
-	retstr = return_str(1, $return)
-}
 
 # timer_create _______________________________________________
 #

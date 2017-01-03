@@ -1,30 +1,4 @@
 
-# time _______________________________________________________
-#
-# long sys_time(time_t __user * tloc)
-# long sys_time64(long __user * tloc)
-# long sys32_time(compat_time_t __user * tloc)
-# long compat_sys_time(compat_time_t __user * tloc)
-#
-probe nd_syscall.time = kprobe.function("sys32_time") ?,
-                        kprobe.function("sys_time64") ?,
-                        kprobe.function("compat_sys_time") ?,
-                        kprobe.function("sys_time") ?
-{
-	name = "time"
-	asmlinkage()
-	t_uaddr = pointer_arg(1)
-	argstr = sprintf("%p", t_uaddr)
-}
-probe nd_syscall.time.return = kprobe.function("sys32_time").return ?,
-                               kprobe.function("sys_time64").return ?,
-                               kprobe.function("compat_sys_time").return ?,
-                               kprobe.function("sys_time").return ?
-{
-	name = "time"
-	retstr = returnstr(1)
-}
-
 # timer_create _______________________________________________
 #
 # long sys_timer_create(clockid_t which_clock,
