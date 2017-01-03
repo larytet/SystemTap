@@ -1,35 +1,4 @@
 
-# stat _______________________________________________________
-# long sys_stat(char __user * filename, struct __old_stat __user * statbuf)
-# long sys32_stat64(char __user * filename, struct stat64 __user *statbuf)
-# long sys_stat64(char __user * filename, struct stat64 __user * statbuf)
-# long sys_oabi_stat64(char __user * filename, struct oldabi_stat64 __user * statbuf)
-# long compat_sys_newstat(char __user * filename, struct compat_stat __user *statbuf)
-probe nd_syscall.stat = kprobe.function("sys_stat") ?,
-                        kprobe.function("sys_newstat") ?,
-                        kprobe.function("sys32_stat64") ?,
-                        kprobe.function("sys_stat64") ?,
-                        kprobe.function("sys_oabi_stat64") ?,
-                        kprobe.function("compat_sys_newstat") ?
-{
-	name = "stat"
-	asmlinkage()
-	filename_uaddr = pointer_arg(1)
-	filename = user_string_quoted(filename_uaddr)
-	buf_uaddr = pointer_arg(2)
-	argstr = sprintf("%s, %p", user_string_quoted(filename_uaddr), buf_uaddr)
-}
-probe nd_syscall.stat.return = kprobe.function("sys_stat").return ?,
-                               kprobe.function("sys_newstat").return ?,
-                               kprobe.function("sys32_stat64").return ?,
-                               kprobe.function("sys_stat64").return ?,
-                               kprobe.function("sys_oabi_stat64").return ?,
-                               kprobe.function("compat_sys_newstat").return ?
-{
-	name = "stat"
-	retstr = returnstr(1)
-}
-
 # statfs _____________________________________________________
 # long sys_statfs(const char __user * path, struct statfs __user * buf)
 # long compat_sys_statfs(const char __user *path, struct compat_statfs __user *buf)

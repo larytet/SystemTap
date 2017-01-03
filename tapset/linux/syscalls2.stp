@@ -1,34 +1,4 @@
 
-# stat _______________________________________________________
-# long sys_stat(char __user * filename, struct __old_stat __user * statbuf)
-# long sys32_stat64(char __user * filename, struct stat64 __user *statbuf)
-# long sys_stat64(char __user * filename, struct stat64 __user * statbuf)
-# long sys_oabi_stat64(char __user * filename, struct oldabi_stat64 __user * statbuf)
-# long compat_sys_newstat(char __user * filename, struct compat_stat __user *statbuf)
-probe syscall.stat = kernel.function("sys_stat").call ?,
-                     kernel.function("sys_newstat").call ?,
-                     kernel.function("sys32_stat64").call ?,
-                     kernel.function("sys_stat64").call ?,
-                     kernel.function("sys_oabi_stat64").call ?,
-                     kernel.function("compat_sys_newstat").call ?
-{
-	name = "stat"
-	filename_uaddr = $filename
-	filename = user_string_quoted($filename)
-	buf_uaddr = $statbuf
-	argstr = sprintf("%s, %p", user_string_quoted($filename), buf_uaddr)
-}
-probe syscall.stat.return = kernel.function("sys_stat").return ?,
-                            kernel.function("sys_newstat").return ?,
-                            kernel.function("sys32_stat64").return ?,
-                            kernel.function("sys_stat64").return ?,
-                            kernel.function("sys_oabi_stat64").return ?,
-                            kernel.function("compat_sys_newstat").return ?
-{
-	name = "stat"
-	retstr = return_str(1, $return)
-}
-
 # statfs _____________________________________________________
 # long sys_statfs(const char __user * path, struct statfs __user * buf)
 # long compat_sys_statfs(const char __user *path, struct compat_statfs __user *buf)
