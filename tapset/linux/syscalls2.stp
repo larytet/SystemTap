@@ -1,20 +1,3 @@
-
-# swapoff ____________________________________________________
-#
-# asmlinkage long
-# sys_swapoff(const char __user * specialfile)
-#
-probe syscall.swapoff = kernel.function("sys_swapoff").call ?
-{
-	name = "swapoff"
-	path = user_string_quoted($specialfile)
-	argstr = user_string_quoted($specialfile)
-}
-probe syscall.swapoff.return = kernel.function("sys_swapoff").return ?
-{
-	name = "swapoff"
-	retstr = return_str(1, $return)
-}
 # swapon _____________________________________________________
 #
 # asmlinkage long

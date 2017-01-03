@@ -1,22 +1,4 @@
 
-# swapoff ____________________________________________________
-#
-# asmlinkage long
-# sys_swapoff(const char __user * specialfile)
-#
-probe nd_syscall.swapoff = kprobe.function("sys_swapoff") ?
-{
-	name = "swapoff"
-	asmlinkage()
-	path = user_string_quoted(pointer_arg(1))
-	argstr = user_string_quoted(pointer_arg(1))
-}
-probe nd_syscall.swapoff.return = kprobe.function("sys_swapoff").return ?
-{
-	name = "swapoff"
-	retstr = returnstr(1)
-}
-
 # swapon _____________________________________________________
 #
 # asmlinkage long
