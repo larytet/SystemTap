@@ -1,28 +1,3 @@
-
-# semctl _____________________________________________________
-# long sys_semctl (int semid,
-#		 int semnum,
-#		 int cmd,
-#		 union semun arg)
-#
-probe syscall.semctl = kernel.function("sys_semctl").call ?
-{
-	@__syscall_gate_compat_simple
-	name = "semctl"
-	semid = __int32($semid)
-	semnum = __int32($semnum)
-	cmd = __int32($cmd)
-	cmdstr = _semctl_cmd($cmd)
-	arg = @choose_defined($arg->buf, $arg)
-	argstr = sprintf("%d, %d, %s, %p", __int32($semid), __int32($semnum),
-			 _semctl_cmd($cmd), arg)
-}
-probe syscall.semctl.return = kernel.function("sys_semctl").return ?
-{
-	@__syscall_gate_compat_simple
-	name = "semctl"
-	retstr = return_str(1, $return)
-}
 # compat_sys_semctl ________________________________________
 #
 # long compat_sys_semctl(int first, int second, int third, void __user *uptr)

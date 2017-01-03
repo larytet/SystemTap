@@ -1,0 +1,60 @@
+# semctl _____________________________________________________
+# long sys_semctl (int semid,
+#		 int semnum,
+#		 int cmd,
+#		 union semun arg)
+#
+
+@define _SYSCALL_SEMCTL_NAME
+%(
+	name = "semctl"
+%)
+
+@define _SYSCALL_SEMCTL_ARGSTR
+%(
+	argstr = sprintf("%d, %d, %s, %p", semid, semnum, cmdstr, arg)
+%)
+
+probe syscall.semctl = dw_syscall.semctl !, nd_syscall.semctl {}
+probe syscall.semctl.return = dw_syscall.semctl.return !, nd_syscall.semctl.return {}
+
+# dw_semctl _____________________________________________________
+
+probe dw_syscall.semctl = kernel.function("sys_semctl").call ?
+{
+	@__syscall_gate_compat_simple
+	@_SYSCALL_SEMCTL_NAME
+	semid = __int32($semid)
+	semnum = __int32($semnum)
+	cmd = __int32($cmd)
+	cmdstr = _semctl_cmd($cmd)
+	arg = @choose_defined($arg->buf, $arg)
+	@_SYSCALL_SEMCTL_ARGSTR
+}
+probe dw_syscall.semctl.return = kernel.function("sys_semctl").return ?
+{
+	@__syscall_gate_compat_simple
+	@_SYSCALL_SEMCTL_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_semctl _____________________________________________________
+
+probe nd_syscall.semctl = kprobe.function("sys_semctl") ?
+{
+	@__syscall_gate_compat_simple
+	@_SYSCALL_SEMCTL_NAME
+	asmlinkage()
+	semid = int_arg(1)
+	semnum = int_arg(2)
+	cmd = int_arg(3)
+	cmdstr = _semctl_cmd(cmd)
+	arg = pointer_arg(4)
+	@_SYSCALL_SEMCTL_ARGSTR
+}
+probe nd_syscall.semctl.return = kprobe.function("sys_semctl").return ?
+{
+	@__syscall_gate_compat_simple
+	@_SYSCALL_SEMCTL_NAME
+	retstr = returnstr(1)
+}
