@@ -1,21 +1,4 @@
 
-# timer_getoverrun ___________________________________________
-#
-# long sys_timer_getoverrun(timer_t timer_id)
-#
-probe nd_syscall.timer_getoverrun = kprobe.function("sys_timer_getoverrun") ?
-{
-	name = "timer_getoverrun"
-	asmlinkage()
-	timerid = int_arg(1)
-	argstr = sprint(timerid)
-}
-probe nd_syscall.timer_getoverrun.return = kprobe.function("sys_timer_getoverrun").return ?
-{
-	name = "timer_getoverrun"
-	retstr = returnstr(1)
-}
-
 # timer_gettime ______________________________________________
 #
 # long sys_timer_gettime(timer_t timer_id,

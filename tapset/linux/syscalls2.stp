@@ -1,20 +1,4 @@
 
-# timer_getoverrun ___________________________________________
-#
-# long sys_timer_getoverrun(timer_t timer_id)
-#
-probe syscall.timer_getoverrun = kernel.function("sys_timer_getoverrun").call
-{
-	name = "timer_getoverrun"
-	timerid = __int32($timer_id)
-	argstr = sprint(__int32($timer_id))
-}
-probe syscall.timer_getoverrun.return = kernel.function("sys_timer_getoverrun").return
-{
-	name = "timer_getoverrun"
-	retstr = return_str(1, $return)
-}
-
 # timer_gettime ______________________________________________
 #
 # long sys_timer_gettime(timer_t timer_id,
