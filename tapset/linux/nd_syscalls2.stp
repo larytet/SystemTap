@@ -1,31 +1,4 @@
 
-# symlinkat __________________________________________________
-# new function with 2.6.16
-# long sys_symlinkat(const char __user *oldname, int newdfd,
-#	const char __user *newname)
-probe nd_syscall.symlinkat = kprobe.function("sys_symlinkat") ?
-{
-	@__syscall_compat_gate(@const("__NR_symlinkat"),
-			       @const("__NR_compat_symlinkat"))
-	name = "symlinkat"
-	asmlinkage()
-	oldname = pointer_arg(1)
-	oldname_str = user_string_quoted(oldname)
-	newdfd = int_arg(2)
-	newdfd_str = _dfd_str(newdfd)
-	newname = pointer_arg(3)
-	newname_str = user_string_quoted(newname)
-	argstr = sprintf("%s, %s, %s", user_string_quoted(oldname),
-		newdfd_str, user_string_quoted(newname))
-}
-probe nd_syscall.symlinkat.return = kprobe.function("sys_symlinkat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_symlinkat"),
-			       @const("__NR_compat_symlinkat"))
-	name = "symlinkat"
-	retstr = returnstr(1)
-}
-
 # sync _______________________________________________________
 #
 # sys_sync(void)

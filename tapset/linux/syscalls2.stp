@@ -1,30 +1,4 @@
 
-# symlinkat __________________________________________________
-# new function with 2.6.16
-# long sys_symlinkat(const char __user *oldname, int newdfd,
-#	const char __user *newname)
-probe syscall.symlinkat = kernel.function("sys_symlinkat").call ?
-{
-	@__syscall_compat_gate(@const("__NR_symlinkat"),
-			       @const("__NR_compat_symlinkat"))
-	name = "symlinkat"
-	oldname = $oldname
-	oldname_str = user_string_quoted($oldname)
-	newdfd = __int32($newdfd)
-	newdfd_str = _dfd_str(__int32($newdfd))
-	newname = $newname
-	newname_str = user_string_quoted($newname)
-	argstr = sprintf("%s, %s, %s", user_string_quoted($oldname),
-		newdfd_str, user_string_quoted($newname))
-}
-probe syscall.symlinkat.return = kernel.function("sys_symlinkat").return ?
-{
-	@__syscall_compat_gate(@const("__NR_symlinkat"),
-			       @const("__NR_compat_symlinkat"))
-	name = "symlinkat"
-	retstr = return_str(1, $return)
-}
-
 # sync _______________________________________________________
 #
 # sys_sync(void)
