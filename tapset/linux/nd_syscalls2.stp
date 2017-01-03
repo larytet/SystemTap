@@ -1,37 +1,4 @@
 
-# set_robust_list ____________________________________________
-# SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
-#                 size_t, len)
-# COMPAT_SYSCALL_DEFINE2(set_robust_list,
-#                        struct compat_robust_list_head __user *, head,
-#                        compat_size_t, len)
-probe nd_syscall.set_robust_list =
-		__nd_syscall.set_robust_list ?,
-		kprobe.function("compat_sys_set_robust_list") ?
-{
-	name = "set_robust_list"
-	asmlinkage()
-	list_head_uaddr = pointer_arg(1)
-	len = ulong_arg(2)
-	argstr = sprintf("%p, %u", list_head_uaddr, len)
-}
-probe __nd_syscall.set_robust_list = kprobe.function("sys_set_robust_list")
-{
-	@__syscall_gate_compat_simple
-}
-probe nd_syscall.set_robust_list.return =
-		__nd_syscall.set_robust_list.return ?,
-		kprobe.function("compat_sys_set_robust_list").return ?
-{
-	name = "set_robust_list"
-	retstr = returnstr(1)
-}
-probe __nd_syscall.set_robust_list.return =
-		kprobe.function("sys_set_robust_list").return
-{
-	@__syscall_gate_compat_simple
-}
-
 # setsid _____________________________________________________
 #
 # long sys_setsid(void)
