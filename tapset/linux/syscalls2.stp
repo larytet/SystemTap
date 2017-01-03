@@ -1,22 +1,4 @@
 
-# sysinfo ____________________________________________________
-#
-# long sys_sysinfo(struct sysinfo __user *info)
-# long compat_sys_sysinfo(struct compat_sysinfo __user *info)
-probe syscall.sysinfo = kernel.function("compat_sys_sysinfo").call ?,
-                        kernel.function("sys_sysinfo").call
-{
-	name = "sysinfo"
-	info_uaddr = $info
-	argstr = sprintf("%s", _struct_sysinfo_u(info_uaddr))
-}
-probe syscall.sysinfo.return = kernel.function("compat_sys_sysinfo").return ?,
-                               kernel.function("sys_sysinfo").return
-{
-	name = "sysinfo"
-	retstr = return_str(1, $return)
-}
-
 # syslog _____________________________________________________
 #
 # long sys_syslog(int type, char __user * buf, int len)

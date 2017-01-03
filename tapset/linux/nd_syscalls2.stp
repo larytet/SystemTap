@@ -1,23 +1,4 @@
 
-# sysinfo ____________________________________________________
-#
-# long sys_sysinfo(struct sysinfo __user *info)
-# long compat_sys_sysinfo(struct compat_sysinfo __user *info)
-probe nd_syscall.sysinfo = kprobe.function("compat_sys_sysinfo") ?,
-                           kprobe.function("sys_sysinfo") ?
-{
-	name = "sysinfo"
-	asmlinkage()
-	info_uaddr = pointer_arg(1)
-	argstr = sprintf("%s", _struct_sysinfo_u(info_uaddr))
-}
-probe nd_syscall.sysinfo.return = kprobe.function("compat_sys_sysinfo").return ?,
-                                  kprobe.function("sys_sysinfo").return ?
-{
-	name = "sysinfo"
-	retstr = returnstr(1)
-}
-
 # syslog _____________________________________________________
 #
 # long sys_syslog(int type, char __user * buf, int len)
