@@ -1,26 +1,4 @@
 
-# shmget _____________________________________________________
-#
-# long sys_shmget (key_t key,
-#		 size_t size,
-#		 int shmflg)
-#
-probe syscall.shmget = kernel.function("sys_shmget").call ?
-{
-	name = "shmget"
-	key = __int32($key)
-	size = __ulong($size)
-	shmflg = __int32($shmflg)
-	shmflg_str = _stp_shmget_flags_str(__int32($shmflg))
-	argstr = sprintf("%d, %u, %s", __int32($key), __ulong($size),
-			 shmflg_str)
-}
-probe syscall.shmget.return = kernel.function("sys_shmget").return ?
-{
-	name = "shmget"
-	retstr = return_str(1, $return)
-}
-
 # shutdown ___________________________________________________
 #
 # long sys_shutdown(int fd, int how)

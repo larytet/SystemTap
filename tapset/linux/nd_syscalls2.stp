@@ -1,26 +1,4 @@
 
-# shmget _____________________________________________________
-#
-# long sys_shmget (key_t key,
-#		 size_t size,
-#		 int shmflg)
-#
-probe nd_syscall.shmget = kprobe.function("sys_shmget") ?
-{
-	name = "shmget"
-	asmlinkage()
-	key = int_arg(1)
-	size = ulong_arg(2)
-	shmflg = int_arg(3)
-	shmflg_str = _stp_shmget_flags_str(shmflg)
-	argstr = sprintf("%d, %u, %s", key, size, shmflg_str)
-}
-probe nd_syscall.shmget.return = kprobe.function("sys_shmget").return ?
-{
-	name = "shmget"
-	retstr = returnstr(1)
-}
-
 # shutdown ___________________________________________________
 #
 # long sys_shutdown(int fd, int how)
