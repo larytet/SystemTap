@@ -1,29 +1,3 @@
-# long compat_sys_sysctl(struct __sysctl_args32 __user *args)
-#
-# To match the ia64/s390/x86_64 versions (and to match the syscall variant of
-# this probe), the 'syscall.compat_sysctl' probe name is deprecated and
-# 'syscall.sysctl32' should be used instead.  To use the old name without
-# changing your script, use the '--compatible 2.8' stap option.
-#
-probe
-%( systemtap_v <= "2.8"
-	%? nd_syscall.compat_sysctl %: nd_syscall.sysctl32
-%) =
-	kprobe.function("compat_sys_sysctl") ?
-{
-	name = "sysctl"
-	// argstr = sprintf("%p", $args)
-	asmlinkage()
-	argstr = sprintf("%p", pointer_arg(1))
-}
-probe %( systemtap_v <= "2.8"
-	%? nd_syscall.compat_sysctl.return %: nd_syscall.sysctl32.return
-%) = kprobe.function("compat_sys_sysctl").return ?
-{
-	name = "sysctl"
-	retstr = returnstr(1)
-}
-
 # sys32_sched_setparam ________________________________________
 #
 # asmlinkage long sys32_sched_setparam(u32 pid,
