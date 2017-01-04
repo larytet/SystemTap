@@ -3,30 +3,6 @@
 # code.  In kernels >= 2.6.33, the arch-specific code just calls
 # generic sys_mmap_pgoff().
 %( kernel_v < "2.6.33" %?
-#
-# sys32_mmap(struct mmap_arg_struct __user *arg)
-#
-probe nd_syscall.mmap32 = kprobe.function("sys32_mmap")
-{
-	name = "mmap"
-	asmlinkage()
-	__args = &@cast(pointer_arg(1), "unsigned int", "kernel<linux/types.h>")
-	start = user_uint32(&(__args)[0])
-	len = user_uint32(&(__args)[1])
-	prot = user_uint32(&(__args)[2])
-	flags = user_uint32(&(__args)[3])
-	fd = user_int(&(__args)[4])
-	offset = user_uint32(&(__args)[5])
-	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, len,
-	                 _mprotect_prot_str(prot), _mmap_flags(flags),
-	                 fd, offset)
-}
-probe nd_syscall.mmap32.return = kprobe.function("sys32_mmap").return
-{
-	name = "mmap"
-	retstr = returnstr(2)
-}
-
 # sys32_mmap2(unsigned long addr, unsigned long len,
 #	unsigned long prot, unsigned long flags,
 #	unsigned long fd, unsigned long pgoff)
