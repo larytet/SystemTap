@@ -1,25 +1,4 @@
 
-# truncate64 __________________________________________________
-#
-# COMPAT_SYSCALL_DEFINE3(s390_truncate64, const char __user *, path,
-#			 u32, high, u32, low)
-#
-probe nd_syscall.compat_truncate64 = kprobe.function("sys32_truncate64") ?
-{
-	asmlinkage()
-        name = "truncate"
-	path_uaddr = pointer_arg(1)
-	path = user_string_quoted(path_uaddr)
-        length = ((uint_arg(2) << 32) | uint_arg(3))
-	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
-}
-probe nd_syscall.compat_truncate64.return =
-	kprobe.function("sys32_truncate64").return ?
-{
-	name = "truncate"
-	retstr = returnstr(1)
-}
-
 # readahead __________________________________________________
 #
 # asmlinkage ssize_t
