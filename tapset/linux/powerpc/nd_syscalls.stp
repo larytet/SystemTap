@@ -1,28 +1,4 @@
 
-# ppc[64]_newuname ________________________________________
-#
-# asmlinkage int ppc64_newuname(struct new_utsname __user * name)
-# long ppc_newuname(struct new_utsname __user * name)
-#
-probe nd_syscall.ppc64_newuname = __nd_syscall.ppc64_newuname ?,
-	kprobe.function("ppc_newuname") ?
-{
-	name = "uname"
-	name_uaddr = pointer_arg(1)
-	argstr = sprintf("%p", name_uaddr)
-}
-probe __nd_syscall.ppc64_newuname = kprobe.function("ppc64_newuname") ?
-{
-	asmlinkage()
-}
-probe nd_syscall.ppc64_newuname.return =
-	kprobe.function("ppc64_newuname").return ?,
-	kprobe.function("ppc_newuname").return ?
-{
-	name = "uname"
-	retstr = returnstr(1)
-}
-
 # compat_ftruncate64 ________________________________________
 #
 # asmlinkage int compat_sys_ftruncate64(unsigned int fd, u32 reg4,
