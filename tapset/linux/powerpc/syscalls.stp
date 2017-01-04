@@ -1,21 +1,3 @@
-# compat_set_mempolicy ________________________________________
-#
-# asmlinkage long compat_set_mempolicy(int mode, compat_ulong_t __user *nmask,
-#				compat_ulong_t maxnode)
-#
-probe syscall.compat_set_mempolicy = kernel.function("compat_set_mempolicy") ?
-{
-	name = "compat_set_mempolicy"
-	policy = $mode
-	nodemask_uaddr = $nmask
-	maxnode = $maxnode
-	argstr = sprintf("%d, %p, %d", policy, nodemask_uaddr, maxnode)
-}
-probe syscall.compat_set_mempolicy.return = kernel.function("compat_set_mempolicy").return ?
-{
-	name = "compat_set_mempolicy"
-	retstr = return_str(1, $return)
-}
 
 # In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
 # code.  In kernels >= 2.6.33, the arch-specific code just calls
