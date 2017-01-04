@@ -1,28 +1,4 @@
 
-# sys32_utimes ________________________________________
-#
-# asmlinkage long sys32_utimes(char __user *filename,
-#			struct compat_timeval __user *tvs)
-#
-probe nd_syscall.sys32_utimes = kprobe.function("sys32_utimes") ?
-{
-	name = "sys32_utimes"
-	// filename_uaddr = $filename
-	// path = user_string($filename)
-	// tvp_uaddr = $tvs
-	// argstr = sprintf("%s, %p", user_string_quoted($filename), tvp_uaddr)
-	asmlinkage()
-	filename_uaddr = pointer_arg(1)
-	path = user_string_quoted(filename_uaddr)
-	tvp_uaddr = pointer_arg(2)
-	argstr = sprintf("%s, %p", user_string_quoted(filename_uaddr), tvp_uaddr)
-}
-probe nd_syscall.sys32_utimes.return = kprobe.function("sys32_utimes").return ?
-{
-	name = "sys32_utimes"
-	retstr = returnstr(1)
-}
-
 # compat_mbind ________________________________________
 #
 # asmlinkage long compat_mbind(compat_ulong_t start, compat_ulong_t len,
