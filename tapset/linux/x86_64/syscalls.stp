@@ -1,23 +1,4 @@
 
-# ftruncate _______________________________________________________
-#
-# asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long offset_low,
-#				    unsigned long offset_high)
-#
-probe syscall.compat_ftruncate64 = kernel.function("sys32_ftruncate64").call ?
-{
-        name = "ftruncate"
-        fd = __int32($fd)
-        length = (($offset_high << 32) | $offset_low)
-        argstr = sprintf("%d, %d", fd, length)
-}
-probe syscall.compat_ftruncate64.return =
-	kernel.function("sys32_ftruncate64").return ?
-{
-	name = "ftruncate"
-	retstr = return_str(1, $return)
-}
-
 # truncate _______________________________________________________
 #
 # asmlinkage long sys32_truncate64(const char __user *filename,
