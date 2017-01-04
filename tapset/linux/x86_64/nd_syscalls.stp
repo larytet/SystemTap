@@ -1,34 +1,4 @@
 
-%( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
-# sigaltstack ________________________________________________
-# long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
-#		struct pt_regs *regs)
-#
-# NOTE: args vary between archs.
-#
-probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack"),
-	kprobe.function("sys32_sigaltstack").call ?
-{
-	name = "sigaltstack"
-	asmlinkage()
-	uss_uaddr = pointer_arg(1)
-	uoss_uaddr = pointer_arg(2)
-%(systemtap_v < "2.3" %?
-	regs_uaddr = pointer_arg(3)
-	regs = pointer_arg(3)
-%)
-	argstr = sprintf("%s, %p",
-			 (@__compat_task ? _stp_compat_sigaltstack_u(uss_uaddr)
-			  : _stp_sigaltstack_u(uss_uaddr)), uoss_uaddr)
-}
-probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return,
-	kprobe.function("sys32_sigaltstack").return ?
-{
-	name = "sigaltstack"
-	retstr = returnstr(1)
-}
-%)
-
 # sysctl _____________________________________________________
 #
 # long sys32_sysctl(struct sysctl_ia32 __user *args32)
