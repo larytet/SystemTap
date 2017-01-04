@@ -1,24 +1,4 @@
 
-# sys32_ptrace ________________________________________
-# (obsolete)
-# int sys32_ptrace(long request, long pid, unsigned long addr,
-#		unsigned long data)
-#
-probe syscall.sys32_ptrace = kernel.function("sys32_ptrace") ?
-{
-	name = "sys32_ptrace"
-	request = $request
-	pid = $pid
-	addr = $addr
-	data = $data
-	argstr = sprintf("%p, %p, %p, %p", $request, $pid, $addr, $data)
-}
-probe syscall.sys32_ptrace.return = kernel.function("sys32_ptrace").return ?
-{
-	name = "sys32_ptrace"
-	retstr = return_str(1, $return)
-}
-
 # sys32_sysinfo ________________________________________
 #
 # (obsolete) long sys32_sysinfo(struct sysinfo32 __user *info)
