@@ -1,21 +1,3 @@
-# sys32_rt_sigqueueinfo ________________________________________
-#
-# long sys32_rt_sigqueueinfo(u32 pid, u32 sig, compat_siginfo_t __user *uinfo)
-#
-probe syscall.sys32_rt_sigqueueinfo = kernel.function("sys32_rt_sigqueueinfo") ?
-{
-	name = "sys32_rt_sigqueueinfo"
-	pid = $pid
-	sig = $sig
-	uinfo_uaddr = $uinfo
-	argstr = sprintf("%p, %s, %p", pid, _signal_name($sig),
-				uinfo_uaddr)
-}
-probe syscall.sys32_rt_sigqueueinfo.return = kernel.function("sys32_rt_sigqueueinfo").return ?
-{
-	name = "sys32_rt_sigqueueinfo"
-	retstr = return_str(1, $return)
-}
 
 %( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
 # sigaltstack ________________________________________________

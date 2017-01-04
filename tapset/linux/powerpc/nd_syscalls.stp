@@ -1,29 +1,4 @@
 
-# sys32_rt_sigqueueinfo ________________________________________
-#
-# long sys32_rt_sigqueueinfo(u32 pid, u32 sig, compat_siginfo_t __user *uinfo)
-#
-probe nd_syscall.sys32_rt_sigqueueinfo = kprobe.function("sys32_rt_sigqueueinfo") ?
-{
-	name = "sys32_rt_sigqueueinfo"
-	// pid = $pid
-	// sig = $sig
-	// uinfo_uaddr = $uinfo
-	// argstr = sprintf("%p, %s, %p", pid, _signal_name($sig),
-	// 			uinfo_uaddr)
-	asmlinkage()
-	pid = uint_arg(1)
-	sig = uint_arg(2)
-	uinfo_uaddr = pointer_arg(3)
-	argstr = sprintf("%p, %s, %p", pid, _signal_name(sig),
-			uinfo_uaddr)
-}
-probe nd_syscall.sys32_rt_sigqueueinfo.return = kprobe.function("sys32_rt_sigqueueinfo").return ?
-{
-	name = "sys32_rt_sigqueueinfo"
-	retstr = returnstr(1)
-}
-
 %( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
 # sigaltstack ________________________________________________
 # long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
