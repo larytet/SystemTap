@@ -1,26 +1,4 @@
 
-# sys32_rt_sigpending ________________________________________
-#
-# long sys32_rt_sigpending(compat_sigset_t __user *set,
-#			compat_size_t sigsetsize)
-#
-probe nd_syscall.sys32_rt_sigpending = kprobe.function("sys32_rt_sigpending") ?
-{
-	name = "sys32_rt_sigpending"
-	// set_uaddr = $set
-	// sigsetsize = $sigsetsize
-	// argstr = sprintf("%p, %d", set_uaddr, $sigsetsize)
-	asmlinkage()
-	set_uaddr = pointer_arg(1)
-	sigsetsize = uint_arg(2)
-	argstr = sprintf("%p, %d", set_uaddr, sigsetsize)
-}
-probe nd_syscall.sys32_rt_sigpending.return = kprobe.function("sys32_rt_sigpending").return ?
-{
-	name = "sys32_rt_sigpending"
-	retstr = returnstr(1)
-}
-
 # sys32_rt_sigtimedwait ________________________________________
 #
 # long sys32_rt_sigtimedwait(compat_sigset_t __user *uthese,

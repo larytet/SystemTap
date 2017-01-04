@@ -1,21 +1,3 @@
-
-# sys32_rt_sigpending ________________________________________
-#
-# long sys32_rt_sigpending(compat_sigset_t __user *set,
-#			compat_size_t sigsetsize)
-#
-probe syscall.sys32_rt_sigpending = kernel.function("sys32_rt_sigpending") ?
-{
-	name = "sys32_rt_sigpending"
-	set_uaddr = $set
-	sigsetsize = $sigsetsize
-	argstr = sprintf("%p, %d", set_uaddr, $sigsetsize)
-}
-probe syscall.sys32_rt_sigpending.return = kernel.function("sys32_rt_sigpending").return ?
-{
-	name = "sys32_rt_sigpending"
-	retstr = return_str(1, $return)
-}
 # sys32_rt_sigtimedwait ________________________________________
 #
 # long sys32_rt_sigtimedwait(compat_sigset_t __user *uthese,
