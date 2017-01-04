@@ -3,31 +3,6 @@
 # code.  In kernels >= 2.6.33, the arch-specific code just calls
 # generic sys_mmap_pgoff().
 %( kernel_v < "2.6.33" %?
-# mmap
-# long sys_mmap(unsigned long addr, unsigned long len,
-#          unsigned long prot, unsigned long flags,
-#          unsigned long fd, unsigned long off)
-probe syscall.mmap = kernel.function("sys_mmap") ?
-{
-	name = "mmap"
-	start = $addr
-	len = $len
-	prot = $prot
-	flags = $flags
-	# Although the kernel gets an unsigned long fd, on the
-	# user-side it is a signed int.  Fix this.
-	fd = __int32($fd)
-	offset = $off
-	argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr, $len,
-		_mprotect_prot_str($prot), _mmap_flags($flags),
-		__int32($fd), $off)
-}
-
-probe syscall.mmap.return = kernel.function("sys_mmap").return ?
-{
-	name = "mmap"
-	retstr = return_str(2, $return)
-}
 #
 # sys32_mmap(struct mmap_arg_struct32 __user *arg)
 # sys32_mmap(struct mmap_arg_struct __user *arg)
