@@ -1,47 +1,4 @@
 
-# In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
-# code.  In kernels >= 2.6.33, the arch-specific code just calls
-# generic sys_mmap_pgoff().
-%( kernel_v < "2.6.33" %?
-# sys32_mmap2(unsigned long addr, unsigned long len,
-#	unsigned long prot, unsigned long flags,
-#	unsigned long fd, unsigned long pgoff)
-#
-probe nd_syscall.mmap2 = __nd_syscall.mmap2 ?, __nd_syscall.mmap_pgoff ?
-{
-	@__syscall_compat_gate(@const("__NR_mmap2"), @const("__NR_ia32_mmap2"))
-	name = "mmap2"
-	start = ulong_arg(1)
-	length = ulong_arg(2)
-	prot = ulong_arg(3)
-	prot_str = _mprotect_prot_str(prot)
-	flags = ulong_arg(4)
-	flags_str = _mmap_flags(flags)
-	fd = int_arg(5)
-	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, length,
-	                 prot_str, flags_str, fd, pgoffset)
-}
-probe __nd_syscall.mmap2 = kprobe.function("sys32_mmap2")
-{
-	asmlinkage()
-	pgoffset = ulong_arg(6)
-}
-probe __nd_syscall.mmap_pgoff = kprobe.function("sys_mmap_pgoff")
-{
-	asmlinkage()
-	# $pgoff is the number of pages. Convert this back into a
-	# number of bytes.
-	pgoffset = ulong_arg(6) * @const("PAGE_SIZE")
-}
-probe nd_syscall.mmap2.return = kprobe.function("sys32_mmap2").return ?,
-	kprobe.function("sys_mmap_pgoff").return ?
-{
-	@__syscall_compat_gate(@const("__NR_mmap2"), @const("__NR_ia32_mmap2"))
-	name = "mmap2"
-	retstr = returnstr(2)
-}
-%)
-
 # vm86_warning _____________________________________________________
 #
 # long sys32_vm86_warning(void)
