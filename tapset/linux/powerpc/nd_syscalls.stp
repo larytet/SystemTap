@@ -1,32 +1,4 @@
 
-# sys32_rt_sigtimedwait ________________________________________
-#
-# long sys32_rt_sigtimedwait(compat_sigset_t __user *uthese,
-#			compat_siginfo_t __user *uinfo,
-#			struct compat_timespec __user *uts,
-#			compat_size_t sigsetsize)
-#
-probe nd_syscall.sys32_rt_sigtimedwait = kprobe.function("sys32_rt_sigtimedwait") ?
-{
-	name = "sys32_rt_sigtimedwait"
-	// uthese_uaddr = $uthese
-	// uinfo_uaddr = $uinfo
-	// uts_uaddr = $uts
-	// sigsetsize = $sigsetsize
-	asmlinkage()
-	uthese_uaddr = pointer_arg(1)
-	uinfo_uaddr = pointer_arg(2)
-	uts_uaddr = pointer_arg(3)
-	sigsetsize = uint_arg(4)
-	argstr = sprintf("%p, %p, %p, %p", uthese_uaddr,
-			uinfo_uaddr, uts_uaddr, sigsetsize)
-}
-probe nd_syscall.sys32_rt_sigtimedwait.return = kprobe.function("sys32_rt_sigtimedwait").return ?
-{
-	name = "sys32_rt_sigtimedwait"
-	retstr = returnstr(1)
-}
-
 # sys32_rt_sigqueueinfo ________________________________________
 #
 # long sys32_rt_sigqueueinfo(u32 pid, u32 sig, compat_siginfo_t __user *uinfo)
