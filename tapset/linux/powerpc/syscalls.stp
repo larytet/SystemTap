@@ -1,31 +1,4 @@
 
-%( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
-# sys32_sigaltstack ________________________________________
-#
-# int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
-#		             int r6, int r7, int r8, struct pt_regs *regs)
-# int sys32_sigaltstack(u32 __new, u32 __old, int r5,
-#			int r6, int r7, int r8, struct pt_regs *regs)
-#
-probe syscall.sys32_sigaltstack =
-	kernel.function("compat_sys_sigaltstack").call !,
-	kernel.function("sys32_sigaltstack").call ?
-{
-	name = "sigaltstack"
-	uss_uaddr = @__pointer($__new)
-	uoss_uaddr = @__pointer($__old)
-	argstr = sprintf("%s, %p", _stp_compat_sigaltstack_u(uss_uaddr),
-			 uoss_uaddr)
-}
-probe syscall.sys32_sigaltstack.return =
-	kernel.function("compat_sys_sigaltstack").return !,
-	kernel.function("sys32_sigaltstack").return ?
-{
-	name = "sigaltstack"
-	retstr = return_str(1, $return)
-}
-%)
-
 # sys32_sendfile64 ________________________________________
 #
 # asmlinkage int sys32_sendfile64(int out_fd, int in_fd,
