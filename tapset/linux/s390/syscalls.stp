@@ -1,25 +1,4 @@
 
-%( systemtap_v < "2.7" %?
-# sys32_ipc() is just a syscall multiplexer (similar to
-# sys_socketcall()). So, we don't really need to probe it, since we'll
-# be probing what sys32_ipc() will call (semget, msgsnd, msgrcv,
-# shmat, etc.).
-
-# ipc _________________________________________________
-# long sys32_ipc(u32 call, int first, int second, int third, u32 ptr)
-#
-probe syscall.ipc = kernel.function("sys32_ipc") ?
-{
-	name = "ipc"
-	argstr = sprintf("%d, %d, %d, %d, %p", $call, $first, $second, $third, $ptr)
-}
-probe syscall.ipc.return = kernel.function("sys32_ipc").return ?
-{
-	name = "ipc"
-	retstr = return_str(1, $return)
-}
-%)
-
 # In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
 # code.  In kernels >= 2.6.33, the arch-specific code just calls
 # generic sys_mmap_pgoff().
