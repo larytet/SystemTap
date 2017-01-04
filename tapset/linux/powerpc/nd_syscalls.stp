@@ -1,23 +1,4 @@
 
-# ppc64_sys32_stime ________________________________________
-#
-# long ppc64_sys32_stime(int __user * tptr)
-#
-probe nd_syscall.ppc64_sys32_stime = kprobe.function("ppc64_sys32_stime") ?
-{
-	name = "ppc64_sys32_stime"
-	// t_uaddr = $tptr
-	// argstr = sprintf("%p", $tptr)
-	asmlinkage()
-	t_uaddr = pointer_arg(1)
-	argstr = sprintf("%p", t_uaddr)
-}
-probe nd_syscall.ppc64_sys32_stime.return = kprobe.function("ppc64_sys32_stime").return ?
-{
-	name = "ppc64_sys32_stime"
-	retstr = returnstr(1)
-}
-
 # sys32_ptrace ________________________________________
 # (obsolete)
 # int sys32_ptrace(long request, long pid, unsigned long addr,
