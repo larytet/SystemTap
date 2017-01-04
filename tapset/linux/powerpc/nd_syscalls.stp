@@ -1,32 +1,4 @@
 
-# sys32_sendfile64 ________________________________________
-#
-# asmlinkage int sys32_sendfile64(int out_fd, int in_fd,
-#		compat_loff_t __user *offset, s32 count)
-#
-probe nd_syscall.sys32_sendfile64 = kprobe.function("sys32_sendfile64") ?
-{
-	name = "sys32_sendfile64"
-	// out_fd = $out_fd
-	// in_fd = $in_fd
-	// offset_uaddr = $offset
-	// count = $count
-	// argstr = sprintf("%d, %d, %p, %d", $out_fd, $in_fd, offset_uaddr,
-	// 		$count)
-	asmlinkage()
-	out_fd = int_arg(1)
-	in_fd = int_arg(2)
-	offset_uaddr = long_arg(3)
-	count = int_arg(4)
-	argstr = sprintf("%d, %d, %p, %d", out_fd, in_fd, offset_uaddr,
-			count)
-}
-probe nd_syscall.sys32_sendfile64.return = kprobe.function("sys32_sendfile64").return ?
-{
-	name = "sys32_sendfile64"
-	retstr = returnstr(1)
-}
-
 # ppc32_timer_create ________________________________________
 #
 # long ppc32_timer_create(clockid_t clock,
