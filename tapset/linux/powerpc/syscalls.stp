@@ -1,26 +1,3 @@
-# compat_mbind ________________________________________
-#
-# asmlinkage long compat_mbind(compat_ulong_t start, compat_ulong_t len,
-#			compat_ulong_t mode, compat_ulong_t __user *nmask,
-#			compat_ulong_t maxnode, compat_ulong_t flags)
-#
-probe syscall.compat_mbind = kernel.function("compat_mbind") ?
-{
-	name = "compat_mbind"
-	start_uaddr = $start
-	len = $len
-	policy = $mode
-	nodemask_uaddr = $nmask
-	maxnode = $maxnode
-	flags = $flags
-	argstr = sprintf("%p, %d, %d, %p, %d, %d", start_uaddr, len,
-			policy, nodemask_uaddr, maxnode, flags)
-}
-probe syscall.compat_mbind.return = kernel.function("compat_mbind").return ?
-{
-	name = "compat_mbind"
-	retstr = return_str(1, $return)
-}
 # compat_get_mempolicy ________________________________________
 #
 # asmlinkage long compat_get_mempolicy(int __user *policy,

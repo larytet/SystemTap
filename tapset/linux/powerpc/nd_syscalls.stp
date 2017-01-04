@@ -1,35 +1,4 @@
 
-# compat_mbind ________________________________________
-#
-# asmlinkage long compat_mbind(compat_ulong_t start, compat_ulong_t len,
-#			compat_ulong_t mode, compat_ulong_t __user *nmask,
-#			compat_ulong_t maxnode, compat_ulong_t flags)
-#
-probe nd_syscall.compat_mbind = kprobe.function("compat_mbind") ?
-{
-	name = "compat_mbind"
-	// start_uaddr = $start
-	// len = $len
-	// policy = $mode
-	// nodemask_uaddr = $nmask
-	// maxnode = $maxnode
-	// flags = $flags
-	asmlinkage()
-	start_uaddr = uint_arg(1)
-	len = uint_arg(2)
-	policy = uint_arg(3)
-	nodemask_uaddr = uint_arg(4)
-	maxnode = uint_arg(5)
-	flags = uint_arg(6)
-	argstr = sprintf("%p, %d, %d, %p, %d, %d", start_uaddr, len,
-			policy, nodemask_uaddr, maxnode, flags)
-}
-probe nd_syscall.compat_mbind.return = kprobe.function("compat_mbind").return ?
-{
-	name = "compat_mbind"
-	retstr = returnstr(1)
-}
-
 # compat_get_mempolicy ________________________________________
 #
 # asmlinkage long compat_get_mempolicy(int __user *policy,
