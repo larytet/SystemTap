@@ -1,21 +1,3 @@
-# getresuid __________________________________________________
-# long sys32_getresuid16(u16 __user *ruid, u16 __user *euid, u16 __user *suid)
-#
-probe syscall.getresuid16 = kernel.function("sys32_getresuid16") ?
-{
-	name = "getresuid"
-	ruid_uaddr = @choose_defined($ruidp, $ruid)
-	euid_uaddr = @choose_defined($euidp, $euid)
-	suid_uaddr = @choose_defined($suidp, $suid)
-	argstr = sprintf("%p, %p, %p", @choose_defined($ruidp, $ruid),
-			 @choose_defined($euidp, $euid),
-			 @choose_defined($suidp, $suid))
-}
-probe syscall.getresuid16.return = kernel.function("sys32_getresuid16").return ?
-{
-	name = "getresuid"
-	retstr = return_str(1, $return)
-}
 
 %( systemtap_v < "2.7" %?
 # sys32_ipc() is just a syscall multiplexer (similar to
