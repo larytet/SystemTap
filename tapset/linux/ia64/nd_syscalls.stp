@@ -1,30 +1,4 @@
 
-# In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
-# code.  In kernels >= 2.6.33, the arch-specific code just calls
-# generic sys_mmap_pgoff().
-%( kernel_v < "2.6.33" %?
-# mmap2
-# sys_mmap2 (unsigned long addr, unsigned long len, int prot, int flags, int fd, long pgoff)
-probe nd_syscall.mmap2 = kprobe.function("sys_mmap2") ?
-{
-	name = "mmap2"
-	asmlinkage()
-	start = ulong_arg(1)
-	length = ulong_arg(2)
-	prot = int_arg(3)
-	flags = int_arg(4)
-	fd = int_arg(5)
-	pgoffset = long_arg(6)
-	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, length,
-			_mprotect_prot_str(prot), _mmap_flags(flags), fd, pgoffset)
-}
-probe nd_syscall.mmap2.return = kprobe.function("sys_mmap2").return ?
-{
-	name = "mmap2"
-	retstr = returnstr(2)
-}
-%)
-
 %( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
 # sigaltstack _______________________________________________
 # asmlinkage long
