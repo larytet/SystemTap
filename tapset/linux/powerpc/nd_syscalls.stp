@@ -1,25 +1,4 @@
 
-# compat_clock_settime ________________________________________
-#
-# long compat_clock_settime(clockid_t which_clock,
-#			struct compat_timespec __user *tp)
-#
-probe nd_syscall.compat_clock_settime = kprobe.function("compat_clock_settime") ?
-{
-	name = "compat_clock_settime"
-	// which_clock = $which_clock
-	// tp_uaddr = $tp
-	asmlinkage()
-	which_clock = int_arg(1)
-	tp_uaddr = pointer_arg(2)
-	argstr = sprintf("%d, %p", which_clock, tp_uaddr)
-}
-probe nd_syscall.compat_clock_settime.return = kprobe.function("compat_clock_settime").return ?
-{
-	name = "compat_clock_settime"
-	retstr = returnstr(1)
-}
-
 # sys32_swapcontext ________________________________________
 #
 # long sys32_swapcontext(struct ucontext32 __user *old_ctx,
