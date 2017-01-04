@@ -1,49 +1,4 @@
 
-# fadvise64 _______________________________________________________
-#
-# The following kernel commit:
-#
-#   commit 5383d2c8b3ee61a762043818d7c07bbc0049b031
-#   Author: Heiko Carstens <heiko.carstens@de.ibm.com>
-#   Date:   Wed Feb 26 14:40:43 2014 +0100
-#
-#       s390/compat: convert to COMPAT_SYSCALL_DEFINEx part 7
-#
-# changed sys32_fadvise64 from:
-#
-# asmlinkage long
-# sys32_fadvise64(int fd, loff_t offset, size_t len, int advise)
-#
-# to:
-#
-# COMPAT_SYSCALL_DEFINE5(s390_fadvise64, int, fd, u32, high, u32, low,
-#			 compat_size_t, len, int, advise
-probe nd_syscall.compat_fadvise64 = kprobe.function("sys32_fadvise64") ?
-{
-	asmlinkage()
-	name = "fadvise64"
-	fd = int_arg(1)
-%( kernel_v < "3.15" %?
- 	# We have to use raw access here since the long long value is
-	# stored in 1 register, not 2 - which longlong_arg() expects.
-	offset = u_register("r3")
-	len = int_arg(3)
-	advice = int_arg(4)
-%:
-        offset = ((uint_arg(2) << 32) | uint_arg(3))
-	len = int_arg(4)
-	advice = int_arg(5)
-%)
-	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
-			 _fadvice_advice_str(advice))
-}
-probe nd_syscall.compat_fadvise64.return =
-	kprobe.function("sys32_fadvise64").return ?
-{
-	name = "fadvise64"
-	retstr = returnstr(1)
-}
-
 
 # fadvise64_64 __________________________________________________
 #
