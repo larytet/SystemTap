@@ -2,56 +2,6 @@
 %( kernel_v < "3.7" %?
 # execve _____________________________________________________
 #
-# In kernels < 3.7, sys_execve() was in arch-specific code (and had
-# varying arguments). It was just a wrapper around generic
-# do_execve(), but the wrapper could error out before calling
-# do_execve(). So, we'll have to handle it in arch-specific tapset
-# code to catch all calls.
-#
-# The following kernel commit (first appearing in 2.6.32):
-#
-#   commit 3e86a8c617413e344143839c514e9b0c1713065c
-#   Author: Heiko Carstens <heiko.carstens@de.ibm.com>
-#   Date:   Tue Sep 22 22:58:42 2009 +0200
-#
-#       [S390] Convert sys_execve to function with parameters.
-#
-#       Use function parameters instead of accessing the pt_regs structure
-#       to get the parameters.
-#
-# Changed the function from:
-#
-#   asmlinkage long sys_execve(struct pt_regs regs)
-#
-# To:
-#
-#   SYSCALL_DEFINE3(execve, char __user *, name, char __user * __user *, argv,
-#		char __user * __user *, envp)
-probe syscall.execve = kernel.function("sys_execve").call
-{
-	name = "execve"
-%( kernel_v < "2.6.32" %?
-	# The fact that the struct is passed in instead of a pointer
-	# confuses things.
-	__regs = &@cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")
-	filename = user_string_quoted(__regs->orig_gpr2)
-	args = __get_argv(__regs->gprs[3], 0)
-	env_str = __count_envp(__regs->gprs[4])
-%:
-	filename = user_string_quoted(@choose_defined($name, $filename))
-	args = __get_argv($argv, 0)
-	env_str = __count_envp($envp)
-%)
-	argstr = sprintf("%s, %s, %s", filename, args, env_str)
-}
-probe syscall.execve.return = kernel.function("sys_execve").return
-{
-	name = "execve"
-	retstr = return_str(1, $return)
-}
-
-# execve _____________________________________________________
-#
 #   asmlinkage long sys32_execve(struct pt_regs regs)
 #   asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
 #			     compat_uptr_t __user *envp)

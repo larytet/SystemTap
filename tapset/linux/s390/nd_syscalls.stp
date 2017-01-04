@@ -1,37 +1,6 @@
+%)
 
 %( kernel_v < "3.7" %?
-# execve _____________________________________________________
-#
-# In kernels < 3.7, sys_execve() was in arch-specific code (and had
-# varying arguments). It was just a wrapper around generic
-# do_execve(), but the wrapper could error out before calling
-# do_execve(). So, we'll have to handle it in arch-specific tapset
-# code to catch all calls.
-#
-#  asmlinkage long sys_execve(struct pt_regs regs)
-#  SYSCALL_DEFINE3(execve, char __user *, name, char __user * __user *, argv,
-#		char __user * __user *, envp)
-probe nd_syscall.execve = kprobe.function("sys_execve")
-{
-	name = "execve"
-%( kernel_v < "2.6.32" %?
-	__regs = &@cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")
-	filename = user_string_quoted(__regs->orig_gpr2)
-	args = __get_argv(__regs->gprs[3], 0)
-	env_str = __count_envp(__regs->gprs[4])
-%:
-	filename = user_string_quoted(pointer_arg(1))
-	args = __get_argv(pointer_arg(2), 0)
-	env_str = __count_envp(pointer_arg(3))
-%)
-	argstr = sprintf("%s, %s, %s", filename, args, env_str)
-}
-probe nd_syscall.execve.return = kprobe.function("sys_execve").return
-{
-	name = "execve"
-	retstr = returnstr(1)
-}
-
 # execve _____________________________________________________
 #
 #   asmlinkage long sys32_execve(struct pt_regs regs)
