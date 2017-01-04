@@ -1,20 +1,3 @@
-# sys32_sched_setparam ________________________________________
-#
-# asmlinkage long sys32_sched_setparam(u32 pid,
-#		struct sched_param __user *param)
-#
-probe syscall.sys32_sched_setparam = kernel.function("sys32_sched_setparam") ?
-{
-	name = "sys32_sched_setparam"
-	pid = $pid
-	param_uaddr = $param
-	argstr = sprintf("%d, %p", pid, param_uaddr)
-}
-probe syscall.sys32_sched_setparam.return = kernel.function("sys32_sched_setparam").return ?
-{
-	name = "sys32_sched_setparam"
-	retstr = return_str(1, $return)
-}
 
 # sys32_sched_rr_get_interval ________________________________________
 #
