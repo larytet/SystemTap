@@ -1,19 +1,4 @@
 
-# sysctl _____________________________________________________
-#
-# long sys32_sysctl (struct sysctl32 __user *args)
-#
-probe syscall.sysctl32 = kernel.function("sys32_sysctl") ?
-{
-	name = "sysctl"
-	argstr = sprintf("%p", $args)
-}
-probe syscall.sysctl32.return = kernel.function("sys32_sysctl").return ?
-{
-	name = "sysctl"
-	retstr = return_str(1, $return)
-}
-
 %( kernel_v < "3.7" %?
 # execve _____________________________________________________
 #
