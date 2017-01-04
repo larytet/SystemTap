@@ -1,20 +1,3 @@
-# compat_timer_gettime ________________________________________
-#
-# long compat_timer_gettime(timer_t timer_id,
-#		struct compat_itimerspec __user *setting)
-#
-probe syscall.compat_timer_gettime = kernel.function("compat_timer_gettime") ?
-{
-	name = "compat_timer_gettime"
-	timer_id = $timer_id
-	setting_uaddr = $setting
-	argstr = sprintf("%d, %p", timer_id, setting_uaddr)
-}
-probe syscall.compat_timer_gettime.return = kernel.function("compat_timer_gettime").return ?
-{
-	name = "compat_timer_gettime"
-	retstr = return_str(1, $return)
-}
 # compat_clock_settime ________________________________________
 #
 # long compat_clock_settime(clockid_t which_clock,
