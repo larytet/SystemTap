@@ -1,23 +1,4 @@
 
-# ppc_rtas ________________________________________
-#
-# int ppc_rtas(struct rtas_args __user *uargs)
-#
-probe nd_syscall.ppc_rtas = kprobe.function("ppc_rtas") ?
-{
-	name = "ppc_rtas"
-	// uargs_uaddr = $uargs
-	// argstr = sprintf("%p", $uargs)
-	asmlinkage()
-	uargs_uaddr = pointer_arg(1)
-	argstr = sprintf("%p", uargs_uaddr)
-}
-probe nd_syscall.ppc_rtas.return = kprobe.function("ppc_rtas").return ?
-{
-	name = "ppc_rtas"
-	retstr = returnstr(1)
-}
-
 # ppc64_sys32_stime ________________________________________
 #
 # long ppc64_sys32_stime(int __user * tptr)

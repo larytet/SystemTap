@@ -1,20 +1,4 @@
 
-# ppc_rtas ________________________________________
-#
-# int ppc_rtas(struct rtas_args __user *uargs)
-#
-probe syscall.ppc_rtas = kernel.function("ppc_rtas") ?
-{
-	name = "ppc_rtas"
-	uargs_uaddr = $uargs
-	argstr = sprintf("%p", $uargs)
-}
-probe syscall.ppc_rtas.return = kernel.function("ppc_rtas").return ?
-{
-	name = "ppc_rtas"
-	retstr = return_str(1, $return)
-}
-
 # ppc64_sys32_stime ________________________________________
 #
 # long ppc64_sys32_stime(int __user * tptr)
