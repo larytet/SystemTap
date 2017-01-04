@@ -1,0 +1,59 @@
+%( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
+# sigaltstack ________________________________________________
+# asmlinkage long
+# sys_sigaltstack(const stack_t __user * uss, stack_t __user *uoss)
+#
+# NOTE: args vary between archs.
+
+@define _SYSCALL_SIGALTSTACK_NAME
+%(
+	name = "sigaltstack"
+%)
+
+@define _SYSCALL_SIGALTSTACK_ARGSTR
+%(
+	argstr = sprintf("%s, %p", uss_str, uoss_uaddr)
+%)
+
+probe syscall.sigaltstack = dw_syscall.sigaltstack !, nd_syscall.sigaltstack {}
+probe syscall.sigaltstack.return = dw_syscall.sigaltstack.return !, nd_syscall.sigaltstack.return {}
+
+# dw_sigaltstack _____________________________________________________
+
+probe dw_syscall.sigaltstack = kernel.function("sys_sigaltstack")
+{
+	@_SYSCALL_SIGALTSTACK_NAME
+	uss_uaddr = $uss
+	uss_str = _stp_sigaltstack_u(uss_uaddr)
+	uoss_uaddr = $uoss
+%(systemtap_v < "2.3" %?
+	regs = %{ /* pure */ _stp_current_pt_regs() %}
+%)
+	@_SYSCALL_SIGALTSTACK_ARGSTR
+}
+probe dw_syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
+{
+	@_SYSCALL_SIGALTSTACK_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_sigaltstack _____________________________________________________
+
+probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
+{
+	@_SYSCALL_SIGALTSTACK_NAME
+	asmlinkage()
+	uss_uaddr = pointer_arg(1)
+	uss_str = _stp_sigaltstack_u(uss_uaddr)
+	uoss_uaddr = pointer_arg(2)
+%(systemtap_v < "2.3" %?
+	regs = %{ /* pure */ _stp_current_pt_regs() %}
+%)
+	@_SYSCALL_SIGALTSTACK_ARGSTR
+}
+probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return
+{
+	@_SYSCALL_SIGALTSTACK_NAME
+	retstr = returnstr(1)
+}
+%)
