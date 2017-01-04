@@ -1,24 +1,4 @@
 
-# compat_ftruncate64 ________________________________________
-#
-# asmlinkage int compat_sys_ftruncate64(unsigned int fd, u32 reg4,
-#					unsigned long high, unsigned long low)
-#
-probe syscall.compat_ftruncate64 =
-	kernel.function("compat_sys_ftruncate64").call ?
-{
-	name = "ftruncate"
-	fd = __int32($fd)
-	length = ($high << 32 | $low)
-	argstr = sprintf("%d, %d", fd, length)
-}
-probe syscall.compat_ftruncate64.return =
-	kernel.function("compat_sys_ftruncate64").return ?
-{
-	name = "ftruncate"
-	retstr = return_str(1, $return)
-}
-
 # compat_truncate64 ________________________________________
 #
 # asmlinkage int compat_sys_truncate64(const char __user * path, u32 reg4,
