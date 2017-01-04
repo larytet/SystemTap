@@ -1,28 +1,4 @@
 
-%( systemtap_v <= "2.7" %?
-# sys32_ipc() is just a syscall multiplexer (similar to
-# sys_socketcall()). So, we don't really need to probe it, since we'll
-# be probing what sys32_ipc() will call (semget, msgsnd, msgrcv,
-# shmat, etc.).
-
-# ipc ________________________________________
-#
-# long sys32_ipc(u32 call, u32 first, u32 second, u32 third,
-#			compat_uptr_t ptr, u32 fifth)
-#
-probe syscall.ipc = kernel.function("sys32_ipc") ?
-{
-	name = "ipc"
-	argstr = sprintf("%d, %d, %d, %d, %p, %d", $call, $first, $second,
-				$third, $ptr, $fifth)
-}
-probe syscall.ipc.return = kernel.function("sys32_ipc").return ?
-{
-	name = "sys_ipc"
-	retstr = return_str(1, $return)
-}
-%)
-
 # sys32_sigreturn ________________________________________
 #
 # long sys32_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
