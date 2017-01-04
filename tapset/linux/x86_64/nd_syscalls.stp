@@ -1,21 +1,4 @@
 
-# pipe _______________________________________________________
-#
-# long sys32_pipe(int __user *fd)
-#
-probe nd_syscall.pipe32 = kprobe.function("sys32_pipe")?
-{
-	name = "pipe"
-	// argstr = sprintf("%p", $fd)
-	asmlinkage()
-	argstr = sprintf("%p", pointer_arg(1))
-}
-probe nd_syscall.pipe32.return = kprobe.function("sys32_pipe").return?
-{
-	name = "pipe"
-	retstr = returnstr(1)
-}
-
 # ftruncate _______________________________________________________
 #
 # asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long offset_low,
