@@ -1,22 +1,4 @@
 
-# sys32_sysinfo ________________________________________
-#
-# (obsolete) long sys32_sysinfo(struct sysinfo32 __user *info)
-#
-probe nd_syscall.sys32_sysinfo = kprobe.function("sys32_sysinfo") ?
-{
-	name = "sys32_sysinfo"
-	// info_uaddr = $info
-	asmlinkage()
-	info_uaddr = pointer_arg(1)
-	argstr = sprintf("%p", info_uaddr)
-}
-probe nd_syscall.sys32_sysinfo.return = kprobe.function("sys32_sysinfo").return ?
-{
-	name = "sys32_sysinfo"
-	retstr = returnstr(1)
-}
-
 %( systemtap_v <= "2.7" %?
 # sys32_ipc() is just a syscall multiplexer (similar to
 # sys_socketcall()). So, we don't really need to probe it, since we'll
