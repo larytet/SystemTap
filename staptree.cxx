@@ -343,6 +343,34 @@ string atvar_op::sym_name ()
 }
 
 
+bool
+embedded_expr::tagged_p (const char *tag) const
+{
+  return code.find(tag) != interned_string::npos;
+}
+
+
+bool
+embedded_expr::tagged_p (const interned_string& tag) const
+{
+  return code.find(tag) != interned_string::npos;
+}
+
+
+bool
+embeddedcode::tagged_p (const char *tag) const
+{
+  return code.find(tag) != interned_string::npos;
+}
+
+
+bool
+embeddedcode::tagged_p (const interned_string& tag) const
+{
+  return code.find(tag) != interned_string::npos;
+}
+
+
 // ------------------------------------------------------------------------
 // parse tree printing
 
@@ -599,27 +627,18 @@ embedded_tags_visitor::embedded_tags_visitor(bool all_tags)
     }
 }
 
-bool embedded_tags_visitor::tagged_p (const std::string& tag)
-{
-  return tags.count(tag);
-}
-
-void embedded_tags_visitor::find_tags_in_code (const string& s)
-{
-  set<string>::iterator tag;
-  for (tag = available_tags.begin(); tag != available_tags.end(); ++tag)
-      if(s.find(*tag) != string::npos)
-        tags.insert(*tag);
-}
-
 void embedded_tags_visitor::visit_embeddedcode (embeddedcode *s)
 {
-  find_tags_in_code(s->code);
+  for (auto tag = available_tags.begin(); tag != available_tags.end(); ++tag)
+    if (s->tagged_p(*tag))
+      tags.insert(*tag);
 }
 
 void embedded_tags_visitor::visit_embedded_expr (embedded_expr *e)
 {
-  find_tags_in_code(e->code);
+  for (auto tag = available_tags.begin(); tag != available_tags.end(); ++tag)
+    if (e->tagged_p(*tag))
+      tags.insert(*tag);
 }
 
 void functiondecl::printsigtags (ostream& o, bool all_tags) const
@@ -631,10 +650,8 @@ void functiondecl::printsigtags (ostream& o, bool all_tags) const
   embedded_tags_visitor etv(all_tags);
   this->body->visit(&etv);
 
-  set<string, bool>::const_iterator tag;
-  for (tag = etv.available_tags.begin(); tag != etv.available_tags.end(); ++tag)
-    if (etv.tagged_p(*tag))
-      o << " " << *tag;
+  for (auto tag = etv.tags.begin(); tag != etv.tags.end(); ++tag)
+    o << " " << *tag;
 }
 
 void arrayindex::print (ostream& o) const

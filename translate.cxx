@@ -1015,16 +1015,20 @@ ostream & operator<<(ostream & o, itervar const & v)
 
 // ------------------------------------------------------------------------
 
-struct unmodified_fnargs_checker : public embedded_tags_visitor
+struct unmodified_fnargs_checker : public nop_visitor
 {
-  bool embedded_seen; // excludes code with pure and unmodified-args
-  unmodified_fnargs_checker (): embedded_tags_visitor(true), embedded_seen(false) {}
+  bool is_embedded;
+  bool has_unmodified_fnargs;
+
+  unmodified_fnargs_checker ():
+    is_embedded(false), has_unmodified_fnargs(false)
+  {}
 
   void visit_embeddedcode (embeddedcode *e)
     {
-      embedded_tags_visitor::visit_embeddedcode(e);
-      // set embedded_seen to true if it does not contain /* unmodified-fnargs */
-      embedded_seen = (embedded_seen || !tagged_p("/* unmodified-fnargs */"));
+      is_embedded = true;
+      if (e->tagged_p("/* unmodified-fnargs */"))
+	has_unmodified_fnargs = true;
     }
 };
 
@@ -1034,16 +1038,16 @@ is_unmodified_string_fnarg (systemtap_session* sess, functiondecl* fd, vardecl* 
   if (sess->unoptimized || v->type != pe_string)
     return false;
 
-  // check that there is no embedded code that might modify the fn args
-  unmodified_fnargs_checker ecv;
-  fd->body->visit(& ecv);
-  if (ecv.embedded_seen)
-    return false;
+  // if it's an embedded function, trust whether it has unmodified-fnargs
+  unmodified_fnargs_checker ufc;
+  fd->body->visit(& ufc);
+  if (ufc.is_embedded)
+    return ufc.has_unmodified_fnargs;
 
   varuse_collecting_visitor vut (*sess);
   vut.current_function = fd;
   fd->body->visit(& vut);
-  return (find(vut.written.begin(), vut.written.end(), v) == vut.written.end());
+  return (vut.written.find(v) == vut.written.end());
 }
 
 // If we've seen a dupe, return it; else remember this and return NULL.

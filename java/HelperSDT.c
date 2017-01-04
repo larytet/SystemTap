@@ -10,9 +10,14 @@ char* get_java_string(JNIEnv *env, jobject _string)
 {
   const char* __string = (*env)->GetStringUTFChars(env, _string, NULL);
   (*env)->ReleaseStringUTFChars(env, _string, NULL);
-  char* string = malloc(strlen( __string)+1);
-  strcpy(string, __string);
-  return string;
+  if(__string != NULL){
+    char* string = strdup(__string);
+    return string;
+  }
+  else {
+    char* string = strdup("");
+    return string;
+  }
 }
 
 int64_t determine_java_type(JNIEnv *env, jobject _arg)
@@ -99,7 +104,20 @@ int64_t determine_java_type(JNIEnv *env, jobject _arg)
     {
       return (int64_t)(*env)->GetDoubleField(env, _arg, fidNumber);
     }
-   return (int64_t)(intptr_t)get_java_string(env, _arg);
+  fidNumber = (*env)->GetFieldID(env, class_arg, "value", "Ljava/lang/String;");
+  if (NULL == fidNumber)
+    {
+      (*env)->ExceptionClear(env);
+      fidNumber = 0;
+    }
+  else
+    {
+      return (int64_t)(intptr_t)get_java_string(env, _arg);
+    }
+  jmethodID getMsgMeth = (*env)->GetMethodID(env, class_arg, "toString", "()Ljava/lang/String;");
+  jstring obj = (jstring)(*env)->CallObjectMethod(env, class_arg, getMsgMeth);
+  char* toString = get_java_string(env, obj);
+  return (int64_t)(intptr_t)toString;
 }
 /*
  * Class:     HelperSDT
@@ -111,6 +129,7 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
 {
   char* rulename = get_java_string(env, _rulename);
   STAP_PROBE1(HelperSDT, method__0, rulename);
+  free(rulename);
 }
 
 /*
@@ -124,6 +143,7 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
   char* rulename = get_java_string(env, _rulename);
   int64_t arg1 = determine_java_type(env, _arg1);
   STAP_PROBE2(HelperSDT, method__1, arg1, rulename);
+  free(rulename);
 }
 
 /*
@@ -138,7 +158,7 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
   int64_t arg1 = determine_java_type(env, _arg1);
   int64_t arg2 = determine_java_type(env, _arg2);
   STAP_PROBE3(HelperSDT, method__2, arg1, arg2, rulename);
-
+  free(rulename);
 }
 
 /*
@@ -154,6 +174,7 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
   int64_t arg2 = determine_java_type(env, _arg2);
   int64_t arg3 = determine_java_type(env, _arg3);
   STAP_PROBE4(HelperSDT, method__3, arg1, arg2, arg3, rulename);
+  free(rulename);
 }
 
 /*
@@ -170,6 +191,7 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
   int64_t arg3 = determine_java_type(env, _arg3);
   int64_t arg4 = determine_java_type(env, _arg4);
   STAP_PROBE5(HelperSDT, method__4, arg1, arg2, arg3, arg4, rulename);
+  free(rulename);
 }
 
 /*
@@ -187,6 +209,7 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
   int64_t arg4 = determine_java_type(env, _arg4);
   int64_t arg5 = determine_java_type(env, _arg5);
   STAP_PROBE6(HelperSDT, method__5, arg1, arg2, arg3, arg4, arg5, rulename);
+  free(rulename);
 }
 
 /*
@@ -205,6 +228,7 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
   int64_t arg5 = determine_java_type(env, _arg5);
   int64_t arg6 = determine_java_type(env, _arg6);
   STAP_PROBE7(HelperSDT, method__6, arg1, arg2, arg3, arg4, arg5, arg6, rulename);
+  free(rulename);
 }
 
 /*
@@ -224,6 +248,7 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
   int64_t arg6 = determine_java_type(env, _arg6);
   int64_t arg7 = determine_java_type(env, _arg7);
   STAP_PROBE8(HelperSDT, method__7, arg1, arg2, arg3, arg4, arg5, arg6, arg7, rulename);
+  free(rulename);
 }
 
 /*
@@ -244,6 +269,7 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
   int64_t arg7 = determine_java_type(env, _arg7);
   int64_t arg8 = determine_java_type(env, _arg8);
   STAP_PROBE9(HelperSDT, method__8, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, rulename);
+  free(rulename);
 }
 /*
  * Class:     HelperSDT
@@ -264,6 +290,7 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
   int64_t arg8 = determine_java_type(env, _arg8);
   int64_t arg9 = determine_java_type(env, _arg9);
   STAP_PROBE10(HelperSDT, method__9, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, rulename);
+  free(rulename);
 }
 
 /*
@@ -286,6 +313,7 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
   int64_t arg9 = determine_java_type(env, _arg9);
   int64_t arg10 = determine_java_type(env, _arg10);
   STAP_PROBE11(HelperSDT, method__10, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, rulename);
+  free(rulename);
 }
 
 /*
@@ -300,6 +328,8 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
   char* excp = get_java_string(env, _exception);
   int stdepth = _counter;
   STAP_PROBE3(HelperSDT, method__bt, excp, stdepth, rulename);
+  free(rulename);
+  free(excp);
 }
 
 /*
@@ -312,4 +342,5 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1BT_1D
 {
   char* rulename = get_java_string(env, _rulename);
   STAP_PROBE1(HelperSDT, method__bt__delete, rulename);
+  free(rulename);
 }

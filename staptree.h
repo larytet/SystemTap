@@ -179,6 +179,8 @@ struct literal_number: public literal
 struct embedded_expr: public expression
 {
   interned_string code;
+  bool tagged_p (const char *tag) const;
+  bool tagged_p (const interned_string& tag) const;
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };
@@ -657,6 +659,8 @@ std::ostream& operator << (std::ostream& o, const statement& k);
 struct embeddedcode: public statement
 {
   interned_string code;
+  bool tagged_p (const char *tag) const;
+  bool tagged_p (const interned_string& tag) const;
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };
@@ -1311,11 +1315,9 @@ struct deep_copy_visitor: public update_visitor
 
 struct embedded_tags_visitor: public traversing_visitor
 {
-  std::set<std::string> available_tags;
-  std::set<std::string> tags; // set of the tags that appear in the code
+  std::set<interned_string> available_tags;
+  std::set<interned_string> tags; // set of the tags that appear in the code
   embedded_tags_visitor(bool all_tags);
-  bool tagged_p (const std::string &tag);
-  void find_tags_in_code (const std::string& s);
   void visit_embeddedcode (embeddedcode *s);
   void visit_embedded_expr (embedded_expr *e);
 };

@@ -99,6 +99,11 @@ struct interned_string: public boost::string_ref
   size_t find (const std::string& f) const;
   size_t find (const char *f) const;
 #endif
+
+  size_t find (const interned_string& f) const
+  {
+    return find (static_cast<const boost::string_ref&> (f));
+  }
   
 private:
   static interned_string intern(const std::string& value);

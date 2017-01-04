@@ -14,14 +14,13 @@
 //
 // changed the way the 'rchan->buf' field works. It just to be a
 // regular array, and is now a per_cpu_ptr-style array.
-//
-// If we can call per_cpu_ptr() on rchan->buf, we'll assume that we've
-// got the new style relay channel buffer pointers.
 
 #include <linux/relay.h>
 #include <linux/percpu.h>
+#include <linux/bug.h>
 
 struct rchan_buf *relay_buf_test(struct rchan *chan, unsigned int cpu)
 {
+    BUILD_BUG_ON(sizeof(chan->buf) != sizeof(struct rchan_buf **));
     return *per_cpu_ptr(chan->buf, cpu);
 }

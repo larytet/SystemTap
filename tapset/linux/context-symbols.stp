@@ -1,5 +1,5 @@
 // context-symbols tapset
-// Copyright (C) 2005-2012 Red Hat Inc.
+// Copyright (C) 2005-2016 Red Hat Inc.
 // Copyright (C) 2006 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -34,13 +34,13 @@ function stack:long (n:long) {
          if (__r != 0) return __r
 
          /* fallback: parse backtrace() to go deeper in the stack */
-         __b = backtrace (); __orig_n = __n;
+         __b = backtrace (); __orig_n = n;
          __sym = tokenize (__b, " ");
          if (__sym == "") @__context_unwind_error(__orig_n);
-         while (__n > 0) {
+         while (n > 0) {
                __sym = tokenize ("", " ");
                if (__sym == "") @__context_unwind_error(__orig_n);
-               __n--;
+               n--;
          }
          return strtol(__sym, 16)
 }

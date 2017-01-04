@@ -94,38 +94,40 @@ probe process("/lib*/libpthread.so*").function("__pthread_rwlock_init")
 
 probe syscall.futex.return
 {
-  if (($op & ~(FUTEX_PRIVATE_FLAG|FUTEX_CLOCK_REALTIME)) != FUTEX_WAIT) next
+  op = @entry($op)
+  uaddr = @entry($uaddr)
+  if ((op & ~(FUTEX_PRIVATE_FLAG|FUTEX_CLOCK_REALTIME)) != FUTEX_WAIT) next
   if (pid() != target()) next		// skip irrelevant processes
 
   elapsed = gettimeofday_us() - @entry(gettimeofday_us())
   if (keep_stats) {
-    mutex_contention[$uaddr] <<< elapsed
+    mutex_contention[uaddr] <<< elapsed
     stack = sprint_ubacktrace()
-    mutex_last_cont_stack[$uaddr] = stack
+    mutex_last_cont_stack[uaddr] = stack
     mutex_cont_stack[stack] <<< elapsed
-    if ($uaddr in mutex_init_stack) {
+    if (uaddr in mutex_init_stack) {
       if (verbose) {
         printf("contention time %d on mutex %p initialized at\n%s\n",
-	       elapsed, $uaddr, mutex_init_stack[$uaddr])
+	       elapsed, uaddr, mutex_init_stack[uaddr])
       }
     }
-    else if ($uaddr in mutex_uninit) {
+    else if (uaddr in mutex_uninit) {
       if (verbose) {
         printf("contention time %d on popup mutex %p at\n%s\n",
-	       elapsed, $uaddr, stack)
+	       elapsed, uaddr, stack)
       }
     }
     else {
       if (verbose) {
         printf("contention time %d on popup mutex %p at\n%s\n",
-	       elapsed, $uaddr, stack)
+	       elapsed, uaddr, stack)
       }
-      mutex_uninit[$uaddr] = stack
-      mutex_names[$uaddr] = usymdata ($uaddr)
+      mutex_uninit[uaddr] = stack
+      mutex_names[uaddr] = usymdata (uaddr)
     }
   }
   else {
-    printf("contention %p elapsed %d at\n%s\n", $uaddr, elapsed,
+    printf("contention %p elapsed %d at\n%s\n", uaddr, elapsed,
 	   sprint_ubacktrace())
   }
 }
