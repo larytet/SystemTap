@@ -1,26 +1,4 @@
 
-# fadvise64 _______________________________________________________
-#
-# long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
-#		      u32 len_high, u32 len_low)
-probe nd_syscall.compat_fadvise64_64 = kprobe.function("ppc_fadvise64_64") ?
-{
-	asmlinkage()
-	name = "fadvise64"
-	fd = int_arg(1)
-	advice = int_arg(2)
-	offset = ((uint_arg(3) << 32) | uint_arg(4))
-	len = ((uint_arg(5) << 32) | uint_arg(6))
-	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
-			 _fadvice_advice_str(advice))
-}
-probe nd_syscall.compat_fadvise64_64.return =
-	kprobe.function("ppc_fadvise64_64").return ?
-{
-	name = "fadvise64"
-	retstr = returnstr(1)
-}
-
 # fallocate __________________________________________________
 #
 # asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,

@@ -1,25 +1,4 @@
 
-# fadvise64 _______________________________________________________
-#
-# long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
-#		      u32 len_high, u32 len_low)
-probe syscall.compat_fadvise64_64 = kernel.function("ppc_fadvise64_64").call ?
-{
-	name = "fadvise64"
-	fd = __int32($fd)
-	advice = __int32($advice)
-	offset = (($offset_high << 32) | $offset_low)
-	len = (($len_high << 32) | $len_low)
-	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
-			 _fadvice_advice_str(advice))
-}
-probe syscall.compat_fadvise64_64.return =
-	kernel.function("ppc_fadvise64_64").return ?
-{
-	name = "fadvise64"
-	retstr = return_str(1, $return)
-}
-
 # fallocate __________________________________________________
 #
 # asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
