@@ -1,24 +1,3 @@
-# S390-specific system calls
-
-%(arch == "s390" %?
-
-# getresgid __________________________________________________
-# long sys32_getresgid16(u16 __user *rgid, u16 __user *egid, u16 __user *sgid)
-#
-probe nd_syscall.getresgid16 = kprobe.function("sys32_getresgid16") ?
-{
-	name = "getresgid"
-	asmlinkage()
-	rgid_uaddr = pointer_arg(1)
-	egid_uaddr = pointer_arg(2)
-	sgid_uaddr = pointer_arg(3)
-	argstr = sprintf("%p, %p, %p", rgid_uaddr, egid_uaddr, sgid_uaddr)
-}
-probe nd_syscall.getresgid16.return = kprobe.function("sys32_getresgid16").return ?
-{
-	name = "getresgid"
-	retstr = returnstr(1)
-}
 
 # getresuid __________________________________________________
 # long sys32_getresuid16(u16 __user *ruid, u16 __user *euid, u16 __user *suid)
@@ -476,4 +455,3 @@ probe nd_syscall.compat_lookup_dcookie.return =
         retstr = returnstr(1)
 }
 
-%)

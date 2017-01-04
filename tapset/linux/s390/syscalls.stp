@@ -1,28 +1,3 @@
-# S390-specific system calls
-
-%(arch == "s390" %?
-
-# FIXME: the getresgid16/getresuid16 probes could be combined with
-# their "generic" versions in tapset/syscalls.stp.
-
-# getresgid __________________________________________________
-# long sys32_getresgid16(u16 __user *rgid, u16 __user *egid, u16 __user *sgid)
-#
-probe syscall.getresgid16 = kernel.function("sys32_getresgid16") ?
-{
-	name = "getresgid"
-	rgid_uaddr = @choose_defined($rgidp, $rgid)
-	egid_uaddr = @choose_defined($egidp, $egid)
-	sgid_uaddr = @choose_defined($sgidp, $sgid)
-	argstr = sprintf("%p, %p, %p", @choose_defined($rgidp, $rgid),
-			 @choose_defined($egidp, $egid),
-			 @choose_defined($sgidp, $sgid))
-}
-probe syscall.getresgid16.return = kernel.function("sys32_getresgid16").return ?
-{
-	name = "getresgid"
-	retstr = return_str(1, $return)
-}
 # getresuid __________________________________________________
 # long sys32_getresuid16(u16 __user *ruid, u16 __user *euid, u16 __user *suid)
 #
@@ -459,5 +434,3 @@ probe syscall.compat_lookup_dcookie.return = kernel.function("sys_lookup_dcookie
 	name = "lookup_dcookie"
 	retstr = return_str(1, $return)
 }
-
-%)
