@@ -1,26 +1,3 @@
-# compat_get_mempolicy ________________________________________
-#
-# asmlinkage long compat_get_mempolicy(int __user *policy,
-#				compat_ulong_t __user *nmask,
-#				compat_ulong_t maxnode,
-#				compat_ulong_t addr, compat_ulong_t flags)
-#
-probe syscall.compat_get_mempolicy = kernel.function("compat_get_mempolicy") ?
-{
-	name = "compat_get_mempolicy"
-	policy_uaddr = $policy
-	nmask_uaddr = $nmask
-	maxnode = $maxnode
-	addr = $addr
-	flags = $flags
-	argstr = sprintf("%p, %p, %d, %d", policy_uaddr, nmask_uaddr,
-				maxnode, addr)
-}
-probe syscall.compat_get_mempolicy.return = kernel.function("compat_get_mempolicy").return ?
-{
-	name = "compat_get_mempolicy"
-	retstr = return_str(1, $return)
-}
 # compat_set_mempolicy ________________________________________
 #
 # asmlinkage long compat_set_mempolicy(int mode, compat_ulong_t __user *nmask,
