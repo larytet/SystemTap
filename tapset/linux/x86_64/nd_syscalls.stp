@@ -1,26 +1,4 @@
 
-# set_thread_area ____________________________________________
-/*
- * asmlinkage int
- * sys_set_thread_area(struct user_desc __user *u_info)
- * asmlinkage long sys32_set_thread_area(struct user_desc __user *u_info)
- */
-probe nd_syscall.set_thread_area = kprobe.function("sys_set_thread_area") ?,
-	kprobe.function("sys32_set_thread_area") ?
-{
-	name = "set_thread_area"
-	asmlinkage()
-	u_info_uaddr = pointer_arg(1)
-	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
-}
-probe nd_syscall.set_thread_area.return =
-	kprobe.function("sys_set_thread_area").return ?,
-	kprobe.function("sys32_set_thread_area").return ?
-{
-	name = "set_thread_area"
-	retstr = returnstr(1)
-}
-
 %( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
 # sigaltstack ________________________________________________
 # long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
