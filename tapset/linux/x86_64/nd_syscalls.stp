@@ -1,21 +1,3 @@
-
-# sysctl _____________________________________________________
-#
-# long sys32_sysctl(struct sysctl_ia32 __user *args32)
-#
-probe nd_syscall.sysctl32 = kprobe.function("sys32_sysctl") ?
-{
-	name = "sysctl"
-	// argstr = sprintf("%p", $args32)
-	asmlinkage()
-	argstr = sprintf("%p", pointer_arg(1))
-}
-probe nd_syscall.sysctl32.return = kprobe.function("sys32_sysctl").return ?
-{
-	name = "sysctl"
-	retstr = returnstr(1)
-}
-
 # In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
 # code.  In kernels >= 2.6.33, the arch-specific code just calls
 # generic sys_mmap_pgoff().
