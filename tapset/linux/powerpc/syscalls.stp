@@ -1,24 +1,3 @@
-# compat_timer_settime ________________________________________
-#
-# long compat_timer_settime(timer_t timer_id, int flags,
-#			struct compat_itimerspec __user *new,
-#			struct compat_itimerspec __user *old)
-#
-probe syscall.compat_timer_settime = kernel.function("compat_timer_settime") ?
-{
-	name = "compat_timer_settime"
-	timer_id = $timer_id
-	flags = $flags
-	new_setting_uaddr = $new
-	old_setting_uaddr = $old
-	argstr = sprintf("%d, %d, %p, %p", timer_id, flags,
-				new_setting_uaddr, old_setting_uaddr)
-}
-probe syscall.compat_timer_settime.return = kernel.function("compat_timer_settime").return ?
-{
-	name = "compat_timer_settime"
-	retstr = return_str(1, $return)
-}
 # compat_timer_gettime ________________________________________
 #
 # long compat_timer_gettime(timer_t timer_id,
