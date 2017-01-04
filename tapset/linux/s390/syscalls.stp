@@ -1,47 +1,4 @@
 
-# In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
-# code.  In kernels >= 2.6.33, the arch-specific code just calls
-# generic sys_mmap_pgoff().
-%( kernel_v < "2.6.33" %?
-# mmap2 _________________________________________________
-#
-# long sys_mmap2(struct mmap_arg_struct __user  *arg)
-# long sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg)
-#
-probe syscall.mmap2 = __syscall.mmap2 ?, __syscall.mmap2_32 ?
-{
-        name = "mmap2"
-	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, length,
-			 _mprotect_prot_str(prot), _mmap_flags(flags),
-			 fd, pgoffset)
-}
-probe __syscall.mmap2 = kernel.function("sys_mmap2")
-{
-	start = user_long(&@cast($arg, "mmap_arg_struct")->addr)
-	length = user_ulong(&@cast($arg, "mmap_arg_struct")->len)
-	prot = user_long(&@cast($arg, "mmap_arg_struct")->prot)
-	flags = user_long(&@cast($arg, "mmap_arg_struct")->flags)
-	fd = user_long(&@cast($arg, "mmap_arg_struct")->fd)
-	pgoffset = user_long(&@cast($arg, "mmap_arg_struct")->offset)
-}
-probe __syscall.mmap2_32 = kernel.function("sys32_mmap2")
-{
-	start = user_int(&@cast($arg, "mmap_arg_struct_emu31")->addr)
-	length = user_uint32(&@cast($arg, "mmap_arg_struct_emu31")->len)
-	prot = user_int(&@cast($arg, "mmap_arg_struct_emu31")->prot)
-	flags = user_int(&@cast($arg, "mmap_arg_struct_emu31")->flags)
-	fd = user_int(&@cast($arg, "mmap_arg_struct_emu31")->fd)
-	pgoffset = user_int(&@cast($arg, "mmap_arg_struct_emu31")->offset)
-}
-
-probe syscall.mmap2.return = kernel.function("sys_mmap2").return ?,
-                             kernel.function("sys32_mmap2").return ?
-{
-        name = "mmap2"
-        retstr = return_str(2, $return)
-}
-%)
-
 %( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
 # sigaltstack ________________________________________________
 # asmlinkage long
