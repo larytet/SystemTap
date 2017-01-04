@@ -1,25 +1,4 @@
 
-%( kernel_v < "3.7" %?
-# execve _____________________________________________________
-#
-#   asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
-#			     compat_uptr_t __user *envp, struct pt_regs *regs)
-probe nd_syscall.compat_execve = kprobe.function("sys32_execve") ?
-{
-	asmlinkage()
-	name = "execve"
-	filename = user_string_quoted(pointer_arg(1))
-	args = __get_compat_argv(pointer_arg(2), 0)
-	env_str = __count_compat_envp(pointer_arg(3))
-	argstr = sprintf("%s, %s, %s", filename, args, env_str)
-}
-probe nd_syscall.compat_execve.return = kprobe.function("sys32_execve").return ?
-{
-	name = "execve"
-	retstr = returnstr(1)
-}
-%)
-
 # lookup_dcookie _____________________________________________
 # COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, w0, u32, w1, char __user *,
 #                        buf, compat_size_t, len)
