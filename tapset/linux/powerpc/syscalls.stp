@@ -1,25 +1,4 @@
 
-# fallocate __________________________________________________
-#
-# asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
-#				     u32 lenhi, u32 lenlo)
-probe syscall.compat_fallocate = kernel.function("compat_sys_fallocate") ?
-{
-	name = "fallocate"
-	fd = __int32($fd)
-	mode = __int32($mode)
-	offset = (($offhi << 32) | $offlo)
-	len = (($lenhi << 32) | $lenlo)
-	argstr = sprintf("%d, %s, %#x, %u", fd, _stp_fallocate_mode_str(mode),
-			 offset, len)
-}
-probe syscall.compat_fallocate.return =
-	kernel.function("compat_sys_fallocate").return ?
-{
-	name = "fallocate"
-	retstr = return_str(1, $return)
-}
-
 %( kernel_v < "3.7" %?
 # execve _____________________________________________________
 #
