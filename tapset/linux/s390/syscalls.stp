@@ -1,24 +1,4 @@
 
-%( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
-# sys32_sigaltstack ________________________________________________
-# asmlinkage long
-# sys32_sigaltstack(const stack_t32 __user *uss, stack_t32 __user *uoss)
-#
-# NOTE: args vary between archs.
-probe syscall.sys32_sigaltstack = kernel.function("sys32_sigaltstack") ?
-{
-	name = "sigaltstack"
-	uss_uaddr = $uss
-	uoss_uaddr = $uoss
-	argstr = sprintf("%s, %p", _stp_compat_sigaltstack_u($uss), $uoss)
-}
-probe syscall.sys32_sigaltstack.return = kernel.function("sys32_sigaltstack").return ?
-{
-	name = "sigaltstack"
-	retstr = return_str(1, $return)
-}
-%)
-
 # sysctl _____________________________________________________
 #
 # long sys32_sysctl(struct __sysctl_args32 __user *args)
