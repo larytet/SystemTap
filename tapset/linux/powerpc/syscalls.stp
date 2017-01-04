@@ -1,21 +1,4 @@
 
-# ppc64_sys_stime ________________________________________
-#
-# long ppc64_sys_stime(long __user * tptr)
-#
-probe syscall.ppc64_sys_stime = kernel.function("ppc64_sys_stime") ?
-{
-	name = "ppc64_sys_stime"
-	/* FIXME */
-	t_uaddr = $tptr
-	argstr = sprintf("%p", t_uaddr)
-}
-probe syscall.ppc64_sys_stime.return = kernel.function("ppc64_sys_stime").return ?
-{
-	name = "ppc64_sys_stime"
-	retstr = return_str(1, $return)
-}
-
 # ppc[64]_newuname ________________________________________
 #
 # asmlinkage int ppc64_newuname(struct new_utsname __user * name)

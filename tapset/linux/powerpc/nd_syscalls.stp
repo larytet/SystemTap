@@ -1,23 +1,4 @@
 
-# ppc64_sys_stime ________________________________________
-#
-# long ppc64_sys_stime(long __user * tptr)
-#
-probe nd_syscall.ppc64_sys_stime = kprobe.function("ppc64_sys_stime") ?
-{
-	name = "ppc64_sys_stime"
-	/* FIXME */
-	// t_uaddr = $tptr
-	asmlinkage()
-	t_uaddr = pointer_arg(1)
-	argstr = sprintf("%p", t_uaddr)
-}
-probe nd_syscall.ppc64_sys_stime.return = kprobe.function("ppc64_sys_stime").return ?
-{
-	name = "ppc64_sys_stime"
-	retstr = returnstr(1)
-}
-
 # ppc[64]_newuname ________________________________________
 #
 # asmlinkage int ppc64_newuname(struct new_utsname __user * name)
