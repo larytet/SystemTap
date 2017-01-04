@@ -1,25 +1,4 @@
 
-# sys32_sched_rr_get_interval ________________________________________
-#
-# asmlinkage long sys32_sched_rr_get_interval(u32 pid,
-#		struct compat_timespec __user *interval)
-#
-probe nd_syscall.sys32_sched_rr_get_interval = kprobe.function("sys32_sched_rr_get_interval") ?
-{
-	name = "sys32_sched_rr_get_interval"
-	// pid = $pid
-	// interval_uaddr = $interval
-	asmlinkage()
-	pid = uint_arg(1)
-	interval_uaddr = pointer_arg(2)
-	argstr = sprintf("%d, %p", pid, interval_uaddr)
-}
-probe nd_syscall.sys32_sched_rr_get_interval.return = kprobe.function("sys32_sched_rr_get_interval").return ?
-{
-	name = "sys32_sched_rr_get_interval"
-	retstr = returnstr(1)
-}
-
 # sys32_rt_sigpending ________________________________________
 #
 # long sys32_rt_sigpending(compat_sigset_t __user *set,
