@@ -1,30 +1,11 @@
 
 %( kernel_v < "3.7" %?
-# execve _____________________________________________________
 #
 # In kernels < 3.7, sys_execve() was in arch-specific code (and had
 # varying arguments). It was just a wrapper around generic
 # do_execve(), but the wrapper could error out before calling
 # do_execve(). So, we'll have to handle it in arch-specific tapset
 # code to catch all calls.
-#
-#  int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
-#	       unsigned long a3, unsigned long a4, unsigned long a5,
-#	       struct pt_regs *regs)
-probe syscall.execve = kernel.function("sys_execve").call
-{
-	name = "execve"
-	filename = user_string_quoted($a0)
-	args = __get_argv($a1, 0)
-	env_str = __count_envp($a2)
-	argstr = sprintf("%s, %s, %s", filename, args, env_str)
-}
-probe syscall.execve.return = kernel.function("sys_execve").return
-{
-	name = "execve"
-	retstr = return_str(1, $return)
-}
-
 # execve _____________________________________________________
 #
 #  long compat_sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
