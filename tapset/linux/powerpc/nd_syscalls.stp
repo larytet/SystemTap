@@ -1,29 +1,4 @@
 
-# ppc32_timer_create ________________________________________
-#
-# long ppc32_timer_create(clockid_t clock,
-#			struct compat_sigevent __user *ev32,
-#			timer_t __user *timer_id)
-#
-probe nd_syscall.ppc32_timer_create = kprobe.function("ppc32_timer_create") ?
-{
-	name = "ppc32_timer_create"
-	// which_clock = $clock
-	// timer_event_spec = $ev32
-	// created_timer_id = $timer_id
-	asmlinkage()
-	which_clock = int_arg(1)
-	timer_event_spec = pointer_arg(2)
-	created_timer_id = pointer_arg(3)
-	argstr = sprintf("%d, %p, %p", which_clock, timer_event_spec,
-			created_timer_id)
-}
-probe nd_syscall.ppc32_timer_create.return = kprobe.function("ppc32_timer_create").return ?
-{
-	name = "ppc32_timer_create"
-	retstr = returnstr(1)
-}
-
 # compat_timer_settime ________________________________________
 #
 # long compat_timer_settime(timer_t timer_id, int flags,
