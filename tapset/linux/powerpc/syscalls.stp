@@ -1,28 +1,3 @@
-# sys32_swapcontext ________________________________________
-#
-# long sys32_swapcontext(struct ucontext32 __user *old_ctx,
-#			struct ucontext32 __user *new_ctx,
-#			int ctx_size, int r6, int r7, int r8,
-#			struct pt_regs *regs)
-#
-probe syscall.sys32_swapcontext = kernel.function("sys32_swapcontext") ?
-{
-	name = "sys32_swapcontext"
-	old_ctx_uaddr = $old_ctx
-	new_ctx_uaddr = $new_ctx
-	r5 = $ctx_size
-	r6 = $r6
-	r7 = $r7
-	r8 = $r8
-	regs = $regs
-	argstr = sprintf("%p, %p, %d, %d, %d, %d, %p",
-			old_ctx_uaddr, new_ctx_uaddr, r5, r6, r7, r8, regs)
-}
-probe syscall.sys32_swapcontext.return = kernel.function("sys32_swapcontext").return ?
-{
-	name = "sys32_swapcontext"
-	retstr = return_str(1, $return)
-}
 # sys32_utimes ________________________________________
 #
 # asmlinkage long sys32_utimes(char __user *filename,

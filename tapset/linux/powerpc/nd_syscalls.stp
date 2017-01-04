@@ -1,38 +1,4 @@
 
-# sys32_swapcontext ________________________________________
-#
-# long sys32_swapcontext(struct ucontext32 __user *old_ctx,
-#			struct ucontext32 __user *new_ctx,
-#			int ctx_size, int r6, int r7, int r8,
-#			struct pt_regs *regs)
-#
-probe nd_syscall.sys32_swapcontext = kprobe.function("sys32_swapcontext") ?
-{
-	name = "sys32_swapcontext"
-	// old_ctx_uaddr = $old_ctx
-	// new_ctx_uaddr = $new_ctx
-	// r5 = $ctx_size
-	// r6 = $r6
-	// r7 = $r7
-	// r8 = $r8
-	// regs = $regs
-	asmlinkage()
-	old_ctx_uaddr = pointer_arg(1)
-	new_ctx_uaddr = pointer_arg(2)
-	r5 = int_arg(3)
-	r6 = int_arg(4)
-	r7 = int_arg(5)
-	r8 = int_arg(6)
-	regs = pointer_arg(7)
-	argstr = sprintf("%p, %p, %d, %d, %d, %d, %p",
-			old_ctx_uaddr, new_ctx_uaddr, r5, r6, r7, r8, regs)
-}
-probe nd_syscall.sys32_swapcontext.return = kprobe.function("sys32_swapcontext").return ?
-{
-	name = "sys32_swapcontext"
-	retstr = returnstr(1)
-}
-
 # sys32_utimes ________________________________________
 #
 # asmlinkage long sys32_utimes(char __user *filename,
