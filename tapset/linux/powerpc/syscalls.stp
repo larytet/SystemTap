@@ -1,24 +1,4 @@
 
-# sys32_getdents ________________________________________
-#
-# asmlinkage long sys32_getdents(unsigned int fd,
-#			struct linux_dirent32 __user *dirent,
-#			unsigned int count)
-#
-probe syscall.sys32_getdents = kernel.function("sys32_getdents") ?
-{
-	name = "sys32_getdents"
-	fd = $fd
-	dirp_uaddr = $dirent
-	count = $count
-	argstr = sprintf("%d, %p, %d", fd, dirp_uaddr, count)
-}
-probe syscall.sys32_getdents.return = kernel.function("sys32_getdents").return ?
-{
-	name = "sys32_getdents"
-	retstr = return_str(1, $return)
-}
-
 # compat_sys_sysctl ________________________________________
 #
 # long compat_sys_sysctl(struct __sysctl_args32 __user *args)
