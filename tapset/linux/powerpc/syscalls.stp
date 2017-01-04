@@ -1,17 +1,3 @@
-# sys32_adjtimex ________________________________________
-#
-# long sys32_adjtimex(struct timex32 __user *utp)
-#
-probe syscall.sys32_adjtimex = kernel.function("sys32_adjtimex") ?
-{
-	name = "sys32_adjtimex"
-	argstr = sprintf("%p", $utp)
-}
-probe syscall.sys32_adjtimex.return = kernel.function("sys32_adjtimex").return ?
-{
-	name = "sys32_adjtimex"
-	retstr = return_str(1, $return)
-}
 
 # sys32_getdents ________________________________________
 #
