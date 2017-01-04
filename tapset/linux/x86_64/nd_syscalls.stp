@@ -1,27 +1,4 @@
 
-# fallocate __________________________________________________
-#
-# asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_lo,
-#				unsigned offset_hi, unsigned len_lo,
-#				unsigned len_hi)
-probe nd_syscall.compat_fallocate = kprobe.function("sys32_fallocate") ?
-{
-	asmlinkage()
-	name = "fallocate"
-	fd = int_arg(1)
-	mode = int_arg(2)
-	offset = ((uint_arg(4) << 32) | uint_arg(3))
-	len = ((uint_arg(6) << 32) | uint_arg(5))
-	argstr = sprintf("%d, %s, %#x, %u", fd, _stp_fallocate_mode_str(mode),
-			 offset, len)
-}
-probe nd_syscall.compat_fallocate.return =
-	kprobe.function("sys32_fallocate").return ?
-{
-	name = "fallocate"
-	retstr = returnstr(1)
-}
-
 %( kernel_v < "3.7" %?
 # execve _____________________________________________________
 #
