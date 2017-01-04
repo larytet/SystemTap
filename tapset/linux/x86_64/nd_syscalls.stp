@@ -1,20 +1,4 @@
 
-# vm86_warning _____________________________________________________
-#
-# long sys32_vm86_warning(void)
-#
-probe nd_syscall.vm86_warning = kprobe.function("sys32_vm86_warning") ?
-{
-	name = "vm86_warning"
-	argstr = ""
-}
-probe nd_syscall.vm86_warning.return =
-	kprobe.function("sys32_vm86_warning").return ?
-{
-	name = "wm86_warning"
-	retstr = returnstr(1)
-}
-
 # pipe _______________________________________________________
 #
 # long sys32_pipe(int __user *fd)
