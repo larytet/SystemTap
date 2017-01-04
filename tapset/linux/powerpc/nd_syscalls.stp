@@ -1,24 +1,4 @@
 
-# compat_truncate64 ________________________________________
-#
-# asmlinkage int compat_sys_truncate64(const char __user * path, u32 reg4,
-#				       unsigned long high, unsigned long low)
-#
-probe nd_syscall.compat_truncate64 = kprobe.function("compat_sys_truncate64") ?
-{
-	name = "truncate"
-	path_uaddr = pointer_arg(1)
-	path = user_string_quoted(path_uaddr)
-	length = (ulong_arg(3) << 32 | ulong_arg(4))
-	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
-}
-probe nd_syscall.compat_truncate64.return =
-	kprobe.function("compat_sys_truncate64").return ?
-{
-	name = "truncate"
-	retstr = returnstr(1)
-}
-
 # readahead __________________________________________________
 #
 # compat_ssize_t compat_sys_readahead(int fd, u32 r4, u32 offhi, u32 offlo,
