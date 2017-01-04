@@ -1,26 +1,4 @@
 
-# truncate _______________________________________________________
-#
-# asmlinkage long sys32_truncate64(const char __user *filename,
-#				   unsigned long offset_low,
-#				   unsigned long offset_high)
-#
-probe nd_syscall.compat_truncate64 = kprobe.function("sys32_truncate64") ?
-{
-	asmlinkage()
-        name = "truncate"
-	path_uaddr = pointer_arg(1)
-	path = user_string_quoted(path_uaddr)
-        length = ((uint_arg(3) << 32) | uint_arg(2))
-	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
-}
-probe nd_syscall.compat_truncate64.return =
-	kprobe.function("sys32_truncate64").return ?
-{
-	name = "truncate"
-	retstr = returnstr(1)
-}
-
 # fadvise64 _______________________________________________________
 #
 # asmlinkage long sys32_fadvise64(int fd, unsigned offset_lo,

@@ -1,25 +1,4 @@
 
-# truncate _______________________________________________________
-#
-# asmlinkage long sys32_truncate64(const char __user *filename,
-#				   unsigned long offset_low,
-#				   unsigned long offset_high)
-#
-probe syscall.compat_truncate64 = kernel.function("sys32_truncate64").call ?
-{
-        name = "truncate"
-	path_uaddr = $filename
-	path = user_string_quoted(path_uaddr)
-        length = (($offset_high << 32) | $offset_low)
-	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
-}
-probe syscall.compat_truncate64.return =
-	kernel.function("sys32_truncate64").return ?
-{
-	name = "truncate"
-	retstr = return_str(1, $return)
-}
-
 # fadvise64 _______________________________________________________
 #
 # asmlinkage long sys32_fadvise64(int fd, unsigned offset_lo,
