@@ -1,36 +1,4 @@
 
-# sys32_sigreturn ________________________________________
-#
-# long sys32_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
-#			struct pt_regs *regs)
-#
-probe nd_syscall.sys32_sigreturn = kprobe.function("sys32_sigreturn") ?
-{
-	name = "sys32_sigreturn"
-	// r3 = $r3
-	// r4 = $r4
-	// // r5 = $r5
-	// r6 = $r6
-	// r7 = $r7
-	// r8 = $r8
-	// argstr = sprintf("%p, %p, %p, %p, %p, %p",
-	// 		$r3, $r4, $r5, $r6, $r7, $r8)
-	asmlinkage()
-	r3 = int_arg(1)
-	r4 = int_arg(2)
-	r5 = int_arg(3)
-	r6 = int_arg(4)
-	r7 = int_arg(5)
-	r8 = int_arg(6)
-	argstr = sprintf("%p, %p, %p, %p, %p, %p",
-			r3, r4, r5, r6, r7, r8)
-}
-probe nd_syscall.sys32_sigreturn.return = kprobe.function("sys32_sigreturn").return ?
-{
-	name = "sys32_sigreturn"
-	retstr = returnstr(1)
-}
-
 # sys32_adjtimex ________________________________________
 #
 # long sys32_adjtimex(struct timex32 __user *utp)
