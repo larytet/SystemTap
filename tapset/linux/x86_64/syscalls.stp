@@ -1,25 +1,4 @@
 
-# fadvise64_64 __________________________________________________
-#
-# long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high,
-#			__u32 len_low, __u32 len_high, int advice)
-probe syscall.compat_fadvise64_64 = kernel.function("sys32_fadvise64_64").call ?
-{
-	name = "fadvise64"
-	fd = __int32($fd)
-	offset = (($offset_high << 32) | $offset_low)
-	len = (($len_high << 32) | $len_low)
-	advice = __int32($advice)
-	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
-			 _fadvice_advice_str(advice))
-}
-probe syscall.compat_fadvise64_64.return =
-	kernel.function("sys32_fadvise64_64").return ?
-{
-	name = "fadvise64"
-	retstr = return_str(1, $return)
-}
-
 # readahead __________________________________________________
 #
 # asmlinkage ssize_t
