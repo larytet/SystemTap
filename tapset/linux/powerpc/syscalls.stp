@@ -1,20 +1,4 @@
 
-# ppc64_personality ________________________________________
-#
-# long ppc64_personality(unsigned long personality)
-#
-probe syscall.ppc64_personality = kernel.function("ppc64_personality")
-{
-	name = "ppc64_personality"
-	persona = $personality
-	argstr = sprint($personality)
-}
-probe syscall.ppc64_personality.return = kernel.function("ppc64_personality").return
-{
-	name = "ppc64_personality"
-	retstr = return_str(1, $return)
-}
-
 # ppc_rtas ________________________________________
 #
 # int ppc_rtas(struct rtas_args __user *uargs)

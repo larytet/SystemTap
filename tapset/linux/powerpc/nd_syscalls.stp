@@ -1,23 +1,4 @@
 
-# ppc64_personality ________________________________________
-#
-# long ppc64_personality(unsigned long personality)
-#
-probe nd_syscall.ppc64_personality = kprobe.function("ppc64_personality")
-{
-	name = "ppc64_personality"
-	// persona = $personality
-	// argstr = sprint($personality)
-	asmlinkage()
-	persona = ulong_arg(1)
-	argstr = sprint(persona)
-}
-probe nd_syscall.ppc64_personality.return = kprobe.function("ppc64_personality").return
-{
-	name = "ppc64_personality"
-	retstr = returnstr(1)
-}
-
 # ppc_rtas ________________________________________
 #
 # int ppc_rtas(struct rtas_args __user *uargs)
