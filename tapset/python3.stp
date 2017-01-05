@@ -523,6 +523,7 @@ private function Py3Tuple_Repr:string(object:long)
     retstr .= ")"
     return retstr
 }
+
 #
 # Systemtap functions based on C functions in listobject.c.
 #
@@ -588,6 +589,7 @@ private function Py3List_Repr:string(object:long)
 	(@DK_SIZE(@dk) <= 0xff ? 1 : (@DK_SIZE(@dk) <= 0xffff ? 2 : 4))
     %)
 %)
+
 @define DK_ENTRIES(dk) %(
      (@choose_defined(@Py3DictKeysObject(@dk)->dk_entries,
       (&(@Py3DictKeysObject(@dk)->dk_indices->as_1[@DK_SIZE(@dk) * @DK_IXSIZE(@dk)]))))
@@ -746,7 +748,7 @@ private function Py3Dict_Repr:string(object:long)
 # Systemtap functions based on C functions in object.c.
 #
 
-private function Py3Object_Repr:string(object:long)
+function Py3Object_Repr:string(object:long)
 {
     if (object == 0)
 	return "<NULL>"
@@ -783,6 +785,40 @@ private function Py3Object_Repr:string(object:long, index:long)
     error(sprintf("TypeError: '%s' object cannot be indexed",
 	  python3_get_typename(object)))
     return ""
+}
+
+# This function isn't really based on a function in object.c, but
+# it is based on Py3Object_Repr().
+private function Py3Object_GetItem:string(object:long, index:long)
+{
+    if (object == 0) {
+	error("TypeError: None object cannot be indexed")
+	return 0
+    }
+    if (@Py3Tuple_Check(object))
+	return Py3Tuple_GetItem(object, index)
+    if (@Py3List_Check(object))
+	return Py3List_GetItem(object, index)
+    if (@Py3Dict_Check(object))
+	return Py3Dict_GetItem_FromLong(object, index)
+
+    error(sprintf("TypeError: '%s' object cannot be indexed",
+	  python3_get_typename(object)))
+    return 0
+}
+
+function Py3Object_GetAttr:long(object:long, attr:string)
+{
+    if (object == 0) {
+	error("The None object has no attributes")
+	return 0
+    }
+
+    // FIXME: We don't know how to get class attributes yet.
+
+    error(sprintf("The %s object has no attributes",
+		  python3_get_typename(object)))
+    return 0
 }
 
 #
@@ -931,7 +967,7 @@ function python3_get_locals:string(frame:long, flags:long)
     return retstr
 }
 
-function python3_get_variable:string(frame:long, var:string)
+function python3_get_var_obj:long(frame:long, var:string)
 {
     f_code = @Py3FrameObject(frame)->f_code
     n = f_code->co_nlocals
@@ -943,8 +979,7 @@ function python3_get_variable:string(frame:long, var:string)
     for (i = 0; i < n; i++) {
 	key_obj = Py3Tuple_GetItem(p, i)
 	if (var == Py3Unicode_AsASCIIString(key_obj)) {
-	    value_obj = user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
-	    return Py3Object_Repr(value_obj)
+	    return user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
 	}
     }
 
@@ -953,12 +988,12 @@ function python3_get_variable:string(frame:long, var:string)
     value = Py3Dict_GetItem(f_globals, var)
     if (value == 0) {
         error(sprintf("Python variable '%s' cannot be found", var))
-	return ""
+	return 0
     }
-    return Py3Object_Repr(value)
+    return value
 }
 
-function python3_get_variable:string(frame:long, var:string, index:long)
+function python3_get_var_obj:long(frame:long, var:string, index:long)
 {
     f_code = @Py3FrameObject(frame)->f_code
     n = @Py3CodeObject(f_code)->co_nlocals
@@ -971,7 +1006,7 @@ function python3_get_variable:string(frame:long, var:string, index:long)
 	key_obj = Py3Tuple_GetItem(p, i)
 	if (var == Py3Unicode_AsASCIIString(key_obj)) {
 	    value_obj = user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
-	    return Py3Object_Repr(value_obj, index)
+	    return Py3Object_GetItem(value_obj, index)
 	}
     }
 
@@ -980,7 +1015,7 @@ function python3_get_variable:string(frame:long, var:string, index:long)
     value_obj = Py3Dict_GetItem(f_globals, var)
     if (value_obj == 0) {
 	error(sprintf("Python variable '%s' cannot be found", var))
-	return ""
+	return 0
     }
-    return Py3Object_Repr(value_obj, index)
+    return Py3Object_GetItem(value_obj, index)
 }
