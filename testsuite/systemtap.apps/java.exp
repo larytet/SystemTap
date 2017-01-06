@@ -4,113 +4,55 @@ if {[catch { exec which javac } res]} {
     return
 }
 
-set test "singleparam"
-
 if {! [installtest_p]} then { untested $test; return }
 if {! [java_p]} then { untested $test; return }
 
-# Test per method probing
-
-catch { exec javac -d ./ $srcdir/$subdir/singleparam.java } err
-if {$err == "" && [file exists ./singleparam.class]} then { pass "$test compile" } else { fail "$test compile $err" }
-
-spawn stap $srcdir/$subdir/singleparam.stp -c "java singleparam >/dev/null 2>&1"
-set ok 0
-expect {
-    -timeout 40
-    -re {[^\r\n]*42\r\n} { incr ok; exp_continue}
-    -re {[^\r\n]*254775806\r\n} { incr ok; exp_continue }
-    -re {[^\r\n]*3\r\n} { incr ok; exp_continue }
-    -re {[^\r\n]*2345987\r\n} { incr ok; exp_continue }
-    -re {[^\r\n]*10\r\n} { incr ok; exp_continue }
-    -re {[^\r\n]*1\r\n} { incr ok; exp_continue }
-    -re {[^\r\n]*97\r\n} { incr ok; exp_continue }
-    -re {[^\r\n]*14\r\n} { incr ok; exp_continue }
-    timeout { fail "$test (timeout)" }
-}
-
-    if {$ok == 8} then {
-	pass "$test ($ok)"
-    } else {
-	fail "$test ($ok)"
-    }
-catch {close}; catch {wait}
-
-set test "return"
-
-catch { exec javac -d ./ $srcdir/$subdir/returnstatement.java } err1
-if {$err1 == "" && [file exists ./returnstatement.class]} then { pass "$test compile" } else { fail "$test compile $err1" }
-
-spawn stap $srcdir/$subdir/returnstatement.stp -c "java returnstatement >/dev/null 2>&1"
-set oka 0
-expect {
-    -timeout 40
-    -re {[^\r\n]*42\ ret\r\n} { incr oka; exp_continue }
-    -re {[^\r\n]*254775806\ ret\r\n} { incr oka; exp_continue }
-    -re {[^\r\n]*3\ ret\r\n} { incr oka; exp_continue }
-    -re {[^\r\n]*2345987\ ret\r\n} { incr oka; exp_continue }
-    -re {[^\r\n]*10\ ret\r\n} { incr oka; exp_continue }
-    -re {[^\r\n]*1\ ret\r\n} { incr oka; exp_continue }
-    -re {[^\r\n]*97\ ret\r\n} { incr oka; exp_continue }
-    -re {[^\r\n]*14\ ret\r\n} { incr oka; exp_continue }
-    timeout { fail "$test unexpected timeout" }
-}
-
-    if {$oka == 8} then {
-	pass "$test ($oka)"
-    } else {
-	fail "$test ($oka)"
-    }
-
-catch {close}; catch {wait}
-catch {exec rm ./returnstatement.class}
-
 set test "multiparams"
 
+verbose -log "javac -d ./ $srcdir/$subdir/multiparams.java"
 catch { exec javac -d ./ $srcdir/$subdir/multiparams.java } err2
 if {$err2 == "" && [file exists ./multiparams.class]} then { pass "$test compile" } else { fail "$test compile $err2" }
 
-spawn stap $srcdir/$subdir/multiparams.stp -c "java multiparams >/dev/null 2>&1"
+
+# spawn stap --vp 00002 $srcdir/$subdir/multiparams.stp -c "java -Djava.library.path=$env(PKGLIBDIR) -classpath $env(PKGLIBDIR)/HelperSDT.jar:. multiparams 2>&1"
+spawn stap $srcdir/$subdir/multiparams.stp -c "java -Djava.library.path=$env(PKGLIBDIR) -classpath $env(PKGLIBDIR)/HelperSDT.jar:. multiparams 2>&1"
 set okb 0
 expect {
-    -timeout 40
-    -re {[^\r\n]*42\r\n} { incr okb; exp_continue }
-    -re {[^\r\n]*254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {[^\r\n]*3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {[^\r\n]*2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {[^\r\n]*10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {[^\r\n]*1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {[^\r\n]*97\ 1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {[^\r\n]*14\ 97\ 1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {[^\r\n]*14\ 14\ 97\ 1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {[^\r\n]*14\ 14\ 14\ 97\ 1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
+    -timeout 80
+    -re {java[^\r\n]*just a multiparams hello 14 a true 10 2.71828 3.14159265359 254775806 42\r\n} { incr okb; exp_continue }
+    -re {java.lang.Throwable[^\r\n]*\r\n} { incr okb; exp_continue }
+    -re {multiparams.main[^\r\n]*\r\n} { incr okb; exp_continue }
     timeout { fail "$test unexpected timeout" }
 }
-    if {$okb == 10} then {
-	pass "$test ($okb)"
-    } else {
-	fail "$test ($okb)"
-    }
-
+if {$okb} then {
+    pass "$test ($okb)"
+    catch {exec rm ./multiparams.class}
+} else {
+    fail "$test ($okb)"
+}
 catch {close}; catch {wait}
-catch {exec rm ./multiparams.class}
 
-set test "stacktrace"
 
-spawn stap $srcdir/$subdir/java_backtrace.stp -c "java singleparam >/dev/null 2>&1"
-set okc 0
+set test "multiparams 3.0"
+
+verbose -log "javac -d ./ $srcdir/$subdir/multiparams.java"
+catch { exec javac -d ./ $srcdir/$subdir/multiparams.java } err2
+if {$err2 == "" && [file exists ./multiparams.class]} then { pass "$test compile" } else { fail "$test compile $err2" }
+
+spawn stap --compatible=3.0 $srcdir/$subdir/multiparams.stp -c "java -Djava.library.path=$env(PKGLIBDIR) -classpath $env(PKGLIBDIR)/HelperSDT.jar:. multiparams 2>&1"
+# spawn stap --vp 00002 --compatible=3.0 $srcdir/$subdir/multiparams.stp -c "java -Djava.library.path=$env(PKGLIBDIR) -classpath $env(PKGLIBDIR)/HelperSDT.jar:. multiparams 2>&1"
+set okb 0
 expect {
-    -timeout 40
-    -re {java.lang.Throwable[^\r\n]*\r\n} { incr okc; exp_continue }
-    -re {singleparam.printMessage[^\r\n]*\r\n} { incr okc; exp_continue }
-    -re {singleparam.main[^\r\n]*\r\n} { incr okc; exp_continue }
+    -timeout 80
+    -re {java[^\r\n]*0x0 0x0 14 97 1 10 2 3 254775806 42\r\n} { incr okb; exp_continue }
+    -re {java.lang.Throwable[^\r\n]*\r\n} { incr okb; exp_continue }
+    -re {multiparams.main[^\r\n]*\r\n} { incr okb; exp_continue }
     timeout { fail "$test unexpected timeout" }
 }
-    if {$okc == 10} then {
-	pass "$test ($okc)"
-    } else {
-	fail "$test ($okc)"
-    }
-
+if {$okb} then {
+    pass "$test ($okb)"
+    catch {exec rm ./multiparams.class}
+} else {
+    fail "$test ($okb)"
+}
 catch {close}; catch {wait}
-catch {exec rm ./singleparam.class}

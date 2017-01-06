@@ -1030,7 +1030,26 @@ Context variables defined within java probes include
 .IR $arg1
 through
 .IR $arg10
-(for up to the first 10 arguments of a method), represented as integers or strings.
+(for up to the first 10 arguments of a method), represented as character-pointers
+for the
+.B toString()
+form of each actual argument.
+The
+.IR arg1
+through
+.IR arg10
+script variables provide access to these as ordinary strings, fetched via
+.IR user_string_warn() .
+.PP
+Prior to systemtap version 3.1,
+.IR $arg1
+through
+.IR $arg10
+could contain either integers or character pointers, depending on the types of the
+objects being passed to each particular java method.  This previous behaviour may
+be invoked with the
+.I stap --compatible=3.0
+flag.
 
 .SS PROCFS
 

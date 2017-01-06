@@ -1,5 +1,15 @@
 * What's new in version 3.1, PRERELEASE
 
+- Java method probes now convert all types of java parameters to
+  strings using the java toString() method before passing them to
+  systemtap probes; new argN variables copy them into string
+  variables.  Previously, only numeric types were passed, and only by
+  casting to integers.  The previous behaviour is available with
+  --compatible=3.0 .
+
+  3.1:  probe java(...).class(...).method(...) { printf("%s", arg1) }
+  3.0:  probe java(...).class(...).method(...) { printf("%d", $arg1) }
+
 - An older defensive measure to suppress kernel kprobes optimizations
   since the 3.x era has been disabled for recent kernels.  This improves
   the performance of kernel function probes.  In case of related problems,
