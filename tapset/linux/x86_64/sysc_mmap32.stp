@@ -52,7 +52,6 @@ probe dw_syscall.mmap32.return = kernel.function("sys32_mmap").return
         @_SYSCALL_MMAP32_NAME
         retstr = return_str(2, $return)
 }
-%)
 
 # nd_mmap32 _____________________________________________________
 

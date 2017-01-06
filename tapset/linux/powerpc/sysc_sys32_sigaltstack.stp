@@ -33,7 +33,6 @@ probe dw_syscall.sys32_sigaltstack =
 	uss_str = _stp_compat_sigaltstack_u(uss_uaddr)
 	uoss_uaddr = @__pointer($__old)
 	@_SYSCALL_SYS32_SIGALTSTACK_ARGSTR
-			 uoss_uaddr)
 }
 probe dw_syscall.sys32_sigaltstack.return =
 	kernel.function("compat_sys_sigaltstack").return !,
@@ -54,7 +53,6 @@ probe nd_syscall.sys32_sigaltstack =
 	uss_str = _stp_compat_sigaltstack_u(uss_uaddr)
 	uoss_uaddr = pointer_arg(2)
 	@_SYSCALL_SYS32_SIGALTSTACK_ARGSTR
-			 uoss_uaddr)
 }
 probe nd_syscall.sys32_sigaltstack.return =
 	kprobe.function("compat_sys_sigaltstack").return !,

@@ -11,6 +11,7 @@
 @define _SYSCALL_COMPAT_FADVISE64_64_ARGSTR
 %(
 	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+	                 advice_str)
 %)
 
 probe syscall.compat_fadvise64_64 = dw_syscall.compat_fadvise64_64 !,

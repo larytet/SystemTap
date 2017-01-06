@@ -65,7 +65,6 @@ probe dw_syscall.execve.return = kernel.function("sys_execve").return
 	@_SYSCALL_EXECVE_NAME
 	retstr = return_str(1, $return)
 }
-%)
 
 # nd_execve _____________________________________________________
 
@@ -89,3 +88,5 @@ probe nd_syscall.execve.return = kprobe.function("sys_execve").return
 	@_SYSCALL_EXECVE_NAME
 	retstr = returnstr(1)
 }
+
+%)

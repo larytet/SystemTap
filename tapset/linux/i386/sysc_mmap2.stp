@@ -69,8 +69,6 @@ probe nd_syscall.mmap2 = __nd_syscall.mmap2 ?, __nd_syscall.mmap_pgoff ?
 	# user-side it is a signed int.  Fix this.
 	fd = int_arg(5)
 	@_SYSCALL_MMAP2_ARGSTR
-			length, _mprotect_prot_str(prot), _mmap_flags(flags),
-			fd, pgoffset)
 }
 probe __nd_syscall.mmap2 = kprobe.function("sys_mmap2")
 {
