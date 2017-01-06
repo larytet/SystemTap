@@ -109,6 +109,9 @@
 @define Py3DictKeysObject(object) %(
     @cast(@object, "PyDictKeysObject", @Py3ModuleList)
 %)
+@define Py3DictKeyEntry(object) %(
+    @cast(@object, "PyDictKeyEntry", @Py3ModuleList)
+%)
 @define Py3FrameObject(object) %(
     @cast(@object, "PyFrameObject", @Py3ModuleList)
 %)
@@ -592,7 +595,7 @@ private function Py3List_Repr:string(object:long)
 
 @define DK_ENTRIES(dk) %(
      (@choose_defined(@Py3DictKeysObject(@dk)->dk_entries,
-      (&(@Py3DictKeysObject(@dk)->dk_indices->as_1[@DK_SIZE(@dk) * @DK_IXSIZE(@dk)]))))
+      (&@Py3DictKeyEntry(&@Py3DictKeysObject(@dk)->dk_indices->as_1[@DK_SIZE(@dk) * @DK_IXSIZE(@dk)]))))
 %)
 
 private function Py3Dict_GetItem:long(op:long, key:string)
