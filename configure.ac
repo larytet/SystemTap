@@ -592,7 +592,7 @@ fi
 AM_CONDITIONAL([BUILD_VIRT], [test "${have_libvirt}" == "yes" -a "${have_libxml2}" == "yes" -a "$enable_virt" != "no"])
 
 dnl Check for presence of json-c and ncurses for use in monitor mode
-PKG_CHECK_MODULES([jsonc], [json-c], [have_jsonc=yes], [have_jsonc=no])
+PKG_CHECK_MODULES([jsonc], [json-c >= 0.12], [have_jsonc=yes], [have_jsonc=no])
 PKG_CHECK_MODULES([ncurses], [ncurses], [have_ncurses=yes], [have_ncurses=no])
 AM_CONDITIONAL([HAVE_MONITOR_LIBS], [test "${have_jsonc}" == "yes" -a "${have_ncurses}" == "yes"])
 if test "${have_jsonc}" == "yes" -a "${have_ncurses}" == yes; then
