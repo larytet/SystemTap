@@ -1020,8 +1020,7 @@ function python2_get_var_obj:long(frame:long, var:string)
     for (i = 0; i < n; i++) {
 	key_obj = Py2Tuple_GetItem(p, i)
 	if (var == Py2String_AsString(key_obj)) {
-	    value_obj = user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
-	    return value_obj
+	    return user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
 	}
     }
 

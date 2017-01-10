@@ -6,6 +6,7 @@
 // Public License (GPL); either version 2, or (at your option) any
 // later version.
 
+#include <stdlib.h>
 #include <Python.h>
 #include <sys/sdt.h>
 
@@ -126,6 +127,7 @@ init_HelperSDT(void)
     PyObject *module;
 
 #if PY_MAJOR_VERSION >= 3
+    char *stap_module;
     module = PyModule_Create(&moduledef);
     if (module == NULL)
 	return NULL;
@@ -143,6 +145,12 @@ init_HelperSDT(void)
     PyModule_AddIntMacro(module, PyTrace_RETURN);
 
 #if PY_MAJOR_VERSION >= 3
+    // Get the systemtap module name from the environment. If we found
+    // it, let systemtap know information it needs.
+    stap_module = getenv("SYSTEMTAP_MODULE");
+    if (stap_module) {
+	STAP_PROBE2(HelperSDT, Init, stap_module, &PyObject_GenericGetAttr);
+    }
     return module;
 #endif
 }

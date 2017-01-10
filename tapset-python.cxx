@@ -574,6 +574,24 @@ python_builder::build(systemtap_session & sess, probe * base,
 	  // our internal buffer that we're going to create/update in
 	  // python_derived_probe_group::enroll().
 	  python3_procfs_probe->use_internal_buffer("python3_probe_info");
+
+	  // For python 3, the python helper module also sends us some
+	  // information via a tracepoint. Hook up a probe to it.
+	  stringstream code2;
+	  code2 << "probe process(\"" << PYTHON3_BASENAME
+		<< "\").library(\"" << PY3EXECDIR
+		<< "/HelperSDT/_HelperSDT.*.so\").provider(\"HelperSDT\")"
+		<< ".mark(\"Init\") {"
+		<< endl;
+	  code2 << "  if (user_string($arg1) != module_name()) { next }" << endl;
+	  code2 << "  python3_initialize($arg2)" << endl;
+	  code2 << "}" << endl;
+
+	  probe *mark_probe = parse_synthetic_probe (sess, code2, tok);
+	  if (!mark_probe)
+	      throw SEMANTIC_ERROR (_("can't create python init mark probe"),
+				    tok);
+	  derive_probes(sess, mark_probe, finished_results);
       }
 
       stringstream code;

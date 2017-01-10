@@ -26,7 +26,7 @@ if {[catch {exec cp $srcdir/$subdir/celsius.py . 2>@1} out]} {
 spawn stap -p4 $srcdir/$subdir/celsius-bt.stp python3
 set compile_errors 0
 expect {
-    -timeout 60
+    -timeout 240
     -re {^parse error[^\r\n]*\r\n} { incr compile_errors 1; exp_continue }
     -re {^[^\r\n]*compilation failed[^\r\n]*\r\n} {
 	incr compile_errors 1; exp_continue }
@@ -51,7 +51,7 @@ set error_seen 0
 set returning_seen 0
 spawn stap $srcdir/$subdir/celsius-bt.stp -c "$PYTHON3 -m HelperSDT celsius.py 30" python3
 expect {
-    -timeout 120
+    -timeout 240
     -re {^30 Celsius is 86.0 Farenheit\r\n} { exp_continue }
     -re {^Traceback[^:]+:\r\n} { exp_continue }
     -re {^[ ]+File "celsius.py", line [0-9]+, in [^\r\n]+\r\n} {
@@ -120,7 +120,7 @@ set locals [dict create]
 # Note that the order of dictionary items isn't important, so we have
 # to expect the items in any order.
 expect {
-    -timeout 120
+    -timeout 240
 
     -re {^g_none = <NoneType object at 0x[0-9a-f]+>\r\n} {
 	dict set globals "none" 1; exp_continue }
@@ -268,15 +268,19 @@ if {[catch {exec cp $srcdir/$subdir/class.py . 2>@1} out]} {
 
 set traceback_lines 0
 set error_seen 0
+set balance1_seen 0
+set balance2_seen 0
 spawn stap $srcdir/$subdir/class.stp -c "$PYTHON3 -m HelperSDT class.py" \
     python3
 expect {
-    -timeout 120
+    -timeout 240
     -re {^Checkings current balance is: 10\r\n} { exp_continue }
     -re {^Savings current balance is: 33\r\n} { exp_continue }
     -re {^Traceback[^:]+:\r\n} { exp_continue }
     -re {^[ ]+File "class.py", line [0-9]+, in [^\r\n]+\r\n} {
 	incr traceback_lines; exp_continue }
+    -re {^balance is 0xa\r\n} { incr balance1_seen; exp_continue }
+    -re {^balance is 0x21\r\n} { incr balance2_seen; exp_continue }
     -re {^semantic error:.+\r\n} { incr error_seen; exp_continue }
     timeout { incr error_seen; fail "$test (timeout)" }
 }
@@ -289,6 +293,15 @@ if {$traceback_lines == 4} {
 	fail "$test: backtrace (errors)"
     } else {
 	fail "$test: backtrace ($traceback_lines vs. 4)"
+    }
+}
+if {$balance1_seen == 1 && $balance2_seen == 1} {
+    pass "$test: instance variable"
+} else {
+    if {$error_seen} {
+	fail "$test: instance variable (errors)"
+    } else {
+	fail "$test: instance variable ($balance1_seen $balance2_seen)"
     }
 }
 

@@ -6,6 +6,10 @@
 // Public License (GPL); either version 2, or (at your option) any
 // later version.
 
+// Here we store to address of 'PyObject_GenericGetAttr', which we use
+// down in Py3Object_GetAttr().
+private global Py3Object_GenericGetAttr_addr = 0
+
 %{
 /*
  * Defines borrowed from object.h.
@@ -810,6 +814,36 @@ private function Py3Object_GetItem:string(object:long, index:long)
     return 0
 }
 
+private function Py3Object_GenericGetAttrWithDict:long(obj:long, name:string,
+						       dict:long)
+{
+    tp = @Py3_TYPE(obj)
+    if (tp->tp_dict == 0) {
+	printf("Py3Object_GenericGetAttr: no tp_dict\n")
+	return 0
+    }
+
+    if (dict == 0) {
+	dictoffset = tp->tp_dictoffset
+	if (dictoffset != 0) {
+	    if (dictoffset < 0) {
+		error("yikes")
+	    }
+	    dict = user_long(obj + dictoffset);
+	}
+    }
+    if (dict != 0) {
+	res = Py3Dict_GetItem(dict, name)
+	if (res != 0)
+	    return res
+    }
+    return 0
+}
+
+@define Py3Object_GenericGetAttr(obj, name) %(
+    Py3Object_GenericGetAttrWithDict(@obj, @name, 0)
+%)
+
 function Py3Object_GetAttr:long(object:long, attr:string)
 {
     if (object == 0) {
@@ -817,10 +851,33 @@ function Py3Object_GetAttr:long(object:long, attr:string)
 	return 0
     }
 
-    // FIXME: We don't know how to get class attributes yet.
+    if (@Py3_TYPE(object)->tp_getattro == 0) {
+	error(sprintf("The %s object has no attributes",
+		      python3_get_typename(object)))
+	return 0
+    }
 
-    error(sprintf("The %s object has no attributes",
-		  python3_get_typename(object)))
+    // Python 3 is quite different than python 2 when it comes to
+    // attributes. Classes are no longer their own type anymore, so we
+    // can't really check to see if something is a class.
+    //
+    // The python 3.6m source uses PyObject_GenericGetAttr() for most
+    // objects that support attributes. Now we need to figure out if
+    // that's the function we've got. If so, we know how to handle
+    // this object.
+    if (Py3Object_GenericGetAttr_addr != @Py3_TYPE(object)->tp_getattro) {
+	error(sprintf("Systemtap doesn't know how to get attributes from %s objects",
+		      python3_get_typename(object)))
+	return 0
+    }
+
+    res = @Py3Object_GenericGetAttr(object, attr)
+    if (res != 0)
+       return res
+
+    error(sprintf("The %s object has no attribute '%s'",
+		  python3_get_typename(object), attr))
+
     return 0
 }
 
@@ -906,6 +963,19 @@ private function python3_get_typename:string(obj:long)
     if (obj == 0)
 	return ""
     return user_string(@Py3_TYPE(obj)->tp_name)
+}
+
+/*
+ * python3_initiatlize - Initialize python tapset
+ *
+ * Description: This function gets values from the HelperSDT module.
+ *
+ * Note that users shouldn't call this directly. The translator will
+ * generate code that calls this function with the correct arguments.
+ */
+function python3_initialize:long(arg1:long)
+{
+    Py3Object_GenericGetAttr_addr = arg1
 }
 
 /*
