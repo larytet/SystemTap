@@ -6,9 +6,9 @@
 // Public License (GPL); either version 2, or (at your option) any
 // later version.
 
-#include <stdlib.h>
 #include <Python.h>
 #include <sys/sdt.h>
+#include <stdlib.h>
 
 static PyObject *
 trace_callback(PyObject *self, PyObject *args)
@@ -30,29 +30,29 @@ trace_callback(PyObject *self, PyObject *args)
     case PyTrace_CALL:
 #pragma push_macro("PyTrace_CALL")
 #undef PyTrace_CALL
-	STAP_PROBE4(HelperSDT, PyTrace_CALL, frame_obj, arg_obj,
-		    module_name, key);
+	STAP_PROBE4(HelperSDT, PyTrace_CALL, module_name, key,
+		    frame_obj, arg_obj);
 #pragma pop_macro("PyTrace_CALL")
 	break;
     case PyTrace_EXCEPTION:
 #pragma push_macro("PyTrace_EXCEPTION")
 #undef PyTrace_EXCEPTION
-	STAP_PROBE4(HelperSDT, PyTrace_EXCEPTION, frame_obj, arg_obj,
-		    module_name, key);
+	STAP_PROBE4(HelperSDT, PyTrace_EXCEPTION, module_name, key,
+		    frame_obj, arg_obj);
 #pragma pop_macro("PyTrace_EXCEPTION")
 	break;
     case PyTrace_LINE:
 #pragma push_macro("PyTrace_LINE")
 #undef PyTrace_LINE
-	STAP_PROBE4(HelperSDT, PyTrace_LINE, frame_obj, arg_obj,
-		    module_name, key);
+	STAP_PROBE4(HelperSDT, PyTrace_LINE, module_name, key,
+		    frame_obj, arg_obj);
 #pragma pop_macro("PyTrace_LINE")
 	break;
     case PyTrace_RETURN:
 #pragma push_macro("PyTrace_RETURN")
 #undef PyTrace_RETURN
-	STAP_PROBE4(HelperSDT, PyTrace_RETURN, frame_obj, arg_obj,
-		    module_name, key);
+	STAP_PROBE4(HelperSDT, PyTrace_RETURN, module_name, key,
+		    frame_obj, arg_obj);
 #pragma pop_macro("PyTrace_RETURN")
 	break;
     // FIXME: What about PyTrace_C_CALL, PyTrace_C_EXCEPTION,

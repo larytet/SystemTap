@@ -249,7 +249,7 @@ python_functioncall_expanding_visitor::visit_functioncall (functioncall* e)
   // the right argument.
   target_symbol *tsym = new target_symbol;
   tsym->tok = e->tok;
-  tsym->name = "$arg1";
+  tsym->name = "$arg3";
 
   functioncall *fcall = new functioncall;
   fcall->tok = e->tok;
@@ -286,7 +286,7 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 
 	target_symbol *tsym = new target_symbol;
 	tsym->tok = e->tok;
-	tsym->name = "$arg1";
+	tsym->name = "$arg3";
 	fcall->args.push_back(tsym);
 
 	literal_number* ln = new literal_number(flags);
@@ -317,9 +317,9 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
     // in a systemtap marker probe, which has $arg1 ... $argN
     // variables. The user shouldn't be referencing those variables,
     // but we need to refer to them (to use the python frame pointer
-    // in $arg1 for example). So, we'll do the python variable
+    // in $arg3 for example). So, we'll do the python variable
     // expansion first, and later the python backtrace request
-    // expansions (which will add a reference to $arg1). So, order is
+    // expansions (which will add a reference to $arg3). So, order is
     // important. See python_builder::build().
     if (e->name[0] == '$')
       {
@@ -339,7 +339,7 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 
 	target_symbol *tsym = new target_symbol;
 	tsym->tok = e->tok;
-	tsym->name = "$arg1";
+	tsym->name = "$arg3";
 	var_fcall->args.push_back(tsym);
 
 	// We want 'foo', not '$foo'.
@@ -637,15 +637,15 @@ python_builder::build(systemtap_session & sess, probe * base,
       // HelperSDT module sees an event (function call, function line
       // number, or function return) that we're interested in, it
       // calls down into the _HelperSDT C python extension that
-      // contains SDT markers. The last 2 arguments to the markers are
+      // contains SDT markers. The first 2 arguments to the markers are
       // the module name and key.
       //
       // The 'key' values aren't unique system wide (and just start at
       // 0), but the combination of module name and key is unique
       // system-wide.
-      code << "  if ($arg4 != "
+      code << "  if ($arg2 != "
 	   << (python_version == 2 ? python2_key++ : python3_key++)
-	   << " || user_string($arg3) != module_name()) { next }";
+	   << " || user_string($arg1) != module_name()) { next }";
       code << "}" << endl;
 
       probe *mark_probe = parse_synthetic_probe (sess, code, tok);
@@ -663,7 +663,7 @@ python_builder::build(systemtap_session & sess, probe * base,
 
       // Note that order *is* important here. We want to expand python
       // variable requests in the probe body first, then expand python
-      // backtrace requests in the probe body. The latter uses '$arg1'
+      // backtrace requests in the probe body. The latter uses '$arg3'
       // as the python frame pointer, and we don't want the python
       // variable exander to find those maker argument references.
       python_var_expanding_visitor pvev (sess, python_version);
