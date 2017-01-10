@@ -4,15 +4,17 @@ if {![installtest_p]} {untested $test; return}
 
 foreach runtime [get_runtime_list] {
     set test "beginenderror"
-    set args ""
     if {$runtime != ""} {
 	lappend test "($runtime)"
 	set args "--runtime=$runtime"
+    } else {
+        # set it to transparent nonempty string
+        set args "--vp=0"
     }
 
     # The VERREL stuff is just for compile-testing that option; it plays no
     # real role in this test.
-    spawn stap -DSTP_NO_VERREL_CHECK $srcdir/$subdir/beginenderror.stp $args
+    spawn stap -DSTP_NO_VERREL_CHECK $args $srcdir/$subdir/beginenderror.stp 
     set ok1 0
     set ok2 0
     set ko 0
