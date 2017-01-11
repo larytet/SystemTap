@@ -149,7 +149,13 @@ init_HelperSDT(void)
     // it, let systemtap know information it needs.
     stap_module = getenv("SYSTEMTAP_MODULE");
     if (stap_module) {
-	STAP_PROBE2(HelperSDT, Init, stap_module, &PyObject_GenericGetAttr);
+	// Here we force the compiler to fully resolve the function
+	// pointer value by assigning it to a variable and accessing
+	// it with the asm() statement. Otherwise we get a @GOTPCREL
+	// reference which stap can't parse.
+	void *fptr = &PyObject_GenericGetAttr;
+	asm ("nop" : "=r"(fptr) : "r"(fptr));
+	STAP_PROBE2(HelperSDT, Init, stap_module, fptr);
     }
     return module;
 #endif
