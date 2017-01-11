@@ -3005,7 +3005,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
         if (vut.read.find (l) == vut.read.end() &&
             vut.written.find (l) == vut.written.end())
           {
-            if (s.is_user_file(l->tok->location.file->name))
+            if (!l->tok->location.file->synthetic && s.is_user_file(l->tok->location.file->name))
               s.print_warning (_F("Eliding unused variable '%s'",
                                   l->unmangled_name.to_string().c_str()),
 			       l->tok);
@@ -3049,7 +3049,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
           if (vut.read.find (l) == vut.read.end() &&
               vut.written.find (l) == vut.written.end())
             {
-              if (s.is_user_file(l->tok->location.file->name))
+              if (!l->tok->location.file->synthetic && s.is_user_file(l->tok->location.file->name))
                 s.print_warning (_F("Eliding unused variable '%s'",
                                     l->unmangled_name.to_string().c_str()),
 				 l->tok);
@@ -3093,7 +3093,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
       if (vut.read.find (l) == vut.read.end() &&
           vut.written.find (l) == vut.written.end())
         {
-          if (s.is_user_file(l->tok->location.file->name)) 
+          if (!l->tok->location.file->synthetic && s.is_user_file(l->tok->location.file->name))
             s.print_warning (_F("Eliding unused variable '%s'",
                                 l->unmangled_name.to_string().c_str()),
 			     l->tok);
@@ -3234,7 +3234,7 @@ dead_assignment_remover::visit_assignment (assignment* e)
                 session.print_warning("eliding write-only ", *e->left->tok);
               else
               */
-              if (session.is_user_file(e->left->tok->location.file->name)) 
+              if (!e->left->tok->location.file->synthetic && session.is_user_file(e->left->tok->location.file->name))
                 session.print_warning(_F("Eliding assignment to '%s'",
                                          leftvar->unmangled_name.to_string().c_str()), e->tok);
               provide (e->right); // goodbye assignment*
@@ -3511,7 +3511,7 @@ dead_stmtexpr_remover::visit_expr_statement (expr_statement *s)
         session.print_warning("eliding never-assigned ", *s->value->tok);
       else
       */
-      if (session.is_user_file(s->value->tok->location.file->name))
+      if (!s->value->tok->location.file->synthetic && session.is_user_file(s->value->tok->location.file->name))
         session.print_warning("Eliding side-effect-free expression ", s->tok);
 
       // NB: this 0 pointer is invalid to leave around for any length of

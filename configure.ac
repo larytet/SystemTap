@@ -746,7 +746,7 @@ AM_CONDITIONAL([HAVE_PYTHON_PROBES],
   [test "x$have_python2_support" = "xyes" -o "x$have_python3_support" = "xyes"])
 
 dnl Check for presence of json-c and ncurses for use in monitor mode
-PKG_CHECK_MODULES([jsonc], [json-c], [have_jsonc=yes], [have_jsonc=no])
+PKG_CHECK_MODULES([jsonc], [json-c >= 0.12], [have_jsonc=yes], [have_jsonc=no])
 PKG_CHECK_MODULES([ncurses], [ncurses], [have_ncurses=yes], [have_ncurses=no])
 AM_CONDITIONAL([HAVE_MONITOR_LIBS], [test "${have_jsonc}" == "yes" -a "${have_ncurses}" == "yes"])
 if test "${have_jsonc}" == "yes" -a "${have_ncurses}" == yes; then

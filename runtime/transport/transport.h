@@ -17,7 +17,7 @@
 /* Old transport sends print output on control channel */
 #define STP_CTL_BUFFER_SIZE STP_BUFFER_SIZE
 #else
-#define STP_CTL_BUFFER_SIZE 256
+#define STP_CTL_BUFFER_SIZE 384
 #endif
 
 static unsigned _stp_nsubbufs;

@@ -1,5 +1,5 @@
 // Tapset for per-method based probes
-// Copyright (C) 2014 Red Hat Inc.
+// Copyright (C) 2014-2016 Red Hat Inc.
 
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -80,42 +80,10 @@ public:
 	      probe_point * location,
 	      literal_map_t const & parameters,
 	      vector <derived_probe *> & finished_results);
-  std::string mark_param(int i);
 
   virtual string name() { return "java builder"; }
 };
 
-std::string
-java_builder::mark_param(int i)
-{
-  switch (i)
-    {
-    case 0:
-      return "method__0";
-    case 1:
-      return "method__1";
-    case 2:
-      return "method__2";
-    case 3:
-      return "method__3";
-    case 4:
-      return "method__4";
-    case 5:
-      return "method__5";
-    case 6:
-      return "method__6";
-    case 7:
-      return "method__7";
-    case 8:
-      return "method__8";
-    case 9:
-      return "method__9";
-    case 10:
-      return "method__10";
-    default:
-      return "*";
-    }
-}
 void
 java_builder::build (systemtap_session & sess,
 		     probe * base,
@@ -257,11 +225,14 @@ java_builder::build (systemtap_session & sess,
       derive_probes(sess, new_mark_btd_probe, finished_results);
     }
 
+  // PR21020 - support both java<->stap abis
+  string stap31 = (strverscmp(sess.compatible.c_str(), "3.1") >= 0) ? "31" : "";
+  
   /* The overall flow of control during a probed java method is something like this:
 
      (java) java-method ->
      (java) byteman ->
-     (java) HelperSDT::METHOD_STAP_PROBENN ->
+     (java) HelperSDT::METHOD_STAP*_PROBENN ->
      (JNI) HelperSDT_arch.so ->
      (C) sys/sdt.h marker STAP_PROBEN(hotspot,method__N,...,rulename)
 
@@ -280,12 +251,17 @@ java_builder::build (systemtap_session & sess,
 
   stringstream code;
   code << "probe process(" << literal_string(libhelper) << ")" << ".provider(\"HelperSDT\")"
-       << ".mark(" << literal_string (mark_param(method_params_count)) << ") {" << endl;
+       << ".mark(" << literal_string (string("method")+stap31+"__"+lex_cast(method_params_count)) << ") {" << endl;
 
 
   // Make sure the rule name in the last arg matches this probe
   code << "if (user_string($arg" << (method_params_count+1)
        << ") != " << rule_name << ") next;" << endl;
+
+  // add the implicit user_string_warn()s for conversion
+  if (stap31 == "31")
+    for (int i=0; i<method_params_count; i++)
+      code << "arg" << i+1 << " = user_string_warn($arg" << i+1 << ");" << endl;
 
   code << "}" << endl; // End of probe
 
@@ -308,7 +284,7 @@ java_builder::build (systemtap_session & sess,
   begin_code << "probe begin {" << endl;
 
   /* stapbm takes the following arguments:
-     $1 - install/uninstall
+     $1 - install/uninstall {,31}
      $2 - JVM PID/unique name
      $3 - RULE name  <--- identifies this probe uniquely at run time
      $4 - class
@@ -318,7 +294,7 @@ java_builder::build (systemtap_session & sess,
      $8 - backtrace
   */
 
-  string leftbits = string(PKGLIBDIR) + "/stapbm install " +
+  string leftbits = string(PKGLIBDIR) + "/stapbm install"+stap31+" " +
     lex_cast_qstring(has_pid_int ? java_pid_str : _java_proc_class) + " ";
 
   string rightbits = " " + lex_cast_qstring(class_str_val) +
@@ -344,7 +320,7 @@ java_builder::build (systemtap_session & sess,
   stringstream end_code;
   end_code << "probe end, error {" << endl;
 
-  leftbits = string(PKGLIBDIR) + "/stapbm uninstall " +
+  leftbits = string(PKGLIBDIR) + "/stapbm uninstall"+stap31+" " +
     lex_cast_qstring(has_pid_int ? java_pid_str : _java_proc_class) + " ";
   // rightbits are the same as the begin probe
 

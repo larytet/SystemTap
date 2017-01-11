@@ -145,7 +145,7 @@ function addr_to_node:long(addr:long) %{ /* pure */
  */
 probe vm.write_shared = kernel.function("do_wp_page") {
     name = "write_shared"
-    address = $address
+    address = @choose_defined($vmf->address,$address)
 }
 
 /**
