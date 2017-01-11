@@ -629,7 +629,7 @@ private function Py3Dict_GetItem:long(op:long, key:string)
 
     // If we've got a split table...
     if (@Py3DictObject(op)->ma_values != 0) {
-        n = @Py3DictObject(op)->ma_used
+        n = @DK_SIZE(@Py3DictObject(op)->ma_keys)
 	for (i = 0; i < n; i++) {
 	    entry_ptr = &@DK_ENTRIES(@Py3DictObject(op)->ma_keys)[i]
 	    if (entry_ptr->me_key == 0
