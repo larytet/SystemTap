@@ -44,7 +44,7 @@ spawn stap --compatible=3.0 $srcdir/$subdir/multiparams.stp -c "java -Djava.libr
 set okb 0
 expect {
     -timeout 80
-    -re {java[^\r\n]*0x0 0x0 14 97 1 10 2 3 254775806 42\r\n} { incr okb; exp_continue }
+    -re {java[^\r\n]*"just a multiparams" "hello" 14 97 1 10 2 3 254775806 42\r\n} { incr okb; exp_continue }
     -re {java.lang.Throwable[^\r\n]*\r\n} { incr okb; exp_continue }
     -re {multiparams.main[^\r\n]*\r\n} { incr okb; exp_continue }
     timeout { fail "$test unexpected timeout" }
