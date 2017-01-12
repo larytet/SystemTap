@@ -116,7 +116,6 @@ dict set kfails "type" 1
 dict set kfails "bool" 1
 dict set kfails "float" 1
 dict set kfails "complex" 1
-dict set kfails "unicode" 1
 dict set kfails "xrange" 1
 dict set kfails "function" 1
 dict set kfails "unbound" 1
@@ -148,7 +147,7 @@ expect {
 
     -re {^g_string = "regular string"\r\n} {
 	dict set globals "string" 1; exp_continue }
-    -re {^g_unicode = <unicode object at 0x[0-9a-f]+>\r\n} {
+    -re {^g_unicode = "unicode string"\r\n} {
 	dict set globals "unicode" 1; exp_continue }
     -re {^g_tuple = \(0x0 "abc" 0x2\)\r\n} {
 	dict set globals "tuple" 1; exp_continue }
@@ -204,7 +203,7 @@ expect {
 
     -re {^l_string = "another regular string"\r\n} {
 	dict set locals "string" 1; exp_continue }
-    -re {^l_unicode = <unicode object at 0x[0-9a-f]+>\r\n} {
+    -re {^l_unicode = "another unicode string"\r\n} {
 	dict set locals "unicode" 1; exp_continue }
     -re {^l_tuple = \("hello" 0x63 "there" 0xbeef\)\r\n} {
 	dict set locals "tuple" 1; exp_continue }

@@ -74,65 +74,57 @@
 #
 ###########################################
 
+@define Py2ModuleList %(
+    "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so"
+%)
+
 @define Py2Object(object) %(
-    @cast(@object, "PyObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyObject", @Py2ModuleList)
 %)
 @define Py2VarObject(object) %(
-    @cast(@object, "PyVarObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyVarObject", @Py2ModuleList)
 %)
 @define Py2IntObject(object) %(
-    @cast(@object, "PyIntObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyIntObject", @Py2ModuleList)
 %)
 @define Py2StringObject(object) %(
-    @cast(@object, "PyStringObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyStringObject", @Py2ModuleList)
+%)
+@define Py2UnicodeObject(object) %(
+    @cast(@object, "PyUnicodeObject", @Py2ModuleList)
 %)
 @define Py2TypeObject(object) %(
-    @cast(@object, "PyTypeObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyTypeObject", @Py2ModuleList)
 %)
 @define Py2TupleObject(object) %(
-    @cast(@object, "PyTupleObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyTupleObject", @Py2ModuleList)
 %)
 @define Py2ListObject(object) %(
-    @cast(@object, "PyListObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyListObject", @Py2ModuleList)
 %)
 @define Py2SetObject(object) %(
-    @cast(@object, "PySetObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PySetObject", @Py2ModuleList)
 %)
 @define Py2DictObject(object) %(
-    @cast(@object, "PyDictObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyDictObject", @Py2ModuleList)
 %)
 @define Py2DictEntry(object) %(
-    @cast(@object, "PyDictEntry",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyDictEntry", @Py2ModuleList)
 %)
 @define Py2FrameObject(object) %(
-    @cast(@object, "PyFrameObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyFrameObject", @Py2ModuleList)
 %)
 @define Py2CodeObject(object) %(
-    @cast(@object, "PyCodeObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyCodeObject", @Py2ModuleList)
 %)
 @define Py2LongObject(object) %(
-    @cast(@object, "PyLongObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyLongObject", @Py2ModuleList)
 %)
 @define Py2ClassObject(object) %(
-    @cast(@object, "PyClassObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyClassObject", @Py2ModuleList)
 %)
 @define Py2InstanceObject(object) %(
-    @cast(@object, "PyInstanceObject",
-	  "python:/usr/lib64/libpython2.7.so:/usr/lib/libpython2.7.so:/usr/lib64/libpython2.6.so:/usr/lib/libpython2.6.so")
+    @cast(@object, "PyInstanceObject", @Py2ModuleList)
 %)
 
 #
@@ -162,6 +154,17 @@
 
 @define Py2String_Check(op) %(
     @Py2Type_FastSubclass(@Py2_TYPE(@op), %{ Py2_TPFLAGS_STRING_SUBCLASS %})
+%)
+
+#
+# Systemtap macros based on C macros in unicodeobject.h.
+#
+
+@define Py2Unicode_Check(op) %(
+    @Py2Type_FastSubclass(@Py2_TYPE(@op), %{ Py2_TPFLAGS_UNICODE_SUBCLASS %})
+%)
+@define Py2Unicode_AS_UNICODE(op) %(
+    (@Py2UnicodeObject(@op)->str)
 %)
 
 #
@@ -427,6 +430,26 @@ private function Py2String_Size:long(object:long)
 	return 0
     }
     return @Py2_SIZE(object)
+}
+
+#
+# Systemtap functions based on C functions in unicodeobject.c.
+#
+
+private function Py2Unicode_AsASCIIString:string(object:long)
+{
+    if (!@Py2Unicode_Check(object)) {
+	warn(sprintf("Py2Unicode_AsASCIIString called on non-unicode string address 0x%p\n",
+		     @__pointer(object)))
+	return ""
+    }
+    try {
+	return user_string_utf32(@Py2Unicode_AS_UNICODE(object))
+    } catch {
+	warn(sprintf("Py2Unicode_AsASCIIString failed on address 0x%p\n",
+		     @__pointer(object)))
+	return ""
+    }
 }
 
 #
@@ -789,6 +812,8 @@ function Py2Object_Repr:string(object:long)
 	return "<NULL>"
     if (@Py2String_Check(object))
 	return sprintf("\"%s\"", Py2String_AsString(object))
+    if (@Py2Unicode_Check(object))
+	return sprintf("\"%s\"", Py2Unicode_AsASCIIString(object))
     if (@Py2Int_Check(object))
     	return sprintf("%#x", Py2Int_AsLong(object))
     if (@Py2Long_Check(object))
@@ -815,6 +840,9 @@ private function Py2Object_Repr:string(object:long, index:long)
 	return "<NULL>"
     if (@Py2String_Check(object))
 	return sprintf("\"%c\"", stringat(Py2String_AsString(object), index))
+    if (@Py2Unicode_Check(object))
+	return sprintf("\"%c\"", stringat(Py2Unicode_AsASCIIString(object),
+					  index))
     if (@Py2Tuple_Check(object))
 	return Py2Object_Repr(Py2Tuple_GetItem(object, index))
     if (@Py2List_Check(object))
