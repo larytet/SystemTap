@@ -41,7 +41,7 @@ probe syscall.sys32_sigaltstack.return ?
 
 probe syscall.sysctl ?, syscall.sysctl32 ?
 {
-	printf("%s, %s\n", name, argstr)
+	printf("%s, %d, %s\n", name, args, argstr)
 }
 probe syscall.sysctl.return ?, syscall.sysctl32.return ?
 {
@@ -56,7 +56,7 @@ probe syscall.sysctl.return ?, syscall.sysctl32.return ?
 probe syscall.get_thread_area
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%p", u_info_uaddr)
+	printf("%p, %s", u_info_uaddr, u_info_str)
 }
 probe syscall.get_thread_area.return
 {
@@ -91,7 +91,7 @@ probe syscall.ipc.return ?
 probe syscall.set_thread_area
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%p", u_info_uaddr)
+	printf("%p, %s\n", u_info_uaddr, u_info_str)
 }
 probe syscall.set_thread_area.return
 {

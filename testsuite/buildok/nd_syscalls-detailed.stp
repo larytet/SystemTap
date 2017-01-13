@@ -172,7 +172,7 @@ probe nd_syscall.chroot.return
 probe nd_syscall.clock_adjtime ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %s, %p\n", clk_id, clk_id_str, tx_uaddr)
+	printf("%d, %s, %p, %s\n", clk_id, clk_id_str, tx_uaddr, tx_uaddr_str)
 }
 probe nd_syscall.clock_adjtime.return ?
 {
@@ -216,7 +216,7 @@ probe nd_syscall.clock_nanosleep.return, nd_syscall.compat_clock_nanosleep.retur
 probe nd_syscall.clock_settime
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d(%s), %p\n", clk_id, clk_id_str, tp_uaddr)
+	printf("%d(%s), %p, %s\n", clk_id, clk_id_str, tp_uaddr, tp_uaddr_str)
 }
 probe nd_syscall.clock_settime.return
 {
@@ -305,7 +305,7 @@ probe nd_syscall.dup.return
 probe nd_syscall.dup2, nd_syscall.dup3 ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d\n", oldfd, newfd, flags)
+	printf("%d, %d, %d, %d\n", oldfd, newfd, flags, flags_str)
 }
 probe nd_syscall.dup2.return, nd_syscall.dup3.return ?
 {
@@ -382,7 +382,6 @@ probe nd_syscall.execveat ?, nd_syscall.compat_execveat ?
 	printf("%d, %s, %s, %d(%s), %s, %s\n", dirfd, dirfd_str, filename,
 	       flags, flags_str, args, env_str)
 }
-
 probe nd_syscall.execveat.return ?, nd_syscall.compat_execveat.return ?
 {
         printf("%s, %s\n", name, retstr)
@@ -419,7 +418,7 @@ probe nd_syscall.fadvise64 ?, nd_syscall.fadvise64_64 ?,
 	nd_syscall.compat_fadvise64 ?, nd_syscall.compat_fadvise64_64 ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d, %d\n", fd, offset, len, advice)
+	printf("%d, %d, %d, %d, %s\n", fd, offset, len, advice, advice_str)
 }
 probe nd_syscall.fadvise64.return ?, nd_syscall.fadvise64_64.return ?,
 	nd_syscall.compat_fadvise64.return ?,
@@ -431,7 +430,7 @@ probe nd_syscall.fadvise64.return ?, nd_syscall.fadvise64_64.return ?,
 probe nd_syscall.fallocate ?, nd_syscall.compat_fallocate ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %#x, %u", fd, mode, offset, len)
+	printf("%d, %d, %s, %#x, %u", fd, mode, mode_str, offset, len)
 }
 probe nd_syscall.fallocate.return ?, nd_syscall.compat_fallocate.return ?
 {
@@ -683,8 +682,8 @@ probe nd_syscall.futex.return, nd_syscall.compat_futex.return ?
 probe nd_syscall.futimesat ?, nd_syscall.compat_futimesat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d(%s), %p(%s), %p\n", dirfd, dirfd_str, filename_uaddr,
-	       filename, tvp_uaddr)
+	printf("%d(%s), %p(%s), %p, %s\n", dirfd, dirfd_str, filename_uaddr,
+	       filename, tvp_uaddr, tvp_str)
 }
 probe nd_syscall.futimesat.return ?, nd_syscall.compat_futimesat.return ?
 {
@@ -988,7 +987,7 @@ probe nd_syscall.init_module.return
 probe nd_syscall.inotify_add_watch ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %p(%s)\n", fd, mask, path_uaddr, path)
+	printf("%d, %d, %s, %p(%s)\n", fd, mask, mask_str, path_uaddr, path)
 }
 probe nd_syscall.inotify_add_watch.return ?
 {
@@ -1152,7 +1151,7 @@ probe nd_syscall.keyctl.return
 probe nd_syscall.kill
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d\n", pid, sig)
+	printf("%d, %d, %s\n", pid, sig, sig_name)
 }
 probe nd_syscall.kill.return
 {
@@ -1296,7 +1295,7 @@ probe nd_syscall.madvise.return
 probe nd_syscall.mbind ?
 {
 	printf("%s, %s\n", name, argstr)
-    printf("%p, %u, %d, %s, %p, %u, %u, %s", start, len, mode,    
+	printf("%p, %u, %d, %s, %p, %u, %u, %s", start, len, mode,    
 	       mode_str, nmask_uaddr, maxnode, flags, flags_str)
 }
 probe nd_syscall.mbind.return ?
@@ -1307,7 +1306,7 @@ probe nd_syscall.mbind.return ?
 probe nd_syscall.membarrier ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %s, %d", cmd, cmd_str, flags)
+	printf("%d, %s, %d\n", cmd, cmd_str, flags)
 }
 probe nd_syscall.membarrier.return ?
 {
@@ -1367,7 +1366,7 @@ probe nd_syscall.mkdirat.return ?
 probe nd_syscall.mknod
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%s, %d, %d\n", pathname, mode, dev)
+	printf("%s, %d, %s, %d\n", pathname, mode, mode_str, dev)
 }
 probe nd_syscall.mknod.return
 {
@@ -1408,7 +1407,7 @@ probe nd_syscall.mlock2.return ?
 probe nd_syscall.mlockall
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d\n", flags)
+	printf("%d, %s\n", flags, flags_str)
 }
 probe nd_syscall.mlockall.return
 {
@@ -1452,8 +1451,8 @@ probe nd_syscall.mount.return
 probe nd_syscall.mmap2
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%p, %d, %d, %d, %d, %d", start, length, prot, flags,
-	       fd, pgoffset)
+	printf("%p, %d, %d, %d, %d, %d, %s\n", start, length, prot, flags,
+	       fd, pgoffset, prot_str)
 }
 probe nd_syscall.mmap2.return
 {
@@ -1494,8 +1493,8 @@ probe nd_syscall.mq_notify.return
 probe nd_syscall.mq_open
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%p, %s, %d, %p, %d\n", name_uaddr, filename, mode,
-	       u_attr_uaddr, oflag)
+	printf("%p, %s, %d, %p, %d, %s\n", name_uaddr, filename, mode,
+	       u_attr_uaddr, oflag, oflag_str)
 }
 probe nd_syscall.mq_open.return
 {
@@ -1537,8 +1536,8 @@ probe nd_syscall.mq_unlink.return
 probe nd_syscall.mremap
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d, %d, %d\n", old_address, old_size, new_size,
-	       flags, new_address)
+	printf("%d, %d, %d, %d, %d, %s\n", old_address, old_size, new_size,
+	       flags, new_address, flags_str)
 }
 probe nd_syscall.mremap.return
 {
@@ -1590,7 +1589,7 @@ probe nd_syscall.msgsnd.return, nd_syscall.compat_sys_msgsnd.return ?
 probe nd_syscall.msync
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d\n", start, length, flags)
+	printf("%d, %d, %d, %s\n", start, length, flags, flags_str)
 }
 probe nd_syscall.msync.return
 {

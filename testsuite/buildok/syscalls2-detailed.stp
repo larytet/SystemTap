@@ -14,7 +14,7 @@ probe syscall.name_to_handle_at.return ?
 probe syscall.nanosleep, syscall.compat_nanosleep ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%p %p\n", req_uaddr, rem_uaddr)
+	printf("%p %p %s\n", req_uaddr, rem_uaddr, req_str)
 }
 probe syscall.nanosleep.return, syscall.compat_nanosleep.return ?
 {
@@ -77,7 +77,7 @@ probe syscall.open.return
 probe syscall.openat ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d(%s) %s %d %d\n", dfd, dfd_str, filename, flags, mode)
+	printf("%d(%s) %s %d %s %d\n", dfd, dfd_str, filename, flags, flags_str, mode)
 }
 probe syscall.openat.return ?
 {
@@ -117,8 +117,7 @@ probe syscall.personality.return
 probe syscall.pipe
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d(%s) %p [%d %d]\n", flags, flag_str, fildes_uaddr, pipe0,
-	       pipe1)
+	printf("%d(%s) %p\n", flags, flag_str, fildes_uaddr)
 }
 # syscall.pipe.return is special, since at that point pipe0/pipe1 are valid
 probe syscall.pipe.return
@@ -149,7 +148,8 @@ probe syscall.poll.return
 
 probe syscall.ppoll ?, syscall.compat_ppoll ?
 {
-	printf("%s(%s)\n", name, argstr)
+	printf("%s(%s) %d %d %d %s %d %d\n", name, argstr, fds_uaddr, nfds,
+	       tsp, tsp_str, sigmask, sigsetsize)
 }
 probe syscall.ppoll.return ?, syscall.compat_ppoll.return ?
 {
@@ -189,7 +189,8 @@ probe syscall.preadv.return ?
 probe syscall.prlimit64 ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d, %d, %p, %p", pid, resource, new_rlim_uaddr, old_rlim_uaddr)
+	printf("%d, %s, %d, %p, %s, %p", pid, resource, resource_str,
+	       new_rlim_uaddr, new_rlim_str, old_rlim_uaddr)
 }
 probe syscall.prlimit64.return ?
 {
@@ -219,14 +220,10 @@ probe syscall.process_vm_writev.return ?
 }
 
 probe syscall.pselect6 ?, syscall.compat_pselect6 ?,
-      syscall.pselect7 ?,
-%( systemtap_v <= "1.3" %?
-      syscall.compat_pselect7a ?
-%:
-      syscall.compat_pselect7 ?
-%)
+      syscall.pselect7 ?, syscall.compat_pselect7 ?
 {
-	printf("%s(%s)\n", name, argstr)
+	printf("%s(%s) %d %d %d %d %d %s %d\n", name, argstr, nfds, readfds,
+	       writefds, exceptfds, timeout, timeout_str, sigmask)
 }
 probe syscall.pselect6.return ?, syscall.compat_pselect6.return ?,
       syscall.pselect7.return ?, syscall.compat_pselect7.return ?
@@ -247,7 +244,7 @@ probe syscall.ptrace.return
 probe syscall.pwrite, syscall.pwrite32 ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %p %d %d\n", fd, buf_uaddr, count, offset)
+	printf("%d %p %s %d %d\n", fd, buf_uaddr, buf_str, count, offset)
 }
 probe syscall.pwrite.return, syscall.pwrite32.return ?
 {
@@ -369,8 +366,8 @@ probe syscall.recvfrom.return ?
 probe syscall.recvmmsg ?, syscall.compat_recvmmsg ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %p %d %d(%s), %p\n", s, mmsg_uaddr, vlen, flags,
-	       flags_str, timeout_uaddr)
+	printf("%d %p %d %d(%s) %p %s\n", s, mmsg_uaddr, vlen, flags,
+	       flags_str, timeout_uaddr, timeout_str)
 }
 probe syscall.recvmmsg.return ?, syscall.compat_recvmmsg.return ?
 {
@@ -390,7 +387,8 @@ probe syscall.recvmsg.return ?, syscall.compat_sys_recvmsg.return ?
 probe syscall.remap_file_pages ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %d %d %d %d\n", start, size, prot, pgoff, flags)
+	printf("%d %d %d %s %d %d %s\n", start, size, prot, prot_str,
+	       pgoff, flags_str)
 }
 probe syscall.remap_file_pages.return ?
 {
@@ -444,8 +442,8 @@ probe syscall.renameat2.return ?
 probe syscall.request_key ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%p %p %p %p\n", type_uaddr, description_uaddr,
-	       callout_info_uaddr, destringid)
+	printf("%p %s %p %s %p %p\n", type_uaddr, type_str, description_uaddr,
+	       description_str, callout_info_uaddr, destringid)
 }
 probe syscall.request_key.return ?
 {
@@ -474,7 +472,7 @@ probe syscall.rmdir.return
 probe syscall.rt_sigaction ?, syscall.rt_sigaction32 ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %p %p %d\n", sig, act_uaddr, oact_uaddr, sigsetsize)
+	printf("%d %s %p %s %p %d\n", sig, sig_str, act_uaddr, act_str, oact_uaddr, sigsetsize)
 }
 probe syscall.rt_sigaction.return ?, syscall.rt_sigaction32.return ?
 {
@@ -494,7 +492,8 @@ probe syscall.rt_sigpending.return ?
 probe syscall.rt_sigprocmask ?, syscall.compat_rt_sigprocmask ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d(%s) %p %p\n", how, how_str, set_uaddr, oldset_uaddr)
+	printf("%d(%s) %p %p %s %d\n", how, how_str, set_uaddr, oldset_uaddr,
+	       set_str, sigsetsize)
 }
 probe syscall.rt_sigprocmask.return ?, syscall.compat_rt_sigprocmask.return ?
 {
@@ -504,7 +503,7 @@ probe syscall.rt_sigprocmask.return ?, syscall.compat_rt_sigprocmask.return ?
 probe syscall.rt_sigqueueinfo
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %d %p\n", pid, sig, uinfo_uaddr)
+	printf("%d %d %s %p %s\n", pid, sig, sig_name, uinfo_uaddr, siginfo_str)
 }
 probe syscall.rt_sigqueueinfo.return
 {
@@ -523,7 +522,7 @@ probe syscall.rt_sigreturn.return ?
 probe syscall.rt_sigsuspend ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%p, %u", set_uaddr, sigsetsize)
+	printf("%p, %s, %u", set_uaddr, set_str, sigsetsize)
 }
 probe syscall.rt_sigsuspend.return ?
 {
@@ -533,8 +532,8 @@ probe syscall.rt_sigsuspend.return ?
 probe syscall.rt_sigtimedwait
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%p %p %p %d\n", uthese_uaddr, uinfo_uaddr, uts_uaddr,
-	       sigsetsize)
+	printf("%p %s %p %s %p %s %d\n", uthese_uaddr, uthese_str, uinfo_uaddr,
+	       uinfo_str, uts_uaddr, uts_str, sigsetsize)
 }
 probe syscall.rt_sigtimedwait.return
 {
@@ -544,7 +543,7 @@ probe syscall.rt_sigtimedwait.return
 probe syscall.rt_tgsigqueueinfo ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d, %d, %d, %p", tgid, tid, sig, uinfo_uaddr)
+	printf("%d, %d, %d, %s, %p, %s\n", tgid, tid, sig, sig_str, uinfo_uaddr, uinfo_str)
 }
 probe syscall.rt_tgsigqueueinfo.return ?
 {
@@ -584,7 +583,7 @@ probe syscall.sched_getparam.return
 probe syscall.sched_get_priority_max, syscall.sched_get_priority_min
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d\n", policy)
+	printf("%d %s\n", policy, policy_str)
 }
 probe syscall.sched_get_priority_max.return,
       syscall.sched_get_priority_min.return
@@ -677,8 +676,8 @@ probe syscall.seccomp.return ?
 probe syscall.select, syscall.compat_select ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %p %p %p %p\n", n, readfds_uaddr, writefds_uaddr,
-	       exceptfds_uaddr, timeout_uaddr)
+	printf("%d %p %p %p %p %s\n", n, readfds_uaddr, writefds_uaddr,
+	       exceptfds_uaddr, timeout_uaddr, timeout_str)
 }
 probe syscall.select.return, syscall.compat_select.return ?
 {
@@ -718,7 +717,8 @@ probe syscall.semop.return ?
 probe syscall.semtimedop ?, syscall.compat_sys_semtimedop ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %p %d %p\n", semid, sops_uaddr, nsops, timeout_uaddr)
+	printf("%d %p %d %p %s\n", semid, sops_uaddr, nsops, timeout_uaddr,
+	       timeout_str)
 }
 probe syscall.semtimedop.return ?, syscall.compat_sys_semtimedop.return ?
 {
@@ -768,8 +768,8 @@ probe syscall.sendmmsg.return ?
 probe syscall.sendto ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %p %d %d(%s) %p %d\n", s, buf_uaddr, len, flags,
-	       flags_str, to_uaddr, tolen)
+	printf("%d %p %d %d(%s) %s %p %d\n", s, buf_uaddr, len, flags,
+	       flags_str, to_uaddr, to_str, tolen)
 }
 probe syscall.sendto.return ?
 {
@@ -844,7 +844,8 @@ probe syscall.sethostname.return
 probe syscall.setitimer, syscall.compat_setitimer ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %p %p\n", which, value_uaddr, ovalue_uaddr)
+	printf("%d %s %p %s %p\n", which, which_str, value_uaddr, value_str,
+	       ovalue_uaddr)
 }
 probe syscall.setitimer.return, syscall.compat_setitimer.return ?
 {
@@ -854,7 +855,7 @@ probe syscall.setitimer.return, syscall.compat_setitimer.return ?
 probe syscall.setns ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d, %d\n", fd, nstype)
+	printf("%d, %d, %s\n", fd, nstype, nstype_str)
 }
 probe syscall.setns.return ?
 {
@@ -934,7 +935,7 @@ probe syscall.setreuid.return, syscall.setreuid16.return ?
 probe syscall.setrlimit
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %p\n", resource, rlim_uaddr)
+	printf("%d %s %p %s\n", resource, resource_str, rlim_uaddr, rlim_str)
 }
 probe syscall.setrlimit.return
 {
@@ -984,7 +985,7 @@ probe syscall.set_tid_address.return
 probe syscall.settimeofday, syscall.settimeofday32 ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%p, %p\n", tv_uaddr, tz_uaddr)
+	printf("%p, %s, %p %s\n", tv_uaddr, tv_str, tz_uaddr, tz_str)
 }
 probe syscall.settimeofday.return, syscall.settimeofday32.return ?
 {
@@ -1025,7 +1026,7 @@ probe syscall.sgetmask.return ?
 probe syscall.shmat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %p, %d\n", shmid, shmaddr_uaddr, shmflg)
+	printf("%d, %p, %d, %s\n", shmid, shmaddr_uaddr, shmflg, shmflg_str)
 }
 probe syscall.shmat.return ?
 {
@@ -1038,7 +1039,7 @@ probe syscall.compat_sys_shmat ?
 %( systemtap_v < "2.3" %?
 	printf("%d, %d, %d, %p\n", first, second, third, uptr_uaddr)
 %)
-	printf("%d, %p, %d\n", shmid, shmaddr_uaddr, shmflg)
+	printf("%d, %p, %d, %s\n", shmid, shmaddr_uaddr, shmflg, shmflg_str)
 }
 probe syscall.compat_sys_shmat.return ?
 {
@@ -1101,7 +1102,7 @@ probe syscall.shutdown.return
 probe syscall.sigaction ?, syscall.sigaction32 ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %p, %p\n", sig, act_uaddr, oact_uaddr)
+	printf("%d, %s, %p, %s, %p\n", sig, sig_str, act_uaddr, act_str, oact_uaddr)
 }
 probe syscall.sigaction.return ?, syscall.sigaction32.return ?
 {
@@ -1113,7 +1114,7 @@ probe syscall.sigaction.return ?, syscall.sigaction32.return ?
 probe syscall.sigaltstack
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%p, %p\n", uss_uaddr, uoss_uaddr)
+	printf("%p, %s, %p\n", uss_uaddr, uss_str, uoss_uaddr)
 }
 probe syscall.sigaltstack.return
 {
@@ -1123,7 +1124,7 @@ probe syscall.sigaltstack.return
 probe syscall.signal ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d\n", sig, handler)
+	printf("%d, %s, %d, %s\n", sig, sig_str, handler, handler_str)
 }
 probe syscall.signal.return ?
 {
@@ -1142,7 +1143,7 @@ probe syscall.signalfd.return ?, syscall.compat_signalfd.return ?
 
 probe syscall.sigpending ?
 {
-	printf("%s, %s\n", name, argstr)
+	printf("%s, %s, %s\n", name, argstr, set)
 }
 probe syscall.sigpending.return ?
 {
@@ -1170,7 +1171,7 @@ probe syscall.sigreturn.return ?
 
 probe syscall.sigsuspend ?
 {
-	printf("%s, %s\n", name, argstr)
+	printf("%s, %s, %d, %s\n", name, argstr, mask, mask_str)
 }
 probe syscall.sigsuspend.return ?
 {
@@ -1180,7 +1181,8 @@ probe syscall.sigsuspend.return ?
 probe syscall.socket
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d\n", family, type, protocol)
+	printf("%d, %d, %d, %s, %s, %s\n", family, type, protocol,
+	       family_str, type_str, protocol_str)
 }
 probe syscall.socket.return
 {
@@ -1189,7 +1191,8 @@ probe syscall.socket.return
 probe syscall.socketpair
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d, %p\n", family, type, protocol, sv_uaddr)
+	printf("%d, %d, %d, %p, %s, %s, %s\n", family, type, protocol,
+	       sv_uaddr, family_str, type_str, protocol_str)
 }
 probe syscall.socketpair.return
 {
@@ -1260,7 +1263,7 @@ probe syscall.stime.return ?
 probe syscall.swapoff
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%s\n", path)
+	printf("%p, %s\n", path_uaddr, path)
 }
 probe syscall.swapoff.return
 {
@@ -1270,7 +1273,7 @@ probe syscall.swapoff.return
 probe syscall.swapon
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%s, %d, %s\n", path, swapflags, swapflags_str)
+	printf("%p, %s, %d, %s\n", path_uaddr, path, swapflags, swapflags_str)
 }
 probe syscall.swapon.return
 {
@@ -1329,7 +1332,7 @@ probe syscall.syncfs.return ?
 
 probe syscall.sysctl
 {
-	printf("%s, %s\n", name, argstr)
+	printf("%s, %d, %s\n", name, args, argstr)
 }
 probe syscall.sysctl.return
 {
@@ -1349,7 +1352,7 @@ probe syscall.sysfs.return
 probe syscall.sysinfo
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%p\n", info_uaddr)
+	printf("%p, %s\n", info_uaddr, info_str)
 }
 probe syscall.sysinfo.return
 {
@@ -1379,7 +1382,7 @@ probe syscall.tee.return ?
 probe syscall.tgkill
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d\n", tgid, pid, sig)
+	printf("%d, %d, %d, %s\n", tgid, pid, sig, sig_str)
 }
 probe syscall.tgkill.return
 {
@@ -1430,7 +1433,8 @@ probe syscall.timer_gettime.return
 probe syscall.timer_settime
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %p, %p\n", timerid, flags, value_uaddr, ovalue_uaddr)
+	printf("%d, %d, %p, %s, %p\n", timerid, flags, value_uaddr,
+	       value_str, ovalue_uaddr)
 }
 probe syscall.timer_settime.return
 {
@@ -1469,8 +1473,8 @@ probe syscall.timerfd_gettime.return ?
 probe syscall.timerfd_settime ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d(%s), %p, %p", fd, flags, flags_str, value_uaddr,
-	       ovalue_uaddr)
+	printf("%d, %d(%s), %p, %p, %s", fd, flags, flags_str, value_uaddr,
+	       ovalue_uaddr, value_str)
 }
 probe syscall.timerfd_settime.return ?
 {
@@ -1479,7 +1483,7 @@ probe syscall.timerfd_settime.return ?
 
 probe syscall.times
 {
-	printf("%s, %p, %s\n", name, buf_uaddr, argstr)
+	printf("%s, %p, %s, %s\n", name, buf_uaddr, buf_str, argstr)
 }
 probe syscall.times.return
 {
@@ -1489,7 +1493,7 @@ probe syscall.times.return
 probe syscall.tkill
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d\n", pid, sig)
+	printf("%d, %d, %s\n", pid, sig, sig_str)
 }
 probe syscall.tkill.return
 {
@@ -1538,7 +1542,7 @@ probe syscall.umount.return
 
 probe syscall.uname
 {
-	printf("%s, %s\n", name, argstr)
+	printf("%d, %s, %s\n", name_uaddr, name, argstr)
 }
 probe syscall.uname.return
 {
@@ -1620,8 +1624,8 @@ probe syscall.utime.return ?, syscall.compat_utime.return ?
 probe syscall.utimensat ?, syscall.compat_utimensat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d(%s), %p(%s), %p, %d(%s)\n", dfd, dfd_str, filename_uaddr,
-	       filename, tsp_uaddr, flags, flags_str)
+	printf("%d(%s), %p(%s), %p, %d(%s), %s\n", dfd, dfd_str, filename_uaddr,
+	       filename, tsp_uaddr, flags, flags_str, tsp_str)
 }
 probe syscall.utimensat.return ?, syscall.compat_utimensat.return ?
 {
@@ -1692,7 +1696,7 @@ probe syscall.waitpid.return ?
 probe syscall.write
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %p, %d\n", fd, buf_uaddr, count)
+	printf("%d, %p, %s, %d\n", fd, buf_uaddr, buf_str, count)
 }
 probe syscall.write.return
 {
