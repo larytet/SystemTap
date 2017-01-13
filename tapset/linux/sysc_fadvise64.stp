@@ -12,8 +12,8 @@
 	argstr = sprintf("%d, %d, %d, %s", fd, offset, len, _fadvice_advice_str(advice))
 %)
 
-probe syscall.fadvise64 = dw_syscall.fadvise64 !, nd_syscall.fadvise64 {}
-probe syscall.fadvise64.return = dw_syscall.fadvise64.return !, nd_syscall.fadvise64.return {}
+probe syscall.fadvise64 = dw_syscall.fadvise64 !, nd_syscall.fadvise64 ? {}
+probe syscall.fadvise64.return = dw_syscall.fadvise64.return !, nd_syscall.fadvise64.return ? {}
 
 # dw_fadvise64 _____________________________________________________
 

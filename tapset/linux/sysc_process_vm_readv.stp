@@ -23,8 +23,10 @@
 	                 liovcnt, remote_iov_uaddr, riovcnt, flags)
 %)
 
-probe syscall.process_vm_readv = dw_syscall.process_vm_readv !, nd_syscall.process_vm_readv {}
-probe syscall.process_vm_readv.return = dw_syscall.process_vm_readv.return !, nd_syscall.process_vm_readv.return {}
+probe syscall.process_vm_readv = dw_syscall.process_vm_readv !,
+                                 nd_syscall.process_vm_readv ? {}
+probe syscall.process_vm_readv.return = dw_syscall.process_vm_readv.return !,
+                                        nd_syscall.process_vm_readv.return ? {}
 
 # dw_process_vm_readv _____________________________________________________
 

@@ -13,9 +13,9 @@
 	argstr = sprint(timerid)
 %)
 
-probe syscall.timer_delete = dw_syscall.timer_delete !, nd_syscall.timer_delete {}
+probe syscall.timer_delete = dw_syscall.timer_delete !, nd_syscall.timer_delete ? {}
 probe syscall.timer_delete.return = dw_syscall.timer_delete.return !,
-                                    nd_syscall.timer_delete.return {}
+                                    nd_syscall.timer_delete.return ? {}
 
 # dw_timer_delete _____________________________________________________
 

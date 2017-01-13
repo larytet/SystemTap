@@ -12,8 +12,8 @@
 	argstr = sprintf("%p, %u, %s", start, length, advice_str)
 %)
 
-probe syscall.madvise = dw_syscall.madvise !, nd_syscall.madvise {}
-probe syscall.madvise.return = dw_syscall.madvise.return !, nd_syscall.madvise.return {}
+probe syscall.madvise = dw_syscall.madvise !, nd_syscall.madvise ? {}
+probe syscall.madvise.return = dw_syscall.madvise.return !, nd_syscall.madvise.return ? {}
 
 # dw_madvise _____________________________________________________
 

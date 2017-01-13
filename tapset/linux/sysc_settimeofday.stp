@@ -15,9 +15,9 @@
 %)
 
 probe syscall.settimeofday = dw_syscall.settimeofday !,
-                             nd_syscall.settimeofday {}
+                             nd_syscall.settimeofday ? {}
 probe syscall.settimeofday.return = dw_syscall.settimeofday.return !,
-                                    nd_syscall.settimeofday.return {}
+                                    nd_syscall.settimeofday.return ? {}
 
 # dw_settimeofday _____________________________________________________
 

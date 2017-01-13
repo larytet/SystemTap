@@ -15,9 +15,9 @@
 %)
 
 probe syscall.sys32_ptrace = dw_syscall.sys32_ptrace !,
-                             nd_syscall.sys32_ptrace {}
+                             nd_syscall.sys32_ptrace ? {}
 probe syscall.sys32_ptrace.return = dw_syscall.sys32_ptrace.return !,
-                                    nd_syscall.sys32_ptrace.return {}
+                                    nd_syscall.sys32_ptrace.return ? {}
 
 # dw_sys32_ptrace _____________________________________________________
 

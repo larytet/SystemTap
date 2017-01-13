@@ -11,8 +11,8 @@
 	argstr = sprintf("%s", buf_str)
 %)
 
-probe syscall.adjtimex = dw_syscall.adjtimex !, nd_syscall.adjtimex {}
-probe syscall.adjtimex.return = dw_syscall.adjtimex.return !, nd_syscall.adjtimex.return {}
+probe syscall.adjtimex = dw_syscall.adjtimex !, nd_syscall.adjtimex ? {}
+probe syscall.adjtimex.return = dw_syscall.adjtimex.return !, nd_syscall.adjtimex.return ? {}
 
 # dw_adjtimex _____________________________________________________
 

@@ -21,8 +21,9 @@
 	                 msg_prio_uaddr, abs_timeout_uaddr)
 %)
 
-probe syscall.mq_timedreceive = dw_syscall.mq_timedreceive !, nd_syscall.mq_timedreceive {}
-probe syscall.mq_timedreceive.return = dw_syscall.mq_timedreceive.return !, nd_syscall.mq_timedreceive.return {}
+probe syscall.mq_timedreceive = dw_syscall.mq_timedreceive !, nd_syscall.mq_timedreceive ? {}
+probe syscall.mq_timedreceive.return = dw_syscall.mq_timedreceive.return !,
+                                       nd_syscall.mq_timedreceive.return ? {}
 
 # dw_mq_timedreceive _____________________________________________________
 

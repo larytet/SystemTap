@@ -11,8 +11,8 @@
 	argstr = sprint(oldfd)
 %)
 
-probe syscall.dup = dw_syscall.dup !, nd_syscall.dup {}
-probe syscall.dup.return = dw_syscall.dup.return !, nd_syscall.dup.return {}
+probe syscall.dup = dw_syscall.dup !, nd_syscall.dup ? {}
+probe syscall.dup.return = dw_syscall.dup.return !, nd_syscall.dup.return ? {}
 
 # dw_dup _____________________________________________________
 

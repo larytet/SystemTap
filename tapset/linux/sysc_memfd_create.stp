@@ -11,8 +11,8 @@
 	argstr = sprintf("%s, %s", uname, flags_str)
 %)
 
-probe syscall.memfd_create = dw_syscall.memfd_create !, nd_syscall.memfd_create {}
-probe syscall.memfd_create.return = dw_syscall.memfd_create.return !, nd_syscall.memfd_create.return {}
+probe syscall.memfd_create = dw_syscall.memfd_create !, nd_syscall.memfd_create ? {}
+probe syscall.memfd_create.return = dw_syscall.memfd_create.return !, nd_syscall.memfd_create.return ? {}
 
 # dw_memfd_create _____________________________________________________
 

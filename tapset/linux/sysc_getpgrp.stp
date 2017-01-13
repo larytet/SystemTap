@@ -11,8 +11,8 @@
 	argstr = ""
 %)
 
-probe syscall.getpgrp = dw_syscall.getpgrp !, nd_syscall.getpgrp {}
-probe syscall.getpgrp.return = dw_syscall.getpgrp.return !, nd_syscall.getpgrp.return {}
+probe syscall.getpgrp = dw_syscall.getpgrp !, nd_syscall.getpgrp ? {}
+probe syscall.getpgrp.return = dw_syscall.getpgrp.return !, nd_syscall.getpgrp.return ? {}
 
 # dw_getpgrp _____________________________________________________
 

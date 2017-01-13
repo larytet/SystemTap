@@ -13,8 +13,9 @@
 	argstr = sprintf("%s, %u", set_str, sigsetsize)
 %)
 
-probe syscall.rt_sigsuspend = dw_syscall.rt_sigsuspend !, nd_syscall.rt_sigsuspend {}
-probe syscall.rt_sigsuspend.return = dw_syscall.rt_sigsuspend.return !, nd_syscall.rt_sigsuspend.return {}
+probe syscall.rt_sigsuspend = dw_syscall.rt_sigsuspend !, nd_syscall.rt_sigsuspend ? {}
+probe syscall.rt_sigsuspend.return = dw_syscall.rt_sigsuspend.return !,
+                                     nd_syscall.rt_sigsuspend.return ? {}
 
 # dw_rt_sigsuspend _____________________________________________________
 

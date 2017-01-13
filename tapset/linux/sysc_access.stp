@@ -11,8 +11,8 @@
 	argstr = sprintf("%s, %s", pathname, mode_str)
 %)
 
-probe syscall.access = dw_syscall.access !, nd_syscall.access {}
-probe syscall.access.return = dw_syscall.access.return !, nd_syscall.access.return {}
+probe syscall.access = dw_syscall.access !, nd_syscall.access ? {}
+probe syscall.access.return = dw_syscall.access.return !, nd_syscall.access.return ? {}
 
 # dw_access _____________________________________________________
 

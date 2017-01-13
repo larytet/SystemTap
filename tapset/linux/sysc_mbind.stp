@@ -25,8 +25,8 @@
 	                 mode_str, nmask_uaddr, maxnode, flags_str)
 %)
 
-probe syscall.mbind = dw_syscall.mbind !, nd_syscall.mbind {}
-probe syscall.mbind.return = dw_syscall.mbind.return !, nd_syscall.mbind.return {}
+probe syscall.mbind = dw_syscall.mbind !, nd_syscall.mbind ? {}
+probe syscall.mbind.return = dw_syscall.mbind.return !, nd_syscall.mbind.return ? {}
 
 # dw_mbind _____________________________________________________
 

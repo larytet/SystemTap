@@ -14,9 +14,9 @@
 %)
 
 probe syscall.ppc_rtas = dw_syscall.ppc_rtas !,
-                         nd_syscall.ppc_rtas {}
+                         nd_syscall.ppc_rtas ? {}
 probe syscall.ppc_rtas.return = dw_syscall.ppc_rtas.return !,
-                                nd_syscall.ppc_rtas.return {}
+                                nd_syscall.ppc_rtas.return ? {}
 
 # dw_ppc_rtas _____________________________________________________
 

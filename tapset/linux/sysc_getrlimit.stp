@@ -13,8 +13,9 @@
 	argstr = sprintf("%s, %p", _rlimit_resource_str(resource), rlim_uaddr)
 %)
 
-probe syscall.getrlimit = dw_syscall.getrlimit !, nd_syscall.getrlimit {}
-probe syscall.getrlimit.return = dw_syscall.getrlimit.return !, nd_syscall.getrlimit.return {}
+probe syscall.getrlimit = dw_syscall.getrlimit !, nd_syscall.getrlimit ? {}
+probe syscall.getrlimit.return = dw_syscall.getrlimit.return !,
+                                 nd_syscall.getrlimit.return ? {}
 
 # dw_getrlimit _____________________________________________________
 

@@ -16,8 +16,10 @@
 	argstr = sprintf("%d, %d, %s, %p", semid, semnum, cmdstr, arg)
 %)
 
-probe syscall.compat_sys_semctl = dw_syscall.compat_sys_semctl !, nd_syscall.compat_sys_semctl {}
-probe syscall.compat_sys_semctl.return = dw_syscall.compat_sys_semctl.return !, nd_syscall.compat_sys_semctl.return {}
+probe syscall.compat_sys_semctl = dw_syscall.compat_sys_semctl !,
+                                  nd_syscall.compat_sys_semctl ? {}
+probe syscall.compat_sys_semctl.return = dw_syscall.compat_sys_semctl.return !,
+                                         nd_syscall.compat_sys_semctl.return ? {}
 
 # dw_compat_sys_semctl _____________________________________________________
 

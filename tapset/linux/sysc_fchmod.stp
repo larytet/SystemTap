@@ -11,8 +11,8 @@
 	argstr = sprintf("%d, %#o", fildes, mode)
 %)
 
-probe syscall.fchmod = dw_syscall.fchmod !, nd_syscall.fchmod {}
-probe syscall.fchmod.return = dw_syscall.fchmod.return !, nd_syscall.fchmod.return {}
+probe syscall.fchmod = dw_syscall.fchmod !, nd_syscall.fchmod ? {}
+probe syscall.fchmod.return = dw_syscall.fchmod.return !, nd_syscall.fchmod.return ? {}
 
 # dw_fchmod _____________________________________________________
 

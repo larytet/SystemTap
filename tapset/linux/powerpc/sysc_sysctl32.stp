@@ -21,11 +21,11 @@
 probe
 %( systemtap_v <= "2.8"
 		%? syscall.compat_sysctl %: syscall.sysctl32
-		%) = dw_syscall.sysctl32 !, nd_syscall.sysctl32 {}
+		%) = dw_syscall.sysctl32 !, nd_syscall.sysctl32 ? {}
 probe
 %( systemtap_v <= "2.8"
 		%? syscall.compat_sysctl.return %: syscall.sysctl32.return
-		%) = dw_syscall.sysctl32.return !, nd_syscall.sysctl32.return {}
+		%) = dw_syscall.sysctl32.return !, nd_syscall.sysctl32.return ? {}
 
 # dw_compat_sys_sysctl ________________________________________
 

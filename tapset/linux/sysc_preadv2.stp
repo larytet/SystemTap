@@ -19,8 +19,9 @@
 	                 offset, flags_str)
 %)
 
-probe syscall.preadv2 = dw_syscall.preadv2 !, nd_syscall.preadv2 {}
-probe syscall.preadv2.return = dw_syscall.preadv2.return !, nd_syscall.preadv2.return {}
+probe syscall.preadv2 = dw_syscall.preadv2 !, nd_syscall.preadv2 ? {}
+probe syscall.preadv2.return = dw_syscall.preadv2.return !,
+                               nd_syscall.preadv2.return ? {}
 
 # dw_preadv2 _____________________________________________________
 

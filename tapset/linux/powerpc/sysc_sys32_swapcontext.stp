@@ -18,9 +18,9 @@
 %)
 
 probe syscall.sys32_swapcontext = dw_syscall.sys32_swapcontext !,
-                                  nd_syscall.sys32_swapcontext {}
+                                  nd_syscall.sys32_swapcontext ? {}
 probe syscall.sys32_swapcontext.return = dw_syscall.sys32_swapcontext.return !,
-                                         nd_syscall.sys32_swapcontext.return {}
+                                         nd_syscall.sys32_swapcontext.return ? {}
 
 # dw_sys32_swapcontext _____________________________________________________
 

@@ -14,8 +14,8 @@
 	                 off_out, len, flags)
 %)
 
-probe syscall.copy_file_range = dw_syscall.copy_file_range !, nd_syscall.copy_file_range {}
-probe syscall.copy_file_range.return = dw_syscall.copy_file_range.return !, nd_syscall.copy_file_range.return {}
+probe syscall.copy_file_range = dw_syscall.copy_file_range !, nd_syscall.copy_file_range ? {}
+probe syscall.copy_file_range.return = dw_syscall.copy_file_range.return !, nd_syscall.copy_file_range.return ? {}
 
 # dw_copy_file_range _____________________________________________________
 

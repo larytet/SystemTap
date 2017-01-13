@@ -15,9 +15,9 @@
 %)
 
 probe syscall.ppc64_newuname = dw_syscall.ppc64_newuname !,
-                               nd_syscall.ppc64_newuname {}
+                               nd_syscall.ppc64_newuname ? {}
 probe syscall.ppc64_newuname.return = dw_syscall.ppc64_newuname.return !,
-                                      nd_syscall.ppc64_newuname.return {}
+                                      nd_syscall.ppc64_newuname.return ? {}
 
 # dw_ppc64_newuname _____________________________________________________
 

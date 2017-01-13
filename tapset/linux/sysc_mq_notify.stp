@@ -13,8 +13,9 @@
 	argstr = sprintf("%d, %p", mqdes, notification_uaddr)
 %)
 
-probe syscall.mq_notify = dw_syscall.mq_notify !, nd_syscall.mq_notify {}
-probe syscall.mq_notify.return = dw_syscall.mq_notify.return !, nd_syscall.mq_notify.return {}
+probe syscall.mq_notify = dw_syscall.mq_notify !, nd_syscall.mq_notify ? {}
+probe syscall.mq_notify.return = dw_syscall.mq_notify.return !,
+                                 nd_syscall.mq_notify.return ? {}
 
 # dw_mq_notify _____________________________________________________
 

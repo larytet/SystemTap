@@ -13,8 +13,8 @@
 	argstr = sprintf("%d, %d, %u, 0x%x", fdin, fdout, len, flags)
 %)
 
-probe syscall.tee = dw_syscall.tee !, nd_syscall.tee {}
-probe syscall.tee.return = dw_syscall.tee.return !, nd_syscall.tee.return {}
+probe syscall.tee = dw_syscall.tee !, nd_syscall.tee ? {}
+probe syscall.tee.return = dw_syscall.tee.return !, nd_syscall.tee.return ? {}
 
 # dw_tee _____________________________________________________
 

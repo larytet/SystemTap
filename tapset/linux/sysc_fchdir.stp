@@ -11,8 +11,8 @@
 	argstr = sprint(fd)
 %)
 
-probe syscall.fchdir = dw_syscall.fchdir !, nd_syscall.fchdir {}
-probe syscall.fchdir.return = dw_syscall.fchdir.return !, nd_syscall.fchdir.return {}
+probe syscall.fchdir = dw_syscall.fchdir !, nd_syscall.fchdir ? {}
+probe syscall.fchdir.return = dw_syscall.fchdir.return !, nd_syscall.fchdir.return ? {}
 
 # dw_fchdir _____________________________________________________
 

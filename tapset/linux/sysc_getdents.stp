@@ -15,8 +15,9 @@
 	argstr = sprintf("%d, %p, %d", fd, dirp_uaddr, count)
 %)
 
-probe syscall.getdents = dw_syscall.getdents !, nd_syscall.getdents {}
-probe syscall.getdents.return = dw_syscall.getdents.return !, nd_syscall.getdents.return {}
+probe syscall.getdents = dw_syscall.getdents !, nd_syscall.getdents ? {}
+probe syscall.getdents.return = dw_syscall.getdents.return !,
+                                nd_syscall.getdents.return ? {}
 
 # dw_getdents _____________________________________________________
 

@@ -12,8 +12,8 @@
 	argstr = sprintf("%p, %u, %p", start, length, vec_uaddr)
 %)
 
-probe syscall.mincore = dw_syscall.mincore !, nd_syscall.mincore {}
-probe syscall.mincore.return = dw_syscall.mincore.return !, nd_syscall.mincore.return {}
+probe syscall.mincore = dw_syscall.mincore !, nd_syscall.mincore ? {}
+probe syscall.mincore.return = dw_syscall.mincore.return !, nd_syscall.mincore.return ? {}
 
 # dw_mincore _____________________________________________________
 

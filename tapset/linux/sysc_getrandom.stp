@@ -11,8 +11,9 @@
 	argstr = sprintf("%s, %u, %s", buf, count, flags_str)
 %)
 
-probe syscall.getrandom = dw_syscall.getrandom !, nd_syscall.getrandom {}
-probe syscall.getrandom.return = dw_syscall.getrandom.return !, nd_syscall.getrandom.return {}
+probe syscall.getrandom = dw_syscall.getrandom !, nd_syscall.getrandom ? {}
+probe syscall.getrandom.return = dw_syscall.getrandom.return !,
+                                 nd_syscall.getrandom.return ? {}
 
 # dw_getrandom _____________________________________________________
 

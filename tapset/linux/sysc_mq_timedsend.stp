@@ -21,8 +21,10 @@
 	                 msg_prio, abs_timeout_uaddr)
 %)
 
-probe syscall.mq_timedsend = dw_syscall.mq_timedsend !, nd_syscall.mq_timedsend {}
-probe syscall.mq_timedsend.return = dw_syscall.mq_timedsend.return !, nd_syscall.mq_timedsend.return {}
+probe syscall.mq_timedsend = dw_syscall.mq_timedsend !,
+                             nd_syscall.mq_timedsend ? {}
+probe syscall.mq_timedsend.return = dw_syscall.mq_timedsend.return !,
+                                    nd_syscall.mq_timedsend.return ? {}
 
 # dw_mq_timedsend _____________________________________________________
 

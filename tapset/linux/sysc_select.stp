@@ -17,8 +17,9 @@
 	                 exceptfds_uaddr, timeout_str)
 %)
 
-probe syscall.select = dw_syscall.select !, nd_syscall.select {}
-probe syscall.select.return = dw_syscall.select.return !, nd_syscall.select.return {}
+probe syscall.select = dw_syscall.select !, nd_syscall.select ? {}
+probe syscall.select.return = dw_syscall.select.return !,
+                              nd_syscall.select.return ? {}
 
 # dw_select _____________________________________________________
 

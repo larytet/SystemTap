@@ -18,8 +18,9 @@
 	argstr = sprintf("%d, %p, %d", fd, vector_uaddr, count)
 %)
 
-probe syscall.readv = dw_syscall.readv !, nd_syscall.readv {}
-probe syscall.readv.return = dw_syscall.readv.return !, nd_syscall.readv.return {}
+probe syscall.readv = dw_syscall.readv !, nd_syscall.readv ? {}
+probe syscall.readv.return = dw_syscall.readv.return !,
+                             nd_syscall.readv.return ? {}
 
 # dw_readv _____________________________________________________
 

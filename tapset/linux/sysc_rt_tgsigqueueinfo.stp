@@ -19,8 +19,10 @@
 	argstr = sprintf("%d, %d, %s, %s", tgid, tid, sig_str, uinfo_str)
 %)
 
-probe syscall.rt_tgsigqueueinfo = dw_syscall.rt_tgsigqueueinfo !, nd_syscall.rt_tgsigqueueinfo {}
-probe syscall.rt_tgsigqueueinfo.return = dw_syscall.rt_tgsigqueueinfo.return !, nd_syscall.rt_tgsigqueueinfo.return {}
+probe syscall.rt_tgsigqueueinfo = dw_syscall.rt_tgsigqueueinfo !,
+                                  nd_syscall.rt_tgsigqueueinfo ? {}
+probe syscall.rt_tgsigqueueinfo.return = dw_syscall.rt_tgsigqueueinfo.return !,
+                                         nd_syscall.rt_tgsigqueueinfo.return ? {}
 
 # dw_rt_tgsigqueueinfo _____________________________________________________
 

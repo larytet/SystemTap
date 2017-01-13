@@ -4,8 +4,10 @@
 # SYSCALL_DEFINE1(inotify_init1, int, flags)
 #
 
-probe syscall.inotify_init = dw_syscall.inotify_init !, nd_syscall.inotify_init {}
-probe syscall.inotify_init.return = dw_syscall.inotify_init.return !, nd_syscall.inotify_init.return {}
+probe syscall.inotify_init = dw_syscall.inotify_init !,
+                             nd_syscall.inotify_init ? {}
+probe syscall.inotify_init.return = dw_syscall.inotify_init.return !,
+                                    nd_syscall.inotify_init.return ? {}
 
 # dw_inotify_init _____________________________________________________
 

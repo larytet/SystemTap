@@ -16,8 +16,10 @@
 	argstr = sprintf("%d, %p, %u, %s", fd, iov, nr_segs, flags_str)
 %)
 
-probe syscall.compat_vmsplice = dw_syscall.compat_vmsplice !, nd_syscall.compat_vmsplice {}
-probe syscall.compat_vmsplice.return = dw_syscall.compat_vmsplice.return !, nd_syscall.compat_vmsplice.return {}
+probe syscall.compat_vmsplice = dw_syscall.compat_vmsplice !,
+                                nd_syscall.compat_vmsplice ? {}
+probe syscall.compat_vmsplice.return = dw_syscall.compat_vmsplice.return !,
+                                       nd_syscall.compat_vmsplice.return ? {}
 
 # dw_compat_vmsplice _____________________________________________________
 

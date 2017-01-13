@@ -18,9 +18,9 @@
 %)
 
 probe syscall.compat_get_mempolicy = dw_syscall.compat_get_mempolicy !,
-                                     nd_syscall.compat_get_mempolicy {}
+                                     nd_syscall.compat_get_mempolicy ? {}
 probe syscall.compat_get_mempolicy.return = dw_syscall.compat_get_mempolicy.return !,
-                                            nd_syscall.compat_get_mempolicy.return {}
+                                            nd_syscall.compat_get_mempolicy.return ? {}
 
 # dw_compat_get_mempolicy _____________________________________________________
 

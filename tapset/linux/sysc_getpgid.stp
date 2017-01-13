@@ -11,8 +11,8 @@
 	argstr = sprintf("%d", pid)
 %)
 
-probe syscall.getpgid = dw_syscall.getpgid !, nd_syscall.getpgid {}
-probe syscall.getpgid.return = dw_syscall.getpgid.return !, nd_syscall.getpgid.return {}
+probe syscall.getpgid = dw_syscall.getpgid !, nd_syscall.getpgid ? {}
+probe syscall.getpgid.return = dw_syscall.getpgid.return !, nd_syscall.getpgid.return ? {}
 
 # dw_getpgid _____________________________________________________
 

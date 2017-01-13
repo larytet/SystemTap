@@ -11,8 +11,8 @@
 	argstr = sprintf("%s, %s, %u", pathname, mode_str, dev)
 %)
 
-probe syscall.mknod = dw_syscall.mknod !, nd_syscall.mknod {}
-probe syscall.mknod.return = dw_syscall.mknod.return !, nd_syscall.mknod.return {}
+probe syscall.mknod = dw_syscall.mknod !, nd_syscall.mknod ? {}
+probe syscall.mknod.return = dw_syscall.mknod.return !, nd_syscall.mknod.return ? {}
 
 # dw_mknod _____________________________________________________
 

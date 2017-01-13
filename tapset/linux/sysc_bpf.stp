@@ -12,8 +12,8 @@
 	argstr = sprintf("%s, %p, %u", cmd_str, attr_uaddr, size)
 %)
 
-probe syscall.bpf = dw_syscall.bpf !, nd_syscall.bpf {}
-probe syscall.bpf.return = dw_syscall.bpf.return !, nd_syscall.bpf.return {}
+probe syscall.bpf = dw_syscall.bpf !, nd_syscall.bpf ? {}
+probe syscall.bpf.return = dw_syscall.bpf.return !, nd_syscall.bpf.return ? {}
 
 # dw_bpf _____________________________________________________
 

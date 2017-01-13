@@ -15,8 +15,9 @@
 	argstr = sprintf("%d, %p", size, list_uaddr)
 %)
 
-probe syscall.setgroups = dw_syscall.setgroups !, nd_syscall.setgroups {}
-probe syscall.setgroups.return = dw_syscall.setgroups.return !, nd_syscall.setgroups.return {}
+probe syscall.setgroups = dw_syscall.setgroups !, nd_syscall.setgroups ? {}
+probe syscall.setgroups.return = dw_syscall.setgroups.return !,
+                                 nd_syscall.setgroups.return ? {}
 
 # dw_setgroups _____________________________________________________
 

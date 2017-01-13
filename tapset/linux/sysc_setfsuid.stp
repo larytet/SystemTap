@@ -13,9 +13,9 @@
 	argstr = sprint(fsuid)
 %)
 
-probe syscall.setfsuid = dw_syscall.setfsuid !, nd_syscall.setfsuid {}
+probe syscall.setfsuid = dw_syscall.setfsuid !, nd_syscall.setfsuid ? {}
 probe syscall.setfsuid.return = dw_syscall.setfsuid.return !,
-	                        nd_syscall.setfsuid.return {}
+	                        nd_syscall.setfsuid.return ? {}
 
 # dw_setfsuid _____________________________________________________
 

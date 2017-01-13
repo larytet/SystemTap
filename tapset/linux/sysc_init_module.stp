@@ -14,8 +14,9 @@
 	argstr = sprintf("%p, %u, %s", umod_uaddr, len, uargs)
 %)
 
-probe syscall.init_module = dw_syscall.init_module !, nd_syscall.init_module {}
-probe syscall.init_module.return = dw_syscall.init_module.return !, nd_syscall.init_module.return {}
+probe syscall.init_module = dw_syscall.init_module !, nd_syscall.init_module ? {}
+probe syscall.init_module.return = dw_syscall.init_module.return !,
+                                   nd_syscall.init_module.return ? {}
 
 # dw_init_module _____________________________________________________
 

@@ -14,8 +14,8 @@
 	argstr = sprintf("%d, %d, %s", fildes, offset, whence_str)
 %)
 
-probe syscall.lseek = dw_syscall.lseek !, nd_syscall.lseek {}
-probe syscall.lseek.return = dw_syscall.lseek.return !, nd_syscall.lseek.return {}
+probe syscall.lseek = dw_syscall.lseek !, nd_syscall.lseek ? {}
+probe syscall.lseek.return = dw_syscall.lseek.return !, nd_syscall.lseek.return ? {}
 
 # dw_lseek _____________________________________________________
 

@@ -16,8 +16,9 @@
 	argstr = sprintf("%s, %s, %s, %p", magic_str, magic2_str, flag_str, arg_uaddr)
 %)
 
-probe syscall.reboot = dw_syscall.reboot !, nd_syscall.reboot {}
-probe syscall.reboot.return = dw_syscall.reboot.return !, nd_syscall.reboot.return {}
+probe syscall.reboot = dw_syscall.reboot !, nd_syscall.reboot ? {}
+probe syscall.reboot.return = dw_syscall.reboot.return !,
+                              nd_syscall.reboot.return ? {}
 
 # dw_reboot _____________________________________________________
 

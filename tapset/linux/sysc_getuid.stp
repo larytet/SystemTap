@@ -14,8 +14,8 @@
 	argstr = ""
 %)
 
-probe syscall.getuid = dw_syscall.getuid !, nd_syscall.getuid {}
-probe syscall.getuid.return = dw_syscall.getuid.return !, nd_syscall.getuid.return {}
+probe syscall.getuid = dw_syscall.getuid !, nd_syscall.getuid ? {}
+probe syscall.getuid.return = dw_syscall.getuid.return !, nd_syscall.getuid.return ? {}
 
 # dw_getuid _____________________________________________________
 

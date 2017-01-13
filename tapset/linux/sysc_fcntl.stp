@@ -15,8 +15,8 @@
 	argstr = sprintf("%d, %s, %p", fd, cmd_str, arg)
 %)
 
-probe syscall.fcntl = dw_syscall.fcntl !, nd_syscall.fcntl {}
-probe syscall.fcntl.return = dw_syscall.fcntl.return !, nd_syscall.fcntl.return {}
+probe syscall.fcntl = dw_syscall.fcntl !, nd_syscall.fcntl ? {}
+probe syscall.fcntl.return = dw_syscall.fcntl.return !, nd_syscall.fcntl.return ? {}
 
 # dw_fcntl _____________________________________________________
 

@@ -13,8 +13,8 @@
 	argstr = sprintf("%d, %s, %s", fd, uargs, flags_str)
 %)
 
-probe syscall.finit_module = dw_syscall.finit_module !, nd_syscall.finit_module {}
-probe syscall.finit_module.return = dw_syscall.finit_module.return !, nd_syscall.finit_module.return {}
+probe syscall.finit_module = dw_syscall.finit_module !, nd_syscall.finit_module ? {}
+probe syscall.finit_module.return = dw_syscall.finit_module.return !, nd_syscall.finit_module.return ? {}
 
 # dw_finit_module _____________________________________________________
 

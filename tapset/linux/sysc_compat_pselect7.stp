@@ -11,8 +11,10 @@
 	                 exceptfds, timeout_str, sigmask, sigsetsize)
 %)
 
-probe syscall.compat_pselect7 = dw_syscall.compat_pselect7 !, nd_syscall.compat_pselect7 {}
-probe syscall.compat_pselect7.return = dw_syscall.compat_pselect7.return !, nd_syscall.compat_pselect7.return {}
+probe syscall.compat_pselect7 = dw_syscall.compat_pselect7 !,
+                                nd_syscall.compat_pselect7 ? {}
+probe syscall.compat_pselect7.return = dw_syscall.compat_pselect7.return !,
+                                       nd_syscall.compat_pselect7.return ? {}
 
 # dw_compat_pselect7 _____________________________________________________
 

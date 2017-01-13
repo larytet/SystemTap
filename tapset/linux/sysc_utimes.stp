@@ -13,9 +13,9 @@
 	argstr = sprintf("%s, %s", filename, tvp_uaddr_str) 
 %)
 
-probe syscall.utimes = dw_syscall.utimes !, nd_syscall.utimes {}
+probe syscall.utimes = dw_syscall.utimes !, nd_syscall.utimes ? {}
 probe syscall.utimes.return = dw_syscall.utimes.return !,
-                              nd_syscall.utimes.return {}
+                              nd_syscall.utimes.return ? {}
 
 # dw_utimes _____________________________________________________
 

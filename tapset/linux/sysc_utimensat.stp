@@ -13,9 +13,9 @@
 	argstr = sprintf("%s, %s, %s, %s", dfd_str, filename, tsp_str, flags_str) 
 %)
 
-probe syscall.utimensat = dw_syscall.utimensat !, nd_syscall.utimensat {}
+probe syscall.utimensat = dw_syscall.utimensat !, nd_syscall.utimensat ? {}
 probe syscall.utimensat.return = dw_syscall.utimensat.return !,
-                                 nd_syscall.utimensat.return {}
+                                 nd_syscall.utimensat.return ? {}
 
 # dw_utimensat _____________________________________________________
 

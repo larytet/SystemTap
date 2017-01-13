@@ -17,8 +17,8 @@
 	argstr = sprintf("%d, %p, %p", mqdes, u_mqstat_uaddr, u_omqstat_uaddr)
 %)
 
-probe syscall.mq_getsetattr = dw_syscall.mq_getsetattr !, nd_syscall.mq_getsetattr {}
-probe syscall.mq_getsetattr.return = dw_syscall.mq_getsetattr.return !, nd_syscall.mq_getsetattr.return {}
+probe syscall.mq_getsetattr = dw_syscall.mq_getsetattr !, nd_syscall.mq_getsetattr ? {}
+probe syscall.mq_getsetattr.return = dw_syscall.mq_getsetattr.return !, nd_syscall.mq_getsetattr.return ? {}
 
 # dw_mq_getsetattr _____________________________________________________
 

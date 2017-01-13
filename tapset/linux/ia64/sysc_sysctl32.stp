@@ -13,8 +13,8 @@
 	argstr = sprintf("%p", $args)
 %)
 
-probe syscall.sysctl32 = dw_syscall.sysctl32 !, nd_syscall.sysctl32 {}
-probe syscall.sysctl32.return = dw_syscall.sysctl32.return !, nd_syscall.sysctl32.return {}
+probe syscall.sysctl32 = dw_syscall.sysctl32 !, nd_syscall.sysctl32 ? {}
+probe syscall.sysctl32.return = dw_syscall.sysctl32.return !, nd_syscall.sysctl32.return ? {}
 
 # dw_sysctl32 _____________________________________________________
 

@@ -13,8 +13,10 @@
 	argstr = sprintf("%d, %p", pid, tp_uaddr)
 %)
 
-probe syscall.sched_rr_get_interval = dw_syscall.sched_rr_get_interval !, nd_syscall.sched_rr_get_interval {}
-probe syscall.sched_rr_get_interval.return = dw_syscall.sched_rr_get_interval.return !, nd_syscall.sched_rr_get_interval.return {}
+probe syscall.sched_rr_get_interval = dw_syscall.sched_rr_get_interval !,
+                                      nd_syscall.sched_rr_get_interval ? {}
+probe syscall.sched_rr_get_interval.return = dw_syscall.sched_rr_get_interval.return !,
+                                             nd_syscall.sched_rr_get_interval.return ? {}
 
 # dw_sched_rr_get_interval _____________________________________________________
 

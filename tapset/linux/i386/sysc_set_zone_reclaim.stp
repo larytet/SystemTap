@@ -17,9 +17,9 @@
 %)
 
 probe syscall.set_zone_reclaim = dw_syscall.set_zone_reclaim !,
-                                 nd_syscall.set_zone_reclaim {}
+                                 nd_syscall.set_zone_reclaim ? {}
 probe syscall.set_zone_reclaim.return = dw_syscall.set_zone_reclaim.return !,
-                                        nd_syscall.set_zone_reclaim.return {}
+                                        nd_syscall.set_zone_reclaim.return ? {}
 
 # dw_set_zone_reclaim _____________________________________________________
 

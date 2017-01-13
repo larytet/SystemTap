@@ -16,9 +16,9 @@
 %)
 
 probe syscall.set_robust_list = dw_syscall.set_robust_list !,
-                                nd_syscall.set_robust_list {}
+                                nd_syscall.set_robust_list ? {}
 probe syscall.set_robust_list.return = dw_syscall.set_robust_list.return !,
-                                       nd_syscall.set_robust_list.return {}
+                                       nd_syscall.set_robust_list.return ? {}
 
 # dw_set_robust_list _____________________________________________________
 

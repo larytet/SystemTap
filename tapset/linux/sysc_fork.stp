@@ -13,8 +13,8 @@
 	argstr = ""
 %)
 
-probe syscall.fork = dw_syscall.fork !, nd_syscall.fork {}
-probe syscall.fork.return = dw_syscall.fork.return !, nd_syscall.fork.return {}
+probe syscall.fork = dw_syscall.fork !, nd_syscall.fork ? {}
+probe syscall.fork.return = dw_syscall.fork.return !, nd_syscall.fork.return ? {}
 
 # dw_fork _____________________________________________________
 

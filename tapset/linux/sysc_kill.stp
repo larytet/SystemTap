@@ -11,8 +11,8 @@
 	argstr = sprintf("%d, %s", pid, sig_name)
 %)
 
-probe syscall.kill = dw_syscall.kill !, nd_syscall.kill {}
-probe syscall.kill.return = dw_syscall.kill.return !, nd_syscall.kill.return {}
+probe syscall.kill = dw_syscall.kill !, nd_syscall.kill ? {}
+probe syscall.kill.return = dw_syscall.kill.return !, nd_syscall.kill.return ? {}
 
 # dw_kill _____________________________________________________
 

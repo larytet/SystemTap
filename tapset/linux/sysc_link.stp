@@ -12,8 +12,8 @@
 	argstr = sprintf("%s, %s", oldpath, newpath)
 %)
 
-probe syscall.link = dw_syscall.link !, nd_syscall.link {}
-probe syscall.link.return = dw_syscall.link.return !, nd_syscall.link.return {}
+probe syscall.link = dw_syscall.link !, nd_syscall.link ? {}
+probe syscall.link.return = dw_syscall.link.return !, nd_syscall.link.return ? {}
 
 # dw_link _____________________________________________________
 

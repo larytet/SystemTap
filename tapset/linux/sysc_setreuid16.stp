@@ -12,9 +12,9 @@
 	argstr = sprintf("%d, %d", ruid, euid)
 %)
 
-probe syscall.setreuid16 = dw_syscall.setreuid16 !, nd_syscall.setreuid16 {}
+probe syscall.setreuid16 = dw_syscall.setreuid16 !, nd_syscall.setreuid16 ? {}
 probe syscall.setreuid16.return = dw_syscall.setreuid16.return !,
-                                  nd_syscall.setreuid16.return {}
+                                  nd_syscall.setreuid16.return ? {}
 
 # dw_setreuid16 _____________________________________________________
 

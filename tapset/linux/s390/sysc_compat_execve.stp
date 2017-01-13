@@ -15,9 +15,9 @@
 	argstr = sprintf("%s, %s, %s", filename, args, env_str)
 %)
 
-probe syscall.compat_execve = dw_syscall.compat_execve !, nd_syscall.compat_execve {}
+probe syscall.compat_execve = dw_syscall.compat_execve !, nd_syscall.compat_execve ? {}
 probe syscall.compat_execve.return = dw_syscall.compat_execve.return !,
-                                     nd_syscall.compat_execve.return {}
+                                     nd_syscall.compat_execve.return ? {}
 
 # dw_compat_execve _____________________________________________________
 

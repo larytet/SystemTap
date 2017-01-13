@@ -14,9 +14,9 @@
 %)
 
 probe syscall.ppc64_personality = dw_syscall.ppc64_personality !,
-                                  nd_syscall.ppc64_personality {}
+                                  nd_syscall.ppc64_personality ? {}
 probe syscall.ppc64_personality.return = dw_syscall.ppc64_personality.return !,
-                                         nd_syscall.ppc64_personality.return {}
+                                         nd_syscall.ppc64_personality.return ? {}
 
 # dw_ppc64_personality _____________________________________________________
 

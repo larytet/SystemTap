@@ -15,8 +15,8 @@
 			 flags_str)
 %)
 
-probe syscall.accept4 = dw_syscall.accept4 !, nd_syscall.accept4 {}
-probe syscall.accept4.return = dw_syscall.accept4.return !, nd_syscall.accept4.return {}
+probe syscall.accept4 = dw_syscall.accept4 !, nd_syscall.accept4 ? {}
+probe syscall.accept4.return = dw_syscall.accept4.return !, nd_syscall.accept4.return ? {}
 
 # dw_accept4 _____________________________________________________
 

@@ -12,8 +12,8 @@
 	argstr = sprintf("%d, %d, %s, %u, %u", pid1, pid2, type_str, idx1, idx2)
 %)
 
-probe syscall.kcmp = dw_syscall.kcmp !, nd_syscall.kcmp {}
-probe syscall.kcmp.return = dw_syscall.kcmp.return !, nd_syscall.kcmp.return {}
+probe syscall.kcmp = dw_syscall.kcmp !, nd_syscall.kcmp ? {}
+probe syscall.kcmp.return = dw_syscall.kcmp.return !, nd_syscall.kcmp.return ? {}
 
 # dw_kcmp _____________________________________________________
 

@@ -13,8 +13,8 @@
 	argstr = sprintf("%d, %d, %p", fd, request, argp)
 %)
 
-probe syscall.ioctl = dw_syscall.ioctl !, nd_syscall.ioctl {}
-probe syscall.ioctl.return = dw_syscall.ioctl.return !, nd_syscall.ioctl.return {}
+probe syscall.ioctl = dw_syscall.ioctl !, nd_syscall.ioctl ? {}
+probe syscall.ioctl.return = dw_syscall.ioctl.return !, nd_syscall.ioctl.return ? {}
 
 # dw_ioctl _____________________________________________________
 

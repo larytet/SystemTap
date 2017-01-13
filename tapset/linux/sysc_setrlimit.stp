@@ -18,8 +18,9 @@
 	argstr = sprintf("%s, %s", resource_str, rlim_str)
 %)
 
-probe syscall.setrlimit = dw_syscall.setrlimit !, nd_syscall.setrlimit {}
-probe syscall.setrlimit.return = dw_syscall.setrlimit.return !, nd_syscall.setrlimit.return {}
+probe syscall.setrlimit = dw_syscall.setrlimit !, nd_syscall.setrlimit ? {}
+probe syscall.setrlimit.return = dw_syscall.setrlimit.return !,
+                                 nd_syscall.setrlimit.return ? {}
 
 # dw_setrlimit _____________________________________________________
 

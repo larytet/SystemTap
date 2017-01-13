@@ -9,8 +9,9 @@
 #		 compat_size_t sigsetsize, int flags)
 #
 
-probe syscall.signalfd = dw_syscall.signalfd !, nd_syscall.signalfd {}
-probe syscall.signalfd.return = dw_syscall.signalfd.return !, nd_syscall.signalfd.return {}
+probe syscall.signalfd = dw_syscall.signalfd !, nd_syscall.signalfd ? {}
+probe syscall.signalfd.return = dw_syscall.signalfd.return !,
+                                nd_syscall.signalfd.return ? {}
 
 # dw_signalfd _____________________________________________________
 

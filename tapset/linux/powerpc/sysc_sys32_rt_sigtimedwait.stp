@@ -18,9 +18,9 @@
 %)
 
 probe syscall.sys32_rt_sigtimedwait = dw_syscall.sys32_rt_sigtimedwait !,
-                                      nd_syscall.sys32_rt_sigtimedwait {}
+                                      nd_syscall.sys32_rt_sigtimedwait ? {}
 probe syscall.sys32_rt_sigtimedwait.return = dw_syscall.sys32_rt_sigtimedwait.return !,
-                                             nd_syscall.sys32_rt_sigtimedwait.return {}
+                                             nd_syscall.sys32_rt_sigtimedwait.return ? {}
 
 # dw_sys32_rt_sigtimedwait _____________________________________________________
 

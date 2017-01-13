@@ -13,8 +13,8 @@
 	argstr = sprintf("%s", info_str)
 %)
 
-probe syscall.sysinfo = dw_syscall.sysinfo !, nd_syscall.sysinfo {}
-probe syscall.sysinfo.return = dw_syscall.sysinfo.return !, nd_syscall.sysinfo.return {}
+probe syscall.sysinfo = dw_syscall.sysinfo !, nd_syscall.sysinfo ? {}
+probe syscall.sysinfo.return = dw_syscall.sysinfo.return !, nd_syscall.sysinfo.return ? {}
 
 # dw_sysinfo _____________________________________________________
 

@@ -21,8 +21,10 @@
 			 msgtyp, msgflg_str)
 %)
 
-probe syscall.compat_sys_msgrcv = dw_syscall.compat_sys_msgrcv !, nd_syscall.compat_sys_msgrcv {}
-probe syscall.compat_sys_msgrcv.return = dw_syscall.compat_sys_msgrcv.return !, nd_syscall.compat_sys_msgrcv.return {}
+probe syscall.compat_sys_msgrcv = dw_syscall.compat_sys_msgrcv !,
+                                  nd_syscall.compat_sys_msgrcv ? {}
+probe syscall.compat_sys_msgrcv.return = dw_syscall.compat_sys_msgrcv.return !,
+                                         nd_syscall.compat_sys_msgrcv.return ? {}
 
 # dw_compat_sys_msgrcv _____________________________________________________
 

@@ -14,8 +14,9 @@
 	argstr = sprintf("%d, %s, %s, %p", pid, resource_str, new_rlim_str, old_rlim_uaddr) 
 %)
 
-probe syscall.prlimit64 = dw_syscall.prlimit64 !, nd_syscall.prlimit64 {}
-probe syscall.prlimit64.return = dw_syscall.prlimit64.return !, nd_syscall.prlimit64.return {}
+probe syscall.prlimit64 = dw_syscall.prlimit64 !, nd_syscall.prlimit64 ? {}
+probe syscall.prlimit64.return = dw_syscall.prlimit64.return !,
+                                 nd_syscall.prlimit64.return ? {}
 
 # dw_prlimit64 _____________________________________________________
 

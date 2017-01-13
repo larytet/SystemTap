@@ -18,9 +18,9 @@
 			 optname_str, optval_uaddr, optlen)
 %)
 
-probe syscall.setsockopt = dw_syscall.setsockopt !, nd_syscall.setsockopt {}
+probe syscall.setsockopt = dw_syscall.setsockopt !, nd_syscall.setsockopt ? {}
 probe syscall.setsockopt.return = dw_syscall.setsockopt.return !,
-                                  nd_syscall.setsockopt.return {}
+                                  nd_syscall.setsockopt.return ? {}
 
 # dw_setsockopt _____________________________________________________
 

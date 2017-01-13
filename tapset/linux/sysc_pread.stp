@@ -16,8 +16,9 @@
 	argstr = sprintf("%d, %p, %u, %d", fd, buf_uaddr, count, offset)
 %)
 
-probe syscall.pread = dw_syscall.pread !, nd_syscall.pread {}
-probe syscall.pread.return = dw_syscall.pread.return !, nd_syscall.pread.return {}
+probe syscall.pread = dw_syscall.pread !, nd_syscall.pread ? {}
+probe syscall.pread.return = dw_syscall.pread.return !,
+                             nd_syscall.pread.return ? {}
 
 # dw_pread _____________________________________________________
 

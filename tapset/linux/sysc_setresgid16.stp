@@ -15,8 +15,9 @@
 	argstr = sprintf("%d, %d, %d", rgid, egid, sgid)
 %)
 
-probe syscall.setresgid16 = dw_syscall.setresgid16 !, nd_syscall.setresgid16 {}
-probe syscall.setresgid16.return = dw_syscall.setresgid16.return !, nd_syscall.setresgid16.return {}
+probe syscall.setresgid16 = dw_syscall.setresgid16 !, nd_syscall.setresgid16 ? {}
+probe syscall.setresgid16.return = dw_syscall.setresgid16.return !,
+                                   nd_syscall.setresgid16.return ? {}
 
 # dw_setresgid16 _____________________________________________________
 

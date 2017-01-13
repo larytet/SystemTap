@@ -19,8 +19,10 @@
 	argstr = sprintf("%d, %p, %u, %s", msqid, msgp_uaddr, msgsz, msgflg_str)
 %)
 
-probe syscall.compat_sys_msgsnd = dw_syscall.compat_sys_msgsnd !, nd_syscall.compat_sys_msgsnd {}
-probe syscall.compat_sys_msgsnd.return = dw_syscall.compat_sys_msgsnd.return !, nd_syscall.compat_sys_msgsnd.return {}
+probe syscall.compat_sys_msgsnd = dw_syscall.compat_sys_msgsnd !,
+                                  nd_syscall.compat_sys_msgsnd ? {}
+probe syscall.compat_sys_msgsnd.return = dw_syscall.compat_sys_msgsnd.return !,
+                                         nd_syscall.compat_sys_msgsnd.return ? {}
 
 # dw_compat_sys_msgsnd _____________________________________________________
 

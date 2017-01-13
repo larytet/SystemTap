@@ -16,8 +16,9 @@
 	                 exceptfds, timeout_str, sigmask, sigsetsize)
 %)
 
-probe syscall.pselect7 = dw_syscall.pselect7 !, nd_syscall.pselect7 {}
-probe syscall.pselect7.return = dw_syscall.pselect7.return !, nd_syscall.pselect7.return {}
+probe syscall.pselect7 = dw_syscall.pselect7 !, nd_syscall.pselect7 ? {}
+probe syscall.pselect7.return = dw_syscall.pselect7.return !,
+                                nd_syscall.pselect7.return ? {}
 
 # dw_pselect7 _____________________________________________________
 

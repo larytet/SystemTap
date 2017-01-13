@@ -13,8 +13,10 @@
 	argstr = sprintf("%d, %s, %p", pid, policy_str, p_uaddr)
 %)
 
-probe syscall.sched_setscheduler = dw_syscall.sched_setscheduler !, nd_syscall.sched_setscheduler {}
-probe syscall.sched_setscheduler.return = dw_syscall.sched_setscheduler.return !, nd_syscall.sched_setscheduler.return {}
+probe syscall.sched_setscheduler = dw_syscall.sched_setscheduler !,
+                                   nd_syscall.sched_setscheduler ? {}
+probe syscall.sched_setscheduler.return = dw_syscall.sched_setscheduler.return !,
+                                          nd_syscall.sched_setscheduler.return ? {}
 
 # dw_sched_setscheduler _____________________________________________________
 

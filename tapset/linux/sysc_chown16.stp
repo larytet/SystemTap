@@ -13,8 +13,8 @@
 	argstr = sprintf("%s, %d, %d", path, owner, group)
 %)
 
-probe syscall.chown16 = dw_syscall.chown16 !, nd_syscall.chown16 {}
-probe syscall.chown16.return = dw_syscall.chown16.return !, nd_syscall.chown16.return {}
+probe syscall.chown16 = dw_syscall.chown16 !, nd_syscall.chown16 ? {}
+probe syscall.chown16.return = dw_syscall.chown16.return !, nd_syscall.chown16.return ? {}
 
 # dw_chown16 _____________________________________________________
 

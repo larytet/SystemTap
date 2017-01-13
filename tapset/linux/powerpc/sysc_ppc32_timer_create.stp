@@ -17,9 +17,9 @@
 %)
 
 probe syscall.ppc32_timer_create = dw_syscall.ppc32_timer_create !,
-                                   nd_syscall.ppc32_timer_create {}
+                                   nd_syscall.ppc32_timer_create ? {}
 probe syscall.ppc32_timer_create.return = dw_syscall.ppc32_timer_create.return !,
-                                          nd_syscall.ppc32_timer_create.return {}
+                                          nd_syscall.ppc32_timer_create.return ? {}
 
 # dw_ppc32_timer_create _____________________________________________________
 

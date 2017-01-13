@@ -6,8 +6,8 @@
 #	     unsigned long arg2)
 #
 
-probe syscall.sysfs = dw_syscall.sysfs !, nd_syscall.sysfs {}
-probe syscall.sysfs.return = dw_syscall.sysfs.return !, nd_syscall.sysfs.return {}
+probe syscall.sysfs = dw_syscall.sysfs !, nd_syscall.sysfs ? {}
+probe syscall.sysfs.return = dw_syscall.sysfs.return !, nd_syscall.sysfs.return ? {}
 
 # dw_sysfs _____________________________________________________
 

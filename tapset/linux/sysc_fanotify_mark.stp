@@ -20,8 +20,8 @@
 	                 dirfd_str, pathname)
 %)
 
-probe syscall.fanotify_mark = dw_syscall.fanotify_mark !, nd_syscall.fanotify_mark {}
-probe syscall.fanotify_mark.return = dw_syscall.fanotify_mark.return !, nd_syscall.fanotify_mark.return {}
+probe syscall.fanotify_mark = dw_syscall.fanotify_mark !, nd_syscall.fanotify_mark ? {}
+probe syscall.fanotify_mark.return = dw_syscall.fanotify_mark.return !, nd_syscall.fanotify_mark.return ? {}
 
 # dw_fanotify_mark _____________________________________________________
 

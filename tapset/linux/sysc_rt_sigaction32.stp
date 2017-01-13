@@ -19,8 +19,10 @@
 	argstr = sprintf("%s, {%s}, %p, %d", sig_str, act_str, oact_uaddr, sigsetsize) 
 %)
 
-probe syscall.rt_sigaction32 = dw_syscall.rt_sigaction32 !, nd_syscall.rt_sigaction32 {}
-probe syscall.rt_sigaction32.return = dw_syscall.rt_sigaction32.return !, nd_syscall.rt_sigaction32.return {}
+probe syscall.rt_sigaction32 = dw_syscall.rt_sigaction32 !,
+                               nd_syscall.rt_sigaction32 ? {}
+probe syscall.rt_sigaction32.return = dw_syscall.rt_sigaction32.return !,
+                                      nd_syscall.rt_sigaction32.return ? {}
 
 # dw_rt_sigaction32 _____________________________________________________
 

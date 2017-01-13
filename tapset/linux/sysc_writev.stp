@@ -18,9 +18,9 @@
 	argstr = sprintf("%d, %p, %d", fd, vector_uaddr, count)
 %)
 
-probe syscall.writev = dw_syscall.writev !, nd_syscall.writev {}
+probe syscall.writev = dw_syscall.writev !, nd_syscall.writev ? {}
 probe syscall.writev.return = dw_syscall.writev.return !,
-                              nd_syscall.writev.return {}
+                              nd_syscall.writev.return ? {}
 
 # dw_writev _____________________________________________________
 

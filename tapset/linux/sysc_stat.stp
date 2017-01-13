@@ -15,8 +15,8 @@
 	argstr = sprintf("%s, %p", filename, buf_uaddr)
 %)
 
-probe syscall.stat = dw_syscall.stat !, nd_syscall.stat {}
-probe syscall.stat.return = dw_syscall.stat.return !, nd_syscall.stat.return {}
+probe syscall.stat = dw_syscall.stat !, nd_syscall.stat ? {}
+probe syscall.stat.return = dw_syscall.stat.return !, nd_syscall.stat.return ? {}
 
 # dw_stat _____________________________________________________
 

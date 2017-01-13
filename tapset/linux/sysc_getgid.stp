@@ -13,8 +13,8 @@
 	argstr = ""
 %)
 
-probe syscall.getgid = dw_syscall.getgid !, nd_syscall.getgid {}
-probe syscall.getgid.return = dw_syscall.getgid.return !, nd_syscall.getgid.return {}
+probe syscall.getgid = dw_syscall.getgid !, nd_syscall.getgid ? {}
+probe syscall.getgid.return = dw_syscall.getgid.return !, nd_syscall.getgid.return ? {}
 
 # dw_getgid _____________________________________________________
 

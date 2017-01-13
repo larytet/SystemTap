@@ -18,9 +18,9 @@
 	argstr = sprintf("%s, %p, %p", clockid_str, evp_uaddr, timerid_uaddr)
 %)
 
-probe syscall.timer_create = dw_syscall.timer_create !, nd_syscall.timer_create {}
+probe syscall.timer_create = dw_syscall.timer_create !, nd_syscall.timer_create ? {}
 probe syscall.timer_create.return = dw_syscall.timer_create.return !,
-                                    nd_syscall.timer_create.return {}
+                                    nd_syscall.timer_create.return ? {}
 
 # dw_timer_create _____________________________________________________
 

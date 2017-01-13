@@ -14,9 +14,9 @@
 %)
 
 probe syscall.compat_sys_shmctl = dw_syscall.compat_sys_shmctl !,
-                                  nd_syscall.compat_sys_shmctl {}
+                                  nd_syscall.compat_sys_shmctl ? {}
 probe syscall.compat_sys_shmctl.return = dw_syscall.compat_sys_shmctl.return !,
-                                         nd_syscall.compat_sys_shmctl.return {}
+                                         nd_syscall.compat_sys_shmctl.return ? {}
 
 # dw_compat_sys_shmctl _____________________________________________________
 

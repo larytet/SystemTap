@@ -11,8 +11,9 @@
 	argstr = sprintf("%s, %d", _priority_which_str(which), who)
 %)
 
-probe syscall.getpriority = dw_syscall.getpriority !, nd_syscall.getpriority {}
-probe syscall.getpriority.return = dw_syscall.getpriority.return !, nd_syscall.getpriority.return {}
+probe syscall.getpriority = dw_syscall.getpriority !, nd_syscall.getpriority ? {}
+probe syscall.getpriority.return = dw_syscall.getpriority.return !,
+                                   nd_syscall.getpriority.return ? {}
 
 # dw_getpriority _____________________________________________________
 

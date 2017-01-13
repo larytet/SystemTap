@@ -12,8 +12,8 @@
 	argstr = sprintf("%s, %s, %s", dirfd_str, pathname, mode_str)
 %)
 
-probe syscall.faccessat = dw_syscall.faccessat !, nd_syscall.faccessat {}
-probe syscall.faccessat.return = dw_syscall.faccessat.return !, nd_syscall.faccessat.return {}
+probe syscall.faccessat = dw_syscall.faccessat !, nd_syscall.faccessat ? {}
+probe syscall.faccessat.return = dw_syscall.faccessat.return !, nd_syscall.faccessat.return ? {}
 
 # dw_faccessat _____________________________________________________
 

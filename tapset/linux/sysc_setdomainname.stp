@@ -15,8 +15,10 @@
 	argstr = sprintf("%s, %d", domainname_str, len)
 %)
 
-probe syscall.setdomainname = dw_syscall.setdomainname !, nd_syscall.setdomainname {}
-probe syscall.setdomainname.return = dw_syscall.setdomainname.return !, nd_syscall.setdomainname.return {}
+probe syscall.setdomainname = dw_syscall.setdomainname !,
+                              nd_syscall.setdomainname ? {}
+probe syscall.setdomainname.return = dw_syscall.setdomainname.return !,
+                                     nd_syscall.setdomainname.return ? {}
 
 # dw_setdomainname _____________________________________________________
 

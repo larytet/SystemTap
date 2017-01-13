@@ -14,8 +14,9 @@
 	                 newdirfd_str, newpath, flags_str)
 %)
 
-probe syscall.linkat = dw_syscall.linkat !, nd_syscall.linkat {}
-probe syscall.linkat.return = dw_syscall.linkat.return !, nd_syscall.linkat.return {}
+probe syscall.linkat = dw_syscall.linkat !, nd_syscall.linkat ? {}
+probe syscall.linkat.return = dw_syscall.linkat.return !,
+                              nd_syscall.linkat.return ? {}
 
 # dw_linkat _____________________________________________________
 

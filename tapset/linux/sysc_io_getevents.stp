@@ -22,8 +22,9 @@
 	                 nr, events_uaddr, timestr)
 %)
 
-probe syscall.io_getevents = dw_syscall.io_getevents !, nd_syscall.io_getevents {}
-probe syscall.io_getevents.return = dw_syscall.io_getevents.return !, nd_syscall.io_getevents.return {}
+probe syscall.io_getevents = dw_syscall.io_getevents !, nd_syscall.io_getevents ? {}
+probe syscall.io_getevents.return = dw_syscall.io_getevents.return !,
+                                    nd_syscall.io_getevents.return ? {}
 
 # dw_io_getevents _____________________________________________________
 

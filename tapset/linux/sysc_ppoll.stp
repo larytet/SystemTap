@@ -16,8 +16,9 @@
 	                 fds_uaddr, nfds, tsp_str, sigmask, sigsetsize)
 %)
 
-probe syscall.ppoll = dw_syscall.ppoll !, nd_syscall.ppoll {}
-probe syscall.ppoll.return = dw_syscall.ppoll.return !, nd_syscall.ppoll.return {}
+probe syscall.ppoll = dw_syscall.ppoll !, nd_syscall.ppoll ? {}
+probe syscall.ppoll.return = dw_syscall.ppoll.return !,
+                             nd_syscall.ppoll.return ? {}
 
 # dw_ppoll _____________________________________________________
 

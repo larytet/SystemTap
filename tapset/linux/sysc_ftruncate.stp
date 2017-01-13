@@ -13,8 +13,8 @@
 	argstr = sprintf("%d, %d", fd, length)
 %)
 
-probe syscall.ftruncate = dw_syscall.ftruncate !, nd_syscall.ftruncate {}
-probe syscall.ftruncate.return = dw_syscall.ftruncate.return !, nd_syscall.ftruncate.return {}
+probe syscall.ftruncate = dw_syscall.ftruncate !, nd_syscall.ftruncate ? {}
+probe syscall.ftruncate.return = dw_syscall.ftruncate.return !, nd_syscall.ftruncate.return ? {}
 
 # dw_ftruncate _____________________________________________________
 

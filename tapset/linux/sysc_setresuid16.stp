@@ -14,9 +14,9 @@
 %)
 
 probe syscall.setresuid16 = dw_syscall.setresuid16 !,
-                            nd_syscall.setresuid16 {}
+                            nd_syscall.setresuid16 ? {}
 probe syscall.setresuid16.return = dw_syscall.setresuid16.return !,
-                                   nd_syscall.setresuid16.return {}
+                                   nd_syscall.setresuid16.return ? {}
 
 # dw_setresuid16 _____________________________________________________
 

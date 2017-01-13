@@ -17,8 +17,10 @@
 	argstr = sprintf("%p, %p, %s, %p, %s", start, size, prot_str, pgoff, flags_str)
 %)
 
-probe syscall.remap_file_pages = dw_syscall.remap_file_pages !, nd_syscall.remap_file_pages {}
-probe syscall.remap_file_pages.return = dw_syscall.remap_file_pages.return !, nd_syscall.remap_file_pages.return {}
+probe syscall.remap_file_pages = dw_syscall.remap_file_pages !,
+                                 nd_syscall.remap_file_pages ? {}
+probe syscall.remap_file_pages.return = dw_syscall.remap_file_pages.return !,
+                                        nd_syscall.remap_file_pages.return ? {}
 
 # dw_remap_file_pages _____________________________________________________
 

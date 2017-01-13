@@ -11,8 +11,9 @@
 	argstr = sprintf("%d, %d", sockfd, backlog)
 %)
 
-probe syscall.listen = dw_syscall.listen !, nd_syscall.listen {}
-probe syscall.listen.return = dw_syscall.listen.return !, nd_syscall.listen.return {}
+probe syscall.listen = dw_syscall.listen !, nd_syscall.listen ? {}
+probe syscall.listen.return = dw_syscall.listen.return !,
+                              nd_syscall.listen.return ? {}
 
 # dw_listen _____________________________________________________
 

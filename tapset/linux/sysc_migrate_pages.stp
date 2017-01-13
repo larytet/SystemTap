@@ -13,8 +13,10 @@
 	argstr = sprintf("%d, %u, %p, %p", pid, maxnode, old_nodes, new_nodes)
 %)
 
-probe syscall.migrate_pages = dw_syscall.migrate_pages !, nd_syscall.migrate_pages {}
-probe syscall.migrate_pages.return = dw_syscall.migrate_pages.return !, nd_syscall.migrate_pages.return {}
+probe syscall.migrate_pages = dw_syscall.migrate_pages !,
+                              nd_syscall.migrate_pages ? {}
+probe syscall.migrate_pages.return = dw_syscall.migrate_pages.return !,
+                                     nd_syscall.migrate_pages.return ? {}
 
 # dw_migrate_pages _____________________________________________________
 

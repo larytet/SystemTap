@@ -12,9 +12,9 @@
 	argstr = sprintf("%d", fd)
 %)
 
-probe syscall.syncfs = dw_syscall.syncfs !, nd_syscall.syncfs {}
+probe syscall.syncfs = dw_syscall.syncfs !, nd_syscall.syncfs ? {}
 probe syscall.syncfs.return = dw_syscall.syncfs.return !,
-                              nd_syscall.syncfs.return {}
+                              nd_syscall.syncfs.return ? {}
 
 # dw_syncfs _____________________________________________________
 

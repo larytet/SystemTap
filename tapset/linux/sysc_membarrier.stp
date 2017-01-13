@@ -11,8 +11,9 @@
 	argstr = sprintf("%s, %d", cmd_str, flags)
 %)
 
-probe syscall.membarrier = dw_syscall.membarrier !, nd_syscall.membarrier {}
-probe syscall.membarrier.return = dw_syscall.membarrier.return !, nd_syscall.membarrier.return {}
+probe syscall.membarrier = dw_syscall.membarrier !, nd_syscall.membarrier ? {}
+probe syscall.membarrier.return = dw_syscall.membarrier.return !,
+                                  nd_syscall.membarrier.return ? {}
 
 # dw_membarrier _____________________________________________________
 

@@ -13,8 +13,9 @@
 	argstr = sprintf("%p", shmaddr_uaddr)
 %)
 
-probe syscall.shmdt = dw_syscall.shmdt !, nd_syscall.shmdt {}
-probe syscall.shmdt.return = dw_syscall.shmdt.return !, nd_syscall.shmdt.return {}
+probe syscall.shmdt = dw_syscall.shmdt !, nd_syscall.shmdt ? {}
+probe syscall.shmdt.return = dw_syscall.shmdt.return !,
+                             nd_syscall.shmdt.return ? {}
 
 # dw_shmdt _____________________________________________________
 

@@ -12,8 +12,8 @@
 	argstr = sprintf("%d, %p", action, u_info_uaddr)
 %)
 
-probe syscall.tux = dw_syscall.tux !, nd_syscall.tux {}
-probe syscall.tux.return = dw_syscall.tux.return !, nd_syscall.tux.return {}
+probe syscall.tux = dw_syscall.tux !, nd_syscall.tux ? {}
+probe syscall.tux.return = dw_syscall.tux.return !, nd_syscall.tux.return ? {}
 
 # dw_tux _____________________________________________________
 

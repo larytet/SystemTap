@@ -12,8 +12,9 @@
 	argstr = u_name
 %)
 
-probe syscall.mq_unlink = dw_syscall.mq_unlink !, nd_syscall.mq_unlink {}
-probe syscall.mq_unlink.return = dw_syscall.mq_unlink.return !, nd_syscall.mq_unlink.return {}
+probe syscall.mq_unlink = dw_syscall.mq_unlink !, nd_syscall.mq_unlink ? {}
+probe syscall.mq_unlink.return = dw_syscall.mq_unlink.return !,
+                                 nd_syscall.mq_unlink.return ? {}
 
 # dw_mq_unlink _____________________________________________________
 

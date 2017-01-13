@@ -13,8 +13,9 @@
 	argstr = sprint(fsgid)
 %)
 
-probe syscall.setfsgid = dw_syscall.setfsgid !, nd_syscall.setfsgid {}
-probe syscall.setfsgid.return = dw_syscall.setfsgid.return !, nd_syscall.setfsgid.return {}
+probe syscall.setfsgid = dw_syscall.setfsgid !, nd_syscall.setfsgid ? {}
+probe syscall.setfsgid.return = dw_syscall.setfsgid.return !,
+                                nd_syscall.setfsgid.return ? {}
 
 # dw_setfsgid _____________________________________________________
 

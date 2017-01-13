@@ -14,8 +14,10 @@
 	argstr = sprintf("%s, %p, %u", mode_str, nmask_uaddr, maxnode)
 %)
 
-probe syscall.set_mempolicy = dw_syscall.set_mempolicy !, nd_syscall.set_mempolicy {}
-probe syscall.set_mempolicy.return = dw_syscall.set_mempolicy.return !, nd_syscall.set_mempolicy.return {}
+probe syscall.set_mempolicy = dw_syscall.set_mempolicy !,
+                              nd_syscall.set_mempolicy ? {}
+probe syscall.set_mempolicy.return = dw_syscall.set_mempolicy.return !,
+                                     nd_syscall.set_mempolicy.return ? {}
 
 # dw_set_mempolicy _____________________________________________________
 

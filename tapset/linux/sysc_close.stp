@@ -11,8 +11,8 @@
 	argstr = sprint(fd)
 %)
 
-probe syscall.close = dw_syscall.close !, nd_syscall.close {}
-probe syscall.close.return = dw_syscall.close.return !, nd_syscall.close.return {}
+probe syscall.close = dw_syscall.close !, nd_syscall.close ? {}
+probe syscall.close.return = dw_syscall.close.return !, nd_syscall.close.return ? {}
 
 # dw_close _____________________________________________________
 

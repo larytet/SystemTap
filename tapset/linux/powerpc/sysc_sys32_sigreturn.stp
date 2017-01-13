@@ -16,9 +16,9 @@
 %)
 
 probe syscall.sys32_sigreturn = dw_syscall.sys32_sigreturn !,
-                                nd_syscall.sys32_sigreturn {}
+                                nd_syscall.sys32_sigreturn ? {}
 probe syscall.sys32_sigreturn.return = dw_syscall.sys32_sigreturn.return !,
-                                       nd_syscall.sys32_sigreturn.return {}
+                                       nd_syscall.sys32_sigreturn.return ? {}
 
 # dw_sys32_sigreturn _____________________________________________________
 

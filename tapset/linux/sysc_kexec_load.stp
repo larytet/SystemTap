@@ -19,8 +19,9 @@
 	argstr = sprintf("%p, %u, %p, %s", entry, nr_segments, segments_uaddr, flags_str)
 %)
 
-probe syscall.kexec_load = dw_syscall.kexec_load !, nd_syscall.kexec_load {}
-probe syscall.kexec_load.return = dw_syscall.kexec_load.return !, nd_syscall.kexec_load.return {}
+probe syscall.kexec_load = dw_syscall.kexec_load !, nd_syscall.kexec_load ? {}
+probe syscall.kexec_load.return = dw_syscall.kexec_load.return !,
+                                  nd_syscall.kexec_load.return ? {}
 
 # dw_kexec_load _____________________________________________________
 

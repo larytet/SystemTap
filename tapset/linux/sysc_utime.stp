@@ -12,9 +12,9 @@
 	                 ctime(actime), ctime(modtime))
 %)
 
-probe syscall.utime = dw_syscall.utime !, nd_syscall.utime {}
+probe syscall.utime = dw_syscall.utime !, nd_syscall.utime ? {}
 probe syscall.utime.return = dw_syscall.utime.return !,
-                             nd_syscall.utime.return {}
+                             nd_syscall.utime.return ? {}
 
 # dw_utime _____________________________________________________
 

@@ -12,8 +12,8 @@
 	name = "keyctl"
 %)
 
-probe syscall.keyctl = dw_syscall.keyctl !, nd_syscall.keyctl {}
-probe syscall.keyctl.return = dw_syscall.keyctl.return !, nd_syscall.keyctl.return {}
+probe syscall.keyctl = dw_syscall.keyctl !, nd_syscall.keyctl ? {}
+probe syscall.keyctl.return = dw_syscall.keyctl.return !, nd_syscall.keyctl.return ? {}
 
 # dw_keyctl _____________________________________________________
 

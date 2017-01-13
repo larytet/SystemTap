@@ -12,8 +12,9 @@
 	argstr = sprintf("%#o", mask)
 %)
 
-probe syscall.umask = dw_syscall.umask !, nd_syscall.umask {}
-probe syscall.umask.return = dw_syscall.umask.return !, nd_syscall.umask.return {}
+probe syscall.umask = dw_syscall.umask !, nd_syscall.umask ? {}
+probe syscall.umask.return = dw_syscall.umask.return !,
+                             nd_syscall.umask.return ? {}
 
 # dw_umask _____________________________________________________
 

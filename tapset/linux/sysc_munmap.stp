@@ -11,8 +11,9 @@
 	argstr = sprintf("%p, %u", start, length)
 %)
 
-probe syscall.munmap = dw_syscall.munmap !, nd_syscall.munmap {}
-probe syscall.munmap.return = dw_syscall.munmap.return !, nd_syscall.munmap.return {}
+probe syscall.munmap = dw_syscall.munmap !, nd_syscall.munmap ? {}
+probe syscall.munmap.return = dw_syscall.munmap.return !,
+                              nd_syscall.munmap.return ? {}
 
 # dw_munmap _____________________________________________________
 

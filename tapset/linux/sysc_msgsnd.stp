@@ -15,8 +15,9 @@
 	argstr = sprintf("%d, %p, %u, %s", msqid, msgp_uaddr, msgsz, msgflg_str)
 %)
 
-probe syscall.msgsnd = dw_syscall.msgsnd !, nd_syscall.msgsnd {}
-probe syscall.msgsnd.return = dw_syscall.msgsnd.return !, nd_syscall.msgsnd.return {}
+probe syscall.msgsnd = dw_syscall.msgsnd !, nd_syscall.msgsnd ? {}
+probe syscall.msgsnd.return = dw_syscall.msgsnd.return !,
+                              nd_syscall.msgsnd.return ? {}
 
 # dw_msgsnd _____________________________________________________
 

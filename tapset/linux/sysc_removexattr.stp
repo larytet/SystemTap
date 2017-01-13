@@ -15,8 +15,9 @@
 	argstr = sprintf("%s, %s", path, name_str)
 %)
 
-probe syscall.removexattr = dw_syscall.removexattr !, nd_syscall.removexattr {}
-probe syscall.removexattr.return = dw_syscall.removexattr.return !, nd_syscall.removexattr.return {}
+probe syscall.removexattr = dw_syscall.removexattr !, nd_syscall.removexattr ? {}
+probe syscall.removexattr.return = dw_syscall.removexattr.return !,
+                                   nd_syscall.removexattr.return ? {}
 
 # dw_removexattr _____________________________________________________
 

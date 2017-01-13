@@ -13,9 +13,9 @@
 	argstr = sprintf("%s, %s, %s", oldname_str, newdfd_str, newname_str)
 %)
 
-probe syscall.symlinkat = dw_syscall.symlinkat !, nd_syscall.symlinkat {}
+probe syscall.symlinkat = dw_syscall.symlinkat !, nd_syscall.symlinkat ? {}
 probe syscall.symlinkat.return = dw_syscall.symlinkat.return !,
-                                 nd_syscall.symlinkat.return {}
+                                 nd_syscall.symlinkat.return ? {}
 
 # dw_symlinkat _____________________________________________________
 

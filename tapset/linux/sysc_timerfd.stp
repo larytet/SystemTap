@@ -20,9 +20,9 @@
 	argstr = sprintf("%d, %d, 0x%x", ufd, clockid, flags)
 %)
 
-probe syscall.timerfd = dw_syscall.timerfd !, nd_syscall.timerfd {}
+probe syscall.timerfd = dw_syscall.timerfd !, nd_syscall.timerfd ? {}
 probe syscall.timerfd.return = dw_syscall.timerfd.return !,
-                               nd_syscall.timerfd.return {}
+                               nd_syscall.timerfd.return ? {}
 
 # dw_timerfd _____________________________________________________
 

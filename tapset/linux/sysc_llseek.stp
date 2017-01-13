@@ -16,8 +16,8 @@
 	                 offset_low, result_uaddr, whence_str)
 %)
 
-probe syscall.llseek = dw_syscall.llseek !, nd_syscall.llseek {}
-probe syscall.llseek.return = dw_syscall.llseek.return !, nd_syscall.llseek.return {}
+probe syscall.llseek = dw_syscall.llseek !, nd_syscall.llseek ? {}
+probe syscall.llseek.return = dw_syscall.llseek.return !, nd_syscall.llseek.return ? {}
 
 # dw_llseek _____________________________________________________
 

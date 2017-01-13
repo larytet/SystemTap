@@ -13,8 +13,9 @@
 	argstr = ""
 %)
 
-probe syscall.pause = dw_syscall.pause !, nd_syscall.pause {}
-probe syscall.pause.return = dw_syscall.pause.return !, nd_syscall.pause.return {}
+probe syscall.pause = dw_syscall.pause !, nd_syscall.pause ? {}
+probe syscall.pause.return = dw_syscall.pause.return !,
+                             nd_syscall.pause.return ? {}
 
 # dw_pause _____________________________________________________
 

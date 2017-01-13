@@ -13,8 +13,9 @@
 	argstr = sprintf("%s, %s", new_root_str, old_root_str)
 %)
 
-probe syscall.pivot_root = dw_syscall.pivot_root !, nd_syscall.pivot_root {}
-probe syscall.pivot_root.return = dw_syscall.pivot_root.return !, nd_syscall.pivot_root.return {}
+probe syscall.pivot_root = dw_syscall.pivot_root !, nd_syscall.pivot_root ? {}
+probe syscall.pivot_root.return = dw_syscall.pivot_root.return !,
+                                  nd_syscall.pivot_root.return ? {}
 
 # dw_pivot_root _____________________________________________________
 

@@ -14,9 +14,9 @@
 %)
 
 probe syscall.sys32_adjtimex = dw_syscall.sys32_adjtimex !,
-                               nd_syscall.sys32_adjtimex {}
+                               nd_syscall.sys32_adjtimex ? {}
 probe syscall.sys32_adjtimex.return = dw_syscall.sys32_adjtimex.return !,
-                                      nd_syscall.sys32_adjtimex.return {}
+                                      nd_syscall.sys32_adjtimex.return ? {}
 
 # dw_sys32_adjtimex _____________________________________________________
 

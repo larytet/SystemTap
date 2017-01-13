@@ -16,8 +16,10 @@
 	argstr = sprintf("%s, %p, %s", mount_dfd_str, handle_uaddr, flags_str)
 %)
 
-probe syscall.open_by_handle_at = dw_syscall.open_by_handle_at !, nd_syscall.open_by_handle_at {}
-probe syscall.open_by_handle_at.return = dw_syscall.open_by_handle_at.return !, nd_syscall.open_by_handle_at.return {}
+probe syscall.open_by_handle_at = dw_syscall.open_by_handle_at !,
+                                  nd_syscall.open_by_handle_at ? {}
+probe syscall.open_by_handle_at.return = dw_syscall.open_by_handle_at.return !,
+                                         nd_syscall.open_by_handle_at.return ? {}
 
 # dw_open_by_handle_at _____________________________________________________
 

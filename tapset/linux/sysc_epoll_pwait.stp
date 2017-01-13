@@ -21,8 +21,8 @@
 	                 timeout, sigmask_uaddr, sigsetsize)
 %)
 
-probe syscall.epoll_pwait = dw_syscall.epoll_pwait !, nd_syscall.epoll_pwait {}
-probe syscall.epoll_pwait.return = dw_syscall.epoll_pwait.return !, nd_syscall.epoll_pwait.return {}
+probe syscall.epoll_pwait = dw_syscall.epoll_pwait !, nd_syscall.epoll_pwait ? {}
+probe syscall.epoll_pwait.return = dw_syscall.epoll_pwait.return !, nd_syscall.epoll_pwait.return ? {}
 
 # dw_epoll_pwait _____________________________________________________
 

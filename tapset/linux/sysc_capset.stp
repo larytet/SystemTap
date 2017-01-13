@@ -22,8 +22,8 @@
 	argstr = sprintf("%p, %p", header_uaddr, data_uaddr)
 %)
 
-probe syscall.capset = dw_syscall.capset !, nd_syscall.capset {}
-probe syscall.capset.return = dw_syscall.capset.return !, nd_syscall.capset.return {}
+probe syscall.capset = dw_syscall.capset !, nd_syscall.capset ? {}
+probe syscall.capset.return = dw_syscall.capset.return !, nd_syscall.capset.return ? {}
 
 # dw_capset _____________________________________________________
 

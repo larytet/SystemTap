@@ -17,8 +17,8 @@
 	                 flags_str, fd, offset)
 %)
 
-probe syscall.mmap = dw_syscall.mmap !, nd_syscall.mmap {}
-probe syscall.mmap.return = dw_syscall.mmap.return !, nd_syscall.mmap.return {}
+probe syscall.mmap = dw_syscall.mmap !, nd_syscall.mmap ? {}
+probe syscall.mmap.return = dw_syscall.mmap.return !, nd_syscall.mmap.return ? {}
 
 # dw_mmap _____________________________________________________
 

@@ -12,9 +12,9 @@
 	argstr = sprintf("%s, %s", sig_str, handler_str)
 %)
 
-probe syscall.signal = dw_syscall.signal !, nd_syscall.signal {}
+probe syscall.signal = dw_syscall.signal !, nd_syscall.signal ? {}
 probe syscall.signal.return = dw_syscall.signal.return !,
-                              nd_syscall.signal.return {}
+                              nd_syscall.signal.return ? {}
 
 # dw_signal _____________________________________________________
 

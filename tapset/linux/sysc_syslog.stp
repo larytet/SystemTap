@@ -13,9 +13,9 @@
 	argstr = sprintf("%d, %p, %d", type, bufp_uaddr, len)
 %)
 
-probe syscall.syslog = dw_syscall.syslog !, nd_syscall.syslog {}
+probe syscall.syslog = dw_syscall.syslog !, nd_syscall.syslog ? {}
 probe syscall.syslog.return = dw_syscall.syslog.return !,
-                              nd_syscall.syslog.return {}
+                              nd_syscall.syslog.return ? {}
 
 # dw_syslog _____________________________________________________
 

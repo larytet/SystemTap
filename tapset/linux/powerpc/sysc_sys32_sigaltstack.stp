@@ -18,9 +18,9 @@
 %)
 
 probe syscall.sys32_sigaltstack = dw_syscall.sys32_sigaltstack !,
-                                  nd_syscall.sys32_sigaltstack {}
+                                  nd_syscall.sys32_sigaltstack ? {}
 probe syscall.sys32_sigaltstack.return = dw_syscall.sys32_sigaltstack.return !,
-                                         nd_syscall.sys32_sigaltstack.return {}
+                                         nd_syscall.sys32_sigaltstack.return ? {}
 
 # dw_sys32_sigaltstack _____________________________________________________
 

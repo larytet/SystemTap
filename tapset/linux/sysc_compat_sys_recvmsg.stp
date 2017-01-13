@@ -24,8 +24,10 @@
 	argstr = sprintf("%d, %p, %s", s, msg_uaddr, flags_str)
 %)
 
-probe syscall.compat_sys_recvmsg = dw_syscall.compat_sys_recvmsg !, nd_syscall.compat_sys_recvmsg {}
-probe syscall.compat_sys_recvmsg.return = dw_syscall.compat_sys_recvmsg.return !, nd_syscall.compat_sys_recvmsg.return {}
+probe syscall.compat_sys_recvmsg = dw_syscall.compat_sys_recvmsg !,
+                                   nd_syscall.compat_sys_recvmsg ? {}
+probe syscall.compat_sys_recvmsg.return = dw_syscall.compat_sys_recvmsg.return !,
+                                          nd_syscall.compat_sys_recvmsg.return ? {}
 
 # dw_compat_sys_recvmsg _____________________________________________________
 

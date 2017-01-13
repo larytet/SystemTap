@@ -14,8 +14,9 @@
 	argstr = ""
 %)
 
-probe syscall.getegid = dw_syscall.getegid !, nd_syscall.getegid {}
-probe syscall.getegid.return = dw_syscall.getegid.return !, nd_syscall.getegid.return {}
+probe syscall.getegid = dw_syscall.getegid !, nd_syscall.getegid ? {}
+probe syscall.getegid.return = dw_syscall.getegid.return !,
+                               nd_syscall.getegid.return ? {}
 
 # dw_getegid _____________________________________________________
 

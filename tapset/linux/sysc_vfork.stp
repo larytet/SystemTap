@@ -13,8 +13,9 @@
 	argstr = ""
 %)
 
-probe syscall.vfork = dw_syscall.vfork !, nd_syscall.vfork {}
-probe syscall.vfork.return = dw_syscall.vfork.return !, nd_syscall.vfork.return {}
+probe syscall.vfork = dw_syscall.vfork !, nd_syscall.vfork ? {}
+probe syscall.vfork.return = dw_syscall.vfork.return !,
+                             nd_syscall.vfork.return ? {}
 
 # dw_vfork _____________________________________________________
 

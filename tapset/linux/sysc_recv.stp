@@ -17,8 +17,8 @@
 	argstr = sprintf("%d, %p, %u, %s", s, buf_uaddr, len, flags_str)
 %)
 
-probe syscall.recv = dw_syscall.recv !, nd_syscall.recv {}
-probe syscall.recv.return = dw_syscall.recv.return !, nd_syscall.recv.return {}
+probe syscall.recv = dw_syscall.recv !, nd_syscall.recv ? {}
+probe syscall.recv.return = dw_syscall.recv.return !, nd_syscall.recv.return ? {}
 
 # dw_recv _____________________________________________________
 

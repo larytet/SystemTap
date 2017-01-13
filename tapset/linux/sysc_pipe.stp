@@ -5,8 +5,8 @@
 # SYSCALL_DEFINE2(pipe2, int __user *, fildes, int, flags)
 # pipe2() was added to Linux in version 2.6.27.
 
-probe syscall.pipe = dw_syscall.pipe !, nd_syscall.pipe {}
-probe syscall.pipe.return = dw_syscall.pipe.return !, nd_syscall.pipe.return {}
+probe syscall.pipe = dw_syscall.pipe !, nd_syscall.pipe ? {}
+probe syscall.pipe.return = dw_syscall.pipe.return !, nd_syscall.pipe.return ? {}
 
 # dw_pipe _____________________________________________________
 

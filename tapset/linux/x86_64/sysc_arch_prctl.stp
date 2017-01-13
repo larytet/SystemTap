@@ -11,7 +11,7 @@
 
 @define _SYSCALL_ARCH_PRCTL_ARGSTR
 %(
-	argstr = sprintf("%d, %p", code, addr)
+	argstr = sprintf("%s, %u", code_str, addr)
 %)
 
 probe syscall.arch_prctl = dw_syscall.arch_prctl !,

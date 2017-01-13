@@ -16,8 +16,9 @@
 	argstr = _ptrace_argstr(request, pid, addr, data)
 %)
 
-probe syscall.ptrace = dw_syscall.ptrace !, nd_syscall.ptrace {}
-probe syscall.ptrace.return = dw_syscall.ptrace.return !, nd_syscall.ptrace.return {}
+probe syscall.ptrace = dw_syscall.ptrace !, nd_syscall.ptrace ? {}
+probe syscall.ptrace.return = dw_syscall.ptrace.return !,
+                              nd_syscall.ptrace.return ? {}
 
 # dw_ptrace _____________________________________________________
 

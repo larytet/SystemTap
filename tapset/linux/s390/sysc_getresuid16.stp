@@ -12,9 +12,9 @@
 	argstr = sprintf("%p, %p, %p", ruid_uaddr, euid_uaddr, suid_uaddr)
 %)
 
-probe syscall.getresuid16 = dw_syscall.getresuid16 !, nd_syscall.getresuid16 {}
+probe syscall.getresuid16 = dw_syscall.getresuid16 !, nd_syscall.getresuid16 ? {}
 probe syscall.getresuid16.return = dw_syscall.getresuid16.return !,
-                                   nd_syscall.getresuid16.return {}
+                                   nd_syscall.getresuid16.return ? {}
 
 # dw_getresuid16 _____________________________________________________
 

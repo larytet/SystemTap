@@ -13,8 +13,8 @@
 	argstr = sprintf("%p, %u, %s", addr, len, flags_str)
 %)
 
-probe syscall.mlock2 = dw_syscall.mlock2 !, nd_syscall.mlock2 {}
-probe syscall.mlock2.return = dw_syscall.mlock2.return !, nd_syscall.mlock2.return {}
+probe syscall.mlock2 = dw_syscall.mlock2 !, nd_syscall.mlock2 ? {}
+probe syscall.mlock2.return = dw_syscall.mlock2.return !, nd_syscall.mlock2.return ? {}
 
 # dw_mlock2 _____________________________________________________
 

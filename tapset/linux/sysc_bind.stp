@@ -12,8 +12,8 @@
 			 _struct_sockaddr_u(my_addr_uaddr, addrlen), addrlen)
 %)
 
-probe syscall.bind = dw_syscall.bind !, nd_syscall.bind {}
-probe syscall.bind.return = dw_syscall.bind.return !, nd_syscall.bind.return {}
+probe syscall.bind = dw_syscall.bind !, nd_syscall.bind ? {}
+probe syscall.bind.return = dw_syscall.bind.return !, nd_syscall.bind.return ? {}
 
 # dw_bind _____________________________________________________
 

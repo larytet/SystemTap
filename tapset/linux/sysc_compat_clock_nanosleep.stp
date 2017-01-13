@@ -16,8 +16,10 @@
 	                 _struct_compat_timespec_u(req_uaddr, 1), rem_uaddr)
 %)
 
-probe syscall.compat_clock_nanosleep = dw_syscall.compat_clock_nanosleep !, nd_syscall.compat_clock_nanosleep {}
-probe syscall.compat_clock_nanosleep.return = dw_syscall.compat_clock_nanosleep.return !, nd_syscall.compat_clock_nanosleep.return {}
+probe syscall.compat_clock_nanosleep = dw_syscall.compat_clock_nanosleep !,
+                                       nd_syscall.compat_clock_nanosleep ? {}
+probe syscall.compat_clock_nanosleep.return = dw_syscall.compat_clock_nanosleep.return !,
+                                              nd_syscall.compat_clock_nanosleep.return ? {}
 
 # dw_compat_clock_nanosleep _____________________________________________________
 

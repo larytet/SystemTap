@@ -14,9 +14,9 @@
 	argstr = sprint(uid)
 %)
 
-probe syscall.setuid = dw_syscall.setuid !, nd_syscall.setuid {}
+probe syscall.setuid = dw_syscall.setuid !, nd_syscall.setuid ? {}
 probe syscall.setuid.return = dw_syscall.setuid.return !,
-                              nd_syscall.setuid.return {}
+                              nd_syscall.setuid.return ? {}
 
 # dw_setuid _____________________________________________________
 

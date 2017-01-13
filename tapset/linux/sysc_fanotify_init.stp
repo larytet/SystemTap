@@ -13,8 +13,8 @@
 	argstr = sprintf("%s, %s", flags_str, event_f_flags_str)
 %)
 
-probe syscall.fanotify_init = dw_syscall.fanotify_init !, nd_syscall.fanotify_init {}
-probe syscall.fanotify_init.return = dw_syscall.fanotify_init.return !, nd_syscall.fanotify_init.return {}
+probe syscall.fanotify_init = dw_syscall.fanotify_init !, nd_syscall.fanotify_init ? {}
+probe syscall.fanotify_init.return = dw_syscall.fanotify_init.return !, nd_syscall.fanotify_init.return ? {}
 
 # dw_fanotify_init _____________________________________________________
 

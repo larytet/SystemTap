@@ -13,8 +13,8 @@
 	argstr = ""
 %)
 
-probe syscall.vm86 = dw_syscall.vm86 !, nd_syscall.vm86 {}
-probe syscall.vm86.return = dw_syscall.vm86.return !, nd_syscall.vm86.return {}
+probe syscall.vm86 = dw_syscall.vm86 !, nd_syscall.vm86 ? {}
+probe syscall.vm86.return = dw_syscall.vm86.return !, nd_syscall.vm86.return ? {}
 
 # dw_vm86 _____________________________________________________
 

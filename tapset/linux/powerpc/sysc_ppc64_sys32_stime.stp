@@ -14,9 +14,9 @@
 %)
 
 probe syscall.ppc64_sys32_stime = dw_syscall.ppc64_sys32_stime !,
-                                  nd_syscall.ppc64_sys32_stime {}
+                                  nd_syscall.ppc64_sys32_stime ? {}
 probe syscall.ppc64_sys32_stime.return = dw_syscall.ppc64_sys32_stime.return !,
-                                         nd_syscall.ppc64_sys32_stime.return {}
+                                         nd_syscall.ppc64_sys32_stime.return ? {}
 
 # dw_ppc64_sys32_stime _____________________________________________________
 

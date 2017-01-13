@@ -15,8 +15,8 @@
 	argstr = sprintf("%s, %s, %p, %u", path, name_str, value_uaddr, size)
 %)
 
-probe syscall.lgetxattr = dw_syscall.lgetxattr !, nd_syscall.lgetxattr {}
-probe syscall.lgetxattr.return = dw_syscall.lgetxattr.return !, nd_syscall.lgetxattr.return {}
+probe syscall.lgetxattr = dw_syscall.lgetxattr !, nd_syscall.lgetxattr ? {}
+probe syscall.lgetxattr.return = dw_syscall.lgetxattr.return !, nd_syscall.lgetxattr.return ? {}
 
 # dw_lgetxattr _____________________________________________________
 

@@ -19,8 +19,9 @@
 	argstr = sprintf("%d, %p, %d, 0x%x", fd, vector_uaddr, count, offset)
 %)
 
-probe syscall.preadv = dw_syscall.preadv !, nd_syscall.preadv {}
-probe syscall.preadv.return = dw_syscall.preadv.return !, nd_syscall.preadv.return {}
+probe syscall.preadv = dw_syscall.preadv !, nd_syscall.preadv ? {}
+probe syscall.preadv.return = dw_syscall.preadv.return !,
+                              nd_syscall.preadv.return ? {}
 
 # dw_preadv _____________________________________________________
 

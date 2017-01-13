@@ -11,9 +11,9 @@
 	argstr = sprintf("%s", flags_str)
 %)
 
-probe syscall.userfaultfd = dw_syscall.userfaultfd !, nd_syscall.userfaultfd {}
+probe syscall.userfaultfd = dw_syscall.userfaultfd !, nd_syscall.userfaultfd ? {}
 probe syscall.userfaultfd.return = dw_syscall.userfaultfd.return !,
-                                   nd_syscall.userfaultfd.return {}
+                                   nd_syscall.userfaultfd.return ? {}
 
 # dw_userfaultfd _____________________________________________________
 

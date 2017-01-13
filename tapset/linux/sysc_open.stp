@@ -18,8 +18,8 @@
 	argstr = sprintf("%s, %s", filename, flags_str) 
 %)
 
-probe syscall.open = dw_syscall.open !, nd_syscall.open {}
-probe syscall.open.return = dw_syscall.open.return !, nd_syscall.open.return {}
+probe syscall.open = dw_syscall.open !, nd_syscall.open ? {}
+probe syscall.open.return = dw_syscall.open.return !, nd_syscall.open.return ? {}
 
 # dw_open _____________________________________________________
 

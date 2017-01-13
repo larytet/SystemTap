@@ -15,9 +15,9 @@
 	argstr = sprintf("%d, %s", pid, sig_str)
 %)
 
-probe syscall.tkill = dw_syscall.tkill !, nd_syscall.tkill {}
+probe syscall.tkill = dw_syscall.tkill !, nd_syscall.tkill ? {}
 probe syscall.tkill.return = dw_syscall.tkill.return !,
-                             nd_syscall.tkill.return {}
+                             nd_syscall.tkill.return ? {}
 
 # dw_tkill _____________________________________________________
 

@@ -24,9 +24,9 @@
 %)
 
 probe syscall.compat_fallocate = dw_syscall.compat_fallocate !,
-                                 nd_syscall.compat_fallocate {}
+                                 nd_syscall.compat_fallocate ? {}
 probe syscall.compat_fallocate.return = dw_syscall.compat_fallocate.return !,
-                                        nd_syscall.compat_fallocate.return {}
+                                        nd_syscall.compat_fallocate.return ? {}
 
 # dw_compat_fallocate _____________________________________________________
 

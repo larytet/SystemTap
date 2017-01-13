@@ -15,9 +15,9 @@
 %)
 
 probe syscall.sys32_sched_rr_get_interval = dw_syscall.sys32_sched_rr_get_interval !,
-                                            nd_syscall.sys32_sched_rr_get_interval {}
+                                            nd_syscall.sys32_sched_rr_get_interval ? {}
 probe syscall.sys32_sched_rr_get_interval.return = dw_syscall.sys32_sched_rr_get_interval.return !,
-                                                   nd_syscall.sys32_sched_rr_get_interval.return {}
+                                                   nd_syscall.sys32_sched_rr_get_interval.return ? {}
 
 # dw_sys32_sched_rr_get_interval _____________________________________________________
 

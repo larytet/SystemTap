@@ -14,9 +14,9 @@
 %)
 
 probe syscall.timer_getoverrun = dw_syscall.timer_getoverrun !,
-                                 nd_syscall.timer_getoverrun {}
+                                 nd_syscall.timer_getoverrun ? {}
 probe syscall.timer_getoverrun.return = dw_syscall.timer_getoverrun.return !,
-                                        nd_syscall.timer_getoverrun.return {}
+                                        nd_syscall.timer_getoverrun.return ? {}
 
 # dw_timer_getoverrun _____________________________________________________
 

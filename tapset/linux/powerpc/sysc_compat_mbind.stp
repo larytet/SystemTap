@@ -16,9 +16,9 @@
 	                 policy, nodemask_uaddr, maxnode, flags)
 %)
 
-probe syscall.compat_mbind = dw_syscall.compat_mbind !, nd_syscall.compat_mbind {}
+probe syscall.compat_mbind = dw_syscall.compat_mbind !, nd_syscall.compat_mbind ? {}
 probe syscall.compat_mbind.return = dw_syscall.compat_mbind.return !,
-                                    nd_syscall.compat_mbind.return {}
+                                    nd_syscall.compat_mbind.return ? {}
 
 # dw_compat_mbind _____________________________________________________
 

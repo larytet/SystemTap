@@ -15,9 +15,9 @@
 %)
 
 probe syscall.compat_clock_settime = dw_syscall.compat_clock_settime !,
-                                     nd_syscall.compat_clock_settime {}
+                                     nd_syscall.compat_clock_settime ? {}
 probe syscall.compat_clock_settime.return = dw_syscall.compat_clock_settime.return !,
-                                            nd_syscall.compat_clock_settime.return {}
+                                            nd_syscall.compat_clock_settime.return ? {}
 
 # dw_compat_clock_settime _____________________________________________________
 

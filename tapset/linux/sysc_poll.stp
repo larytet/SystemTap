@@ -13,8 +13,8 @@
 	argstr = sprintf("%p, %u, %d", ufds_uaddr, nfds, timeout)
 %)
 
-probe syscall.poll = dw_syscall.poll !, nd_syscall.poll {}
-probe syscall.poll.return = dw_syscall.poll.return !, nd_syscall.poll.return {}
+probe syscall.poll = dw_syscall.poll !, nd_syscall.poll ? {}
+probe syscall.poll.return = dw_syscall.poll.return !, nd_syscall.poll.return ? {}
 
 # dw_poll _____________________________________________________
 

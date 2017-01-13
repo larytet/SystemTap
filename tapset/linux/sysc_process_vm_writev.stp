@@ -23,8 +23,10 @@
 			 liovcnt, remote_iov_uaddr, riovcnt, flags)
 %)
 
-probe syscall.process_vm_writev = dw_syscall.process_vm_writev !, nd_syscall.process_vm_writev {}
-probe syscall.process_vm_writev.return = dw_syscall.process_vm_writev.return !, nd_syscall.process_vm_writev.return {}
+probe syscall.process_vm_writev = dw_syscall.process_vm_writev !,
+                                  nd_syscall.process_vm_writev ? {}
+probe syscall.process_vm_writev.return = dw_syscall.process_vm_writev.return !,
+                                         nd_syscall.process_vm_writev.return ? {}
 
 # dw_process_vm_writev _____________________________________________________
 

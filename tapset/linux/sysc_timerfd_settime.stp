@@ -19,9 +19,9 @@
 %)
 
 probe syscall.timerfd_settime = dw_syscall.timerfd_settime !,
-                                nd_syscall.timerfd_settime {}
+                                nd_syscall.timerfd_settime ? {}
 probe syscall.timerfd_settime.return = dw_syscall.timerfd_settime.return !,
-                                       nd_syscall.timerfd_settime.return {}
+                                       nd_syscall.timerfd_settime.return ? {}
 
 # dw_timerfd_settime _____________________________________________________
 

@@ -11,8 +11,8 @@
 	argstr = sprintf("%d, %s", func, data_str)
 %)
 
-probe syscall.bdflush = dw_syscall.bdflush !, nd_syscall.bdflush {}
-probe syscall.bdflush.return = dw_syscall.bdflush.return !, nd_syscall.bdflush.return {}
+probe syscall.bdflush = dw_syscall.bdflush !, nd_syscall.bdflush ? {}
+probe syscall.bdflush.return = dw_syscall.bdflush.return !, nd_syscall.bdflush.return ? {}
 
 # dw_bdflush _____________________________________________________
 

@@ -12,8 +12,8 @@
 	argstr = sprintf("%s, %s", key_str, msgflg_str)
 %)
 
-probe syscall.msgget = dw_syscall.msgget !, nd_syscall.msgget {}
-probe syscall.msgget.return = dw_syscall.msgget.return !, nd_syscall.msgget.return {}
+probe syscall.msgget = dw_syscall.msgget !, nd_syscall.msgget ? {}
+probe syscall.msgget.return = dw_syscall.msgget.return !, nd_syscall.msgget.return ? {}
 
 # dw_msgget _____________________________________________________
 

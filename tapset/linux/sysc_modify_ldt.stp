@@ -12,8 +12,9 @@
 	argstr = sprintf("%d, %p, %u", func, ptr_uaddr, bytecount)
 %)
 
-probe syscall.modify_ldt = dw_syscall.modify_ldt !, nd_syscall.modify_ldt {}
-probe syscall.modify_ldt.return = dw_syscall.modify_ldt.return !, nd_syscall.modify_ldt.return {}
+probe syscall.modify_ldt = dw_syscall.modify_ldt !, nd_syscall.modify_ldt ? {}
+probe syscall.modify_ldt.return = dw_syscall.modify_ldt.return !,
+                                  nd_syscall.modify_ldt.return ? {}
 
 # dw_modify_ldt _____________________________________________________
 

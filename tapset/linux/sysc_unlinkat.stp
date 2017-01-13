@@ -13,8 +13,9 @@
 	argstr = sprintf("%s, %s, %s", dfd_str, pathname_str, flag_str)
 %)
 
-probe syscall.unlinkat = dw_syscall.unlinkat !, nd_syscall.unlinkat {}
-probe syscall.unlinkat.return = dw_syscall.unlinkat.return !, nd_syscall.unlinkat.return {}
+probe syscall.unlinkat = dw_syscall.unlinkat !, nd_syscall.unlinkat ? {}
+probe syscall.unlinkat.return = dw_syscall.unlinkat.return !,
+                                nd_syscall.unlinkat.return ? {}
 
 # dw_unlinkat _____________________________________________________
 

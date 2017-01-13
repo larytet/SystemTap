@@ -13,8 +13,10 @@
 	argstr = sprintf("%s, %s", tv_str, tz_str)
 %)
 
-probe syscall.settimeofday32 = dw_syscall.settimeofday32 !, nd_syscall.settimeofday32 {}
-probe syscall.settimeofday32.return = dw_syscall.settimeofday32.return !, nd_syscall.settimeofday32.return {}
+probe syscall.settimeofday32 = dw_syscall.settimeofday32 !,
+                               nd_syscall.settimeofday32 ? {}
+probe syscall.settimeofday32.return = dw_syscall.settimeofday32.return !,
+                                      nd_syscall.settimeofday32.return ? {}
 
 # dw_settimeofday32 _____________________________________________________
 

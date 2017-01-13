@@ -15,9 +15,9 @@
 	argstr = sprintf("%s, %p, %p", how_str, set_uaddr, oldset_uaddr)
 %)
 
-probe syscall.sigprocmask = dw_syscall.sigprocmask !, nd_syscall.sigprocmask {}
+probe syscall.sigprocmask = dw_syscall.sigprocmask !, nd_syscall.sigprocmask ? {}
 probe syscall.sigprocmask.return = dw_syscall.sigprocmask.return !,
-                                   nd_syscall.sigprocmask.return {}
+                                   nd_syscall.sigprocmask.return ? {}
 
 # dw_sigprocmask _____________________________________________________
 

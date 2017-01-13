@@ -11,8 +11,8 @@
 	argstr = sprintf("%d, %s", filedes, name_str)
 %)
 
-probe syscall.fremovexattr = dw_syscall.fremovexattr !, nd_syscall.fremovexattr {}
-probe syscall.fremovexattr.return = dw_syscall.fremovexattr.return !, nd_syscall.fremovexattr.return {}
+probe syscall.fremovexattr = dw_syscall.fremovexattr !, nd_syscall.fremovexattr ? {}
+probe syscall.fremovexattr.return = dw_syscall.fremovexattr.return !, nd_syscall.fremovexattr.return ? {}
 
 # dw_fremovexattr _____________________________________________________
 

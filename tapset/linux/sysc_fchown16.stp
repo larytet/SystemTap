@@ -11,8 +11,8 @@
 	argstr = sprintf("%d, %d, %d", fd, owner, group)
 %)
 
-probe syscall.fchown16 = dw_syscall.fchown16 !, nd_syscall.fchown16 {}
-probe syscall.fchown16.return = dw_syscall.fchown16.return !, nd_syscall.fchown16.return {}
+probe syscall.fchown16 = dw_syscall.fchown16 !, nd_syscall.fchown16 ? {}
+probe syscall.fchown16.return = dw_syscall.fchown16.return !, nd_syscall.fchown16.return ? {}
 
 # dw_fchown16 _____________________________________________________
 

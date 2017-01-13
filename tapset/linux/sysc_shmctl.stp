@@ -15,9 +15,9 @@
 	argstr = sprintf("%d, %s, %p", shmid, cmd_str, buf_uaddr)
 %)
 
-probe syscall.shmctl = dw_syscall.shmctl !, nd_syscall.shmctl {}
+probe syscall.shmctl = dw_syscall.shmctl !, nd_syscall.shmctl ? {}
 probe syscall.shmctl.return = dw_syscall.shmctl.return !,
-                              nd_syscall.shmctl.return {}
+                              nd_syscall.shmctl.return ? {}
 
 # dw_shmctl _____________________________________________________
 

@@ -13,9 +13,9 @@
 	argstr = sprintf("%d, %s", s, how_str)
 %)
 
-probe syscall.shutdown = dw_syscall.shutdown !, nd_syscall.shutdown {}
+probe syscall.shutdown = dw_syscall.shutdown !, nd_syscall.shutdown ? {}
 probe syscall.shutdown.return = dw_syscall.shutdown.return !,
-                                nd_syscall.shutdown.return {}
+                                nd_syscall.shutdown.return ? {}
 
 # dw_shutdown _____________________________________________________
 

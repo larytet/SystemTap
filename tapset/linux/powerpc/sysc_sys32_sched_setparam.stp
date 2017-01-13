@@ -15,9 +15,9 @@
 %)
 
 probe syscall.sys32_sched_setparam = dw_syscall.sys32_sched_setparam !,
-                                     nd_syscall.sys32_sched_setparam {}
+                                     nd_syscall.sys32_sched_setparam ? {}
 probe syscall.sys32_sched_setparam.return = dw_syscall.sys32_sched_setparam.return !,
-                                            nd_syscall.sys32_sched_setparam.return {}
+                                            nd_syscall.sys32_sched_setparam.return ? {}
 
 # dw_sys32_sched_setparam _____________________________________________________
 

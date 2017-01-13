@@ -11,8 +11,8 @@
 	argstr = sprint(fd)
 %)
 
-probe syscall.fdatasync = dw_syscall.fdatasync !, nd_syscall.fdatasync {}
-probe syscall.fdatasync.return = dw_syscall.fdatasync.return !, nd_syscall.fdatasync.return {}
+probe syscall.fdatasync = dw_syscall.fdatasync !, nd_syscall.fdatasync ? {}
+probe syscall.fdatasync.return = dw_syscall.fdatasync.return !, nd_syscall.fdatasync.return ? {}
 
 # dw_fdatasync _____________________________________________________
 

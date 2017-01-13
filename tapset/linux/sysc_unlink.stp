@@ -12,9 +12,9 @@
 	argstr = pathname
 %)
 
-probe syscall.unlink = dw_syscall.unlink !, nd_syscall.unlink {}
+probe syscall.unlink = dw_syscall.unlink !, nd_syscall.unlink ? {}
 probe syscall.unlink.return = dw_syscall.unlink.return !,
-                              nd_syscall.unlink.return {}
+                              nd_syscall.unlink.return ? {}
 
 # dw_unlink _____________________________________________________
 

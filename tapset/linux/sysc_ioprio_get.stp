@@ -12,8 +12,9 @@
 	argstr = sprintf("%s, %d", which_str, who)
 %)
 
-probe syscall.ioprio_get = dw_syscall.ioprio_get !, nd_syscall.ioprio_get {}
-probe syscall.ioprio_get.return = dw_syscall.ioprio_get.return !, nd_syscall.ioprio_get.return {}
+probe syscall.ioprio_get = dw_syscall.ioprio_get !, nd_syscall.ioprio_get ? {}
+probe syscall.ioprio_get.return = dw_syscall.ioprio_get.return !,
+                                  nd_syscall.ioprio_get.return ? {}
 
 # dw_ioprio_get _____________________________________________________
 

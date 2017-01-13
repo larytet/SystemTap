@@ -11,8 +11,8 @@
 	argstr = sprintf("%s, %d, %d", path, owner, group)
 %)
 
-probe syscall.chown = dw_syscall.chown !, nd_syscall.chown {}
-probe syscall.chown.return = dw_syscall.chown.return !, nd_syscall.chown.return {}
+probe syscall.chown = dw_syscall.chown !, nd_syscall.chown ? {}
+probe syscall.chown.return = dw_syscall.chown.return !, nd_syscall.chown.return ? {}
 
 # dw_chown _____________________________________________________
 

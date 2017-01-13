@@ -14,8 +14,8 @@
 	argstr = pathname
 %)
 
-probe syscall.rmdir = dw_syscall.rmdir !, nd_syscall.rmdir {}
-probe syscall.rmdir.return = dw_syscall.rmdir.return !, nd_syscall.rmdir.return {}
+probe syscall.rmdir = dw_syscall.rmdir !, nd_syscall.rmdir ? {}
+probe syscall.rmdir.return = dw_syscall.rmdir.return !, nd_syscall.rmdir.return ? {}
 
 # dw_rmdir _____________________________________________________
 

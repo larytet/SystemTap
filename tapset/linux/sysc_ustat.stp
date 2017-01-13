@@ -12,8 +12,8 @@
 	argstr = sprintf("%u, %p", dev, ubuf_uaddr)
 %)
 
-probe syscall.ustat = dw_syscall.ustat !, nd_syscall.ustat {}
-probe syscall.ustat.return = dw_syscall.ustat.return !, nd_syscall.ustat.return {}
+probe syscall.ustat = dw_syscall.ustat !, nd_syscall.ustat ? {}
+probe syscall.ustat.return = dw_syscall.ustat.return !, nd_syscall.ustat.return ? {}
 
 # dw_ustat _____________________________________________________
 

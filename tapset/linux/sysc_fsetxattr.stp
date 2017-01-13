@@ -19,8 +19,8 @@
 	                 size, flags_str)
 %)
 
-probe syscall.fsetxattr = dw_syscall.fsetxattr !, nd_syscall.fsetxattr {}
-probe syscall.fsetxattr.return = dw_syscall.fsetxattr.return !, nd_syscall.fsetxattr.return {}
+probe syscall.fsetxattr = dw_syscall.fsetxattr !, nd_syscall.fsetxattr ? {}
+probe syscall.fsetxattr.return = dw_syscall.fsetxattr.return !, nd_syscall.fsetxattr.return ? {}
 
 # dw_fsetxattr _____________________________________________________
 

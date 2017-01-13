@@ -13,8 +13,8 @@
 	argstr = sprintf("%d, %u, %p", fd, sz, buf_uaddr)
 %)
 
-probe syscall.fstatfs64 = dw_syscall.fstatfs64 !, nd_syscall.fstatfs64 {}
-probe syscall.fstatfs64.return = dw_syscall.fstatfs64.return !, nd_syscall.fstatfs64.return {}
+probe syscall.fstatfs64 = dw_syscall.fstatfs64 !, nd_syscall.fstatfs64 ? {}
+probe syscall.fstatfs64.return = dw_syscall.fstatfs64.return !, nd_syscall.fstatfs64.return ? {}
 
 # dw_fstatfs64 _____________________________________________________
 

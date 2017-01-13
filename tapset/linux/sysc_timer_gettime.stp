@@ -17,9 +17,9 @@
 %)
 
 probe syscall.timer_gettime = dw_syscall.timer_gettime !,
-                              nd_syscall.timer_gettime {}
+                              nd_syscall.timer_gettime ? {}
 probe syscall.timer_gettime.return = dw_syscall.timer_gettime.return !,
-                                     nd_syscall.timer_gettime.return {}
+                                     nd_syscall.timer_gettime.return ? {}
 
 # dw_timer_gettime _____________________________________________________
 

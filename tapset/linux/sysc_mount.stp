@@ -21,8 +21,8 @@
 	                 source, target, filesystemtype, mountflags_str, data)
 %)
 
-probe syscall.mount = dw_syscall.mount !, nd_syscall.mount {}
-probe syscall.mount.return = dw_syscall.mount.return !, nd_syscall.mount.return {}
+probe syscall.mount = dw_syscall.mount !, nd_syscall.mount ? {}
+probe syscall.mount.return = dw_syscall.mount.return !, nd_syscall.mount.return ? {}
 
 # dw_mount _____________________________________________________
 

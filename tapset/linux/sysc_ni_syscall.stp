@@ -14,7 +14,8 @@
 %)
 
 probe syscall.ni_syscall = dw_syscall.ni_syscall !, nd_syscall.ni_syscall {}
-probe syscall.ni_syscall.return = dw_syscall.ni_syscall.return !, nd_syscall.ni_syscall.return {}
+probe syscall.ni_syscall.return = dw_syscall.ni_syscall.return !,
+                                  nd_syscall.ni_syscall.return {}
 
 # dw_ni_syscall _____________________________________________________
 

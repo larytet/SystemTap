@@ -13,8 +13,10 @@
 	argstr = ""
 %)
 
-probe syscall.vm86_warning = dw_syscall.vm86_warning !, nd_syscall.vm86_warning {}
-probe syscall.vm86_warning.return = dw_syscall.vm86_warning.return !, nd_syscall.vm86_warning.return {}
+probe syscall.vm86_warning = dw_syscall.vm86_warning !,
+                             nd_syscall.vm86_warning ? {}
+probe syscall.vm86_warning.return = dw_syscall.vm86_warning.return !,
+                                    nd_syscall.vm86_warning.return ? {}
 
 # dw_vm86_warning _____________________________________________________
 

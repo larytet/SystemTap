@@ -13,8 +13,8 @@
 	argstr = sprintf("%d, %p, %s", shmid, shmaddr_uaddr, shmflg_str)
 %)
 
-probe syscall.shmat = dw_syscall.shmat !, nd_syscall.shmat {}
-probe syscall.shmat.return = dw_syscall.shmat.return !, nd_syscall.shmat.return {}
+probe syscall.shmat = dw_syscall.shmat !, nd_syscall.shmat ? {}
+probe syscall.shmat.return = dw_syscall.shmat.return !, nd_syscall.shmat.return ? {}
 
 # dw_shmat _____________________________________________________
 

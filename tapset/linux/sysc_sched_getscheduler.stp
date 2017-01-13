@@ -13,8 +13,10 @@
 	argstr = sprint(pid)
 %)
 
-probe syscall.sched_getscheduler = dw_syscall.sched_getscheduler !, nd_syscall.sched_getscheduler {}
-probe syscall.sched_getscheduler.return = dw_syscall.sched_getscheduler.return !, nd_syscall.sched_getscheduler.return {}
+probe syscall.sched_getscheduler = dw_syscall.sched_getscheduler !,
+                                   nd_syscall.sched_getscheduler ? {}
+probe syscall.sched_getscheduler.return = dw_syscall.sched_getscheduler.return !,
+                                          nd_syscall.sched_getscheduler.return ? {}
 
 # dw_sched_getscheduler _____________________________________________________
 

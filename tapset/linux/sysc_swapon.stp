@@ -15,8 +15,9 @@
 	argstr = sprintf("%s, %s", path, swapflags_str)
 %)
 
-probe syscall.swapon = dw_syscall.swapon !, nd_syscall.swapon {}
-probe syscall.swapon.return = dw_syscall.swapon.return !, nd_syscall.swapon.return {}
+probe syscall.swapon = dw_syscall.swapon !, nd_syscall.swapon ? {}
+probe syscall.swapon.return = dw_syscall.swapon.return !,
+                              nd_syscall.swapon.return ? {}
 
 # dw_swapon _____________________________________________________
 

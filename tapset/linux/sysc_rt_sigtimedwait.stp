@@ -19,8 +19,10 @@
 	argstr = sprintf("%s, %s, %s, %d", uthese_str, uinfo_str, uts_str, sigsetsize)
 %)
 
-probe syscall.rt_sigtimedwait = dw_syscall.rt_sigtimedwait !, nd_syscall.rt_sigtimedwait {}
-probe syscall.rt_sigtimedwait.return = dw_syscall.rt_sigtimedwait.return !, nd_syscall.rt_sigtimedwait.return {}
+probe syscall.rt_sigtimedwait = dw_syscall.rt_sigtimedwait !,
+                                nd_syscall.rt_sigtimedwait ? {}
+probe syscall.rt_sigtimedwait.return = dw_syscall.rt_sigtimedwait.return !,
+                                       nd_syscall.rt_sigtimedwait.return ? {}
 
 # dw_rt_sigtimedwait _____________________________________________________
 

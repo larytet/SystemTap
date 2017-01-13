@@ -22,8 +22,8 @@
 	argstr = sprintf("%p, %p", header_uaddr, data_uaddr)
 %)
 
-probe syscall.capget = dw_syscall.capget !, nd_syscall.capget {}
-probe syscall.capget.return = dw_syscall.capget.return !, nd_syscall.capget.return {}
+probe syscall.capget = dw_syscall.capget !, nd_syscall.capget ? {}
+probe syscall.capget.return = dw_syscall.capget.return !, nd_syscall.capget.return ? {}
 
 # dw_capget _____________________________________________________
 

@@ -11,8 +11,8 @@
 	argstr = filename
 %)
 
-probe syscall.acct = dw_syscall.acct !, nd_syscall.acct {}
-probe syscall.acct.return = dw_syscall.acct.return !, nd_syscall.acct.return {}
+probe syscall.acct = dw_syscall.acct !, nd_syscall.acct ? {}
+probe syscall.acct.return = dw_syscall.acct.return !, nd_syscall.acct.return ? {}
 
 # dw_acct _____________________________________________________
 

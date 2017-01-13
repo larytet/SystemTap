@@ -15,9 +15,9 @@
 %)
 
 probe syscall.compat_readahead = dw_syscall.compat_readahead !,
-                                 nd_syscall.compat_readahead {}
+                                 nd_syscall.compat_readahead ? {}
 probe syscall.compat_readahead.return = dw_syscall.compat_readahead.return !,
-                                        nd_syscall.compat_readahead.return {}
+                                        nd_syscall.compat_readahead.return ? {}
 
 # dw_compat_readahead _____________________________________________________
 

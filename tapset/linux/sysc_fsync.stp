@@ -11,8 +11,8 @@
 	argstr = sprint(fd)
 %)
 
-probe syscall.fsync = dw_syscall.fsync !, nd_syscall.fsync {}
-probe syscall.fsync.return = dw_syscall.fsync.return !, nd_syscall.fsync.return {}
+probe syscall.fsync = dw_syscall.fsync !, nd_syscall.fsync ? {}
+probe syscall.fsync.return = dw_syscall.fsync.return !, nd_syscall.fsync.return ? {}
 
 # dw_fsync _____________________________________________________
 

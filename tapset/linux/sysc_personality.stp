@@ -16,8 +16,9 @@
 	argstr = sprintf("%#x", persona);
 %)
 
-probe syscall.personality = dw_syscall.personality !, nd_syscall.personality {}
-probe syscall.personality.return = dw_syscall.personality.return !, nd_syscall.personality.return {}
+probe syscall.personality = dw_syscall.personality !, nd_syscall.personality ? {}
+probe syscall.personality.return = dw_syscall.personality.return !,
+                                   nd_syscall.personality.return ? {}
 
 # dw_personality _____________________________________________________
 

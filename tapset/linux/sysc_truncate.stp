@@ -16,9 +16,9 @@
 	argstr = sprintf("%s, %d", path, length)
 %)
 
-probe syscall.truncate = dw_syscall.truncate !, nd_syscall.truncate {}
+probe syscall.truncate = dw_syscall.truncate !, nd_syscall.truncate ? {}
 probe syscall.truncate.return = dw_syscall.truncate.return !,
-                                nd_syscall.truncate.return {}
+                                nd_syscall.truncate.return ? {}
 
 # dw_truncate _____________________________________________________
 

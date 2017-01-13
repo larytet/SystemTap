@@ -13,8 +13,8 @@
 	argstr = sprintf("%d, %p, %p", s, name_uaddr, namelen_uaddr)
 %)
 
-probe syscall.getpeername = dw_syscall.getpeername !, nd_syscall.getpeername {}
-probe syscall.getpeername.return = dw_syscall.getpeername.return !, nd_syscall.getpeername.return {}
+probe syscall.getpeername = dw_syscall.getpeername !, nd_syscall.getpeername ? {}
+probe syscall.getpeername.return = dw_syscall.getpeername.return !, nd_syscall.getpeername.return ? {}
 
 # dw_getpeername _____________________________________________________
 

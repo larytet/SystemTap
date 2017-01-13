@@ -20,8 +20,8 @@
 	                 plen, ringid)
 %)
 
-probe syscall.add_key = dw_syscall.add_key !, nd_syscall.add_key {}
-probe syscall.add_key.return = dw_syscall.add_key.return !, nd_syscall.add_key.return {}
+probe syscall.add_key = dw_syscall.add_key !, nd_syscall.add_key ? {}
+probe syscall.add_key.return = dw_syscall.add_key.return !, nd_syscall.add_key.return ? {}
 
 # dw_add_key _____________________________________________________
 

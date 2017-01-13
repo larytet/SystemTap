@@ -12,8 +12,9 @@
 	argstr = ""
 %)
 
-probe syscall.rt_sigreturn = dw_syscall.rt_sigreturn !, nd_syscall.rt_sigreturn {}
-probe syscall.rt_sigreturn.return = dw_syscall.rt_sigreturn.return !, nd_syscall.rt_sigreturn.return {}
+probe syscall.rt_sigreturn = dw_syscall.rt_sigreturn !, nd_syscall.rt_sigreturn ? {}
+probe syscall.rt_sigreturn.return = dw_syscall.rt_sigreturn.return !,
+                                    nd_syscall.rt_sigreturn.return ? {}
 
 # dw_rt_sigreturn _____________________________________________________
 

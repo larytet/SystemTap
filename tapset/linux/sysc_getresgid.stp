@@ -16,8 +16,9 @@
 	argstr = sprintf("%p, %p, %p", rgid_uaddr, egid_uaddr, sgid_uaddr)
 %)
 
-probe syscall.getresgid = dw_syscall.getresgid !, nd_syscall.getresgid {}
-probe syscall.getresgid.return = dw_syscall.getresgid.return !, nd_syscall.getresgid.return {}
+probe syscall.getresgid = dw_syscall.getresgid !, nd_syscall.getresgid ? {}
+probe syscall.getresgid.return = dw_syscall.getresgid.return !,
+                                 nd_syscall.getresgid.return ? {}
 
 # dw_getresgid _____________________________________________________
 

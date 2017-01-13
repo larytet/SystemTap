@@ -13,8 +13,8 @@
 	argstr = sprintf("%p", tloc)
 %)
 
-probe syscall.sys64_time = dw_syscall.sys64_time !, nd_syscall.sys64_time {}
-probe syscall.sys64_time.return = dw_syscall.sys64_time.return !, nd_syscall.sys64_time.return {}
+probe syscall.sys64_time = dw_syscall.sys64_time !, nd_syscall.sys64_time ? {}
+probe syscall.sys64_time.return = dw_syscall.sys64_time.return !, nd_syscall.sys64_time.return ? {}
 
 # dw_sys64_time _____________________________________________________
 

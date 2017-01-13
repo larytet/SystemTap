@@ -11,8 +11,8 @@
 	argstr = ""
 %)
 
-probe syscall.getpid = dw_syscall.getpid !, nd_syscall.getpid {}
-probe syscall.getpid.return = dw_syscall.getpid.return !, nd_syscall.getpid.return {}
+probe syscall.getpid = dw_syscall.getpid !, nd_syscall.getpid ? {}
+probe syscall.getpid.return = dw_syscall.getpid.return !, nd_syscall.getpid.return ? {}
 
 # dw_getpid _____________________________________________________
 

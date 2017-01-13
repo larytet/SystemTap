@@ -8,8 +8,8 @@
 	name = "pipe"
 %)
 
-probe syscall.pipe32 = dw_syscall.pipe32 !, nd_syscall.pipe32 {}
-probe syscall.pipe32.return = dw_syscall.pipe32.return !, nd_syscall.pipe32.return {}
+probe syscall.pipe32 = dw_syscall.pipe32 !, nd_syscall.pipe32 ? {}
+probe syscall.pipe32.return = dw_syscall.pipe32.return !, nd_syscall.pipe32.return ? {}
 
 # dw_pipe32 _____________________________________________________
 

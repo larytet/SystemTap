@@ -17,8 +17,8 @@
 	argstr = sprintf("%p", name_uaddr)
 %)
 
-probe syscall.uname = dw_syscall.uname !, nd_syscall.uname {}
-probe syscall.uname.return = dw_syscall.uname.return !, nd_syscall.uname.return {}
+probe syscall.uname = dw_syscall.uname !, nd_syscall.uname ? {}
+probe syscall.uname.return = dw_syscall.uname.return !, nd_syscall.uname.return ? {}
 
 # dw_uname _____________________________________________________
 

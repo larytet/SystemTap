@@ -15,8 +15,9 @@
 	argstr = sprintf("%s, %s", oldpath, newpath)
 %)
 
-probe syscall.rename = dw_syscall.rename !, nd_syscall.rename {}
-probe syscall.rename.return = dw_syscall.rename.return !, nd_syscall.rename.return {}
+probe syscall.rename = dw_syscall.rename !, nd_syscall.rename ? {}
+probe syscall.rename.return = dw_syscall.rename.return !,
+                              nd_syscall.rename.return ? {}
 
 # dw_rename _____________________________________________________
 

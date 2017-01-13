@@ -13,8 +13,8 @@
 	argstr = sprintf("%u, %p", maxevents, ctxp_uaddr)
 %)
 
-probe syscall.io_setup = dw_syscall.io_setup !, nd_syscall.io_setup {}
-probe syscall.io_setup.return = dw_syscall.io_setup.return !, nd_syscall.io_setup.return {}
+probe syscall.io_setup = dw_syscall.io_setup !, nd_syscall.io_setup ? {}
+probe syscall.io_setup.return = dw_syscall.io_setup.return !, nd_syscall.io_setup.return ? {}
 
 # dw_io_setup _____________________________________________________
 

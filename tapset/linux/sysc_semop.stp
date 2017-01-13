@@ -15,8 +15,9 @@
 	argstr = sprintf("%d, %p, %u", semid, sops_uaddr, nsops)
 %)
 
-probe syscall.semop = dw_syscall.semop !, nd_syscall.semop {}
-probe syscall.semop.return = dw_syscall.semop.return !, nd_syscall.semop.return {}
+probe syscall.semop = dw_syscall.semop !, nd_syscall.semop ? {}
+probe syscall.semop.return = dw_syscall.semop.return !,
+                             nd_syscall.semop.return ? {}
 
 # dw_semop _____________________________________________________
 

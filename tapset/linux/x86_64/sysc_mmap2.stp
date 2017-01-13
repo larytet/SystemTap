@@ -18,8 +18,8 @@
 	                 prot_str, flags_str, fd, pgoffset)
 %)
 
-probe syscall.mmap2 = dw_syscall.mmap2 !, nd_syscall.mmap2 {}
-probe syscall.mmap2.return = dw_syscall.mmap2.return !, nd_syscall.mmap2.return {}
+probe syscall.mmap2 = dw_syscall.mmap2 !, nd_syscall.mmap2 ? {}
+probe syscall.mmap2.return = dw_syscall.mmap2.return !, nd_syscall.mmap2.return ? {}
 
 # dw_mmap2 _____________________________________________________
 

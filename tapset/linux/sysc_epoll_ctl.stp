@@ -15,8 +15,8 @@
 	argstr = sprintf("%d, %s, %d, %p", epfd, op_str, fd, event_uaddr)
 %)
 
-probe syscall.epoll_ctl = dw_syscall.epoll_ctl !, nd_syscall.epoll_ctl {}
-probe syscall.epoll_ctl.return = dw_syscall.epoll_ctl.return !, nd_syscall.epoll_ctl.return {}
+probe syscall.epoll_ctl = dw_syscall.epoll_ctl !, nd_syscall.epoll_ctl ? {}
+probe syscall.epoll_ctl.return = dw_syscall.epoll_ctl.return !, nd_syscall.epoll_ctl.return ? {}
 
 # dw_epoll_ctl _____________________________________________________
 

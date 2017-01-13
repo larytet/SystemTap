@@ -14,8 +14,10 @@
 	argstr = sprintf("%s, %p", who_str, usage_uaddr)
 %)
 
-probe syscall.getrusage = dw_syscall.getrusage !, nd_syscall.getrusage {}
-probe syscall.getrusage.return = dw_syscall.getrusage.return !, nd_syscall.getrusage.return {}
+probe syscall.getrusage = dw_syscall.getrusage !,
+                          nd_syscall.getrusage ? {}
+probe syscall.getrusage.return = dw_syscall.getrusage.return !,
+                                 nd_syscall.getrusage.return ? {}
 
 # dw_getrusage _____________________________________________________
 

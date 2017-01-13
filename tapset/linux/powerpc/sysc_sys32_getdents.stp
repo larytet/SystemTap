@@ -16,9 +16,9 @@
 %)
 
 probe syscall.sys32_getdents = dw_syscall.sys32_getdents !,
-                               nd_syscall.sys32_getdents {}
+                               nd_syscall.sys32_getdents ? {}
 probe syscall.sys32_getdents.return = dw_syscall.sys32_getdents.return !,
-                                      nd_syscall.sys32_getdents.return {}
+                                      nd_syscall.sys32_getdents.return ? {}
 
 # dw_sys32_getdents _____________________________________________________
 

@@ -14,8 +14,9 @@
 	argstr = sprint(gid)
 %)
 
-probe syscall.setgid = dw_syscall.setgid !, nd_syscall.setgid {}
-probe syscall.setgid.return = dw_syscall.setgid.return !, nd_syscall.setgid.return {}
+probe syscall.setgid = dw_syscall.setgid !, nd_syscall.setgid ? {}
+probe syscall.setgid.return = dw_syscall.setgid.return !,
+                              nd_syscall.setgid.return ? {}
 
 # dw_setgid _____________________________________________________
 

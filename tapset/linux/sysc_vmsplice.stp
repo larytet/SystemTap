@@ -16,8 +16,9 @@
 	argstr = sprintf("%d, %p, %u, %s", fd, iov, nr_segs, flags_str)
 %)
 
-probe syscall.vmsplice = dw_syscall.vmsplice !, nd_syscall.vmsplice {}
-probe syscall.vmsplice.return = dw_syscall.vmsplice.return !, nd_syscall.vmsplice.return {}
+probe syscall.vmsplice = dw_syscall.vmsplice !, nd_syscall.vmsplice ? {}
+probe syscall.vmsplice.return = dw_syscall.vmsplice.return !,
+                                nd_syscall.vmsplice.return ? {}
 
 # dw_vmsplice _____________________________________________________
 

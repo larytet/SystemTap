@@ -23,8 +23,8 @@
 	                 nodes, status, flags_str)
 %)
 
-probe syscall.move_pages = dw_syscall.move_pages !, nd_syscall.move_pages {}
-probe syscall.move_pages.return = dw_syscall.move_pages.return !, nd_syscall.move_pages.return {}
+probe syscall.move_pages = dw_syscall.move_pages !, nd_syscall.move_pages ? {}
+probe syscall.move_pages.return = dw_syscall.move_pages.return !, nd_syscall.move_pages.return ? {}
 
 # dw_move_pages _____________________________________________________
 

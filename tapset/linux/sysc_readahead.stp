@@ -16,8 +16,9 @@
 	argstr = sprintf("%d, %d, %u", fd, offset, count)
 %)
 
-probe syscall.readahead = dw_syscall.readahead !, nd_syscall.readahead {}
-probe syscall.readahead.return = dw_syscall.readahead.return !, nd_syscall.readahead.return {}
+probe syscall.readahead = dw_syscall.readahead !, nd_syscall.readahead ? {}
+probe syscall.readahead.return = dw_syscall.readahead.return !,
+                                 nd_syscall.readahead.return ? {}
 
 # dw_readahead _____________________________________________________
 

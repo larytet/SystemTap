@@ -18,8 +18,8 @@
 	argstr = _prctl_argstr(option, arg2, arg3, arg4, arg5)
 %)
 
-probe syscall.prctl = dw_syscall.prctl !, nd_syscall.prctl {}
-probe syscall.prctl.return = dw_syscall.prctl.return !, nd_syscall.prctl.return {}
+probe syscall.prctl = dw_syscall.prctl !, nd_syscall.prctl ? {}
+probe syscall.prctl.return = dw_syscall.prctl.return !, nd_syscall.prctl.return ? {}
 
 # dw_prctl _____________________________________________________
 

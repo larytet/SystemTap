@@ -27,9 +27,9 @@
 	argstr = sprintf("%s, %p", uss_str, uoss_uaddr)
 %)
 
-probe syscall.sigaltstack = dw_syscall.sigaltstack !, nd_syscall.sigaltstack {}
+probe syscall.sigaltstack = dw_syscall.sigaltstack !, nd_syscall.sigaltstack ? {}
 probe syscall.sigaltstack.return = dw_syscall.sigaltstack.return !,
-                                   nd_syscall.sigaltstack.return {}
+                                   nd_syscall.sigaltstack.return ? {}
 
 # dw_sigaltstack _____________________________________________________
 

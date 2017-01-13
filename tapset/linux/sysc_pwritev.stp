@@ -16,8 +16,9 @@
 	argstr = sprintf("%d, %p, %d, 0x%x", fd, vector_uaddr, count, offset)
 %)
 
-probe syscall.pwritev = dw_syscall.pwritev !, nd_syscall.pwritev {}
-probe syscall.pwritev.return = dw_syscall.pwritev.return !, nd_syscall.pwritev.return {}
+probe syscall.pwritev = dw_syscall.pwritev !, nd_syscall.pwritev ? {}
+probe syscall.pwritev.return = dw_syscall.pwritev.return !,
+                               nd_syscall.pwritev.return ? {}
 
 # dw_pwritev _____________________________________________________
 

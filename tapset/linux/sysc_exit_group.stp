@@ -15,8 +15,8 @@
 	argstr = sprint(status)
 %)
 
-probe syscall.exit_group = dw_syscall.exit_group !, nd_syscall.exit_group {}
-probe syscall.exit_group.return = dw_syscall.exit_group.return !, nd_syscall.exit_group.return {}
+probe syscall.exit_group = dw_syscall.exit_group !, nd_syscall.exit_group ? {}
+probe syscall.exit_group.return = dw_syscall.exit_group.return !, nd_syscall.exit_group.return ? {}
 
 # dw_exit_group _____________________________________________________
 

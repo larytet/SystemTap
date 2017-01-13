@@ -17,8 +17,9 @@
 	                 size, flags_str)
 %)
 
-probe syscall.lsetxattr = dw_syscall.lsetxattr !, nd_syscall.lsetxattr {}
-probe syscall.lsetxattr.return = dw_syscall.lsetxattr.return !, nd_syscall.lsetxattr.return {}
+probe syscall.lsetxattr = dw_syscall.lsetxattr !, nd_syscall.lsetxattr ? {}
+probe syscall.lsetxattr.return = dw_syscall.lsetxattr.return !,
+                                 nd_syscall.lsetxattr.return ? {}
 
 # dw_lsetxattr _____________________________________________________
 

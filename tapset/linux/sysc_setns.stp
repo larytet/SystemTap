@@ -11,8 +11,8 @@
 	argstr = sprintf("%d, %s", fd, nstype_str);
 %)
 
-probe syscall.setns = dw_syscall.setns !, nd_syscall.setns {}
-probe syscall.setns.return = dw_syscall.setns.return !, nd_syscall.setns.return {}
+probe syscall.setns = dw_syscall.setns !, nd_syscall.setns ? {}
+probe syscall.setns.return = dw_syscall.setns.return !, nd_syscall.setns.return ? {}
 
 # dw_setns _____________________________________________________
 

@@ -13,7 +13,8 @@
 %)
 
 probe syscall.sched_yield = dw_syscall.sched_yield !, nd_syscall.sched_yield {}
-probe syscall.sched_yield.return = dw_syscall.sched_yield.return !, nd_syscall.sched_yield.return {}
+probe syscall.sched_yield.return = dw_syscall.sched_yield.return !,
+                                   nd_syscall.sched_yield.return {}
 
 # dw_sched_yield _____________________________________________________
 

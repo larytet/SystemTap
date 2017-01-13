@@ -12,9 +12,9 @@
 	argstr = unshare_flags_str
 %)
 
-probe syscall.unshare = dw_syscall.unshare !, nd_syscall.unshare {}
+probe syscall.unshare = dw_syscall.unshare !, nd_syscall.unshare ? {}
 probe syscall.unshare.return = dw_syscall.unshare.return !,
-                               nd_syscall.unshare.return {}
+                               nd_syscall.unshare.return ? {}
 
 # dw_unshare _____________________________________________________
 

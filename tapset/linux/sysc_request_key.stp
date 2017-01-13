@@ -18,8 +18,9 @@
 	                 callout_info_uaddr, destringid)
 %)
 
-probe syscall.request_key = dw_syscall.request_key !, nd_syscall.request_key {}
-probe syscall.request_key.return = dw_syscall.request_key.return !, nd_syscall.request_key.return {}
+probe syscall.request_key = dw_syscall.request_key !, nd_syscall.request_key ? {}
+probe syscall.request_key.return = dw_syscall.request_key.return !,
+                                   nd_syscall.request_key.return ? {}
 
 # dw_request_key _____________________________________________________
 

@@ -15,8 +15,9 @@
 	argstr = sprintf("%s, %p, %d", path, buf_uaddr, bufsiz)
 %)
 
-probe syscall.readlink = dw_syscall.readlink !, nd_syscall.readlink {}
-probe syscall.readlink.return = dw_syscall.readlink.return !, nd_syscall.readlink.return {}
+probe syscall.readlink = dw_syscall.readlink !, nd_syscall.readlink ? {}
+probe syscall.readlink.return = dw_syscall.readlink.return !,
+                                nd_syscall.readlink.return ? {}
 
 # dw_readlink _____________________________________________________
 

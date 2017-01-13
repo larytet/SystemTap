@@ -16,7 +16,6 @@
 %)
 
 probe syscall.exit = dw_syscall.exit !, nd_syscall.exit {}
-probe syscall.exit.return = dw_syscall.exit.return !, nd_syscall.exit.return {}
 
 # dw_exit _____________________________________________________
 

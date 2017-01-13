@@ -11,8 +11,8 @@
 	argstr = sprintf("%s, %s", name_user, _module_flags_str(flags))
 %)
 
-probe syscall.delete_module = dw_syscall.delete_module !, nd_syscall.delete_module {}
-probe syscall.delete_module.return = dw_syscall.delete_module.return !, nd_syscall.delete_module.return {}
+probe syscall.delete_module = dw_syscall.delete_module !, nd_syscall.delete_module ? {}
+probe syscall.delete_module.return = dw_syscall.delete_module.return !, nd_syscall.delete_module.return ? {}
 
 # dw_delete_module _____________________________________________________
 

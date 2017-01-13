@@ -13,8 +13,9 @@
 	argstr = sprintf("%d, %p, %p", s, name_uaddr, namelen_uaddr)
 %)
 
-probe syscall.getsockname = dw_syscall.getsockname !, nd_syscall.getsockname {}
-probe syscall.getsockname.return = dw_syscall.getsockname.return !, nd_syscall.getsockname.return {}
+probe syscall.getsockname = dw_syscall.getsockname !, nd_syscall.getsockname ? {}
+probe syscall.getsockname.return = dw_syscall.getsockname.return !,
+                                   nd_syscall.getsockname.return ? {}
 
 # dw_getsockname _____________________________________________________
 

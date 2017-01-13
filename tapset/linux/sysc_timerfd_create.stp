@@ -13,9 +13,9 @@
 %)
 
 probe syscall.timerfd_create = dw_syscall.timerfd_create !,
-                               nd_syscall.timerfd_create {}
+                               nd_syscall.timerfd_create ? {}
 probe syscall.timerfd_create.return = dw_syscall.timerfd_create.return !,
-                                      nd_syscall.timerfd_create.return {}
+                                      nd_syscall.timerfd_create.return ? {}
 
 # dw_timerfd_create _____________________________________________________
 

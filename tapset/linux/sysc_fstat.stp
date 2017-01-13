@@ -18,8 +18,8 @@
 	argstr = sprintf("%d, %p", filedes, buf_uaddr)
 %)
 
-probe syscall.fstat = dw_syscall.fstat !, nd_syscall.fstat {}
-probe syscall.fstat.return = dw_syscall.fstat.return !, nd_syscall.fstat.return {}
+probe syscall.fstat = dw_syscall.fstat !, nd_syscall.fstat ? {}
+probe syscall.fstat.return = dw_syscall.fstat.return !, nd_syscall.fstat.return ? {}
 
 # dw_fstat _____________________________________________________
 

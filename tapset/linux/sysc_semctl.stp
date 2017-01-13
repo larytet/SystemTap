@@ -15,8 +15,9 @@
 	argstr = sprintf("%d, %d, %s, %p", semid, semnum, cmdstr, arg)
 %)
 
-probe syscall.semctl = dw_syscall.semctl !, nd_syscall.semctl {}
-probe syscall.semctl.return = dw_syscall.semctl.return !, nd_syscall.semctl.return {}
+probe syscall.semctl = dw_syscall.semctl !, nd_syscall.semctl ? {}
+probe syscall.semctl.return = dw_syscall.semctl.return !,
+                              nd_syscall.semctl.return ? {}
 
 # dw_semctl _____________________________________________________
 

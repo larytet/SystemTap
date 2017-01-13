@@ -13,8 +13,8 @@
 	argstr = sprintf("%u, %d, %p", ctx_id, nr, iocbpp_uaddr)
 %)
 
-probe syscall.io_submit = dw_syscall.io_submit !, nd_syscall.io_submit {}
-probe syscall.io_submit.return = dw_syscall.io_submit.return !, nd_syscall.io_submit.return {}
+probe syscall.io_submit = dw_syscall.io_submit !, nd_syscall.io_submit ? {}
+probe syscall.io_submit.return = dw_syscall.io_submit.return !, nd_syscall.io_submit.return ? {}
 
 # dw_io_submit _____________________________________________________
 

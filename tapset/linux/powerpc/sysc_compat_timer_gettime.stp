@@ -15,9 +15,9 @@
 %)
 
 probe syscall.compat_timer_gettime = dw_syscall.compat_timer_gettime !,
-                                     nd_syscall.compat_timer_gettime {}
+                                     nd_syscall.compat_timer_gettime ? {}
 probe syscall.compat_timer_gettime.return = dw_syscall.compat_timer_gettime.return !,
-                                            nd_syscall.compat_timer_gettime.return {}
+                                            nd_syscall.compat_timer_gettime.return ? {}
 
 # dw_compat_timer_gettime _____________________________________________________
 

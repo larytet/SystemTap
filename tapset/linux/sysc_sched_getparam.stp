@@ -15,8 +15,10 @@
 	argstr = sprintf("%d, %p", pid, p_uaddr)
 %)
 
-probe syscall.sched_getparam = dw_syscall.sched_getparam !, nd_syscall.sched_getparam {}
-probe syscall.sched_getparam.return = dw_syscall.sched_getparam.return !, nd_syscall.sched_getparam.return {}
+probe syscall.sched_getparam = dw_syscall.sched_getparam !,
+                               nd_syscall.sched_getparam ? {}
+probe syscall.sched_getparam.return = dw_syscall.sched_getparam.return !,
+                                      nd_syscall.sched_getparam.return ? {}
 
 # dw_sched_getparam _____________________________________________________
 

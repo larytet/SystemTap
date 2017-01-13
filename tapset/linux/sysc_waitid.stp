@@ -22,8 +22,9 @@
 	                 options_str, rusage_uaddr)
 %)
 
-probe syscall.waitid = dw_syscall.waitid !, nd_syscall.waitid {}
-probe syscall.waitid.return = dw_syscall.waitid.return !, nd_syscall.waitid.return {}
+probe syscall.waitid = dw_syscall.waitid !, nd_syscall.waitid ? {}
+probe syscall.waitid.return = dw_syscall.waitid.return !,
+                              nd_syscall.waitid.return ? {}
 
 # dw_waitid _____________________________________________________
 

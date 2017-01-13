@@ -11,8 +11,8 @@
 	argstr = sprintf("%s, %#o", pathname, mode)
 %)
 
-probe syscall.creat = dw_syscall.creat !, nd_syscall.creat {}
-probe syscall.creat.return = dw_syscall.creat.return !, nd_syscall.creat.return {}
+probe syscall.creat = dw_syscall.creat !, nd_syscall.creat ? {}
+probe syscall.creat.return = dw_syscall.creat.return !, nd_syscall.creat.return ? {}
 
 # dw_creat _____________________________________________________
 

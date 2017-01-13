@@ -14,7 +14,8 @@
 %)
 
 probe syscall.setsid = dw_syscall.setsid !, nd_syscall.setsid {}
-probe syscall.setsid.return = dw_syscall.setsid.return !, nd_syscall.setsid.return {}
+probe syscall.setsid.return = dw_syscall.setsid.return !,
+                              nd_syscall.setsid.return {}
 
 # dw_setsid _____________________________________________________
 

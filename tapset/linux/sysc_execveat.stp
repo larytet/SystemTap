@@ -17,8 +17,8 @@
 	                 env_str, flags_str)
 %)
 
-probe syscall.execveat = dw_syscall.execveat !, nd_syscall.execveat {}
-probe syscall.execveat.return = dw_syscall.execveat.return !, nd_syscall.execveat.return {}
+probe syscall.execveat = dw_syscall.execveat !, nd_syscall.execveat ? {}
+probe syscall.execveat.return = dw_syscall.execveat.return !, nd_syscall.execveat.return ? {}
 
 # dw_execveat _____________________________________________________
 

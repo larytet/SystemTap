@@ -15,8 +15,9 @@
 	                 exceptfds, timeout_str, sigmask)
 %)
 
-probe syscall.compat_pselect6 = dw_syscall.compat_pselect6 !, nd_syscall.compat_pselect6 {}
-probe syscall.compat_pselect6.return = dw_syscall.compat_pselect6.return !, nd_syscall.compat_pselect6.return {}
+probe syscall.compat_pselect6 = dw_syscall.compat_pselect6 !, nd_syscall.compat_pselect6 ? {}
+probe syscall.compat_pselect6.return = dw_syscall.compat_pselect6.return !,
+                                       nd_syscall.compat_pselect6.return ? {}
 
 # dw_compat_pselect6 _____________________________________________________
 

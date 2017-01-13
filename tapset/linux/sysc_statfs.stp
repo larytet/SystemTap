@@ -13,8 +13,9 @@
 	argstr = sprintf("%s, %p", path, buf_uaddr)
 %)
 
-probe syscall.statfs = dw_syscall.statfs !, nd_syscall.statfs {}
-probe syscall.statfs.return = dw_syscall.statfs.return !, nd_syscall.statfs.return {}
+probe syscall.statfs = dw_syscall.statfs !, nd_syscall.statfs ? {}
+probe syscall.statfs.return = dw_syscall.statfs.return !,
+                              nd_syscall.statfs.return ? {}
 
 # dw_statfs _____________________________________________________
 

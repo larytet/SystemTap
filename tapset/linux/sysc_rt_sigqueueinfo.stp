@@ -13,8 +13,10 @@
 	argstr = sprintf("%d, %s, %s", pid, sig_name, siginfo_str)
 %)
 
-probe syscall.rt_sigqueueinfo = dw_syscall.rt_sigqueueinfo !, nd_syscall.rt_sigqueueinfo {}
-probe syscall.rt_sigqueueinfo.return = dw_syscall.rt_sigqueueinfo.return !, nd_syscall.rt_sigqueueinfo.return {}
+probe syscall.rt_sigqueueinfo = dw_syscall.rt_sigqueueinfo !,
+                                nd_syscall.rt_sigqueueinfo ? {}
+probe syscall.rt_sigqueueinfo.return = dw_syscall.rt_sigqueueinfo.return !,
+                                       nd_syscall.rt_sigqueueinfo.return ? {}
 
 # dw_rt_sigqueueinfo _____________________________________________________
 

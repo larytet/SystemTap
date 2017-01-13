@@ -11,8 +11,9 @@
 	argstr = ""
 %)
 
-probe syscall.munlockall = dw_syscall.munlockall !, nd_syscall.munlockall {}
-probe syscall.munlockall.return = dw_syscall.munlockall.return !, nd_syscall.munlockall.return {}
+probe syscall.munlockall = dw_syscall.munlockall !, nd_syscall.munlockall ? {}
+probe syscall.munlockall.return = dw_syscall.munlockall.return !,
+                                  nd_syscall.munlockall.return ? {}
 
 # dw_munlockall _____________________________________________________
 

@@ -27,9 +27,9 @@
 %)
 
 probe syscall.sync_file_range = dw_syscall.sync_file_range !,
-                                nd_syscall.sync_file_range {}
+                                nd_syscall.sync_file_range ? {}
 probe syscall.sync_file_range.return = dw_syscall.sync_file_range.return !,
-                                nd_syscall.sync_file_range.return {}
+                                       nd_syscall.sync_file_range.return ? {}
 
 # dw_sync_file_range _____________________________________________________
 

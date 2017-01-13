@@ -14,8 +14,9 @@
 	                 dirfd_str, pathname, mode_str, dev)
 %)
 
-probe syscall.mknodat = dw_syscall.mknodat !, nd_syscall.mknodat {}
-probe syscall.mknodat.return = dw_syscall.mknodat.return !, nd_syscall.mknodat.return {}
+probe syscall.mknodat = dw_syscall.mknodat !, nd_syscall.mknodat ? {}
+probe syscall.mknodat.return = dw_syscall.mknodat.return !,
+                               nd_syscall.mknodat.return ? {}
 
 # dw_mknodat _____________________________________________________
 

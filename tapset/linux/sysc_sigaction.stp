@@ -13,9 +13,9 @@
 	argstr = sprintf("%s, {%s}, %p", sig_str, act_str, oact_uaddr)
 %)
 
-probe syscall.sigaction = dw_syscall.sigaction !, nd_syscall.sigaction {}
+probe syscall.sigaction = dw_syscall.sigaction !, nd_syscall.sigaction ? {}
 probe syscall.sigaction.return = dw_syscall.sigaction.return !,
-                                 nd_syscall.sigaction.return {}
+                                 nd_syscall.sigaction.return ? {}
 
 # dw_sigaction _____________________________________________________
 

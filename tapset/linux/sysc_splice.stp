@@ -16,9 +16,9 @@
 	                 off_out, len, flags_str);
 %)
 
-probe syscall.splice = dw_syscall.splice !, nd_syscall.splice {}
+probe syscall.splice = dw_syscall.splice !, nd_syscall.splice ? {}
 probe syscall.splice.return = dw_syscall.splice.return !,
-                              nd_syscall.splice.return {}
+                              nd_syscall.splice.return ? {}
 
 # dw_splice _____________________________________________________
 

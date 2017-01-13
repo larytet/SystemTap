@@ -15,8 +15,8 @@
 	argstr = sprintf("%s", u_info_str)
 %)
 
-probe syscall.set_thread_area = dw_syscall.set_thread_area !, nd_syscall.set_thread_area {}
-probe syscall.set_thread_area.return = dw_syscall.set_thread_area.return !, nd_syscall.set_thread_area.return {}
+probe syscall.set_thread_area = dw_syscall.set_thread_area !, nd_syscall.set_thread_area ? {}
+probe syscall.set_thread_area.return = dw_syscall.set_thread_area.return !, nd_syscall.set_thread_area.return ? {}
 
 # dw_set_thread_area _____________________________________________________
 

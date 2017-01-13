@@ -11,8 +11,8 @@
 	argstr = sprintf("%d, %s", fd, _flock_cmd_str(operation))
 %)
 
-probe syscall.flock = dw_syscall.flock !, nd_syscall.flock {}
-probe syscall.flock.return = dw_syscall.flock.return !, nd_syscall.flock.return {}
+probe syscall.flock = dw_syscall.flock !, nd_syscall.flock ? {}
+probe syscall.flock.return = dw_syscall.flock.return !, nd_syscall.flock.return ? {}
 
 # dw_flock _____________________________________________________
 

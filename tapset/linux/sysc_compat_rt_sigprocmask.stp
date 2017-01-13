@@ -10,8 +10,10 @@
 	argstr = sprintf("%s, %s, %p, %d", how_str, set_str, oldset_uaddr, sigsetsize)
 %)
 
-probe syscall.compat_rt_sigprocmask = dw_syscall.compat_rt_sigprocmask !, nd_syscall.compat_rt_sigprocmask {}
-probe syscall.compat_rt_sigprocmask.return = dw_syscall.compat_rt_sigprocmask.return !, nd_syscall.compat_rt_sigprocmask.return {}
+probe syscall.compat_rt_sigprocmask = dw_syscall.compat_rt_sigprocmask !,
+                                      nd_syscall.compat_rt_sigprocmask ? {}
+probe syscall.compat_rt_sigprocmask.return = dw_syscall.compat_rt_sigprocmask.return !,
+                                             nd_syscall.compat_rt_sigprocmask.return ? {}
 
 # dw_compat_rt_sigprocmask _____________________________________________________
 

@@ -14,9 +14,9 @@
 	argstr = ""
 %)
 
-probe syscall.vhangup = dw_syscall.vhangup !, nd_syscall.vhangup {}
+probe syscall.vhangup = dw_syscall.vhangup !, nd_syscall.vhangup ? {}
 probe syscall.vhangup.return = dw_syscall.vhangup.return !,
-                               nd_syscall.vhangup.return {}
+                               nd_syscall.vhangup.return ? {}
 
 # dw_vhangup _____________________________________________________
 

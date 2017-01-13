@@ -16,8 +16,9 @@
 	                 exceptfds_uaddr, timeout_str) 
 %)
 
-probe syscall.compat_select = dw_syscall.compat_select !, nd_syscall.compat_select {}
-probe syscall.compat_select.return = dw_syscall.compat_select.return !, nd_syscall.compat_select.return {}
+probe syscall.compat_select = dw_syscall.compat_select !, nd_syscall.compat_select ? {}
+probe syscall.compat_select.return = dw_syscall.compat_select.return !,
+                                     nd_syscall.compat_select.return ? {}
 
 # dw_compat_select _____________________________________________________
 

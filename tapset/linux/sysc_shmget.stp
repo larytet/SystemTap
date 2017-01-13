@@ -15,9 +15,9 @@
 	argstr = sprintf("%d, %u, %s", key, size, shmflg_str)
 %)
 
-probe syscall.shmget = dw_syscall.shmget !, nd_syscall.shmget {}
+probe syscall.shmget = dw_syscall.shmget !, nd_syscall.shmget ? {}
 probe syscall.shmget.return = dw_syscall.shmget.return !,
-                              nd_syscall.shmget.return {}
+                              nd_syscall.shmget.return ? {}
 
 # dw_shmget _____________________________________________________
 

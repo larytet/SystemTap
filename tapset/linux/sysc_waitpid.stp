@@ -14,8 +14,9 @@
 	argstr = sprintf("%d, %p, %s", pid, status_uaddr, options_str)
 %)
 
-probe syscall.waitpid = dw_syscall.waitpid !, nd_syscall.waitpid {}
-probe syscall.waitpid.return = dw_syscall.waitpid.return !, nd_syscall.waitpid.return {}
+probe syscall.waitpid = dw_syscall.waitpid !, nd_syscall.waitpid ? {}
+probe syscall.waitpid.return = dw_syscall.waitpid.return !,
+                               nd_syscall.waitpid.return ? {}
 
 # dw_waitpid _____________________________________________________
 

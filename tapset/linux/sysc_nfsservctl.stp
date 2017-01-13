@@ -17,8 +17,9 @@
 	argstr = sprintf("%s, %p, %p", cmd_str, argp_uaddr, resp_uaddr)
 %)
 
-probe syscall.nfsservctl = dw_syscall.nfsservctl !, nd_syscall.nfsservctl {}
-probe syscall.nfsservctl.return = dw_syscall.nfsservctl.return !, nd_syscall.nfsservctl.return {}
+probe syscall.nfsservctl = dw_syscall.nfsservctl !, nd_syscall.nfsservctl ? {}
+probe syscall.nfsservctl.return = dw_syscall.nfsservctl.return !,
+                                  nd_syscall.nfsservctl.return ? {}
 
 # dw_nfsservctl _____________________________________________________
 

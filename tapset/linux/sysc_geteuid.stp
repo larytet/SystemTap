@@ -13,8 +13,8 @@
 	argstr = ""
 %)
 
-probe syscall.geteuid = dw_syscall.geteuid !, nd_syscall.geteuid {}
-probe syscall.geteuid.return = dw_syscall.geteuid.return !, nd_syscall.geteuid.return {}
+probe syscall.geteuid = dw_syscall.geteuid !, nd_syscall.geteuid ? {}
+probe syscall.geteuid.return = dw_syscall.geteuid.return !, nd_syscall.geteuid.return ? {}
 
 # dw_geteuid _____________________________________________________
 

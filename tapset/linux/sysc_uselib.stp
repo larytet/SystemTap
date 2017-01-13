@@ -14,9 +14,9 @@
 	argstr = library
 %)
 
-probe syscall.uselib = dw_syscall.uselib !, nd_syscall.uselib {}
+probe syscall.uselib = dw_syscall.uselib !, nd_syscall.uselib ? {}
 probe syscall.uselib.return = dw_syscall.uselib.return !,
-                              nd_syscall.uselib.return {}
+                              nd_syscall.uselib.return ? {}
 
 # dw_uselib _____________________________________________________
 

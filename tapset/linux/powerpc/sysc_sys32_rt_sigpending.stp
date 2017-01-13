@@ -15,9 +15,9 @@
 %)
 
 probe syscall.sys32_rt_sigpending = dw_syscall.sys32_rt_sigpending !,
-                                    nd_syscall.sys32_rt_sigpending {}
+                                    nd_syscall.sys32_rt_sigpending ? {}
 probe syscall.sys32_rt_sigpending.return = dw_syscall.sys32_rt_sigpending.return !,
-                                           nd_syscall.sys32_rt_sigpending.return {}
+                                           nd_syscall.sys32_rt_sigpending.return ? {}
 
 # dw_sys32_rt_sigpending _____________________________________________________
 

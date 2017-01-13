@@ -12,8 +12,8 @@
 	argstr = sprintf("%#x, %#x, %#x", from, num, turn_on)
 %)
 
-probe syscall.ioperm = dw_syscall.ioperm !, nd_syscall.ioperm {}
-probe syscall.ioperm.return = dw_syscall.ioperm.return !, nd_syscall.ioperm.return {}
+probe syscall.ioperm = dw_syscall.ioperm !, nd_syscall.ioperm ? {}
+probe syscall.ioperm.return = dw_syscall.ioperm.return !, nd_syscall.ioperm.return ? {}
 
 # dw_ioperm _____________________________________________________
 

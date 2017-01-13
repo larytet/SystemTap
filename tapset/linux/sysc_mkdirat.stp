@@ -12,8 +12,9 @@
 	argstr = sprintf("%s, %s, %#o", dirfd_str, pathname, mode)
 %)
 
-probe syscall.mkdirat = dw_syscall.mkdirat !, nd_syscall.mkdirat {}
-probe syscall.mkdirat.return = dw_syscall.mkdirat.return !, nd_syscall.mkdirat.return {}
+probe syscall.mkdirat = dw_syscall.mkdirat !, nd_syscall.mkdirat ? {}
+probe syscall.mkdirat.return = dw_syscall.mkdirat.return !,
+                               nd_syscall.mkdirat.return ? {}
 
 # dw_mkdirat _____________________________________________________
 

@@ -13,8 +13,9 @@
 	argstr = sprintf("%d, %p, %s", s, msg_uaddr, flags_str)
 %)
 
-probe syscall.sendmsg = dw_syscall.sendmsg !, nd_syscall.sendmsg {}
-probe syscall.sendmsg.return = dw_syscall.sendmsg.return !, nd_syscall.sendmsg.return {}
+probe syscall.sendmsg = dw_syscall.sendmsg !, nd_syscall.sendmsg ? {}
+probe syscall.sendmsg.return = dw_syscall.sendmsg.return !,
+                               nd_syscall.sendmsg.return ? {}
 
 # dw_sendmsg _____________________________________________________
 

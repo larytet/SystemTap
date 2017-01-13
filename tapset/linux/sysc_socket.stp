@@ -12,9 +12,9 @@
 	argstr = sprintf("%s, %s, %s", family_str, type_str, protocol_str)
 %)
 
-probe syscall.socket = dw_syscall.socket !, nd_syscall.socket {}
+probe syscall.socket = dw_syscall.socket !, nd_syscall.socket ? {}
 probe syscall.socket.return = dw_syscall.socket.return !,
-                              nd_syscall.socket.return {}
+                              nd_syscall.socket.return ? {}
 
 # dw_socket _____________________________________________________
 

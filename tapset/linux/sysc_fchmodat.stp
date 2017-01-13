@@ -13,8 +13,8 @@
 	argstr = sprintf("%s, %s, %#o", dirfd_str, pathname, mode)
 %)
 
-probe syscall.fchmodat = dw_syscall.fchmodat !, nd_syscall.fchmodat {}
-probe syscall.fchmodat.return = dw_syscall.fchmodat.return !, nd_syscall.fchmodat.return {}
+probe syscall.fchmodat = dw_syscall.fchmodat !, nd_syscall.fchmodat ? {}
+probe syscall.fchmodat.return = dw_syscall.fchmodat.return !, nd_syscall.fchmodat.return ? {}
 
 # dw_fchmodat _____________________________________________________
 

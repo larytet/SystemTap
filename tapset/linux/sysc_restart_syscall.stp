@@ -14,8 +14,10 @@
 	argstr = ""
 %)
 
-probe syscall.restart_syscall = dw_syscall.restart_syscall !, nd_syscall.restart_syscall {}
-probe syscall.restart_syscall.return = dw_syscall.restart_syscall.return !, nd_syscall.restart_syscall.return {}
+probe syscall.restart_syscall = dw_syscall.restart_syscall !,
+                                nd_syscall.restart_syscall {}
+probe syscall.restart_syscall.return = dw_syscall.restart_syscall.return !,
+                                       nd_syscall.restart_syscall.return {}
 
 # dw_restart_syscall _____________________________________________________
 

@@ -22,8 +22,9 @@
 	argstr = sprintf("%d, %d, %p, %u", out_fd, in_fd, offset_uaddr, count)
 %)
 
-probe syscall.sendfile = dw_syscall.sendfile !, nd_syscall.sendfile {}
-probe syscall.sendfile.return = dw_syscall.sendfile.return !, nd_syscall.sendfile.return {}
+probe syscall.sendfile = dw_syscall.sendfile !, nd_syscall.sendfile ? {}
+probe syscall.sendfile.return = dw_syscall.sendfile.return !,
+                                nd_syscall.sendfile.return ? {}
 
 # dw_sendfile _____________________________________________________
 

@@ -17,8 +17,8 @@
 	                 flags_str, new_address)
 %)
 
-probe syscall.mremap = dw_syscall.mremap !, nd_syscall.mremap {}
-probe syscall.mremap.return = dw_syscall.mremap.return !, nd_syscall.mremap.return {}
+probe syscall.mremap = dw_syscall.mremap !, nd_syscall.mremap ? {}
+probe syscall.mremap.return = dw_syscall.mremap.return !, nd_syscall.mremap.return ? {}
 
 # dw_mremap _____________________________________________________
 

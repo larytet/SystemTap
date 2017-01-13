@@ -14,8 +14,10 @@
 	                 tsp_str, flags_str)
 %)
 
-probe syscall.compat_utimensat = dw_syscall.compat_utimensat !, nd_syscall.compat_utimensat {}
-probe syscall.compat_utimensat.return = dw_syscall.compat_utimensat.return !, nd_syscall.compat_utimensat.return {}
+probe syscall.compat_utimensat = dw_syscall.compat_utimensat !,
+                                 nd_syscall.compat_utimensat ? {}
+probe syscall.compat_utimensat.return = dw_syscall.compat_utimensat.return !,
+                                        nd_syscall.compat_utimensat.return ? {}
 
 # dw_compat_utimensat _____________________________________________________
 

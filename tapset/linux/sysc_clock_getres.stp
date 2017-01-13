@@ -13,8 +13,8 @@
 	argstr = sprintf("%s, %p", clk_id_str, res_uaddr)
 %)
 
-probe syscall.clock_getres = dw_syscall.clock_getres !, nd_syscall.clock_getres {}
-probe syscall.clock_getres.return = dw_syscall.clock_getres.return !, nd_syscall.clock_getres.return {}
+probe syscall.clock_getres = dw_syscall.clock_getres !, nd_syscall.clock_getres ? {}
+probe syscall.clock_getres.return = dw_syscall.clock_getres.return !, nd_syscall.clock_getres.return ? {}
 
 # dw_clock_getres _____________________________________________________
 

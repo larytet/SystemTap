@@ -23,8 +23,9 @@
 	                 flags_str, addr_uaddr, addrlen_uaddr)
 %)
 
-probe syscall.recvfrom = dw_syscall.recvfrom !, nd_syscall.recvfrom {}
-probe syscall.recvfrom.return = dw_syscall.recvfrom.return !, nd_syscall.recvfrom.return {}
+probe syscall.recvfrom = dw_syscall.recvfrom !, nd_syscall.recvfrom ? {}
+probe syscall.recvfrom.return = dw_syscall.recvfrom.return !,
+                                nd_syscall.recvfrom.return ? {}
 
 # dw_recvfrom _____________________________________________________
 

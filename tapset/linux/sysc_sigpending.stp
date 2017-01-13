@@ -13,9 +13,9 @@
 	argstr = sprintf("%p", set)
 %)
 
-probe syscall.sigpending = dw_syscall.sigpending !, nd_syscall.sigpending {}
+probe syscall.sigpending = dw_syscall.sigpending !, nd_syscall.sigpending ? {}
 probe syscall.sigpending.return = dw_syscall.sigpending.return !,
-                                  nd_syscall.sigpending.return {}
+                                  nd_syscall.sigpending.return ? {}
 
 # dw_sigpending _____________________________________________________
 

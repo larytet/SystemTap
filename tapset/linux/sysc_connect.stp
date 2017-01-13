@@ -12,8 +12,8 @@
 			 _struct_sockaddr_u(serv_addr_uaddr, addrlen), addrlen)
 %)
 
-probe syscall.connect = dw_syscall.connect !, nd_syscall.connect {}
-probe syscall.connect.return = dw_syscall.connect.return !, nd_syscall.connect.return {}
+probe syscall.connect = dw_syscall.connect !, nd_syscall.connect ? {}
+probe syscall.connect.return = dw_syscall.connect.return !, nd_syscall.connect.return ? {}
 
 # dw_connect _____________________________________________________
 

@@ -11,8 +11,8 @@
 	argstr = sprintf("%p", brk)
 %)
 
-probe syscall.brk = dw_syscall.brk !, nd_syscall.brk {}
-probe syscall.brk.return = dw_syscall.brk.return !, nd_syscall.brk.return {}
+probe syscall.brk = dw_syscall.brk !, nd_syscall.brk ? {}
+probe syscall.brk.return = dw_syscall.brk.return !, nd_syscall.brk.return ? {}
 
 # dw_brk _____________________________________________________
 

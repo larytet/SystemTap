@@ -2,8 +2,8 @@
 # long sys_eventfd(unsigned int count)
 # SYSCALL_DEFINE2(eventfd2, unsigned int, count, int, flags)
 
-probe syscall.eventfd = dw_syscall.eventfd !, nd_syscall.eventfd {}
-probe syscall.eventfd.return = dw_syscall.eventfd.return !, nd_syscall.eventfd.return {}
+probe syscall.eventfd = dw_syscall.eventfd !, nd_syscall.eventfd ? {}
+probe syscall.eventfd.return = dw_syscall.eventfd.return !, nd_syscall.eventfd.return ? {}
 
 # dw_eventfd _____________________________________________________
 

@@ -15,9 +15,9 @@
 %)
 
 probe syscall.compat_sys_semtimedop = dw_syscall.compat_sys_semtimedop !,
-	                              nd_syscall.compat_sys_semtimedop {}
+	                              nd_syscall.compat_sys_semtimedop ? {}
 probe syscall.compat_sys_semtimedop.return = dw_syscall.compat_sys_semtimedop.return !,
-	                                     nd_syscall.compat_sys_semtimedop.return {}
+	                                     nd_syscall.compat_sys_semtimedop.return ? {}
 
 # dw_compat_sys_semtimedop _____________________________________________________
 

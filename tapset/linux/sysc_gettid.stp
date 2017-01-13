@@ -12,7 +12,8 @@
 %)
 
 probe syscall.gettid = dw_syscall.gettid !, nd_syscall.gettid {}
-probe syscall.gettid.return = dw_syscall.gettid.return !, nd_syscall.gettid.return {}
+probe syscall.gettid.return = dw_syscall.gettid.return !,
+                              nd_syscall.gettid.return {}
 
 # dw_gettid _____________________________________________________
 

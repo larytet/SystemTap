@@ -13,9 +13,9 @@
 	argstr = _stp_sigmask_str(newmask)
 %)
 
-probe syscall.ssetmask = dw_syscall.ssetmask !, nd_syscall.ssetmask {}
+probe syscall.ssetmask = dw_syscall.ssetmask !, nd_syscall.ssetmask ? {}
 probe syscall.ssetmask.return = dw_syscall.ssetmask.return !,
-                                nd_syscall.ssetmask.return {}
+                                nd_syscall.ssetmask.return ? {}
 
 # dw_ssetmask _____________________________________________________
 

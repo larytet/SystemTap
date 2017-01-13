@@ -23,8 +23,8 @@
 	argstr = sprintf("%s, %s", filename, oflag_str)
 %)
 
-probe syscall.mq_open = dw_syscall.mq_open !, nd_syscall.mq_open {}
-probe syscall.mq_open.return = dw_syscall.mq_open.return !, nd_syscall.mq_open.return {}
+probe syscall.mq_open = dw_syscall.mq_open !, nd_syscall.mq_open ? {}
+probe syscall.mq_open.return = dw_syscall.mq_open.return !, nd_syscall.mq_open.return ? {}
 
 # dw_mq_open _____________________________________________________
 

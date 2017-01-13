@@ -15,9 +15,9 @@
 %)
 
 probe syscall.compat_fadvise64_64 = dw_syscall.compat_fadvise64_64 !,
-                                    nd_syscall.compat_fadvise64_64 {}
+                                    nd_syscall.compat_fadvise64_64 ? {}
 probe syscall.compat_fadvise64_64.return = dw_syscall.compat_fadvise64_64.return !,
-                                           nd_syscall.compat_fadvise64_64.return {}
+                                           nd_syscall.compat_fadvise64_64.return ? {}
 
 # dw_compat_fadvise64_64 _____________________________________________________
 

@@ -14,8 +14,8 @@
 	argstr = path
 %)
 
-probe syscall.swapoff = dw_syscall.swapoff !, nd_syscall.swapoff {}
-probe syscall.swapoff.return = dw_syscall.swapoff.return !, nd_syscall.swapoff.return {}
+probe syscall.swapoff = dw_syscall.swapoff !, nd_syscall.swapoff ? {}
+probe syscall.swapoff.return = dw_syscall.swapoff.return !, nd_syscall.swapoff.return ? {}
 
 # dw_swapoff _____________________________________________________
 

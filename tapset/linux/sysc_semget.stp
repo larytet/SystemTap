@@ -12,8 +12,9 @@
 	argstr = sprintf("%s, %d, %s", key_str, nsems, semflg_str)
 %)
 
-probe syscall.semget = dw_syscall.semget !, nd_syscall.semget {}
-probe syscall.semget.return = dw_syscall.semget.return !, nd_syscall.semget.return {}
+probe syscall.semget = dw_syscall.semget !, nd_syscall.semget ? {}
+probe syscall.semget.return = dw_syscall.semget.return !,
+                              nd_syscall.semget.return ? {}
 
 # dw_semget _____________________________________________________
 

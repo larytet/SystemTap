@@ -15,9 +15,9 @@
 %)
 
 probe syscall.sys32_sendfile64 = dw_syscall.sys32_sendfile64 !,
-                                 nd_syscall.sys32_sendfile64 {}
+                                 nd_syscall.sys32_sendfile64 ? {}
 probe syscall.sys32_sendfile64.return = dw_syscall.sys32_sendfile64.return !,
-                                        nd_syscall.sys32_sendfile64.return {}
+                                        nd_syscall.sys32_sendfile64.return ? {}
 
 # dw_sys32_sendfile64 _____________________________________________________
 

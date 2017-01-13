@@ -16,8 +16,8 @@
 	argstr = sprintf("%p, %p", tv_uaddr, tz_uaddr)
 %)
 
-probe syscall.gettimeofday = dw_syscall.gettimeofday !, nd_syscall.gettimeofday {}
-probe syscall.gettimeofday.return = dw_syscall.gettimeofday.return !, nd_syscall.gettimeofday.return {}
+probe syscall.gettimeofday = dw_syscall.gettimeofday !, nd_syscall.gettimeofday ? {}
+probe syscall.gettimeofday.return = dw_syscall.gettimeofday.return !, nd_syscall.gettimeofday.return ? {}
 
 # dw_gettimeofday _____________________________________________________
 

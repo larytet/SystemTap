@@ -14,9 +14,9 @@
 %)
 
 probe syscall.sys32_sysinfo = dw_syscall.sys32_sysinfo !,
-                              nd_syscall.sys32_sysinfo {}
+                              nd_syscall.sys32_sysinfo ? {}
 probe syscall.sys32_sysinfo.return = dw_syscall.sys32_sysinfo.return !,
-                                     nd_syscall.sys32_sysinfo.return {}
+                                     nd_syscall.sys32_sysinfo.return ? {}
 
 # dw_sys32_sysinfo _____________________________________________________
 

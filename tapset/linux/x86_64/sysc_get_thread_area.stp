@@ -16,9 +16,9 @@
 %)
 
 probe syscall.get_thread_area = dw_syscall.get_thread_area !,
-                                nd_syscall.get_thread_area {}
+                                nd_syscall.get_thread_area ? {}
 probe syscall.get_thread_area.return = dw_syscall.get_thread_area.return !,
-                                       nd_syscall.get_thread_area.return {}
+                                       nd_syscall.get_thread_area.return ? {}
 
 # dw_get_thread_area _____________________________________________________
 

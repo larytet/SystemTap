@@ -22,8 +22,9 @@
 	                 options_str, rusage_uaddr)
 %)
 
-probe syscall.wait4 = dw_syscall.wait4 !, nd_syscall.wait4 {}
-probe syscall.wait4.return = dw_syscall.wait4.return !, nd_syscall.wait4.return {}
+probe syscall.wait4 = dw_syscall.wait4 !, nd_syscall.wait4 ? {}
+probe syscall.wait4.return = dw_syscall.wait4.return !,
+                             nd_syscall.wait4.return ? {}
 
 # dw_wait4 _____________________________________________________
 

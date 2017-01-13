@@ -16,8 +16,9 @@
 	argstr = sprintf("%d, %p, %u, %s", semid, sops_uaddr, nsops, timeout_str)
 %)
 
-probe syscall.semtimedop = dw_syscall.semtimedop !, nd_syscall.semtimedop {}
-probe syscall.semtimedop.return = dw_syscall.semtimedop.return !, nd_syscall.semtimedop.return {}
+probe syscall.semtimedop = dw_syscall.semtimedop !, nd_syscall.semtimedop ? {}
+probe syscall.semtimedop.return = dw_syscall.semtimedop.return !,
+                                  nd_syscall.semtimedop.return ? {}
 
 # dw_semtimedop _____________________________________________________
 

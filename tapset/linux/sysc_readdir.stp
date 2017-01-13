@@ -15,8 +15,9 @@
 	argstr = sprintf("%u, %p, %u", fd, dirent, count)
 %)
 
-probe syscall.readdir = dw_syscall.readdir !, nd_syscall.readdir {}
-probe syscall.readdir.return = dw_syscall.readdir.return !, nd_syscall.readdir.return {}
+probe syscall.readdir = dw_syscall.readdir !, nd_syscall.readdir ? {}
+probe syscall.readdir.return = dw_syscall.readdir.return !,
+                               nd_syscall.readdir.return ? {}
 
 # dw_readdir _____________________________________________________
 

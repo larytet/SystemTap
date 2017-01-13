@@ -11,8 +11,9 @@
 	argstr = sprintf("%p, %d", addr, len)
 %)
 
-probe syscall.munlock = dw_syscall.munlock !, nd_syscall.munlock {}
-probe syscall.munlock.return = dw_syscall.munlock.return !, nd_syscall.munlock.return {}
+probe syscall.munlock = dw_syscall.munlock !, nd_syscall.munlock ? {}
+probe syscall.munlock.return = dw_syscall.munlock.return !,
+                               nd_syscall.munlock.return ? {}
 
 # dw_munlock _____________________________________________________
 

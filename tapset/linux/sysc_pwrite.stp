@@ -16,8 +16,9 @@
 	argstr = sprintf("%d, %s, %u, %d", fd, buf_str, count, offset)
 %)
 
-probe syscall.pwrite = dw_syscall.pwrite !, nd_syscall.pwrite {}
-probe syscall.pwrite.return = dw_syscall.pwrite.return !, nd_syscall.pwrite.return {}
+probe syscall.pwrite = dw_syscall.pwrite !, nd_syscall.pwrite ? {}
+probe syscall.pwrite.return = dw_syscall.pwrite.return !,
+                              nd_syscall.pwrite.return ? {}
 
 # dw_pwrite _____________________________________________________
 

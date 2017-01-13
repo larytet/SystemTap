@@ -14,8 +14,10 @@
 	argstr = policy_str
 %)
 
-probe syscall.sched_get_priority_min = dw_syscall.sched_get_priority_min !, nd_syscall.sched_get_priority_min {}
-probe syscall.sched_get_priority_min.return = dw_syscall.sched_get_priority_min.return !, nd_syscall.sched_get_priority_min.return {}
+probe syscall.sched_get_priority_min = dw_syscall.sched_get_priority_min !,
+                                       nd_syscall.sched_get_priority_min ? {}
+probe syscall.sched_get_priority_min.return = dw_syscall.sched_get_priority_min.return !,
+                                              nd_syscall.sched_get_priority_min.return ? {}
 
 # dw_sched_get_priority_min _____________________________________________________
 

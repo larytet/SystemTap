@@ -21,9 +21,9 @@
 %)
 
 probe syscall.timer_settime = dw_syscall.timer_settime !,
-                              nd_syscall.timer_settime {}
+                              nd_syscall.timer_settime ? {}
 probe syscall.timer_settime.return = dw_syscall.timer_settime.return !,
-                                     nd_syscall.timer_settime.return {}
+                                     nd_syscall.timer_settime.return ? {}
 
 # dw_timer_settime _____________________________________________________
 

@@ -15,8 +15,9 @@
 	argstr = sprintf("%s, %s, %s, %s, %s", olddfd_str, oldname_str, newdfd_str, newname_str, flags_str)
 %)
 
-probe syscall.renameat2 = dw_syscall.renameat2 !, nd_syscall.renameat2 {}
-probe syscall.renameat2.return = dw_syscall.renameat2.return !, nd_syscall.renameat2.return {}
+probe syscall.renameat2 = dw_syscall.renameat2 !, nd_syscall.renameat2 ? {}
+probe syscall.renameat2.return = dw_syscall.renameat2.return !,
+                                 nd_syscall.renameat2.return ? {}
 
 # dw_renameat2 _____________________________________________________
 

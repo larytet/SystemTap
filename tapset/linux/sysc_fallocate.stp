@@ -12,8 +12,8 @@
 	argstr = sprintf("%d, %s, %#x, %u", fd, mode_str, offset, len)
 %)
 
-probe syscall.fallocate = dw_syscall.fallocate !, nd_syscall.fallocate {}
-probe syscall.fallocate.return = dw_syscall.fallocate.return !, nd_syscall.fallocate.return {}
+probe syscall.fallocate = dw_syscall.fallocate !, nd_syscall.fallocate ? {}
+probe syscall.fallocate.return = dw_syscall.fallocate.return !, nd_syscall.fallocate.return ? {}
 
 # dw_fallocate _____________________________________________________
 

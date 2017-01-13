@@ -14,9 +14,9 @@
 	argstr = sprintf("%s, %d", name_str, len)
 %)
 
-probe syscall.sethostname = dw_syscall.sethostname !, nd_syscall.sethostname {}
+probe syscall.sethostname = dw_syscall.sethostname !, nd_syscall.sethostname ? {}
 probe syscall.sethostname.return = dw_syscall.sethostname.return !,
-                                   nd_syscall.sethostname.return {}
+                                   nd_syscall.sethostname.return ? {}
 
 # dw_sethostname _____________________________________________________
 

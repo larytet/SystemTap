@@ -17,8 +17,10 @@
 	argstr = sprintf("%p, %u", set_uaddr, sigsetsize)
 %)
 
-probe syscall.rt_sigpending = dw_syscall.rt_sigpending !, nd_syscall.rt_sigpending {}
-probe syscall.rt_sigpending.return = dw_syscall.rt_sigpending.return !, nd_syscall.rt_sigpending.return {}
+probe syscall.rt_sigpending = dw_syscall.rt_sigpending !,
+                              nd_syscall.rt_sigpending ? {}
+probe syscall.rt_sigpending.return = dw_syscall.rt_sigpending.return !,
+                                     nd_syscall.rt_sigpending.return ? {}
 
 # dw_rt_sigpending _____________________________________________________
 

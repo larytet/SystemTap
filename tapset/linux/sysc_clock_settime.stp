@@ -15,8 +15,8 @@
 	argstr = sprintf("%s, %s", clk_id_str, tp_uaddr_str)
 %)
 
-probe syscall.clock_settime = dw_syscall.clock_settime !, nd_syscall.clock_settime {}
-probe syscall.clock_settime.return = dw_syscall.clock_settime.return !, nd_syscall.clock_settime.return {}
+probe syscall.clock_settime = dw_syscall.clock_settime !, nd_syscall.clock_settime ? {}
+probe syscall.clock_settime.return = dw_syscall.clock_settime.return !, nd_syscall.clock_settime.return ? {}
 
 # dw_clock_settime _____________________________________________________
 

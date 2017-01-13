@@ -12,8 +12,9 @@
 	argstr = sprintf("%s, %p, %u", path, list_uaddr, size)
 %)
 
-probe syscall.llistxattr = dw_syscall.llistxattr !, nd_syscall.llistxattr {}
-probe syscall.llistxattr.return = dw_syscall.llistxattr.return !, nd_syscall.llistxattr.return {}
+probe syscall.llistxattr = dw_syscall.llistxattr !, nd_syscall.llistxattr ? {}
+probe syscall.llistxattr.return = dw_syscall.llistxattr.return !,
+                                  nd_syscall.llistxattr.return ? {}
 
 # dw_llistxattr _____________________________________________________
 

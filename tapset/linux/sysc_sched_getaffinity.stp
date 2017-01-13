@@ -19,8 +19,10 @@
 	argstr = sprintf("%d, %u, %p", pid, len, mask_uaddr)
 %)
 
-probe syscall.sched_getaffinity = dw_syscall.sched_getaffinity !, nd_syscall.sched_getaffinity {}
-probe syscall.sched_getaffinity.return = dw_syscall.sched_getaffinity.return !, nd_syscall.sched_getaffinity.return {}
+probe syscall.sched_getaffinity = dw_syscall.sched_getaffinity !,
+                                  nd_syscall.sched_getaffinity ? {}
+probe syscall.sched_getaffinity.return = dw_syscall.sched_getaffinity.return !,
+                                         nd_syscall.sched_getaffinity.return ? {}
 
 # dw_sched_getaffinity _____________________________________________________
 

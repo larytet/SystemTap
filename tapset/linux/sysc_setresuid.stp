@@ -13,8 +13,9 @@
 	argstr = sprintf("%d, %d, %d", ruid, euid, suid)
 %)
 
-probe syscall.setresuid = dw_syscall.setresuid !, nd_syscall.setresuid {}
-probe syscall.setresuid.return = dw_syscall.setresuid.return !, nd_syscall.setresuid.return {}
+probe syscall.setresuid = dw_syscall.setresuid !, nd_syscall.setresuid ? {}
+probe syscall.setresuid.return = dw_syscall.setresuid.return !,
+                                 nd_syscall.setresuid.return ? {}
 
 # dw_setresuid _____________________________________________________
 

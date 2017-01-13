@@ -15,8 +15,10 @@
 	                 handle_uaddr, mnt_id_uaddr, flags_str)
 %)
 
-probe syscall.name_to_handle_at = dw_syscall.name_to_handle_at !, nd_syscall.name_to_handle_at {}
-probe syscall.name_to_handle_at.return = dw_syscall.name_to_handle_at.return !, nd_syscall.name_to_handle_at.return {}
+probe syscall.name_to_handle_at = dw_syscall.name_to_handle_at !,
+                                  nd_syscall.name_to_handle_at ? {}
+probe syscall.name_to_handle_at.return = dw_syscall.name_to_handle_at.return !,
+                                         nd_syscall.name_to_handle_at.return ? {}
 
 # dw_name_to_handle_at _____________________________________________________
 

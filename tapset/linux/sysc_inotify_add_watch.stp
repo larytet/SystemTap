@@ -13,8 +13,10 @@
 	argstr = sprintf("%d, %s, %s", fd, path, mask_str)
 %)
 
-probe syscall.inotify_add_watch = dw_syscall.inotify_add_watch !, nd_syscall.inotify_add_watch {}
-probe syscall.inotify_add_watch.return = dw_syscall.inotify_add_watch.return !, nd_syscall.inotify_add_watch.return {}
+probe syscall.inotify_add_watch = dw_syscall.inotify_add_watch !,
+                                  nd_syscall.inotify_add_watch ? {}
+probe syscall.inotify_add_watch.return = dw_syscall.inotify_add_watch.return !,
+                                         nd_syscall.inotify_add_watch.return ? {}
 
 # dw_inotify_add_watch _____________________________________________________
 

@@ -16,8 +16,8 @@
 	argstr = sprintf("%p", t_uaddr)
 %)
 
-probe syscall.time = dw_syscall.time !, nd_syscall.time {}
-probe syscall.time.return = dw_syscall.time.return !, nd_syscall.time.return {}
+probe syscall.time = dw_syscall.time !, nd_syscall.time ? {}
+probe syscall.time.return = dw_syscall.time.return !, nd_syscall.time.return ? {}
 
 # dw_time _____________________________________________________
 

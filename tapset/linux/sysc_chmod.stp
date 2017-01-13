@@ -11,8 +11,8 @@
 	argstr = sprintf("%s, %#o", path, mode)
 %)
 
-probe syscall.chmod = dw_syscall.chmod !, nd_syscall.chmod {}
-probe syscall.chmod.return = dw_syscall.chmod.return !, nd_syscall.chmod.return {}
+probe syscall.chmod = dw_syscall.chmod !, nd_syscall.chmod ? {}
+probe syscall.chmod.return = dw_syscall.chmod.return !, nd_syscall.chmod.return ? {}
 
 # dw_chmod _____________________________________________________
 

@@ -11,8 +11,8 @@
 	argstr = sprintf("%d, %p, %u", filedes, list_uaddr, size)
 %)
 
-probe syscall.flistxattr = dw_syscall.flistxattr !, nd_syscall.flistxattr {}
-probe syscall.flistxattr.return = dw_syscall.flistxattr.return !, nd_syscall.flistxattr.return {}
+probe syscall.flistxattr = dw_syscall.flistxattr !, nd_syscall.flistxattr ? {}
+probe syscall.flistxattr.return = dw_syscall.flistxattr.return !, nd_syscall.flistxattr.return ? {}
 
 # dw_flistxattr _____________________________________________________
 

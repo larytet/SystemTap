@@ -13,8 +13,9 @@
 	argstr = sprintf("%p", args)
 %)
 
-probe syscall.sysctl = dw_syscall.sysctl !, nd_syscall.sysctl {}
-probe syscall.sysctl.return = dw_syscall.sysctl.return !, nd_syscall.sysctl.return {}
+probe syscall.sysctl = dw_syscall.sysctl !, nd_syscall.sysctl ? {}
+probe syscall.sysctl.return = dw_syscall.sysctl.return !,
+                              nd_syscall.sysctl.return ? {}
 
 # dw_sysctl _____________________________________________________
 

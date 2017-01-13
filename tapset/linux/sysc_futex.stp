@@ -15,8 +15,8 @@
 	name = "futex"
 %)
 
-probe syscall.futex = dw_syscall.futex !, nd_syscall.futex {}
-probe syscall.futex.return = dw_syscall.futex.return !, nd_syscall.futex.return {}
+probe syscall.futex = dw_syscall.futex !, nd_syscall.futex ? {}
+probe syscall.futex.return = dw_syscall.futex.return !, nd_syscall.futex.return ? {}
 
 # dw_futex _____________________________________________________
 

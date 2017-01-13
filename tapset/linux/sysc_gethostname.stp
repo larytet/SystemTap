@@ -11,8 +11,8 @@
 	argstr = sprintf ("%p, %d", name_uaddr, len)
 %)
 
-probe syscall.gethostname = dw_syscall.gethostname !, nd_syscall.gethostname {}
-probe syscall.gethostname.return = dw_syscall.gethostname.return !, nd_syscall.gethostname.return {}
+probe syscall.gethostname = dw_syscall.gethostname !, nd_syscall.gethostname ? {}
+probe syscall.gethostname.return = dw_syscall.gethostname.return !, nd_syscall.gethostname.return ? {}
 
 # dw_gethostname _____________________________________________________
 

@@ -11,8 +11,8 @@
 	argstr = path
 %)
 
-probe syscall.chroot = dw_syscall.chroot !, nd_syscall.chroot {}
-probe syscall.chroot.return = dw_syscall.chroot.return !, nd_syscall.chroot.return {}
+probe syscall.chroot = dw_syscall.chroot !, nd_syscall.chroot ? {}
+probe syscall.chroot.return = dw_syscall.chroot.return !, nd_syscall.chroot.return ? {}
 
 # dw_chroot _____________________________________________________
 

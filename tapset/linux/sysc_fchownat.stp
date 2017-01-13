@@ -14,8 +14,8 @@
 	                 group, flags_str)
 %)
 
-probe syscall.fchownat = dw_syscall.fchownat !, nd_syscall.fchownat {}
-probe syscall.fchownat.return = dw_syscall.fchownat.return !, nd_syscall.fchownat.return {}
+probe syscall.fchownat = dw_syscall.fchownat !, nd_syscall.fchownat ? {}
+probe syscall.fchownat.return = dw_syscall.fchownat.return !, nd_syscall.fchownat.return ? {}
 
 # dw_fchownat _____________________________________________________
 

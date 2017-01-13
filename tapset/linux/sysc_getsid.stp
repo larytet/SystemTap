@@ -11,8 +11,9 @@
 	argstr = sprint(pid)
 %)
 
-probe syscall.getsid = dw_syscall.getsid !, nd_syscall.getsid {}
-probe syscall.getsid.return = dw_syscall.getsid.return !, nd_syscall.getsid.return {}
+probe syscall.getsid = dw_syscall.getsid !, nd_syscall.getsid ? {}
+probe syscall.getsid.return = dw_syscall.getsid.return !,
+                              nd_syscall.getsid.return ? {}
 
 # dw_getsid _____________________________________________________
 

@@ -14,8 +14,9 @@
 	argstr = sprintf("%d, %s, %u, %u", pid, sched_attr_str, size, flags)
 %)
 
-probe syscall.sched_getattr = dw_syscall.sched_getattr !, nd_syscall.sched_getattr {}
-probe syscall.sched_getattr.return = dw_syscall.sched_getattr.return !, nd_syscall.sched_getattr.return {}
+probe syscall.sched_getattr = dw_syscall.sched_getattr !, nd_syscall.sched_getattr ? {}
+probe syscall.sched_getattr.return = dw_syscall.sched_getattr.return !,
+                                     nd_syscall.sched_getattr.return ? {}
 
 # dw_sched_getattr _____________________________________________________
 

@@ -16,8 +16,9 @@
 	                 protocol_str, sv_uaddr)
 %)
 
-probe syscall.socketpair = dw_syscall.socketpair !, nd_syscall.socketpair {}
-probe syscall.socketpair.return = dw_syscall.socketpair.return !, nd_syscall.socketpair.return {}
+probe syscall.socketpair = dw_syscall.socketpair !, nd_syscall.socketpair ? {}
+probe syscall.socketpair.return = dw_syscall.socketpair.return !,
+                                  nd_syscall.socketpair.return ? {}
 
 # dw_socketpair _____________________________________________________
 

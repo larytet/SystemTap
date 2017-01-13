@@ -12,8 +12,8 @@
 	argstr = sprintf("%s, %p", _itimer_which_str(which), value_uaddr)
 %)
 
-probe syscall.getitimer = dw_syscall.getitimer !, nd_syscall.getitimer {}
-probe syscall.getitimer.return = dw_syscall.getitimer.return !, nd_syscall.getitimer.return {}
+probe syscall.getitimer = dw_syscall.getitimer !, nd_syscall.getitimer ? {}
+probe syscall.getitimer.return = dw_syscall.getitimer.return !, nd_syscall.getitimer.return ? {}
 
 # dw_getitimer _____________________________________________________
 

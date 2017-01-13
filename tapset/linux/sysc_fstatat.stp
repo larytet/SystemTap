@@ -14,8 +14,8 @@
 	argstr = sprintf("%s, %s, %p, %s", dirfd_str, path, buf_uaddr, flags_str)
 %)
 
-probe syscall.fstatat = dw_syscall.fstatat !, nd_syscall.fstatat {}
-probe syscall.fstatat.return = dw_syscall.fstatat.return !, nd_syscall.fstatat.return {}
+probe syscall.fstatat = dw_syscall.fstatat !, nd_syscall.fstatat ? {}
+probe syscall.fstatat.return = dw_syscall.fstatat.return !, nd_syscall.fstatat.return ? {}
 
 # dw_fstatat _____________________________________________________
 

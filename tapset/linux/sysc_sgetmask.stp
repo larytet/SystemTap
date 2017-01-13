@@ -13,9 +13,9 @@
 	argstr = ""
 %)
 
-probe syscall.sgetmask = dw_syscall.sgetmask !, nd_syscall.sgetmask {}
+probe syscall.sgetmask = dw_syscall.sgetmask !, nd_syscall.sgetmask ? {}
 probe syscall.sgetmask.return = dw_syscall.sgetmask.return !,
-                                nd_syscall.sgetmask.return {}
+                                nd_syscall.sgetmask.return ? {}
 
 # dw_sgetmask _____________________________________________________
 

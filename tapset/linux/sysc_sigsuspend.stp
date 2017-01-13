@@ -19,9 +19,9 @@
 	argstr = sprintf("%s", mask_str)
 %)
 
-probe syscall.sigsuspend = dw_syscall.sigsuspend !, nd_syscall.sigsuspend {}
+probe syscall.sigsuspend = dw_syscall.sigsuspend !, nd_syscall.sigsuspend ? {}
 probe syscall.sigsuspend.return = dw_syscall.sigsuspend.return !,
-                                  nd_syscall.sigsuspend.return {}
+                                  nd_syscall.sigsuspend.return ? {}
 
 # dw_sigsuspend _____________________________________________________
 

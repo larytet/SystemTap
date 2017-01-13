@@ -12,8 +12,8 @@
 	argstr = sprintf("%d", inc)
 %)
 
-probe syscall.nice = dw_syscall.nice !, nd_syscall.nice {}
-probe syscall.nice.return = dw_syscall.nice.return !, nd_syscall.nice.return {}
+probe syscall.nice = dw_syscall.nice !, nd_syscall.nice ? {}
+probe syscall.nice.return = dw_syscall.nice.return !, nd_syscall.nice.return ? {}
 
 # dw_nice _____________________________________________________
 

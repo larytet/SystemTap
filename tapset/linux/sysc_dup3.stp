@@ -11,8 +11,8 @@
 	argstr = sprintf("%d, %d, %s", oldfd, newfd,  flags_str)
 %)
 
-probe syscall.dup3 = dw_syscall.dup3 !, nd_syscall.dup3 {}
-probe syscall.dup3.return = dw_syscall.dup3.return !, nd_syscall.dup3.return {}
+probe syscall.dup3 = dw_syscall.dup3 !, nd_syscall.dup3 ? {}
+probe syscall.dup3.return = dw_syscall.dup3.return !, nd_syscall.dup3.return ? {}
 
 # dw_dup3 _____________________________________________________
 

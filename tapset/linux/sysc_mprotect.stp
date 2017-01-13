@@ -12,8 +12,8 @@
 	argstr = sprintf("%p, %d, %s", addr, len, prot_str)
 %)
 
-probe syscall.mprotect = dw_syscall.mprotect !, nd_syscall.mprotect {}
-probe syscall.mprotect.return = dw_syscall.mprotect.return !, nd_syscall.mprotect.return {}
+probe syscall.mprotect = dw_syscall.mprotect !, nd_syscall.mprotect ? {}
+probe syscall.mprotect.return = dw_syscall.mprotect.return !, nd_syscall.mprotect.return ? {}
 
 # dw_mprotect _____________________________________________________
 

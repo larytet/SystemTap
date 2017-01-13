@@ -17,8 +17,9 @@
 	                 msgtyp, msgflg_str)
 %)
 
-probe syscall.msgrcv = dw_syscall.msgrcv !, nd_syscall.msgrcv {}
-probe syscall.msgrcv.return = dw_syscall.msgrcv.return !, nd_syscall.msgrcv.return {}
+probe syscall.msgrcv = dw_syscall.msgrcv !, nd_syscall.msgrcv ? {}
+probe syscall.msgrcv.return = dw_syscall.msgrcv.return !,
+                              nd_syscall.msgrcv.return ? {}
 
 # dw_msgrcv _____________________________________________________
 

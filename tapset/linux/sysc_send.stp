@@ -16,8 +16,9 @@
 	argstr = sprintf("%d, %s, %u, %s", s, buf, len, flags_str)
 %)
 
-probe syscall.send = dw_syscall.send !, nd_syscall.send {}
-probe syscall.send.return = dw_syscall.send.return !, nd_syscall.send.return {}
+probe syscall.send = dw_syscall.send !, nd_syscall.send ? {}
+probe syscall.send.return = dw_syscall.send.return !,
+                            nd_syscall.send.return ? {}
 
 # dw_send _____________________________________________________
 

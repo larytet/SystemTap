@@ -13,8 +13,9 @@
 	name = "quotactl"
 %)
 
-probe syscall.quotactl = dw_syscall.quotactl !, nd_syscall.quotactl {}
-probe syscall.quotactl.return = dw_syscall.quotactl.return !, nd_syscall.quotactl.return {}
+probe syscall.quotactl = dw_syscall.quotactl !, nd_syscall.quotactl ? {}
+probe syscall.quotactl.return = dw_syscall.quotactl.return !,
+                                nd_syscall.quotactl.return ? {}
 
 # dw_quotactl _____________________________________________________
 

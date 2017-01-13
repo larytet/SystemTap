@@ -15,9 +15,9 @@
 %)
 
 probe syscall.timerfd_gettime = dw_syscall.timerfd_gettime !,
-                                nd_syscall.timerfd_gettime {}
+                                nd_syscall.timerfd_gettime ? {}
 probe syscall.timerfd_gettime.return = dw_syscall.timerfd_gettime.return !,
-                                       nd_syscall.timerfd_gettime.return {}
+                                       nd_syscall.timerfd_gettime.return ? {}
 
 # dw_timerfd_gettime _____________________________________________________
 

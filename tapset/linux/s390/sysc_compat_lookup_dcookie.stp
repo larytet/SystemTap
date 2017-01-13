@@ -14,9 +14,9 @@
 %)
 
 probe syscall.compat_lookup_dcookie = dw_syscall.compat_lookup_dcookie !,
-                                      nd_syscall.compat_lookup_dcookie {}
+                                      nd_syscall.compat_lookup_dcookie ? {}
 probe syscall.compat_lookup_dcookie.return = dw_syscall.compat_lookup_dcookie.return !,
-                                             nd_syscall.compat_lookup_dcookie.return {}
+                                             nd_syscall.compat_lookup_dcookie.return ? {}
 
 # dw_compat_lookup_dcookie _____________________________________________________
 

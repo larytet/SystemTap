@@ -14,8 +14,10 @@
 	argstr = sprintf("%p", tidptr_uaddr)
 %)
 
-probe syscall.set_tid_address = dw_syscall.set_tid_address !, nd_syscall.set_tid_address {}
-probe syscall.set_tid_address.return = dw_syscall.set_tid_address.return !, nd_syscall.set_tid_address.return {}
+probe syscall.set_tid_address = dw_syscall.set_tid_address !,
+                                nd_syscall.set_tid_address ? {}
+probe syscall.set_tid_address.return = dw_syscall.set_tid_address.return !,
+                                       nd_syscall.set_tid_address.return ? {}
 
 # dw_set_tid_address _____________________________________________________
 

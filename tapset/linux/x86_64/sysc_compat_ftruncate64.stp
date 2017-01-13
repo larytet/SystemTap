@@ -14,8 +14,8 @@
 	argstr = sprintf("%d, %d", fd, length)
 %)
 
-probe syscall.compat_ftruncate64 = dw_syscall.compat_ftruncate64 !, nd_syscall.compat_ftruncate64 {}
-probe syscall.compat_ftruncate64.return = dw_syscall.compat_ftruncate64.return !, nd_syscall.compat_ftruncate64.return {}
+probe syscall.compat_ftruncate64 = dw_syscall.compat_ftruncate64 !, nd_syscall.compat_ftruncate64 ? {}
+probe syscall.compat_ftruncate64.return = dw_syscall.compat_ftruncate64.return !, nd_syscall.compat_ftruncate64.return ? {}
 
 # dw_compat_ftruncate64 _____________________________________________________
 

@@ -15,9 +15,9 @@
 %)
 
 probe syscall.compat_truncate64 = dw_syscall.compat_truncate64 !,
-                                  nd_syscall.compat_truncate64 {}
+                                  nd_syscall.compat_truncate64 ? {}
 probe syscall.compat_truncate64.return = dw_syscall.compat_truncate64.return !,
-                                         nd_syscall.compat_truncate64.return {}
+                                         nd_syscall.compat_truncate64.return ? {}
 
 # dw_compat_truncate64 _____________________________________________________
 

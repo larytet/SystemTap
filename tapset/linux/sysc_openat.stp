@@ -18,8 +18,9 @@
 	argstr = sprintf("%s, %s, %s", dfd_str, filename, flags_str)
 %)
 
-probe syscall.openat = dw_syscall.openat !, nd_syscall.openat {}
-probe syscall.openat.return = dw_syscall.openat.return !, nd_syscall.openat.return {}
+probe syscall.openat = dw_syscall.openat !, nd_syscall.openat ? {}
+probe syscall.openat.return = dw_syscall.openat.return !,
+                              nd_syscall.openat.return ? {}
 
 # dw_openat _____________________________________________________
 

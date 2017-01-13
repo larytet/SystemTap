@@ -12,8 +12,9 @@
 	argstr = flags_str
 %)
 
-probe syscall.mlockall = dw_syscall.mlockall !, nd_syscall.mlockall {}
-probe syscall.mlockall.return = dw_syscall.mlockall.return !, nd_syscall.mlockall.return {}
+probe syscall.mlockall = dw_syscall.mlockall !, nd_syscall.mlockall ? {}
+probe syscall.mlockall.return = dw_syscall.mlockall.return !,
+                                nd_syscall.mlockall.return ? {}
 
 # dw_mlockall _____________________________________________________
 

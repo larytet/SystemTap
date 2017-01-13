@@ -18,8 +18,9 @@
 	                 count, offset, flags_str)
 %)
 
-probe syscall.pwritev2 = dw_syscall.pwritev2 !, nd_syscall.pwritev2 {}
-probe syscall.pwritev2.return = dw_syscall.pwritev2.return !, nd_syscall.pwritev2.return {}
+probe syscall.pwritev2 = dw_syscall.pwritev2 !, nd_syscall.pwritev2 ? {}
+probe syscall.pwritev2.return = dw_syscall.pwritev2.return !,
+                                nd_syscall.pwritev2.return ? {}
 
 # dw_pwritev2 _____________________________________________________
 

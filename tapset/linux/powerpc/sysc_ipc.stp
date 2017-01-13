@@ -21,8 +21,8 @@
 	                 third, ptr, fifth)
 %)
 
-probe syscall.ipc = dw_syscall.ipc !, nd_syscall.ipc {}
-probe syscall.ipc.return = dw_syscall.ipc.return !, nd_syscall.ipc.return {}
+probe syscall.ipc = dw_syscall.ipc !, nd_syscall.ipc ? {}
+probe syscall.ipc.return = dw_syscall.ipc.return !, nd_syscall.ipc.return ? {}
 
 # dw_ipc _____________________________________________________
 

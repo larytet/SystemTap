@@ -14,9 +14,9 @@
 %)
 
 probe syscall.compat_sys_utimes = dw_syscall.compat_sys_utimes !,
-                                  nd_syscall.compat_sys_utimes {}
+                                  nd_syscall.compat_sys_utimes ? {}
 probe syscall.compat_sys_utimes.return = dw_syscall.compat_sys_utimes.return !,
-                                         nd_syscall.compat_sys_utimes.return {}
+                                         nd_syscall.compat_sys_utimes.return ? {}
 
 # dw_compat_sys_utimes _____________________________________________________
 

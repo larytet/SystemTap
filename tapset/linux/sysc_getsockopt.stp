@@ -17,8 +17,9 @@
 	                 _sockopt_optname_str(optname), optval_uaddr, optlen_uaddr)
 %)
 
-probe syscall.getsockopt = dw_syscall.getsockopt !, nd_syscall.getsockopt {}
-probe syscall.getsockopt.return = dw_syscall.getsockopt.return !, nd_syscall.getsockopt.return {}
+probe syscall.getsockopt = dw_syscall.getsockopt !, nd_syscall.getsockopt ? {}
+probe syscall.getsockopt.return = dw_syscall.getsockopt.return !,
+                                  nd_syscall.getsockopt.return ? {}
 
 # dw_getsockopt _____________________________________________________
 

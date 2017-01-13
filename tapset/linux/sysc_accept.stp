@@ -14,8 +14,8 @@
 	argstr = sprintf("%d, %p, %p", sockfd, addr_uaddr, addrlen_uaddr)
 %)
 
-probe syscall.accept = dw_syscall.accept !, nd_syscall.accept {}
-probe syscall.accept.return = dw_syscall.accept.return !, nd_syscall.accept.return {}
+probe syscall.accept = dw_syscall.accept !, nd_syscall.accept ? {}
+probe syscall.accept.return = dw_syscall.accept.return !, nd_syscall.accept.return ? {}
 
 # dw_accept _____________________________________________________
 

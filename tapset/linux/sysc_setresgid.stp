@@ -12,8 +12,9 @@
 	argstr = sprintf("%d, %d, %d", rgid, egid, sgid)
 %)
 
-probe syscall.setresgid = dw_syscall.setresgid !, nd_syscall.setresgid {}
-probe syscall.setresgid.return = dw_syscall.setresgid.return !, nd_syscall.setresgid.return {}
+probe syscall.setresgid = dw_syscall.setresgid !, nd_syscall.setresgid ? {}
+probe syscall.setresgid.return = dw_syscall.setresgid.return !,
+                                 nd_syscall.setresgid.return ? {}
 
 # dw_setresgid _____________________________________________________
 

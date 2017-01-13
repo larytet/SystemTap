@@ -11,8 +11,9 @@
 	argstr = sprintf("%p, %u, %s", start, length, flags_str)
 %)
 
-probe syscall.msync = dw_syscall.msync !, nd_syscall.msync {}
-probe syscall.msync.return = dw_syscall.msync.return !, nd_syscall.msync.return {}
+probe syscall.msync = dw_syscall.msync !, nd_syscall.msync ? {}
+probe syscall.msync.return = dw_syscall.msync.return !,
+                             nd_syscall.msync.return ? {}
 
 # dw_msync _____________________________________________________
 

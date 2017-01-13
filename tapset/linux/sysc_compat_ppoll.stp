@@ -16,8 +16,10 @@
 	                 fds_uaddr, nfds, tsp_str, sigmask, sigsetsize)
 %)
 
-probe syscall.compat_ppoll = dw_syscall.compat_ppoll !, nd_syscall.compat_ppoll {}
-probe syscall.compat_ppoll.return = dw_syscall.compat_ppoll.return !, nd_syscall.compat_ppoll.return {}
+probe syscall.compat_ppoll = dw_syscall.compat_ppoll !,
+                             nd_syscall.compat_ppoll ? {}
+probe syscall.compat_ppoll.return = dw_syscall.compat_ppoll.return !,
+                                    nd_syscall.compat_ppoll.return ? {}
 
 # dw_compat_ppoll _____________________________________________________
 

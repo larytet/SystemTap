@@ -14,8 +14,10 @@
 	argstr = sprintf("%p, %d, %d, %d, %s", attr_uaddr, pid, cpu, group_fd, flags_str)
 %)
 
-probe syscall.perf_event_open = dw_syscall.perf_event_open !, nd_syscall.perf_event_open {}
-probe syscall.perf_event_open.return = dw_syscall.perf_event_open.return !, nd_syscall.perf_event_open.return {}
+probe syscall.perf_event_open = dw_syscall.perf_event_open !,
+                                nd_syscall.perf_event_open ? {}
+probe syscall.perf_event_open.return = dw_syscall.perf_event_open.return !,
+                                       nd_syscall.perf_event_open.return ? {}
 
 # dw_perf_event_open _____________________________________________________
 

@@ -13,8 +13,8 @@
 	argstr = sprint(seconds)
 %)
 
-probe syscall.alarm = dw_syscall.alarm !, nd_syscall.alarm {}
-probe syscall.alarm.return = dw_syscall.alarm.return !, nd_syscall.alarm.return {}
+probe syscall.alarm = dw_syscall.alarm !, nd_syscall.alarm ? {}
+probe syscall.alarm.return = dw_syscall.alarm.return !, nd_syscall.alarm.return ? {}
 
 # dw_alarm _____________________________________________________
 

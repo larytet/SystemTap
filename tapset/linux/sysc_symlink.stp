@@ -12,9 +12,9 @@
 	argstr = sprintf("%s, %s", oldpath, newpath)
 %)
 
-probe syscall.symlink = dw_syscall.symlink !, nd_syscall.symlink {}
+probe syscall.symlink = dw_syscall.symlink !, nd_syscall.symlink ? {}
 probe syscall.symlink.return = dw_syscall.symlink.return !,
-                               nd_syscall.symlink.return {}
+                               nd_syscall.symlink.return ? {}
 
 # dw_symlink _____________________________________________________
 

@@ -13,9 +13,9 @@
 	argstr = sprintf("%s, %s", target, flags_str)
 %)
 
-probe syscall.umount = dw_syscall.umount !, nd_syscall.umount {}
+probe syscall.umount = dw_syscall.umount !, nd_syscall.umount ? {}
 probe syscall.umount.return = dw_syscall.umount.return !,
-                              nd_syscall.umount.return {}
+                              nd_syscall.umount.return ? {}
 
 # dw_umount _____________________________________________________
 

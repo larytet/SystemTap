@@ -11,8 +11,8 @@
 	argstr = path
 %)
 
-probe syscall.chdir = dw_syscall.chdir !, nd_syscall.chdir {}
-probe syscall.chdir.return = dw_syscall.chdir.return !, nd_syscall.chdir.return {}
+probe syscall.chdir = dw_syscall.chdir !, nd_syscall.chdir ? {}
+probe syscall.chdir.return = dw_syscall.chdir.return !, nd_syscall.chdir.return ? {}
 
 # dw_chdir _____________________________________________________
 

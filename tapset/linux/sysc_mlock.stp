@@ -12,8 +12,8 @@
 	argstr = sprintf("%p, %u", addr, len)
 %)
 
-probe syscall.mlock = dw_syscall.mlock !, nd_syscall.mlock {}
-probe syscall.mlock.return = dw_syscall.mlock.return !, nd_syscall.mlock.return {}
+probe syscall.mlock = dw_syscall.mlock !, nd_syscall.mlock ? {}
+probe syscall.mlock.return = dw_syscall.mlock.return !, nd_syscall.mlock.return ? {}
 
 # dw_mlock _____________________________________________________
 

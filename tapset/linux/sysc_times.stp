@@ -13,8 +13,9 @@
 	argstr = sprintf("%s", buf_str)
 %)
 
-probe syscall.times = dw_syscall.times !, nd_syscall.times {}
-probe syscall.times.return = dw_syscall.times.return !, nd_syscall.times.return {}
+probe syscall.times = dw_syscall.times !, nd_syscall.times ? {}
+probe syscall.times.return = dw_syscall.times.return !,
+                             nd_syscall.times.return ? {}
 
 # dw_times _____________________________________________________
 

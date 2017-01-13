@@ -17,9 +17,9 @@
 	                 size, flags_str)
 %)
 
-probe syscall.setxattr = dw_syscall.setxattr !, nd_syscall.setxattr {}
+probe syscall.setxattr = dw_syscall.setxattr !, nd_syscall.setxattr ? {}
 probe syscall.setxattr.return = dw_syscall.setxattr.return !,
-                                nd_syscall.setxattr.return {}
+                                nd_syscall.setxattr.return ? {}
 
 # dw_setxattr _____________________________________________________
 

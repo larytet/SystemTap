@@ -17,8 +17,8 @@
 	argstr = sprintf("%d, %p, %d, %d", epfd, events_uaddr, maxevents, timeout)
 %)
 
-probe syscall.epoll_wait = dw_syscall.epoll_wait !, nd_syscall.epoll_wait {}
-probe syscall.epoll_wait.return = dw_syscall.epoll_wait.return !, nd_syscall.epoll_wait.return {}
+probe syscall.epoll_wait = dw_syscall.epoll_wait !, nd_syscall.epoll_wait ? {}
+probe syscall.epoll_wait.return = dw_syscall.epoll_wait.return !, nd_syscall.epoll_wait.return ? {}
 
 # dw_epoll_wait _____________________________________________________
 

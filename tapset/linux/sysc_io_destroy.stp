@@ -11,8 +11,9 @@
 	argstr = sprintf("%u", ctx)
 %)
 
-probe syscall.io_destroy = dw_syscall.io_destroy !, nd_syscall.io_destroy {}
-probe syscall.io_destroy.return = dw_syscall.io_destroy.return !, nd_syscall.io_destroy.return {}
+probe syscall.io_destroy = dw_syscall.io_destroy !, nd_syscall.io_destroy ? {}
+probe syscall.io_destroy.return = dw_syscall.io_destroy.return !,
+                                  nd_syscall.io_destroy.return ? {}
 
 # dw_io_destroy _____________________________________________________
 

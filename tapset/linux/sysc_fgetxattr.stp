@@ -12,8 +12,8 @@
 	argstr = sprintf("%d, %s, %p, %u", filedes, name_str, value_uaddr, size)
 %)
 
-probe syscall.fgetxattr = dw_syscall.fgetxattr !, nd_syscall.fgetxattr {}
-probe syscall.fgetxattr.return = dw_syscall.fgetxattr.return !, nd_syscall.fgetxattr.return {}
+probe syscall.fgetxattr = dw_syscall.fgetxattr !, nd_syscall.fgetxattr ? {}
+probe syscall.fgetxattr.return = dw_syscall.fgetxattr.return !, nd_syscall.fgetxattr.return ? {}
 
 # dw_fgetxattr _____________________________________________________
 

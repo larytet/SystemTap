@@ -14,9 +14,9 @@
 %)
 
 probe syscall.sys32_rt_sigqueueinfo = dw_syscall.sys32_rt_sigqueueinfo !,
-                                      nd_syscall.sys32_rt_sigqueueinfo {}
+                                      nd_syscall.sys32_rt_sigqueueinfo ? {}
 probe syscall.sys32_rt_sigqueueinfo.return = dw_syscall.sys32_rt_sigqueueinfo.return !,
-                                             nd_syscall.sys32_rt_sigqueueinfo.return {}
+                                             nd_syscall.sys32_rt_sigqueueinfo.return ? {}
 
 # dw_sys32_rt_sigqueueinfo _____________________________________________________
 

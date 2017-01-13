@@ -12,8 +12,10 @@
 	argstr = sprintf("%s, %s, %p, %u", path, name_str, value_uaddr, size)
 %)
 
-probe syscall.getxattr = dw_syscall.getxattr !, nd_syscall.getxattr {}
-probe syscall.getxattr.return = dw_syscall.getxattr.return !, nd_syscall.getxattr.return {}
+probe syscall.getxattr = dw_syscall.getxattr !,
+                         nd_syscall.getxattr ? {}
+probe syscall.getxattr.return = dw_syscall.getxattr.return !,
+                                nd_syscall.getxattr.return ? {}
 
 # dw_getxattr _____________________________________________________
 

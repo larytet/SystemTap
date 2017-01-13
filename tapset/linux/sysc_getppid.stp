@@ -11,8 +11,9 @@
 	argstr = ""
 %)
 
-probe syscall.getppid = dw_syscall.getppid !, nd_syscall.getppid {}
-probe syscall.getppid.return = dw_syscall.getppid.return !, nd_syscall.getppid.return {}
+probe syscall.getppid = dw_syscall.getppid !, nd_syscall.getppid ? {}
+probe syscall.getppid.return = dw_syscall.getppid.return !,
+                               nd_syscall.getppid.return ? {}
 
 # dw_getppid _____________________________________________________
 
