@@ -16,8 +16,8 @@
 	argstr = sprintf("%s, %p", req_str, rem_uaddr)
 %)
 
-probe syscall.nanosleep = dw_syscall.nanosleep !, nd_syscall.nanosleep {}
-probe syscall.nanosleep.return = dw_syscall.nanosleep.return !, nd_syscall.nanosleep.return {}
+probe syscall.nanosleep = dw_syscall.nanosleep !, nd_syscall.nanosleep ? {}
+probe syscall.nanosleep.return = dw_syscall.nanosleep.return !, nd_syscall.nanosleep.return ? {}
 
 # dw_nanosleep _____________________________________________________
 
@@ -38,7 +38,7 @@ probe syscall.compat_nanosleep = kernel.function("compat_sys_nanosleep").call ?
 {
 	@_SYSCALL_NANOSLEEP_NAME
 	req_uaddr = $rqtp
-	req_str = _struct_timespec_u(req_uaddr, 1)
+	req_str = _struct_compat_timespec_u(req_uaddr, 1)
 	rem_uaddr = $rmtp
 	@_SYSCALL_NANOSLEEP_ARGSTR
 }
@@ -69,7 +69,7 @@ probe nd_syscall.compat_nanosleep = kprobe.function("compat_sys_nanosleep") ?
 	@_SYSCALL_NANOSLEEP_NAME
 	asmlinkage()
 	req_uaddr = pointer_arg(1)
-	req_str = _struct_timespec_u(req_uaddr, 1)
+	req_str = _struct_compat_timespec_u(req_uaddr, 1)
 	rem_uaddr = pointer_arg(2)
 	@_SYSCALL_NANOSLEEP_ARGSTR
 }

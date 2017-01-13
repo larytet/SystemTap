@@ -12,12 +12,12 @@
 
 @define _SYSCALL_FUTIMESAT_ARGSTR
 %(
-	argstr = sprintf("%s, %s, %s", _dfd_str(dirfd), filename,
-	                 _struct_timeval_u(tvp_uaddr, 2))
+	argstr = sprintf("%s, %s, %s", dirfd_str, filename, tvp_str)
 %)
 
-probe syscall.futimesat = dw_syscall.futimesat !, nd_syscall.futimesat {}
-probe syscall.futimesat.return = dw_syscall.futimesat.return !, nd_syscall.futimesat.return {}
+probe syscall.futimesat = dw_syscall.futimesat !, nd_syscall.futimesat ? {}
+probe syscall.futimesat.return = dw_syscall.futimesat.return !,
+                                 nd_syscall.futimesat.return ? {}
 
 # dw_futimesat _____________________________________________________
 
@@ -30,6 +30,7 @@ probe dw_syscall.futimesat = kernel.function("sys_futimesat").call ?
 	filename_uaddr = $filename
 	filename = user_string_quoted($filename)
 	tvp_uaddr = $utimes
+	tvp_str = _struct_timeval_u(tvp_uaddr, 2)
 	@_SYSCALL_FUTIMESAT_ARGSTR
 }
 probe syscall.compat_futimesat = kernel.function("compat_sys_futimesat").call ?
@@ -41,6 +42,7 @@ probe syscall.compat_futimesat = kernel.function("compat_sys_futimesat").call ?
 	filename_uaddr = $filename
 	filename = user_string_quoted($filename)
 	tvp_uaddr = $t
+	tvp_str = _struct_compat_timeval_u(tvp_uaddr, 2)
 	@_SYSCALL_FUTIMESAT_ARGSTR
 }
 probe dw_syscall.futimesat.return = kernel.function("sys_futimesat").return ?
@@ -69,6 +71,7 @@ probe nd_syscall.futimesat = kprobe.function("sys_futimesat") ?
 	filename_uaddr = pointer_arg(2)
 	filename = user_string_quoted(filename_uaddr)
 	tvp_uaddr = pointer_arg(3)
+	tvp_str = _struct_timeval_u(tvp_uaddr, 2)
 	@_SYSCALL_FUTIMESAT_ARGSTR
 }
 probe nd_syscall.compat_futimesat = kprobe.function("compat_sys_futimesat") ?
@@ -81,6 +84,7 @@ probe nd_syscall.compat_futimesat = kprobe.function("compat_sys_futimesat") ?
 	filename_uaddr = pointer_arg(2)
 	filename = user_string_quoted(pointer_arg(2))
 	tvp_uaddr = pointer_arg(3)
+	tvp_str = _struct_compat_timeval_u(tvp_uaddr, 2)
 	@_SYSCALL_FUTIMESAT_ARGSTR
 }
 probe nd_syscall.futimesat.return = kprobe.function("sys_futimesat").return ?

@@ -15,8 +15,8 @@
 	argstr = sprintf("%p, %p, %p", cpu_uaddr, node_uaddr, tcache_uaddr)
 %)
 
-probe syscall.getcpu = dw_syscall.getcpu !, nd_syscall.getcpu {}
-probe syscall.getcpu.return = dw_syscall.getcpu.return !, nd_syscall.getcpu.return {}
+probe syscall.getcpu = dw_syscall.getcpu !, nd_syscall.getcpu ? {}
+probe syscall.getcpu.return = dw_syscall.getcpu.return !, nd_syscall.getcpu.return ? {}
 
 # dw_getcpu _____________________________________________________
 
@@ -29,21 +29,6 @@ probe dw_syscall.getcpu = kernel.function("sys_getcpu").call ?
 	@_SYSCALL_GETCPU_ARGSTR
 }
 probe dw_syscall.getcpu.return = kernel.function("sys_getcpu").return ?
-{
-	@_SYSCALL_GETCPU_NAME
-	retstr = return_str(1, $return)
-}
-
-# getcwd _____________________________________________________
-# long sys_getcwd(char __user *buf, unsigned long size)
-probe syscall.getcwd = kernel.function("sys_getcwd").call
-{
-	@_SYSCALL_GETCPU_NAME
-	buf_uaddr = $buf
-	size = $size
-	@_SYSCALL_GETCPU_ARGSTR
-}
-probe syscall.getcwd.return = kernel.function("sys_getcwd").return
 {
 	@_SYSCALL_GETCPU_NAME
 	retstr = return_str(1, $return)
@@ -66,18 +51,3 @@ probe nd_syscall.getcpu.return = kprobe.function("sys_getcpu").return ?
 	retstr = returnstr(1)
 }
 
-# getcwd _____________________________________________________
-# long sys_getcwd(char __user *buf, unsigned long size)
-probe nd_syscall.getcwd = kprobe.function("sys_getcwd") ?
-{
-	@_SYSCALL_GETCPU_NAME
-	asmlinkage()
-	buf_uaddr = pointer_arg(1)
-	size = ulong_arg(2)
-	@_SYSCALL_GETCPU_ARGSTR
-}
-probe nd_syscall.getcwd.return = kprobe.function("sys_getcwd").return ?
-{
-	@_SYSCALL_GETCPU_NAME
-	retstr = returnstr(1)
-}
