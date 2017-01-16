@@ -983,6 +983,9 @@ done
 %{_emacs_sitestartdir}/systemtap-init.el
 %{_datadir}/vim/vimfiles/*/*.vim
 %endif
+# Notice that the stap-resolve-module-function.py file is used by
+# *both* the python2 and python3 subrpms.  Both subrpms use that same
+# python script to help list python probes.
 %if %{with_python3_probes} || %{with_python2_probes}
 %{_libexecdir}/systemtap/python/stap-resolve-module-function.py
 %exclude %{_libexecdir}/systemtap/python/stap-resolve-module-function.py?
@@ -1090,10 +1093,6 @@ done
 %{_libexecdir}/systemtap/stapbm
 %endif
 
-# Notice we're putting one file, stap-resolve-module-function.py, into
-# *both* the python2 and python3 subrpms. This is OK as far as rpm is
-# concerned, since they are the same file. Both subrpms use that same
-# python script to help list python probes.
 %if %{with_python2_probes}
 %files runtime-python2
 %{python_sitearch}/HelperSDT
