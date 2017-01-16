@@ -983,6 +983,10 @@ done
 %{_emacs_sitestartdir}/systemtap-init.el
 %{_datadir}/vim/vimfiles/*/*.vim
 %endif
+%if %{with_python3_probes} || %{with_python2_probes}
+%{_libexecdir}/systemtap/python/stap-resolve-module-function.py
+%exclude %{_libexecdir}/systemtap/python/stap-resolve-module-function.py?
+%endif
 
 
 %files runtime -f systemtap.lang
@@ -1092,17 +1096,13 @@ done
 # python script to help list python probes.
 %if %{with_python2_probes}
 %files runtime-python2
-%{python_sitelib}/HelperSDT
-%{python_sitelib}/HelperSDT-*.egg-info
-%{_libexecdir}/systemtap/python/stap-resolve-module-function.py
-%exclude %{_libexecdir}/systemtap/python/stap-resolve-module-function.py?
+%{python_sitearch}/HelperSDT
+%{python_sitearch}/HelperSDT-*.egg-info
 %endif
 %if %{with_python3_probes}
 %files runtime-python3
-%{python3_sitelib}/HelperSDT
-%{python3_sitelib}/HelperSDT-*.egg-info
-%{_libexecdir}/systemtap/python/stap-resolve-module-function.py
-%exclude %{_libexecdir}/systemtap/python/stap-resolve-module-function.py?
+%{python3_sitearch}/HelperSDT
+%{python3_sitearch}/HelperSDT-*.egg-info
 %endif
 
 %if %{with_virthost}
