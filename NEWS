@@ -1,5 +1,17 @@
 * What's new in version 3.1, PRERELEASE
 
+- Support has been added for probing python 2 and 3 functions using a
+  custom python helper module. Python function probes can target
+  function entry, returns, or specific line numbers.
+
+      probe python2.module("myscript").function("foo")
+         { println($$parms) }
+
+  To run with the custom python helper module, you'd use python's '-m'
+  option like the following:
+  
+      stap myscript.stp -c "python -m HelperSDT myscript.py"
+
 - Java method probes now convert all types of java parameters to
   strings using the java toString() method before passing them to
   systemtap probes; new argN variables copy them into string
