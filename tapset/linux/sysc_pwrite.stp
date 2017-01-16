@@ -68,3 +68,47 @@ probe nd_syscall.pwrite.return = kprobe.function("sys_pwrite64").return ?
 	@_SYSCALL_PWRITE_NAME
 	retstr = returnstr(1)
 }
+
+# long sys32_pwrite64(unsigned int fd, const char __user *ubuf,
+#				size_t count, u32 poshi, u32 poslo)
+
+probe syscall.pwrite32 = dw_syscall.pwrite32 !, nd_syscall.pwrite32 ? {}
+probe syscall.pwrite32.return = dw_syscall.pwrite32.return !,
+                                nd_syscall.pwrite32.return ? {}
+
+# dw_pwrite32 _____________________________________________________
+
+probe dw_syscall.pwrite32 = kernel.function("sys32_pwrite64").call ?
+{
+	@_SYSCALL_PWRITE_NAME
+	fd = __int32($fd)
+	count = $count
+	offset = ($poshi << 32) + $poslo
+	buf_uaddr = @choose_defined($buf, $ubuf)
+	buf_str = user_buffer_quoted(buf_uaddr, count, syscall_string_trunc)
+	@_SYSCALL_PWRITE_ARGSTR
+}
+probe dw_syscall.pwrite32.return = kernel.function("sys32_pwrite64").return ?
+{
+	@_SYSCALL_PWRITE_NAME
+	retstr = return_str(1, $return)
+}
+
+# nd_pwrite32 _____________________________________________________
+
+probe nd_syscall.pwrite32 = kprobe.function("sys32_pwrite64") ?
+{
+	@_SYSCALL_PWRITE_NAME
+	asmlinkage()
+	fd = int_arg(1)
+	buf_uaddr = pointer_arg(2)
+	count = ulong_arg(3)
+	buf_str = user_buffer_quoted(buf_uaddr, count, syscall_string_trunc)
+	offset = (u32_arg(4) << 32) + u32_arg(5)
+	@_SYSCALL_PWRITE_ARGSTR
+}
+probe nd_syscall.pwrite32.return = kprobe.function("sys32_pwrite64").return ?
+{
+	@_SYSCALL_PWRITE_NAME
+	retstr = returnstr(1)
+}

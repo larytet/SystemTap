@@ -202,8 +202,8 @@ probe nd_syscall.clock_gettime.return
 probe nd_syscall.clock_nanosleep, nd_syscall.compat_clock_nanosleep ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d(%s), %d(%s), %p, %p\n", clk_id, clk_id_str, flags, flags_str,
-	       req_uaddr, rem_uaddr)
+	printf("%d(%s), %d(%s), %p, %p, %s\n", clk_id, clk_id_str, flags, flags_str,
+	       req_uaddr, rem_uaddr, req_str)
 %(systemtap_v <= "2.6" %?
 	printf("%s\n", flag_str)
 %)

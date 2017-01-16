@@ -1652,6 +1652,16 @@ probe nd_syscall.utimensat.return ?, nd_syscall.compat_utimensat.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
+probe nd_syscall.utimes ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%s, %s", filename, tvp_uaddr_str)
+}
+probe nd_syscall.utimes.return?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe nd_syscall.vfork ?
 {
 	printf("%s, %s\n", name, argstr)
