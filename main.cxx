@@ -954,8 +954,8 @@ passes_0_4 (systemtap_session &s)
   //
   bool argc_found=false, argv_found=false;
   for (unsigned i = 0; i<s.globals.size(); i++) {
-    if (s.globals[i]->name == "argc") argc_found = true;
-    if (s.globals[i]->name == "argv") argv_found = true;
+    if (s.globals[i]->unmangled_name == "argc") argc_found = true;
+    if (s.globals[i]->unmangled_name == "argv") argv_found = true;
   }
   if (!argc_found && !argv_found)
     for (unsigned i = 0; i<s.used_args.size(); i++)
