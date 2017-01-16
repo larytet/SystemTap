@@ -4,12 +4,10 @@ if {![installtest_p]} {untested $test; return}
 
 foreach runtime [get_runtime_list] {
     set test "beginenderror"
+    set args "--vp=0"
     if {$runtime != ""} {
 	lappend test "($runtime)"
 	set args "--runtime=$runtime"
-    } else {
-        # set it to transparent nonempty string
-        set args "--vp=0"
     }
 
     # The VERREL stuff is just for compile-testing that option; it plays no

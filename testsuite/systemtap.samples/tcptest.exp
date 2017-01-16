@@ -9,4 +9,4 @@ proc tcp_gen { } {
 set output_header "UID\tPID\tSIZE\tNAME\t\t\tPORT\tSOURCE\t\tRTO\tRCVMSS\tSSTHRES\tCWND\tSTATE\r\n"
 set output_rows "((\\d+\t\\d+\t\\d+\t\\S+\t\t\t\\d+\t\\S*\t\\d+\t\\d+\t\\d+\t\\d+\t\\d+)?\r\n){5}"
 set output_string "TCP totalbytes: \\d+\r\n$output_header$output_rows"
-stap_run $srcdir/$subdir/$test.stp tcp_gen $output_string
+stap_run $test tcp_gen $output_string $srcdir/$subdir/$test.stp

@@ -1,12 +1,12 @@
 # stap_run TEST_NAME LOAD_GEN_FUNCTION OUTPUT_CHECK_STRING
-# TEST_NAME is path to the current test
+# TEST_NAME is a test name string
 # LOAD_GEN_FUNCTION (optional) to produce something to measure
 #     returns 0 if successful
 #     returns 1 if there was a problem
 # OUTPUT_CHECK_STRING (optional) examines the output of experiment
 #     returns 0 if successful
 #     returns 1 if there was a problem
-# Additional arguments are passed to stap as-is.
+# Additional arguments are passed to stap as-is, including a test file .stp name.
 #
 # As a side-effect, global 'probe_errors' and 'skipped_probes' are set
 # to the number of probe errors and skipped probes seen while
@@ -34,9 +34,10 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
     if {[info procs installtest_p] != "" && ![installtest_p]} { untested $TEST_NAME; return }
 
     set cmd [concat stap -v $args]
-    if [file readable $test_file_name] {
-        lappend cmd $test_file_name
-    }
+    
+    # don't the following: ... $test_file_name could be some transient or leftover file
+    # if [file readable $test_file_name] { lappend cmd $test_file_name }
+    
     send_log "executing: $cmd\n"
     eval spawn $cmd
     set mypid [exp_pid -i $spawn_id]

@@ -14,4 +14,4 @@ if { $res != ""} {
 } else {
   pass "$test compile"
 }
-stap_run $srcdir/$subdir/$test.stp no_load $all_pass_string -c "$exefile > /dev/null"
+stap_run $test no_load $all_pass_string -c "$exefile > /dev/null" $srcdir/$subdir/$test.stp

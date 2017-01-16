@@ -108,10 +108,10 @@ if {[build_and_install_module] == 0} {
 }
 
 # Test 'module("foo").function("bar")
-stap_run $srcdir/$subdir/$test.stp kmodule_load $output_string
+stap_run $test kmodule_load $output_string $srcdir/$subdir/$test.stp
 
 # Test 'kprobe.module("foo").function("bar")
-stap_run $srcdir/$subdir/$test2.stp kmodule_load $output_string
+stap_run $test2 kmodule_load $output_string $srcdir/$subdir/$test2.stp
 
 # Now let's test and see if the same scripts work when the test module
 # is loaded *after* the systemtap script starts.

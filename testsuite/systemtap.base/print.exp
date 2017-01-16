@@ -5,9 +5,9 @@ set test "print"
 set output_string "(${all_pass_string}){9}"
 foreach runtime [get_runtime_list] {
     if {$runtime != ""} {
-	stap_run $srcdir/$subdir/$test.stp no_load $output_string \
-	    --runtime=$runtime
+	stap_run $test no_load $output_string \
+	    --runtime=$runtime $srcdir/$subdir/$test.stp
     } else {
-	stap_run $srcdir/$subdir/$test.stp no_load $output_string
+	stap_run $test no_load $output_string $srcdir/$subdir/$test.stp
     }
 }

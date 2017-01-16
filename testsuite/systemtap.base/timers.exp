@@ -13,4 +13,4 @@ proc sleep_ten_secs {} {
 #should be error is something else is printed.
 set output_string "(\\w+ = \\d+\r\n){17}(${all_pass_string}){10}(WARNING.*skipped.*)?"
 
-stap_run $srcdir/$subdir/$test.stp sleep_ten_secs $output_string
+stap_run $test sleep_ten_secs $output_string $srcdir/$subdir/$test.stp
