@@ -176,9 +176,11 @@ BuildRequires: ncurses-devel
 %endif
 %if %{with_python2_probes}
 BuildRequires: python-devel
+BuildRequires: python-setuptools
 %endif
 %if %{with_python3_probes}
 BuildRequires: python3-devel
+BuildRequires: python3-setuptools
 %endif
 
 # Install requirements
