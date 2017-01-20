@@ -60,7 +60,7 @@
 <li><a href="#virtualization/kvm_service_time.stp">virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons</a></li>
 </ul>
 
-<h2>All 160 Examples</h2>
+<h2>All 161 Examples</h2>
 <ul>
 <li><a name="general/alias_suffixes.stp"></a><a href="#general/alias_suffixes.stp">&para;</a> <a href="general/alias_suffixes.stp">general/alias_suffixes.stp</a> - Count I/O Syscalls using Alias Suffixes<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
@@ -303,6 +303,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li><li><a name="network/nfsd-recent.stp"></a><a href="#network/nfsd-recent.stp">&para;</a> <a href="network/nfsd-recent.stp">network/nfsd-recent.stp</a> - Keep track of NFS server statistics<br>
 keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
 <p>This script tracks all nfsd server operations by client_ip address, and periodically lists those clients that have made recent requests.  It&#39;s a way of finding out which nfs clients might be considered still connected.</p><p><font size="-2"><pre># stap nfsd-recent.stp -T 1</pre></font></p>
+</li><li><a name="network/nfsd-trace.stp"></a><a href="#network/nfsd-trace.stp">&para;</a> <a href="network/nfsd-trace.stp">network/nfsd-trace.stp</a> - Trace NFSD requests with file names.<br>
+keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#TRACE">TRACE</a> <br>
+<p>This script traces all nfsd server operations by client_ip address, operation, and complete file name (if possible).</p><p><i><a href="network/nfsd-trace.txt">sample usage in network/nfsd-trace.txt</i></font></p>
 </li><li><a name="network/nfsd_unlink.stp"></a><a href="#network/nfsd_unlink.stp">&para;</a> <a href="network/nfsd_unlink.stp">network/nfsd_unlink.stp</a> - Find Which Client Is Removing NFS Files on Server<br>
 keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#DISK">DISK</a> <br>
 <p>The nfsd_unlink.stp script lists the ip address and file name each time time a file is being removed or unlinked by the nfsd. This script is run on the nfs server.</p><p><font size="-2"><pre># stap nfsd_unlink.stp -T 1</pre></font></p>

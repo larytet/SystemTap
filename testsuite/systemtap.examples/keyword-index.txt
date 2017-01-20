@@ -1765,6 +1765,15 @@ keywords: nfs statistics
   # stap nfsd-recent.stp -T 1
 
 
+network/nfsd-trace.stp - Trace NFSD requests with file names.
+keywords: nfs trace
+
+  This script traces all nfsd server operations by client_ip address,
+  operation, and complete file name (if possible).
+
+  # stap nfsd-trace.stp -T 1
+
+
 network/nfsd_unlink.stp - Find Which Client Is Removing NFS Files on Server
 keywords: nfs disk
 
@@ -3263,6 +3272,15 @@ keywords: speculation monitoring function trace _best
 
   # stap whythefail.stp kernel sys_open '$return < 0' -c 'cat \
   /root/no-such-file || true'
+
+
+network/nfsd-trace.stp - Trace NFSD requests with file names.
+keywords: nfs trace
+
+  This script traces all nfsd server operations by client_ip address,
+  operation, and complete file name (if possible).
+
+  # stap nfsd-trace.stp -T 1
 
 
 network/tcp_trace.stp - TCP Connection Tracing Utility
