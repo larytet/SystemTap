@@ -340,6 +340,7 @@ proc setup_systemtap_environment {} {
       set kill_needs_doubledash 0
     }
 
+    arch_compile_init
     return 1
 }
 
