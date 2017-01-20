@@ -6,7 +6,7 @@
 # $(DTRACE) $(DTRACEFLAGS) -h -s $^ -o $@
 # which is a step that builds DTrace provider and probe definitions
 
-# Copyright (C) 2009-2015 Red Hat Inc.
+# Copyright (C) 2009-2017 Red Hat Inc.
 #
 # This file is part of systemtap, and is free software.  You can
 # redistribute it and/or modify it under the terms of the GNU General
@@ -143,7 +143,7 @@ class _PypProvider(_HeaderCreator):
         def memoize_probe(instring, loc, tokens):
             self.current_probe = tokens[0][1]
             self.current_lineno = lineno(loc,instring)
-        probe_decl = Group(PROBE + probe_ident + "(" + Optional(Group(delimitedList(member_decl))) + ")" + Optional(semi))
+        probe_decl = Group(PROBE + probe_ident + "(" + Optional(Group(delimitedList(member_decl))) + ")" + Optional(Group(Literal(":") + "(" + Optional(Group(delimitedList(member_decl))) + ")")) + Optional(semi))
         probe_decl.setParseAction(memoize_probe)
         probe_decls = OneOrMore(probe_decl)
 
