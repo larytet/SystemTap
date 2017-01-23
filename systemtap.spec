@@ -113,16 +113,18 @@ Source: ftp://sourceware.org/pub/systemtap/releases/systemtap-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: gcc-c++
 BuildRequires: gettext-devel
-BuildRequires: nss-devel avahi-devel pkgconfig
+BuildRequires: pkgconfig(nss)
+BuildRequires: pkgconfig(avahi-client)
 %if %{with_dyninst}
 BuildRequires: dyninst-devel >= 8.0
-BuildRequires: libselinux-devel
+BuildRequires: pkgconfig(libselinux)
 %endif
 %if %{with_sqlite}
 BuildRequires: sqlite-devel
 %endif
 %if %{with_monitor}
-BuildRequires: json-c-devel ncurses-devel
+BuildRequires: pkgconfig(json-c)
+BuildRequires: pkgconfig(ncurses)
 %endif
 %if %{with_systemd}
 BuildRequires: systemd
@@ -167,12 +169,13 @@ BuildRequires: emacs
 BuildRequires: jpackage-utils java-devel
 %endif
 %if %{with_virthost}
-BuildRequires: libvirt-devel >= 1.0.2
-BuildRequires: libxml2-devel
+# BuildRequires: libvirt-devel >= 1.0.2
+BuildRequires: pkgconfig(libvirt)
+BuildRequires: pkgconfig(libxml-2.0)
 %endif
 BuildRequires: readline-devel
 %if 0%{?rhel} <= 5
-BuildRequires: ncurses-devel
+BuildRequires: pkgconfig(ncurses)
 %endif
 %if %{with_python2_probes}
 BuildRequires: python-devel
