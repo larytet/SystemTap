@@ -20,9 +20,7 @@ global process_names # long-lived pid-to-execname mapping
 probe kernel.function("futex_wait_setup").return {
   if ($return != 0) next
 
-  # NB: this is the entry value
-  # Further @KEY dereferences happen at return
-  key = &$q->key
+  key = & @entry($q->key)
 
   offset = @KEY->both->offset
   masked_offset = offset & ~(FUT_OFF_INODE | FUT_OFF_MMSHARED)
@@ -42,7 +40,7 @@ probe syscall.futex.return {
   key = wait_keys[tid()]
   delete wait_keys[tid()]
 
-  cmd = $op & ~(FUTEX_PRIVATE_FLAG|FUTEX_CLOCK_REALTIME);
+  cmd = @entry($op) & ~(FUTEX_PRIVATE_FLAG|FUTEX_CLOCK_REALTIME);
   if (cmd != FUTEX_WAIT) next
 
   process_names[pid()] = execname()
