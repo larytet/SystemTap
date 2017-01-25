@@ -1,5 +1,5 @@
 // tapset resolution
-// Copyright (C) 2005-2016 Red Hat Inc.
+// Copyright (C) 2005-2017 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -2720,7 +2720,8 @@ dwarf_query::query_library (const char *library)
 
 struct plt_expanding_visitor: public var_expanding_visitor
 {
-  plt_expanding_visitor(const string & entry):
+  plt_expanding_visitor(systemtap_session&s, const string & entry):
+    var_expanding_visitor (s),
     entry (entry)
   {
   }
@@ -2781,8 +2782,8 @@ query_one_plt (const char *entry, long addr, dwflpp & dw,
       probe *new_base = new probe (new probe (base_probe, specific_loc),
                                    derived_loc);
       string e = string(entry);
-      plt_expanding_visitor pltv (e);
-      pltv.replace (new_base->body);
+      plt_expanding_visitor pltv (dw.sess, e);
+      var_expand_const_fold_loop (dw.sess, new_base->body, pltv);
 
       literal_map_t params;
       for (unsigned i = 0; i < derived_loc->components.size(); ++i)
@@ -2836,6 +2837,7 @@ struct dwarf_var_expanding_visitor: public var_expanding_visitor
   bool visited;
 
   dwarf_var_expanding_visitor(dwarf_query & q, Dwarf_Die *sd, Dwarf_Addr a):
+    var_expanding_visitor(q.sess),
     q(q), scope_die(sd), addr(a), add_block(NULL), add_call_probe(NULL),
     add_block_tid(false), add_call_probe_tid(false),
     saved_longs(0), saved_strings(0), visited(false) {}
@@ -2848,6 +2850,7 @@ struct dwarf_var_expanding_visitor: public var_expanding_visitor
   void visit_cast_op (cast_op* e);
   void visit_entry_op (entry_op* e);
   void visit_perf_op (perf_op* e);
+
 private:
   vector<Dwarf_Die>& getscopes(target_symbol *e);
 };
@@ -2856,8 +2859,8 @@ private:
 unsigned var_expanding_visitor::tick = 0;
 
 
-var_expanding_visitor::var_expanding_visitor ():
-  replaced_defined_ops(0), op()
+var_expanding_visitor::var_expanding_visitor (systemtap_session& s):
+  sess(s), op()
 {
   // FIXME: for the time being, by default we only support plain '$foo
   // = bar', not '+=' or any other op= variant. This is fixable, but a
@@ -3042,10 +3045,12 @@ var_expanding_visitor::visit_defined_op (defined_op* e)
   }
   defined_ops.pop ();
 
+  if (sess.verbose>2)
+    clog << _("Resolving ") << *e << ": " << resolved << endl;
+
   literal_number* ln = new literal_number (resolved ? 1 : 0);
   ln->tok = e->tok;
-  provide (ln);
-  ++replaced_defined_ops;
+  abort_provide (ln); // PR20672; stop updating visitor
 }
 
 
@@ -4531,12 +4536,11 @@ dwarf_var_expanding_visitor::getscopes(target_symbol *e)
 
 struct dwarf_cast_expanding_visitor: public var_expanding_visitor
 {
-  systemtap_session& s;
   dwarf_builder& db;
   map<string,string> compiled_headers;
 
   dwarf_cast_expanding_visitor(systemtap_session& s, dwarf_builder& db):
-    s(s), db(db) {}
+    var_expanding_visitor(s), db(db) {}
   void visit_cast_op (cast_op* e);
   void filter_special_modules(string& module);
 };
@@ -4654,16 +4658,16 @@ void dwarf_cast_expanding_visitor::filter_special_modules(string& module)
         }
 
       string cached_module;
-      if (s.use_cache)
+      if (sess.use_cache)
         {
           // see if the cached module exists
-          cached_module = find_typequery_hash(s, module);
-          if (!cached_module.empty() && !s.poison_cache)
+          cached_module = find_typequery_hash(sess, module);
+          if (!cached_module.empty() && !sess.poison_cache)
             {
               int fd = open(cached_module.c_str(), O_RDONLY);
               if (fd != -1)
                 {
-                  if (s.verbose > 2)
+                  if (sess.verbose > 2)
                     //TRANSLATORS: Here we're using a cached module.
                     clog << _("Pass 2: using cached ") << cached_module << endl;
                   compiled_headers[header] = module = cached_module;
@@ -4674,11 +4678,11 @@ void dwarf_cast_expanding_visitor::filter_special_modules(string& module)
         }
 
       // no cached module, time to make it
-      if (make_typequery(s, module) == 0)
+      if (make_typequery(sess, module) == 0)
         {
           // try to save typequery in the cache
-          if (s.use_cache)
-            copy_file(module, cached_module, s.verbose > 2);
+          if (sess.use_cache)
+            copy_file(module, cached_module, sess.verbose > 2);
           compiled_headers[header] = module;
         }
     }
@@ -4688,7 +4692,7 @@ void dwarf_cast_expanding_visitor::filter_special_modules(string& module)
 void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
 {
   bool lvalue = is_active_lvalue(e);
-  if (lvalue && !s.guru_mode)
+  if (lvalue && !sess.guru_mode)
     throw SEMANTIC_ERROR(_("write to @cast context variable not permitted; need stap -g"), e->tok);
 
   if (e->module.empty())
@@ -4714,12 +4718,12 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
 	  if (! userspace_p)
 	    {
 	      // kernel or kernel module target
-	      dw = db.get_kern_dw(s, module);
+	      dw = db.get_kern_dw(sess, module);
 	    }
 	  else
 	    {
-              module = find_executable (module, "", s.sysenv); // canonicalize it
-	      dw = db.get_user_dw(s, module);
+              module = find_executable (module, "", sess.sysenv); // canonicalize it
+	      dw = db.get_user_dw(sess, module);
 	    }
 	}
       catch (const semantic_error& er)
@@ -4818,11 +4822,10 @@ exp_type_dwarf::expand(autocast_op* e, bool lvalue)
 
 struct dwarf_atvar_expanding_visitor: public var_expanding_visitor
 {
-  systemtap_session& s;
   dwarf_builder& db;
 
   dwarf_atvar_expanding_visitor(systemtap_session& s, dwarf_builder& db):
-    s(s), db(db) {}
+    var_expanding_visitor(s), db(db) {}
   void visit_atvar_op (atvar_op* e);
 };
 
@@ -4921,7 +4924,7 @@ void
 dwarf_atvar_expanding_visitor::visit_atvar_op (atvar_op* e)
 {
   const bool lvalue = is_active_lvalue(e);
-  if (lvalue && !s.guru_mode)
+  if (lvalue && !sess.guru_mode)
     throw SEMANTIC_ERROR(_("write to @var variable not permitted; "
                            "need stap -g"), e->tok);
 
@@ -4945,12 +4948,12 @@ dwarf_atvar_expanding_visitor::visit_atvar_op (atvar_op* e)
           if (!userspace_p)
             {
               // kernel or kernel module target
-              dw = db.get_kern_dw(s, module);
+              dw = db.get_kern_dw(sess, module);
             }
           else
             {
-              module = find_executable(module, "", s.sysenv);
-              dw = db.get_user_dw(s, module);
+              module = find_executable(module, "", sess.sysenv);
+              dw = db.get_user_dw(sess, module);
             }
         }
       catch (const semantic_error& er)
@@ -4964,7 +4967,7 @@ dwarf_atvar_expanding_visitor::visit_atvar_op (atvar_op* e)
 
       if (result)
         {
-          s.unwindsym_modules.insert(module);
+          sess.unwindsym_modules.insert(module);
 
           if (lvalue)
 	    provide_lvalue_call (result);
@@ -5151,8 +5154,6 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
   // (PR15999, PR16473). Access to specific context vars e.g. $argc will not be
   // expanded and will produce an error during the typeresolution_info pass.
   {
-      // XXX: user-space deref's for q.has_process!
-
       // PR14436: if we're expanding target variables in the probe body of a
       // .return probe, we need to make the expansion at the postprologue addr
       // instead (if any), which is then also the spot where the entry handler
@@ -5168,9 +5169,15 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
                        lex_cast_hex(handler_dwfl_addr).c_str(),
                        lex_cast_hex(dwfl_addr).c_str());
         }
-      dwarf_var_expanding_visitor v (q, scope_die, handler_dwfl_addr);
-      v.replace (this->body);
 
+      // PR20672, there may be @defined()-guarded @entry() expressions
+      // in the tree.  If any @defined() maps to false, the visitor
+      // needs to abort so that subsequent @entry()'s are not
+      // processed (to generate synthetic .call etc. probes).  We do a
+      // a mini relaxation loop here.
+      dwarf_var_expanding_visitor v (q, scope_die, handler_dwfl_addr);
+      var_expand_const_fold_loop (q.sess, this->body, v);
+      
       // Propagate perf.counters so we can emit later
       this->perf_counter_refs = v.perf_counter_refs;
       // Emit local var used to save the perf counter read value
@@ -5193,7 +5200,6 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
                 break;
               }
 	}
-
 
       if (!q.has_process)
         access_vars = v.visited;
@@ -6052,7 +6058,7 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
 				   stap_sdt_probe_type probe_type,
 				   interned_string arg_string,
 				   int ac):
-    session (s), dw (dw), elf_machine (elf_machine),
+    var_expanding_visitor (s), dw (dw), elf_machine (elf_machine),
     process_name (process_name), provider_name (provider_name),
     probe_name (probe_name), probe_type (probe_type), arg_count ((unsigned) ac)
   {
@@ -6074,7 +6080,6 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
       }
   }
 
-  systemtap_session& session;
   dwflpp& dw;
   int elf_machine;
   interned_string process_name;
@@ -6878,7 +6883,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
               stringstream ss;
               ss << " /* unprivileged */ /* pure */ /* pragma:vma */" << endl;
               ss << "STAP_RETURN(_stp_umodule_relocate(";
-                ss << "\"" << path_remove_sysroot(session, process_name) << "\", ";
+                ss << "\"" << path_remove_sysroot(sess, process_name) << "\", ";
                 ss << "0x" << hex << reloc_addr << dec << ", ";
                 ss << "current";
               ss << "));" << endl;
@@ -6887,7 +6892,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
               ec->tok = e->tok;
               ec->code = ss.str();
               get_addr_decl->body = ec;
-              get_addr_decl->join(session);
+              get_addr_decl->join(sess);
 
               functioncall *get_addr_call = new functioncall;
               get_addr_call->tok = e->tok;
@@ -6955,17 +6960,17 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
         }
 
       // The asmarg operand was not recognized.  Back down to dwarf.
-      if (! session.suppress_warnings)
+      if (! sess.suppress_warnings)
         {
           if (probe_type == UPROBE3_TYPE)
-            session.print_warning (_F("Can't parse SDT_V3 operand '%s' "
-                                      "[man error::sdt]", asmarg.c_str()),
-                                   e->tok);
+            sess.print_warning (_F("Can't parse SDT_V3 operand '%s' "
+                                   "[man error::sdt]", asmarg.c_str()),
+                                e->tok);
           else // must be *PROBE2; others don't get asm operands
-            session.print_warning (_F("Downgrading SDT_V2 probe argument to "
-                                      "dwarf, can't parse '%s' [man error::sdt]",
-                                      asmarg.c_str()),
-                                   e->tok);
+            sess.print_warning (_F("Downgrading SDT_V2 probe argument to "
+                                   "dwarf, can't parse '%s' [man error::sdt]",
+                                   asmarg.c_str()),
+                                e->tok);
         }
 
       need_debug_info = true;
@@ -6977,7 +6982,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
     matched:
       assert (argexpr != 0);
 
-      if (session.verbose > 2)
+      if (sess.verbose > 2)
         //TRANSLATORS: We're mapping the operand to a new expression*.
         clog << _F("mapped asm operand %s to ", asmarg.c_str()) << *argexpr << endl;
 
@@ -7225,7 +7230,8 @@ sdt_query::handle_probe_entry()
   sdt_uprobe_var_expanding_visitor svv (sess, dw, elf_machine, module_val,
                                         provider_name, probe_name, probe_type,
                                         arg_string, arg_count);
-  svv.replace (new_base->body);
+  var_expand_const_fold_loop (sess, new_base->body, svv);
+
   need_debug_info = svv.need_debug_info;
 
   // XXX: why not derive_probes() in the uprobes case too?
@@ -9731,14 +9737,13 @@ struct kprobe_derived_probe: public generic_kprobe_derived_probe
 
 struct kprobe_var_expanding_visitor: public var_expanding_visitor
 {
-  systemtap_session& sess;
   block *add_block;
   block *add_call_probe; // synthesized from .return probes with saved $vars
   bool add_block_tid, add_call_probe_tid;
   bool has_return;
 
   kprobe_var_expanding_visitor(systemtap_session& sess, bool has_return):
-    sess(sess), add_block(NULL), add_call_probe(NULL),
+    var_expanding_visitor(sess), add_block(NULL), add_call_probe(NULL),
     add_block_tid(false), add_call_probe_tid(false),
     has_return(has_return) {}
 
@@ -9813,7 +9818,7 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
     comps.push_back (new probe_point::component(TOK_MAXACTIVE, new literal_number(maxactive_val)));
 
   kprobe_var_expanding_visitor v (sess, has_return);
-  v.replace (this->body);
+  var_expand_const_fold_loop (sess, this->body, v);
 
   // If during target-variable-expanding the probe, we added a new block
   // of code, add it to the start of the probe.
@@ -10473,6 +10478,7 @@ struct tracepoint_var_expanding_visitor: public var_expanding_visitor
 {
   tracepoint_var_expanding_visitor(dwflpp& dw,
                                    vector <struct tracepoint_arg>& args):
+    var_expanding_visitor (dw.sess),
     dw (dw), args (args) {}
   dwflpp& dw;
   vector <struct tracepoint_arg>& args;
@@ -10719,7 +10725,8 @@ tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
 
   // Now expand the local variables in the probe body
   tracepoint_var_expanding_visitor v (dw, args);
-  v.replace (this->body);
+  var_expand_const_fold_loop (sess, this->body, v);
+
   for (unsigned i = 0; i < args.size(); i++)
     if (args[i].used)
       {

@@ -1,5 +1,5 @@
 // elaboration functions
-// Copyright (C) 2005-2016 Red Hat Inc.
+// Copyright (C) 2005-2017 Red Hat Inc.
 // Copyright (C) 2008 Intel Corporation
 //
 // This file is part of systemtap, and is free software.  You can
@@ -1891,9 +1891,8 @@ semantic_pass_symbols (systemtap_session& s)
 
               try
                 {
-                  for (unsigned k=0; k<s.code_filters.size(); k++)
-                    s.code_filters[k]->replace (dp->body);
-
+                  update_visitor_loop (s, s.code_filters, dp->body);
+                  
                   sym.current_function = 0;
                   sym.current_probe = dp;
                   dp->body->visit (& sym);
@@ -1920,8 +1919,7 @@ semantic_pass_symbols (systemtap_session& s)
 
           try
             {
-              for (unsigned j=0; j<s.code_filters.size(); j++)
-                s.code_filters[j]->replace (fd->body);
+              update_visitor_loop (s, s.code_filters, fd->body);
 
               sym.current_function = fd;
               sym.current_probe = 0;
@@ -4039,43 +4037,6 @@ void semantic_pass_opt5 (systemtap_session& s, bool& relaxed_p)
 }
 
 
-struct const_folder: public update_visitor
-{
-  systemtap_session& session;
-  bool& relaxed_p;
-  bool collapse_defines_p;
-  
-  const_folder(systemtap_session& s, bool& r, bool collapse_defines = false):
-    session(s), relaxed_p(r), collapse_defines_p(collapse_defines),
-    last_number(0), last_string(0), last_target_symbol(0) {}
-
-  literal_number* last_number;
-  literal_number* get_number(expression*& e);
-  void visit_literal_number (literal_number* e);
-
-  literal_string* last_string;
-  literal_string* get_string(expression*& e);
-  void visit_literal_string (literal_string* e);
-
-  void get_literal(expression*& e, literal_number*& n, literal_string*& s);
-
-  void visit_if_statement (if_statement* s);
-  void visit_for_loop (for_loop* s);
-  void visit_foreach_loop (foreach_loop* s);
-  void visit_binary_expression (binary_expression* e);
-  void visit_unary_expression (unary_expression* e);
-  void visit_logical_or_expr (logical_or_expr* e);
-  void visit_logical_and_expr (logical_and_expr* e);
-  // void visit_regex_query (regex_query* e); // XXX: would require executing dfa at compile-time
-  void visit_comparison (comparison* e);
-  void visit_concatenation (concatenation* e);
-  void visit_ternary_expression (ternary_expression* e);
-  void visit_defined_op (defined_op* e);
-
-  target_symbol* last_target_symbol;
-  target_symbol* get_target_symbol(expression*& e);
-  void visit_target_symbol (target_symbol* e);
-};
 
 void
 const_folder::get_literal(expression*& e,
@@ -4577,6 +4538,10 @@ const_folder::visit_defined_op (defined_op* e)
   int64_t value = 0;
   bool collapse_this = false;
 
+  /* PR20672: not true; we run a const_folder iteratively during 
+     initial probe body variable-expansion, when other @defined()s may
+     be as-yet-unprocessed.  We can't presume to map them to zero.
+
   // We do know that plain target_symbols aren't going anywhere though.
   if (get_target_symbol (e->operand))
     {
@@ -4584,7 +4549,9 @@ const_folder::visit_defined_op (defined_op* e)
         clog << _("Collapsing target_symbol @defined check ") << *e->tok << endl;
       collapse_this = true;
     }
-  else if (collapse_defines_p && relaxed_p)
+  else
+  */
+  if (collapse_defines_p && relaxed_p)
     {
       if (session.verbose>2)
         clog << _("Collapsing untouched @defined check ") << *e->tok << endl;
@@ -4622,10 +4589,15 @@ const_folder::get_target_symbol(expression*& e)
 void
 const_folder::visit_target_symbol (target_symbol* e)
 {
-  if (session.skip_badvars)
+  if (collapse_defines_p && session.skip_badvars)
     {
       // Upon user request for ignoring context, the symbol is replaced
       // with a literal 0 and a warning message displayed
+      // ... but don't do this during early runs of the const_folder, only
+      // during the final (collapse_defines_p) one.  (Otherwise, during
+      // a dwarf_var "@defined($foo) ? $foo : 0", the inner $foo could
+      // get premature mapping to 0.
+      //
       // XXX this ignores possible side-effects, e.g. in array indexes
       literal_number* ln_zero = new literal_number (0);
       ln_zero->tok = e->tok;
@@ -4657,7 +4629,7 @@ static int semantic_pass_const_fold (systemtap_session& s, bool& relaxed_p)
     }
 
   // Let's simplify statements with constant values.
-  const_folder cf (s, relaxed_p);
+  const_folder cf (s, relaxed_p, true /* collapse remaining @defined()->0 now */ );
   // This instance may be reused for multiple probe/function body trims.
 
   for (unsigned i=0; i<s.probes.size(); i++)
@@ -5373,7 +5345,8 @@ semantic_pass_optimize2 (systemtap_session& s)
 struct autocast_expanding_visitor: public var_expanding_visitor
 {
   typeresolution_info& ti;
-  autocast_expanding_visitor (typeresolution_info& ti): ti(ti) {}
+  autocast_expanding_visitor (systemtap_session& s, typeresolution_info& ti):
+    var_expanding_visitor(s), ti(ti) {}
 
   void resolve_functioncall (functioncall* fc)
     {
@@ -5596,12 +5569,12 @@ semantic_pass_types (systemtap_session& s)
             // Check and run the autocast expanding visitor.
             if (ti.num_available_autocasts > 0)
               {
-                autocast_expanding_visitor aev (ti);
+                autocast_expanding_visitor aev (s, ti);
                 aev.replace (fd->body);
 
                 // PR18079, rerun the const-folder / dead-block-remover
                 // if autocast evaluation enabled a @defined()
-                if (aev.count_replaced_defined_ops() > 0)
+                if (! aev.relaxed())
                   {
                     bool relaxed_p = true;
                     const_folder cf (s, relaxed_p);
@@ -5640,21 +5613,15 @@ semantic_pass_types (systemtap_session& s)
             // Check and run the autocast expanding visitor.
             if (ti.num_available_autocasts > 0)
               {
-                autocast_expanding_visitor aev (ti);
-                aev.replace (pn->body);
-
+                autocast_expanding_visitor aev (s, ti);
+                var_expand_const_fold_loop (s, pn->body, aev);
                 // PR18079, rerun the const-folder / dead-block-remover
                 // if autocast evaluation enabled a @defined()
-                if (aev.count_replaced_defined_ops() > 0)
+                if (! s.unoptimized)
                   {
-                    bool relaxed_p = true;
-                    const_folder cf (s, relaxed_p);
-                    cf.replace (pn->body);
-                    if (! s.unoptimized)
-                      {
-                        dead_control_remover dc (s, relaxed_p);
-                        pn->body->visit (&dc);
-                      }
+                    bool relaxed_p;
+                    dead_control_remover dc (s, relaxed_p);
+                    pn->body->visit (&dc);
                     (void) relaxed_p; // we judge success later by num_still_unresolved, not this flag
                   }
 
@@ -5696,7 +5663,7 @@ semantic_pass_types (systemtap_session& s)
               // PR18079, before we go asserting anything, try to nullify any
               // still-unresolved @defined ops.
               bool relaxed_p = true;
-              const_folder cf (s, relaxed_p, true); // NB: true
+              const_folder cf (s, relaxed_p, true); // NB: true: collapse remaining @defined's
 
               for (auto it = s.probes.begin(); it != s.probes.end(); ++it)
                 cf.replace ((*it)->body);

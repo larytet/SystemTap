@@ -106,10 +106,10 @@ struct utrace_var_expanding_visitor: public var_expanding_visitor
 {
   utrace_var_expanding_visitor(systemtap_session& s, probe_point* l,
                                enum utrace_derived_probe_flags f):
-    sess (s), base_loc (l), flags (f),
+    var_expanding_visitor (s),
+    base_loc (l), flags (f),
     target_symbol_seen (false), add_block(NULL), add_probe(NULL) {}
 
-  systemtap_session& sess;
   probe_point* base_loc;
   enum utrace_derived_probe_flags flags;
   bool target_symbol_seen;
@@ -138,7 +138,7 @@ utrace_derived_probe::utrace_derived_probe (systemtap_session &s,
 
   // Expand local variables in the probe body
   utrace_var_expanding_visitor v (s, l, flags);
-  v.replace (this->body);
+  var_expand_const_fold_loop (s, this->body, v);
   target_symbol_seen = v.target_symbol_seen;
 
   // If during target-variable-expanding the probe, we added a new block

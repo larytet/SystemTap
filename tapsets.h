@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -62,18 +62,16 @@ public:
 
 struct var_expanding_visitor: public update_visitor
 {
-  var_expanding_visitor ();
+  var_expanding_visitor (systemtap_session& s);
   void visit_assignment (assignment* e);
   void visit_pre_crement (pre_crement* e);
   void visit_post_crement (post_crement* e);
   void visit_delete_statement (delete_statement* s);
   void visit_defined_op (defined_op* e);
 
-  unsigned count_replaced_defined_ops () { return replaced_defined_ops; }
-
 protected:
+  systemtap_session& sess;
   static unsigned tick;
-  unsigned replaced_defined_ops;
   std::stack<defined_op*> defined_ops;
   std::set<std::string> valid_ops;
   interned_string* op;

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2015 Red Hat Inc.
+// Copyright (C) 2005-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -12,6 +12,7 @@
 #include "staptree.h"
 #include "parse.h"
 #include "stringtable.h"
+#include "session.h"
 
 #include <string>
 #include <vector>
@@ -448,8 +449,82 @@ void derive_probes (systemtap_session& s,
 // expressions.
 symbol * get_symbol_within_expression (expression *e);
 
-
 struct unparser;
+
+
+struct const_folder: public update_visitor
+{
+  systemtap_session& session;
+  bool& relaxed_p;
+  bool collapse_defines_p;
+  
+  const_folder(systemtap_session& s, bool& r, bool collapse_defines = false):
+    session(s), relaxed_p(r), collapse_defines_p(collapse_defines),
+    last_number(0), last_string(0), last_target_symbol(0) {}
+
+  literal_number* last_number;
+  literal_number* get_number(expression*& e);
+  void visit_literal_number (literal_number* e);
+
+  literal_string* last_string;
+  literal_string* get_string(expression*& e);
+  void visit_literal_string (literal_string* e);
+
+  void get_literal(expression*& e, literal_number*& n, literal_string*& s);
+
+  void visit_if_statement (if_statement* s);
+  void visit_for_loop (for_loop* s);
+  void visit_foreach_loop (foreach_loop* s);
+  void visit_binary_expression (binary_expression* e);
+  void visit_unary_expression (unary_expression* e);
+  void visit_logical_or_expr (logical_or_expr* e);
+  void visit_logical_and_expr (logical_and_expr* e);
+  // void visit_regex_query (regex_query* e); // XXX: would require executing dfa at compile-time
+  void visit_comparison (comparison* e);
+  void visit_concatenation (concatenation* e);
+  void visit_ternary_expression (ternary_expression* e);
+  void visit_defined_op (defined_op* e);
+
+  target_symbol* last_target_symbol;
+  target_symbol* get_target_symbol(expression*& e);
+  void visit_target_symbol (target_symbol* e);
+};
+
+
+
+// Run the given code filter visitors against the given body.
+// Repeat until they all report having relaxed.
+template <class T>
+void update_visitor_loop (systemtap_session& sess, std::vector<update_visitor*>& filters, T& body)
+{
+  bool relaxed_p;
+  do
+    {
+      relaxed_p = true;
+      for (unsigned k=0; k<filters.size(); k++)
+        {
+          filters[k]->reset ();
+          filters[k]->replace (body);
+          relaxed_p = (relaxed_p && filters[k]->relaxed());
+        }
+      if (! relaxed_p && sess.verbose > 3)
+        std::clog << _("Rerunning the code filters.") << std::endl;
+    } while (! relaxed_p);
+}
+
+
+// Run given code filter visitor, then a round of const folder, over and over, until they chill.
+template <class X, class Y>
+void var_expand_const_fold_loop(systemtap_session& sess, X& body, Y& v)
+{
+  bool relaxed_p; /* ignored */
+  const_folder cf (sess, relaxed_p);
+  std::vector<update_visitor*> k;
+  k.push_back (& v);
+  k.push_back (& cf);
+  update_visitor_loop (sess, k, body);
+}
+
 
 
 #endif // ELABORATE_H

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2016 Red Hat Inc.
+// Copyright (C) 2005-2017 Red Hat Inc.
 // Copyright (C) 2006 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -1175,7 +1175,9 @@ struct throwing_visitor: public visitor
 
 // A visitor similar to a traversing_visitor, but with the ability to rewrite
 // parts of the tree through require/provide.
-
+//
+// The relaxed_p member variable is cleared if an update occurred.
+//
 struct update_visitor: public visitor
 {
   template <typename T> T* require (T* src, bool clearok=false)
@@ -1203,13 +1205,31 @@ struct update_visitor: public visitor
     values.push(src);
   }
 
-  template <typename T> void replace (T*& src, bool clearok=false)
+  template <typename T> void abort_provide (T* src)
   {
-    src = require(src, clearok);
+    values.push(src);
+    aborted_p = true;
   }
 
+  template <typename T> void replace (T*& src, bool clearok=false)
+  {
+    if (! aborted_p)
+      {
+        const T* old_src = src;
+        T* new_src = require(src, clearok);
+        if (old_src != new_src)
+          relaxed_p = false;
+        src = new_src;
+      }
+  }
+
+  update_visitor(): aborted_p(false), relaxed_p(true) {}
   virtual ~update_visitor() { assert(values.empty()); }
 
+  // Permit reuse of the visitor object. 
+  virtual void reset() { aborted_p = false; relaxed_p = true; }
+  virtual bool relaxed() { return relaxed_p; }
+    
   virtual void visit_block (block *s);
   virtual void visit_try_block (try_block *s);
   virtual void visit_embeddedcode (embeddedcode *s);
@@ -1254,6 +1274,9 @@ struct update_visitor: public visitor
 
 private:
   std::stack<visitable *> values;
+protected:
+  bool aborted_p;
+  bool relaxed_p;
 };
 
 // A visitor which performs a deep copy of the root node it's applied

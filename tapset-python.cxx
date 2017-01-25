@@ -1,5 +1,5 @@
 // tapset for python
-// Copyright (C) 2016 Red Hat Inc.
+// Copyright (C) 2016-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -94,9 +94,8 @@ struct python_functioncall_expanding_visitor: public update_visitor
 struct python_var_expanding_visitor: public var_expanding_visitor
 {
   python_var_expanding_visitor(systemtap_session& s, int pv)
-    : sess(s), python_version(pv) {}
+    : var_expanding_visitor(s), python_version(pv) {}
 
-  systemtap_session& sess;
   int python_version;
 
   void visit_target_symbol (target_symbol* e);
@@ -667,7 +666,7 @@ python_builder::build(systemtap_session & sess, probe * base,
       // as the python frame pointer, and we don't want the python
       // variable exander to find those maker argument references.
       python_var_expanding_visitor pvev (sess, python_version);
-      pvev.replace (base_copy->body);
+      var_expand_const_fold_loop (sess, base_copy->body, pvev);
       
       python_functioncall_expanding_visitor v (sess, python_version);
       v.replace (base_copy->body);
