@@ -340,9 +340,10 @@ struct target_symbol: public expression
 
   interned_string name;
   bool addressof;
+  bool synthetic;
   std::vector<component> components;
   semantic_error* saved_conversion_error; // hand-made linked list
-  target_symbol(): addressof(false), saved_conversion_error (0) {}
+  target_symbol(): addressof(false), synthetic(false), saved_conversion_error (0) {}
   virtual std::string sym_name ();
   void chain (const semantic_error& er);
   void print (std::ostream& o) const;
@@ -1218,7 +1219,18 @@ struct update_visitor: public visitor
         const T* old_src = src;
         T* new_src = require(src, clearok);
         if (old_src != new_src)
-          relaxed_p = false;
+          {
+            #if 0 /* XXX: this should be parametrized from session.verbose, and
+                     could take place of all of those 'elided ...' messages
+                     in elaborate.cxx optimization visitors. */
+            std::cout << "replaced ";
+            old_src->print(std::cout);
+            std::cout << " with ";
+            new_src->print(std::cout);
+            std::cout << std::endl;
+            #endif
+            relaxed_p = false;
+          }
         src = new_src;
       }
   }

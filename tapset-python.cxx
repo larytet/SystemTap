@@ -249,6 +249,7 @@ python_functioncall_expanding_visitor::visit_functioncall (functioncall* e)
   target_symbol *tsym = new target_symbol;
   tsym->tok = e->tok;
   tsym->name = "$arg3";
+  tsym->synthetic = true;
 
   functioncall *fcall = new functioncall;
   fcall->tok = e->tok;
@@ -286,6 +287,7 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 	target_symbol *tsym = new target_symbol;
 	tsym->tok = e->tok;
 	tsym->name = "$arg3";
+        tsym->synthetic = true;
 	fcall->args.push_back(tsym);
 
 	literal_number* ln = new literal_number(flags);
@@ -320,7 +322,11 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
     // expansion first, and later the python backtrace request
     // expansions (which will add a reference to $arg3). So, order is
     // important. See python_builder::build().
-    if (e->name[0] == '$')
+    //
+    // We mark the generated $arg3 as synethic to prevent infinite
+    // recursive expansion.
+    //
+    if (e->name[0] == '$' && !e->synthetic)
       {
 	// We need a function call that turns the final object pointer
 	// into a string representation of that object.
@@ -339,6 +345,7 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 	target_symbol *tsym = new target_symbol;
 	tsym->tok = e->tok;
 	tsym->name = "$arg3";
+        tsym->synthetic = true;
 	var_fcall->args.push_back(tsym);
 
 	// We want 'foo', not '$foo'.
@@ -392,6 +399,10 @@ python_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 	provide (repr_fcall);
 	return;
       }
+
+    // We must have been called recursively (on a synthetic $arg3 from
+    // a parent expansion); nothing to do.
+    provide (e);
 }
 
 
