@@ -1297,6 +1297,7 @@ parse_args(int argc, char* const argv[])
             break;
         case 'h':
             usage(0); // no return
+	    /* Fallthrough */
         case 'v':
             verbose++;
             break;

@@ -1373,6 +1373,7 @@ c_unparser::emit_compiled_printfs ()
 			<< c->base << ", width, precision, " << c->flags << ");";
 		      break;
 		    }
+		  /* Fallthrough */
 		  // else fall-through to conv_number
 		case print_format::conv_number:
 		  o->newline() << "num_bytes += number_size(" << value << ", "
@@ -1478,6 +1479,7 @@ c_unparser::emit_compiled_printfs ()
 		    << c->base << ", width, precision, " << c->flags << ");";
 		  break;
 		}
+	      /* Fallthrough */
 	      // else fall-through to conv_number
 	    case print_format::conv_number:
 	      o->newline() << "str = number(str, end, " << value << ", "

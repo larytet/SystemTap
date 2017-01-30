@@ -2488,7 +2488,7 @@ validate_module_elf (Dwfl_Module *mod, const char *name,  base_query *q)
     case EM_386:
       expect_machine = "i?86";
       if (! q->has_process) break; // 32-bit kernel/module
-      /* FALLSTHROUGH */
+      /* Fallthrough */
     case EM_X86_64:
       expect_machine2 = "x86_64";
       break;

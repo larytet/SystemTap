@@ -1020,6 +1020,7 @@ print_format::string_to_components(string const & str)
 	case 'd':
 	case 'i':
 	  curr.set_flag (fmt_flag_sign);
+	  /* Fallthrough */
 	case 'u':
 	  curr.type = conv_number;
 	  curr.base = 10;
@@ -1032,6 +1033,7 @@ print_format::string_to_components(string const & str)
 
 	case 'X':
 	  curr.set_flag (fmt_flag_large);
+	  /* Fallthrough */
 	case 'x':
 	  curr.type = conv_number;
 	  curr.base = 16;
