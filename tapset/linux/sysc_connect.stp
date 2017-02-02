@@ -85,20 +85,20 @@ probe __nd_syscall.socketcall.connect = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_CONNECT")) next;
-	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
-	sockfd = __int32(user_ulong(&(__args)[0]))
-	serv_addr_uaddr = user_ulong(&(__args)[1])
-	addrlen = __uint32(user_ulong(&(__args)[2]))
+	__args = &@cast(pointer_arg(2), "ulong")
+	sockfd = __int32(user_ulong(&@cast(__args, "ulong")[0]))
+	serv_addr_uaddr = user_ulong(&@cast(__args, "ulong")[1])
+	addrlen = __uint32(user_ulong(&@cast(__args, "ulong")[2]))
 }
 probe __nd_syscall.compat_socketcall.connect =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_CONNECT")) next;
-	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
-	sockfd = user_int(&(__args)[0])
-	serv_addr_uaddr = user_uint32(&(__args)[1])
-	addrlen = user_uint32(&(__args)[2])
+	__args = &@cast(pointer_arg(2), "unsigned int")
+	sockfd = user_int(&@cast(__args, "unsigned int")[0])
+	serv_addr_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
+	addrlen = user_uint32(&@cast(__args, "unsigned int")[2])
 }
 probe nd_syscall.connect.return = __nd_syscall.connect.return ?,
 	__nd_syscall.socketcall.connect.return ?

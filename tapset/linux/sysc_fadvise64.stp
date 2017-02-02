@@ -25,6 +25,7 @@ probe dw_syscall.fadvise64 = kernel.function("sys_fadvise64").call ?
 	offset = @choose_defined($offset, 0)
 	len = __long(@choose_defined($len, 0))
 	advice = __int32(@choose_defined($advice, 0))
+	advice_str = _fadvice_advice_str(advice)
 	@_SYSCALL_FADVISE64_ARGSTR
 }
 probe dw_syscall.fadvise64.return = kernel.function("sys_fadvise64").return ?
@@ -54,6 +55,7 @@ probe nd_syscall.fadvise64 = kprobe.function("sys_fadvise64") ?
 	len = long_arg(4)
 	advice = int_arg(5)
 %)
+	advice_str = _fadvice_advice_str(advice)
 	@_SYSCALL_FADVISE64_ARGSTR
 }
 probe nd_syscall.fadvise64.return = kprobe.function("sys_fadvise64").return ?
@@ -85,6 +87,7 @@ probe dw_syscall.fadvise64_64 = kernel.function("sys_fadvise64_64").call ?
 	offset = @choose_defined($offset, 0)
 	len = @choose_defined($len, 0)
 	advice = __int32(@choose_defined($advice, 0))
+	advice_str = _fadvice_advice_str(advice)
 	@_SYSCALL_FADVISE64_ARGSTR
 }
 probe dw_syscall.fadvise64_64.return =
@@ -132,6 +135,7 @@ probe nd_syscall.fadvise64_64 = kprobe.function("sys_fadvise64_64") ?
 	advice = int_arg(6)
 %)
 %)
+	advice_str = _fadvice_advice_str(advice)
 	@_SYSCALL_FADVISE64_ARGSTR
 }
 probe nd_syscall.fadvise64_64.return =

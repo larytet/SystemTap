@@ -115,11 +115,11 @@ probe __nd_syscall.compat_socketcall.sendmmsg =
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SENDMMSG")) next;
-	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
-	s = user_int(&(__args)[0])
-	mmsg_uaddr = user_uint32(&(__args)[1])
-	vlen = user_uint32(&(__args)[2])
-	flags = user_uint32(&(__args)[3])
+	__args = &@cast(pointer_arg(2), "unsigned int")
+	s = user_int(&@cast(__args, "unsigned int")[0])
+	mmsg_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
+	vlen = user_uint32(&@cast(__args, "unsigned int")[2])
+	flags = user_uint32(&@cast(__args, "unsigned int")[3])
 }
 probe __nd_syscall.compat_sendmmsg =
 	kprobe.function("compat_sys_sendmmsg").call ?

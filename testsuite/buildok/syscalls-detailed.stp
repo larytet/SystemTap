@@ -304,7 +304,7 @@ probe syscall.dup.return
 probe syscall.dup2, syscall.dup3 ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d, %d\n", oldfd, newfd, flags, flags_str)
+	printf("%d, %d, %d, %s\n", oldfd, newfd, flags, flags_str)
 }
 probe syscall.dup2.return, syscall.dup3.return ?
 {

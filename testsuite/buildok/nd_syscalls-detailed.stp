@@ -305,7 +305,7 @@ probe nd_syscall.dup.return
 probe nd_syscall.dup2, nd_syscall.dup3 ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d, %d\n", oldfd, newfd, flags, flags_str)
+	printf("%d, %d, %d, %s\n", oldfd, newfd, flags, flags_str)
 }
 probe nd_syscall.dup2.return, nd_syscall.dup3.return ?
 {

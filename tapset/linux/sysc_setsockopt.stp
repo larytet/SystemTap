@@ -105,12 +105,12 @@ probe __nd_syscall.socketcall.setsockopt =
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SETSOCKOPT")) next;
-	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
-	fd = __int32(user_ulong(&(__args)[0]))
-	level = __int32(user_ulong(&(__args)[1]))
-	optname = __int32(user_ulong(&(__args)[2]))
-	optval_uaddr = user_ulong(&(__args)[3])
-	optlen = __uint32(user_ulong(&(__args)[4]))
+	__args = &@cast(pointer_arg(2), "ulong")
+	fd = __int32(user_ulong(&@cast(__args, "ulong")[0]))
+	level = __int32(user_ulong(&@cast(__args, "ulong")[1]))
+	optname = __int32(user_ulong(&@cast(__args, "ulong")[2]))
+	optval_uaddr = user_ulong(&@cast(__args, "ulong")[3])
+	optlen = __uint32(user_ulong(&@cast(__args, "ulong")[4]))
 }
 probe __nd_syscall.compat_socketcall.setsockopt =
 	kprobe.function("compat_sys_socketcall").call ?
@@ -118,11 +118,11 @@ probe __nd_syscall.compat_socketcall.setsockopt =
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SETSOCKOPT")) next;
 	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
-	fd = user_int(&(__args)[0])
-	level = user_int(&(__args)[1])
-	optname = user_int(&(__args)[2])
-	optval_uaddr = user_uint32(&(__args)[3])
-	optlen = user_uint32(&(__args)[4])
+	fd = user_int(&@cast(__args, "unsigned int")[0])
+	level = user_int(&@cast(__args, "unsigned int")[1])
+	optname = user_int(&@cast(__args, "unsigned int")[2])
+	optval_uaddr = user_uint32(&@cast(__args, "unsigned int")[3])
+	optlen = user_uint32(&@cast(__args, "unsigned int")[4])
 }
 probe nd_syscall.setsockopt.return = __nd_syscall.setsockopt.return ?,
 	__nd_syscall.socketcall.setsockopt.return ?

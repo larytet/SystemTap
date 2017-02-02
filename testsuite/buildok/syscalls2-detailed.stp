@@ -189,7 +189,7 @@ probe syscall.preadv.return ?
 probe syscall.prlimit64 ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d, %s, %d, %p, %s, %p", pid, resource, resource_str,
+	printf("%d, %d, %s, %p, %s, %p", pid, resource, resource_str,
 	       new_rlim_uaddr, new_rlim_str, old_rlim_uaddr)
 }
 probe syscall.prlimit64.return ?
@@ -388,7 +388,7 @@ probe syscall.remap_file_pages ?
 {
 	printf("%s(%s)\n", name, argstr)
 	printf("%d %d %d %s %d %d %s\n", start, size, prot, prot_str,
-	       pgoff, flags_str)
+	       pgoff, flags, flags_str)
 }
 probe syscall.remap_file_pages.return ?
 {
@@ -768,7 +768,7 @@ probe syscall.sendmmsg.return ?
 probe syscall.sendto ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %p %d %d(%s) %s %p %d\n", s, buf_uaddr, len, flags,
+	printf("%d %p %d %d(%s) %p %s %d\n", s, buf_uaddr, len, flags,
 	       flags_str, to_uaddr, to_str, tolen)
 }
 probe syscall.sendto.return ?
@@ -1143,7 +1143,7 @@ probe syscall.signalfd.return ?, syscall.compat_signalfd.return ?
 
 probe syscall.sigpending ?
 {
-	printf("%s, %s, %s\n", name, argstr, set)
+	printf("%s, %s, %p\n", name, argstr, set)
 }
 probe syscall.sigpending.return ?
 {

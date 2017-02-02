@@ -89,20 +89,20 @@ probe __nd_syscall.socketcall.socket = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SOCKET")) next;
-	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
-	family = __int32(user_ulong(&(__args)[0]))
-	type = __int32(user_ulong(&(__args)[1]))
-	protocol = __int32(user_ulong(&(__args)[2]))
+	__args = &@cast(pointer_arg(2), "ulong")
+	family = __int32(user_ulong(&@cast(__args, "ulong")[0]))
+	type = __int32(user_ulong(&@cast(__args, "ulong")[1]))
+	protocol = __int32(user_ulong(&@cast(__args, "ulong")[2]))
 }
 probe __nd_syscall.compat_socketcall.socket =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SOCKET")) next;
-	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
-	family = user_int(&(__args)[0])
-	type = user_int(&(__args)[1])
-	protocol = user_int(&(__args)[2])
+	__args = &@cast(pointer_arg(2), "unsigned int")
+	family = user_int(&@cast(__args, "unsigned int")[0])
+	type = user_int(&@cast(__args, "unsigned int")[1])
+	protocol = user_int(&@cast(__args, "unsigned int")[2])
 }
 probe nd_syscall.socket.return = __nd_syscall.socket.return ?,
 	__nd_syscall.socketcall.socket.return ?
