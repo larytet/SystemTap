@@ -213,7 +213,7 @@ probe __signal.send.send_signal.return =
 {
     if (@defined(@entry($group))) {
 	name = "__send_signal"
-	shared = (@entry($group)) == 0) ? 0 : 1
+	shared = (@entry($group) == 0) ? 0 : 1
     }
     else {
 	name = "send_signal"

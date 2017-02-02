@@ -1,7 +1,7 @@
 // IP tapset
 //
 // Copyright (C) 2009, IBM Inc.
-// Copyright (C) 2010, 2014 Red Hat Inc.
+// Copyright (C) 2010-2017 Red Hat Inc.
 //
 // Author : Breno Leitao <leitao@linux.vnet.ibm.com>
 //
@@ -146,17 +146,17 @@ function __get_skb_iphdr:long(skb:long)
 /* return the source next layer protocol for a given sk_buff structure */
 function __ip_skb_proto:long (iphdr)
 {
-  return @cast(iphdr, "iphdr", "kernel<linux/ip.h>")->protocol
+  return @cast(iphdr, "iphdr", "kernel<linux/ip.h><uapi/linux/ip.h>")->protocol
 }
 
 /* return the source IP address for a given sk_buff structure */
 function __ip_skb_saddr:long (iphdr)
 {
-  return @cast(iphdr, "iphdr", "kernel<linux/ip.h>")->saddr
+  return @cast(iphdr, "iphdr", "kernel<linux/ip.h><uapi/linux/ip.h>")->saddr
 }
 
 /* return the destination IP address for a given skb */
 function __ip_skb_daddr:long (iphdr)
 {
-  return @cast(iphdr, "iphdr", "kernel<linux/ip.h>")->daddr
+  return @cast(iphdr, "iphdr", "kernel<linux/ip.h><uapi/linux/ip.h>")->daddr
 }

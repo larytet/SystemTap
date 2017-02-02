@@ -21,7 +21,8 @@ set ::result_string {@var("foo", @1)->bar: 42
 # Only run on make installcheck and uprobes present.
 if {! [installtest_p]} { untested "$test"; return }
 
-set res [target_compile ${testpath}/$test.c $exefile executable "additional_flags=-O2 additional_flags=-g"]
+# no -O2; it can elide the 'foo' global
+set res [target_compile ${testpath}/$test.c $exefile executable "additional_flags=-g"]
 if { $res != "" } {
     verbose "target_compile failed: $res" 2
     fail "unable to compile ${test}.c"

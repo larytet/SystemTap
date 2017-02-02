@@ -1,0 +1,9 @@
+probe $1.module("celsius").function("celsius_to_farenheit")
+{
+    python_print_backtrace()
+}
+
+probe $1.module("celsius").function("celsius_to_farenheit").return
+{
+    printf("celsius_to_farenheit returning\n")
+}

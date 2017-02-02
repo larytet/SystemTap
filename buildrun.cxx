@@ -450,6 +450,8 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "get_user_pages_remote", "STAPCONF_GET_USER_PAGES_REMOTE");
   output_autoconf(s, o, "autoconf-get_user_pages_remote-flags.c",
 		  "STAPCONF_GET_USER_PAGES_REMOTE_FLAGS", NULL);
+  output_autoconf(s, o, "autoconf-get_user_pages_remote-flags_locked.c",
+		  "STAPCONF_GET_USER_PAGES_REMOTE_FLAGS_LOCKED", NULL);
 
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 

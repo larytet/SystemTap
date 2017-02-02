@@ -17,6 +17,21 @@ if [[ $# -gt 8 || $# -lt 7 ]]; then
 fi
 
 arg_command=$1
+# resolve the overloaded parameter; PR21020
+if [ $arg_command = "install31" ]; then
+    mode=install
+    stap="31"
+elif [ $arg_command = "uninstall31" ]; then
+    mode=uninstall
+    stap="31"
+elif [ $arg_command = "install" ]; then
+    mode=install
+    stap=""
+elif [ $arg_command = "uninstall" ]; then
+    mode=uninstall
+else
+    exit 1
+fi
 arg_jvmpid=$2
 arg_rulename=$3
 arg_class=$4
@@ -75,6 +90,18 @@ pkglibexecdir=@libexecdir@/@PACKAGE@
 pkglibexecdir=`eval echo $pkglibexecdir`
 pkglibexecdir=`eval echo $pkglibexecdir`
 
+HELPERSDT_JAR=${pkglibexecdir}/HelperSDT.jar
+if [ ! -f ${HELPERSDT_JAR} ]; then
+    echo "Missing $HELPERSDT_JAR"
+    exit 1
+fi
+
+
+# The JVM that invokes byteman will get classpath/etc. settings from
+# this shell script to look directly under our $prefix.  However, for
+# the target JVM, the HelperSDT* stuff needs to be installed under
+# that JVM's paths.
+
 num=`ls -1 ${JAVA_HOME}/jre/lib/ext/HelperSDT.jar ${JAVA_HOME}/jre/lib/*/libHelperSDT_*.so 2>/dev/null | wc -l`
 if [ $num -lt 2 ]; then
     echo "Missing HelperSDT JNI class/shared library"
@@ -85,7 +112,7 @@ if [ $num -lt 2 ]; then
     echo "  ln -sf ${pkglibexecdir}/libHelperSDT_"'${arch}'".so ${JAVA_HOME}/jre/lib/"'${arch}'"/"
     echo "done"
     echo "ln -sf ${pkglibexecdir}/HelperSDT.jar ${JAVA_HOME}/jre/lib/ext/"
-    exit 1
+#   exit 1
 fi
 
 flagdir="$SYSTEMTAP_DIR/java"
@@ -142,9 +169,9 @@ else
 # byteman classes directly and avoid -javaagent
 
     if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
-	echo java -classpath ${BYTEMAN_INSTALL_JAR}:${BYTEMAN_JAR}:${TOOLS_JAR} org.jboss.byteman.agent.install.Install -b -p $bmport $BYTEMAN_INSTALL_OPTS $target_pid
+	echo java -classpath ${BYTEMAN_INSTALL_JAR}:${BYTEMAN_JAR}:${TOOLS_JAR}:${HELPERSDT_JAR} org.jboss.byteman.agent.install.Install -b -p $bmport $BYTEMAN_INSTALL_OPTS $target_pid
     fi
-    java -classpath ${BYTEMAN_INSTALL_JAR}:${BYTEMAN_JAR}:${TOOLS_JAR} org.jboss.byteman.agent.install.Install -b -p $bmport $BYTEMAN_INSTALL_OPTS $target_pid
+    java -classpath ${BYTEMAN_INSTALL_JAR}:${BYTEMAN_JAR}:${TOOLS_JAR}:${HELPERSDT_JAR} org.jboss.byteman.agent.install.Install -b -p $bmport $BYTEMAN_INSTALL_OPTS $target_pid
     if [ $? -ne 0 ]; then
         echo "Byteman agent failed to install for java pid $target_pid, port $bmport"
         exit 1
@@ -186,17 +213,18 @@ function echo_bytemanrule()
 	echo -n 'DO '
     fi
     case "$arg_argcount" in
-        0) echo -n 'METHOD_STAP_PROBE0("'$arg_rulename'")' ;;
-        1) echo -n 'METHOD_STAP_PROBE1("'$arg_rulename'", $1)' ;;
-        2) echo -n 'METHOD_STAP_PROBE2("'$arg_rulename'", $1, $2)' ;;
-        3) echo -n 'METHOD_STAP_PROBE3("'$arg_rulename'", $1, $2, $3)' ;;
-        4) echo -n 'METHOD_STAP_PROBE4("'$arg_rulename'", $1, $2, $3, $4)' ;;
-        5) echo -n 'METHOD_STAP_PROBE5("'$arg_rulename'", $1, $2, $3, $4, $5)' ;;
-        6) echo -n 'METHOD_STAP_PROBE6("'$arg_rulename'", $1, $2, $3, $4, $5, $6)' ;;
-        7) echo -n 'METHOD_STAP_PROBE7("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7)' ;;
-        8) echo -n 'METHOD_STAP_PROBE8("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7, $8)' ;;
-        9) echo -n 'METHOD_STAP_PROBE9("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7, $8, $9)' ;;
-	10) echo -n 'METHOD_STAP_PROBE10("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)' ;;
+        # For PR21010, we invoke another java<->stap ABI
+        0) echo -n 'METHOD_STAP'$stap'_PROBE0("'$arg_rulename'")' ;;
+        1) echo -n 'METHOD_STAP'$stap'_PROBE1("'$arg_rulename'", $1)' ;;
+        2) echo -n 'METHOD_STAP'$stap'_PROBE2("'$arg_rulename'", $1, $2)' ;;
+        3) echo -n 'METHOD_STAP'$stap'_PROBE3("'$arg_rulename'", $1, $2, $3)' ;;
+        4) echo -n 'METHOD_STAP'$stap'_PROBE4("'$arg_rulename'", $1, $2, $3, $4)' ;;
+        5) echo -n 'METHOD_STAP'$stap'_PROBE5("'$arg_rulename'", $1, $2, $3, $4, $5)' ;;
+        6) echo -n 'METHOD_STAP'$stap'_PROBE6("'$arg_rulename'", $1, $2, $3, $4, $5, $6)' ;;
+        7) echo -n 'METHOD_STAP'$stap'_PROBE7("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7)' ;;
+        8) echo -n 'METHOD_STAP'$stap'_PROBE8("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7, $8)' ;;
+        9) echo -n 'METHOD_STAP'$stap'_PROBE9("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7, $8, $9)' ;;
+	10) echo -n 'METHOD_STAP'$stap'_PROBE10("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)' ;;
         *) echo 'bad arg-count'; exit 1 ;;
     esac
     if [ "$arg_backtrace" == "1" ]; then
@@ -219,14 +247,14 @@ if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
     cat $btmfile
 fi
 
-if [ $arg_command = "uninstall" ]; then
+if [ $mode = "uninstall" ]; then
     bmcmd=-u
 else
     bmcmd=-l
 fi
 
 if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
-    echo java -classpath ${BYTEMAN_SUBMIT_JAR}:${BYTEMAN_JAR} org.jboss.byteman.agent.submit.Submit -p $bmport $bmcmd $btmfile
+    echo java -classpath ${BYTEMAN_SUBMIT_JAR}:${BYTEMAN_JAR}:${HELPERSDT_JAR} org.jboss.byteman.agent.submit.Submit -p $bmport $bmcmd $btmfile
 fi
 
-exec java -classpath ${BYTEMAN_SUBMIT_JAR}:${BYTEMAN_JAR} org.jboss.byteman.agent.submit.Submit -p $bmport $bmcmd $btmfile
+exec java -classpath ${BYTEMAN_SUBMIT_JAR}:${BYTEMAN_JAR}:${HELPERSDT_JAR} org.jboss.byteman.agent.submit.Submit -p $bmport $bmcmd $btmfile

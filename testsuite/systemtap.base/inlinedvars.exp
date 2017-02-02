@@ -32,10 +32,10 @@ for {set i 0} {$i < [all_compile_flags]} {incr i} {
       if {$runtime != ""} {
 	if {[info procs ${runtime}_kfails] ne ""} { ${runtime}_kfails $i }
 	stap_run3 "$test-$extra_name-$runtime" $srcdir/$subdir/$test.stp \
-	  $test.exe -c ./$test.exe --runtime=$runtime
+	  -c ./$test.exe --runtime=$runtime
       } elseif {[uprobes_p]} {
 	stap_run3 "$test-$extra_name" $srcdir/$subdir/$test.stp \
-	  $test.exe -c ./$test.exe 
+	  -c ./$test.exe 
       } else {
 	untested "$test-$extra_name"
       }

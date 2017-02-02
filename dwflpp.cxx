@@ -3516,7 +3516,8 @@ dwflpp::translate_components(struct obstack *pool,
               dwarf_die_type (typedie, typedie, c.tok);
               break;
             }
-          /* else fall through as an array access */
+	  /* Fallthrough */
+          /* else an array access */
 
         case DW_TAG_array_type:
           if (c.type == target_symbol::comp_literal_array_index)
@@ -3741,7 +3742,8 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
                                      dwarf_type_name(typedie).c_str()), e->tok);
           }
       }
-      // Fallthrough. enumeration_types are always scalar.
+      /* Fallthrough */
+      // enumeration_types are always scalar.
     case DW_TAG_enumeration_type:
 
       l2c_ctx.die = vardie;

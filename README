@@ -41,7 +41,7 @@ Build steps:
   "bundled mode" (below), and untar it into some new directory.
   Or if desired, build elfutils separately one time, and install
   it to /usr/local.
-  See http://fedorahosted.org/elfutils/
+  See http://elfutils.org/
   Version 0.151 is recommended for i386 hosts probing prelinked programs.
   (PR12141)
 

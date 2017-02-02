@@ -89,6 +89,7 @@ systemtap_session::systemtap_session ():
   hrtimer_derived_probes(0),
   procfs_derived_probes(0),
   dynprobe_derived_probes(0),
+  python_derived_probes(0),
   op (0), up (0),
   sym_kprobes_text_start (0),
   sym_kprobes_text_end (0),
@@ -279,6 +280,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   hrtimer_derived_probes(0),
   procfs_derived_probes(0),
   dynprobe_derived_probes(0),
+  python_derived_probes(0),
   op (0), up (0),
   sym_kprobes_text_start (0),
   sym_kprobes_text_end (0),
@@ -465,7 +467,7 @@ systemtap_session::version ()
              "Copyright (C) 2005-2016 Red Hat, Inc. and others\n"
              "This is free software; see the source for copying conditions.\n",
              version_string().c_str());
-  cout << _F("tested kernel versions: %s ... %s\n", "2.6.18", "4.9-rc1");
+  cout << _F("tested kernel versions: %s ... %s\n", "2.6.18", "4.10-rc0");
   
   cout << _("enabled features:")
 #ifdef HAVE_AVAHI
@@ -479,6 +481,12 @@ systemtap_session::version ()
 #endif
 #ifdef HAVE_JAVA
        << " JAVA"
+#endif
+#ifdef HAVE_PYTHON2_PROBES
+       << " PYTHON2"
+#endif
+#ifdef HAVE_PYTHON3_PROBES
+       << " PYTHON3"
 #endif
 #ifdef HAVE_LIBRPM
        << " LIBRPM"

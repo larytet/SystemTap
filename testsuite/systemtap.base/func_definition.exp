@@ -5,9 +5,9 @@ if {![installtest_p]} { untested "$test"; return }
 
 foreach runtime [get_runtime_list] {
     if {$runtime != ""} {
-	stap_run $srcdir/$subdir/$test.stp no_load (${all_pass_string}){5} \
-	    --runtime=$runtime
+	stap_run $test no_load (${all_pass_string}){5} \
+	    --runtime=$runtime $srcdir/$subdir/$test.stp
     } else {
-	stap_run $srcdir/$subdir/$test.stp no_load (${all_pass_string}){5}
+	stap_run $test no_load (${all_pass_string}){5} $srcdir/$subdir/$test.stp
     }
 }

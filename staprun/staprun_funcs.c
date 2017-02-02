@@ -176,6 +176,14 @@ int insert_module(
 		dbug(2,"Renamed module to '%s'\n", modname);
 	}
 
+	/* Now that the module has been renamed (if we are going to),
+	 * set an environment variable that lets child processes know
+	 * what the module name is. */
+	if (setenv("SYSTEMTAP_MODULE", modname, 1)) {
+		_perr("SYSTEMTAP_MODULE setenv failed");
+		// Keep going...
+	}
+
         /* As a debugging aid for testing risky stap modules. */
         if (getenv ("SYSTEMTAP_SYNC") != NULL)
                 sync();

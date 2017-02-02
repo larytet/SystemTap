@@ -588,8 +588,13 @@ function task_nice:long (task:long) %{ /* pure */
  */
 function task_cpu:long (task:long)
 {
-    ti = @choose_defined(@task(task)->stack, @task(task)->thread_info);
-    return @cast(ti, "thread_info", "kernel<linux/sched.h>")->cpu
+  if (@defined(@task(task)->cpu))
+      return @task(task)->cpu
+  else
+      {
+        ti = @choose_defined(@task(task)->stack, @task(task)->thread_info);
+        return @cast(ti, "thread_info", "kernel<linux/sched.h>")->cpu
+      }
 }
 
 /**
@@ -765,6 +770,8 @@ function task_cwd_path:long(task:long)
 		// Before using the task->fs pointer, let's be
 		// paranoid and make sure it is valid to read.
 		(void)kderef_buffer(NULL, task->fs, sizeof(struct fs_struct));
+		if (put_task_struct_needed)
+			put_task_struct(task);
 		STAP_RETURN((unsigned long)&task->fs->pwd);
 #endif
 	}

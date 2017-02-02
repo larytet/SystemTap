@@ -6,7 +6,7 @@
 
 
 set test "sigusr2"
-stap_run $srcdir/$subdir/$test.stp no_load $all_pass_string -g
+stap_run $test no_load $all_pass_string -g $srcdir/$subdir/$test.stp
 
 # PR19525: In bulk-mode (-b), close_relayfs() expects SIGUSR2 to cause EINTR on
 # the relay threads, so it can't be SIG_IGN.  But the output is written to

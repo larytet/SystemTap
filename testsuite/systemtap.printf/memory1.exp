@@ -76,7 +76,7 @@ if {[build_and_install_module] == 0} {
 
 # Note that we don't test other runtimes here since the script uses a
 # kernel module
-stap_run $srcdir/$subdir/$test.stp memory1_load $result_string 
-stap_run $srcdir/$subdir/$test.stp memory1_load $result_string -DSTP_LEGACY_PRINT
+stap_run $test memory1_load $result_string  $srcdir/$subdir/$test.stp
+stap_run $test memory1_load $result_string -DSTP_LEGACY_PRINT $srcdir/$subdir/$test.stp
 
 cleanup_module

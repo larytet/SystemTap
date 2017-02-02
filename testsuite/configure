@@ -587,6 +587,10 @@ PACKAGE_URL=''
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
 enable_testapps
+py3execdir
+python3
+pyexecdir
+python
 dejazilla
 MAINT
 MAINTAINER_MODE_FALSE
@@ -2371,6 +2375,17 @@ if test -n "$dejazilla"; then
    { $as_echo "$as_me:${as_lineno-$LINENO}: A \"make *check\" will email results to $dejazilla" >&5
 $as_echo "$as_me: A \"make *check\" will email results to $dejazilla" >&6;}
 fi
+
+
+# The configure above passed us several python-related variables. Make
+# sure these get substituted in the Makefile.
+python=${python}
+
+pyexecdir=${pyexecdir}
+
+python3=${python3}
+
+py3execdir=${py3execdir}
 
 
 apps=

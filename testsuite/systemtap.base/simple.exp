@@ -8,8 +8,8 @@ set test "simple"
 #should be error is something else is printed.
 foreach runtime [get_runtime_list] {
     if {$runtime != ""} {
-	stap_run $srcdir/$subdir/$test.stp "" "" --runtime=$runtime
+	stap_run $test "" "" --runtime=$runtime $srcdir/$subdir/$test.stp
     } else {
-	stap_run $srcdir/$subdir/$test.stp
+	stap_run $test "" "" $srcdir/$subdir/$test.stp
     }
 }

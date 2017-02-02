@@ -33,6 +33,8 @@
 %endif
 %{!?with_pyparsing: %global with_pyparsing 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
 %{!?with_python3: %global with_python3 0%{?fedora} >= 23}
+%{!?with_python2_probes: %global with_python2_probes 1}
+%{!?with_python3_probes: %global with_python3_probes 0%{?fedora} >= 23}
 
 %ifarch ppc64le aarch64
 %global with_virthost 0
@@ -87,6 +89,8 @@ Release: 1%{?dist}
 # systemtap-runtime-java libHelperSDT.so, HelperSDT.jar, stapbm, req:-runtime
 # systemtap-runtime-virthost  /usr/bin/stapvirt, req:libvirt req:libxml2
 # systemtap-runtime-virtguest udev rules, init scripts/systemd service, req:-runtime
+# systemtap-runtime-python2 HelperSDT python2 module, req:-runtime
+# systemtap-runtime-python3 HelperSDT python3 module, req:-runtime
 #
 # Typical scenarios:
 #
@@ -109,16 +113,18 @@ Source: ftp://sourceware.org/pub/systemtap/releases/systemtap-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: gcc-c++
 BuildRequires: gettext-devel
-BuildRequires: nss-devel avahi-devel pkgconfig
+BuildRequires: pkgconfig(nss)
+BuildRequires: pkgconfig(avahi-client)
 %if %{with_dyninst}
 BuildRequires: dyninst-devel >= 8.0
-BuildRequires: libselinux-devel
+BuildRequires: pkgconfig(libselinux)
 %endif
 %if %{with_sqlite}
 BuildRequires: sqlite-devel
 %endif
 %if %{with_monitor}
-BuildRequires: json-c-devel ncurses-devel
+BuildRequires: pkgconfig(json-c)
+BuildRequires: pkgconfig(ncurses)
 %endif
 %if %{with_systemd}
 BuildRequires: systemd
@@ -163,12 +169,21 @@ BuildRequires: emacs
 BuildRequires: jpackage-utils java-devel
 %endif
 %if %{with_virthost}
-BuildRequires: libvirt-devel >= 1.0.2
-BuildRequires: libxml2-devel
+# BuildRequires: libvirt-devel >= 1.0.2
+BuildRequires: pkgconfig(libvirt)
+BuildRequires: pkgconfig(libxml-2.0)
 %endif
 BuildRequires: readline-devel
 %if 0%{?rhel} <= 5
-BuildRequires: ncurses-devel
+BuildRequires: pkgconfig(ncurses)
+%endif
+%if %{with_python2_probes}
+BuildRequires: python-devel
+BuildRequires: python-setuptools
+%endif
+%if %{with_python3_probes}
+BuildRequires: python3-devel
+BuildRequires: python3-setuptools
 %endif
 
 # Install requirements
@@ -337,6 +352,12 @@ Requires: crash
 %if %{with_java}
 Requires: systemtap-runtime-java = %{version}-%{release}
 %endif
+%if %{with_python2_probes}
+Requires: systemtap-runtime-python2 = %{version}-%{release}
+%endif
+%if %{with_python3_probes}
+Requires: systemtap-runtime-python3 = %{version}-%{release}
+%endif
 %ifarch x86_64
 Requires: /usr/lib/libc.so
 # ... and /usr/lib/libgcc_s.so.*
@@ -370,6 +391,32 @@ Requires: net-tools
 This package includes support files needed to run systemtap scripts
 that probe Java processes running on the OpenJDK 1.6 and OpenJDK 1.7
 runtimes using Byteman.
+%endif
+
+%if %{with_python2_probes}
+%package runtime-python2
+Summary: Systemtap Python 2 Runtime Support
+Group: Development/System
+License: GPLv2+
+URL: http://sourceware.org/systemtap/
+Requires: systemtap-runtime = %{version}-%{release}
+
+%description runtime-python2
+This package includes support files needed to run systemtap scripts
+that probe python 2 processes.
+%endif
+
+%if %{with_python3_probes}
+%package runtime-python3
+Summary: Systemtap Python 3 Runtime Support
+Group: Development/System
+License: GPLv2+
+URL: http://sourceware.org/systemtap/
+Requires: systemtap-runtime = %{version}-%{release}
+
+%description runtime-python3
+This package includes support files needed to run systemtap scripts
+that probe python 3 processes.
 %endif
 
 %if %{with_virthost}
@@ -493,6 +540,22 @@ cd ..
 %global java_config --without-java
 %endif
 
+%if %{with_python3}
+%global python3_config --with-python3
+%else
+%global python3_config --without-python3
+%endif
+%if %{with_python2_probes}
+%global python2_probes_config --with-python2-probes
+%else
+%global python2_probes_config --without-python2-probes
+%endif
+%if %{with_python3_probes}
+%global python3_probes_config --with-python3-probes
+%else
+%global python3_probes_config --without-python3-probes
+%endif
+
 %if %{with_virthost}
 %global virt_config --enable-virt
 %else
@@ -505,15 +568,10 @@ cd ..
 %global dracut_config %{nil}
 %endif
 
-%if %{with_python3}
-%global python3_config --with-python3
-%else
-%global python3_config --without-python3
-%endif
 # We don't ship compileworthy python code, just oddball samples
 %global py_auto_byte_compile 0
 
-%configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{rpm_config} %{java_config} %{virt_config} %{dracut_config} %{python3_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
+%configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{rpm_config} %{java_config} %{virt_config} %{dracut_config} %{python3_config} %{python2_probes_config} %{python3_probes_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
 make %{?_smp_mflags}
 
 %if %{with_emacsvim}
@@ -930,6 +988,13 @@ done
 %{_emacs_sitestartdir}/systemtap-init.el
 %{_datadir}/vim/vimfiles/*/*.vim
 %endif
+# Notice that the stap-resolve-module-function.py file is used by
+# *both* the python2 and python3 subrpms.  Both subrpms use that same
+# python script to help list python probes.
+%if %{with_python3_probes} || %{with_python2_probes}
+%{_libexecdir}/systemtap/python/stap-resolve-module-function.py
+%exclude %{_libexecdir}/systemtap/python/stap-resolve-module-function.py?
+%endif
 
 
 %files runtime -f systemtap.lang
@@ -1031,6 +1096,17 @@ done
 %{_libexecdir}/systemtap/libHelperSDT_*.so
 %{_libexecdir}/systemtap/HelperSDT.jar
 %{_libexecdir}/systemtap/stapbm
+%endif
+
+%if %{with_python2_probes}
+%files runtime-python2
+%{python_sitearch}/HelperSDT
+%{python_sitearch}/HelperSDT-*.egg-info
+%endif
+%if %{with_python3_probes}
+%files runtime-python3
+%{python3_sitearch}/HelperSDT
+%{python3_sitearch}/HelperSDT-*.egg-info
 %endif
 
 %if %{with_virthost}

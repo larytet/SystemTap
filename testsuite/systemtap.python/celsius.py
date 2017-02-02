@@ -22,7 +22,7 @@ def main():
         return 1
 
     celsius = int(sys.argv[1])
-    print (str(celsius) + " Celsius " + " is " + celsius_to_farenheit(celsius) + " Farenheit")
+    print (str(celsius) + " Celsius is " + celsius_to_farenheit(celsius) + " Farenheit")
     return 0
 
 if __name__ == "__main__":

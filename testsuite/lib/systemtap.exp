@@ -132,6 +132,16 @@ proc java_p {} {
     return $systemtap_java_p
 }
 
+proc python2_p {} {
+    global systemtap_python2_p
+    return $systemtap_python2_p
+}
+
+proc python3_p {} {
+    global systemtap_python3_p
+    return $systemtap_python3_p
+}
+
 proc bootprobing_p {} {
     global Dracut_Version
     return [expr [strverscmp $Dracut_Version 025] >= 0 && \
@@ -208,6 +218,7 @@ proc print_systemtap_version {} {
 proc setup_systemtap_environment {} {
     global srcdir env server_pid systemtap_dyninst_p
     global systemtap_nss_p systemtap_java_p
+    global systemtap_python2_p systemtap_python3_p
     global have_hw_breakpoint_p systemtap_readline_p
     global kill_needs_doubledash
 
@@ -280,6 +291,22 @@ proc setup_systemtap_environment {} {
         set systemtap_java_p 0
     }
 
+    # Remember if this selfsame version of systemtap compiled with
+    # python2 support
+    if {! [catch {exec sh -c "stap -V 2>&1 | grep -q PYTHON2"} dummy]} {
+        set systemtap_python2_p 1
+    } else {
+        set systemtap_python2_p 0
+    }
+
+    # Remember if this selfsame version of systemtap compiled with
+    # python3 support
+    if {! [catch {exec sh -c "stap -V 2>&1 | grep -q PYTHON3"} dummy]} {
+        set systemtap_python3_p 1
+    } else {
+        set systemtap_python3_p 0
+    }
+
     # Remember if this selfsame version of systemtap supports HW breakpoints
     if {! [catch {exec stap -l {kernel.data(0x123).rw}}]} {
         set have_hw_breakpoint_p 1
@@ -313,6 +340,7 @@ proc setup_systemtap_environment {} {
       set kill_needs_doubledash 0
     }
 
+    arch_compile_init
     return 1
 }
 

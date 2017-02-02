@@ -1,0 +1,5 @@
+probe $1.module("class").function("Account.inquiry")
+{
+    python_print_backtrace()
+    printf("balance is %s\n", $self->balance)
+}

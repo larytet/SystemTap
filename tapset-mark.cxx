@@ -1,5 +1,5 @@
 // tapset for kernel static markers
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2017 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -76,9 +76,9 @@ struct mark_var_expanding_visitor: public var_expanding_visitor
 {
   mark_var_expanding_visitor(systemtap_session& s,
                              vector <struct mark_arg *> &mark_args):
-    sess (s), mark_args (mark_args),
+    var_expanding_visitor(s), mark_args (mark_args),
     target_symbol_seen (false) {}
-  systemtap_session& sess;
+
   vector <struct mark_arg *> &mark_args;
   bool target_symbol_seen;
 
@@ -219,7 +219,8 @@ mark_derived_probe::mark_derived_probe (systemtap_session &s,
 
   // Now expand the local variables in the probe body
   mark_var_expanding_visitor v (sess, mark_args);
-  v.replace (this->body);
+  var_expand_const_fold_loop (sess, this->body, v);
+
   target_symbol_seen = v.target_symbol_seen;
   if (target_symbol_seen)
     for (unsigned i = 0; i < mark_args.size(); ++i)

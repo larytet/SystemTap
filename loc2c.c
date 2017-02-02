@@ -2561,6 +2561,7 @@ c_emit_location (FILE *out, struct location *loc, int indent,
 	  break;
 	declared_addr = true;
 	l->address.declare = "addr";
+	/* Fallthrough */
       case loc_fragment:
       case loc_final:
 	if (l->address.declare != NULL)

@@ -166,6 +166,7 @@ static inline struct _stp_transport_session_data *stp_transport_data(void)
 
 #ifdef STP_TIMING
 #define global_skipped(name)	(&_global_raw(name ## _lock_skip_count))
+#define global_contended(name)  (&_global_raw(name ## _lock_contention_count))
 #endif
 
 

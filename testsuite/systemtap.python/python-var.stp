@@ -1,0 +1,73 @@
+probe $1.module("python-var").function("main")
+{
+    # Print globals
+    printf("g_none = %s\n", $g_none)
+    printf("g_type = %s\n", $g_type)
+    printf("g_bool = %s\n", $g_bool)
+
+    printf("g_int = %s\n", $g_int)
+    printf("g_long = %s\n", $g_long)
+    printf("g_float = %s\n", $g_float)
+    printf("g_complex = %s\n", $g_complex)
+
+    printf("g_string = %s\n", $g_string)
+    printf("g_unicode = %s\n", $g_unicode)
+    printf("g_tuple = %s\n", $g_tuple)
+    printf("g_list = %s\n", $g_list)
+    # Since 'xrange' variables can only exist with python2, we'll get
+    # an error with python3, which we'll just ignore.
+    try {
+	printf("g_xrange = %s\n", $g_xrange)
+    } catch (err) {
+        printf("Error: %s\n", err)
+    }
+
+    printf("g_dictionary = %s\n", $g_dictionary)
+
+    printf("g_func = %s\n", $g_func)
+    printf("g_class = %s\n", $g_class)
+    printf("g_unbound_method = %s\n", $g_unbound_method)
+    printf("g_instance = %s\n", $g_instance)
+    printf("g_method = %s\n", $g_method)
+    
+    printf("g_zip = %s\n", $g_zip)
+    printf("g_file = %s\n", $g_file)
+    printf("g_ellipsis = %s\n", $g_ellipsis)
+}
+
+probe $1.module("python-var").function("main").return
+{
+    # Print locals
+    printf("l_none = %s\n", $l_none)
+    printf("l_type = %s\n", $l_type)
+    printf("l_bool = %s\n", $l_bool)
+
+    printf("l_int = %s\n", $l_int)
+    printf("l_long = %s\n", $l_long)
+    printf("l_float = %s\n", $l_float)
+    printf("l_complex = %s\n", $l_complex)
+
+    printf("l_string = %s\n", $l_string)
+    printf("l_unicode = %s\n", $l_unicode)
+    printf("l_tuple = %s\n", $l_tuple)
+    printf("l_list = %s\n", $l_list)
+    # Since 'xrange' variables can only exist with python2, we'll get
+    # an error with python3, which we'll just ignore.
+    try {
+	printf("l_xrange = %s\n", $l_xrange)
+    } catch (err) {
+        printf("Error: %s\n", err)
+    }
+
+    printf("l_dictionary = %s\n", $l_dictionary)
+
+    printf("l_func = %s\n", $l_func)
+    printf("l_class = %s\n", $l_class)
+    printf("l_unbound_method = %s\n", $l_unbound_method)
+    printf("l_instance = %s\n", $l_instance)
+    printf("l_method = %s\n", $l_method)
+    
+    printf("l_zip = %s\n", $l_zip)
+    printf("l_file = %s\n", $l_file)
+    printf("l_ellipsis = %s\n", $l_ellipsis)
+}

@@ -170,11 +170,11 @@ module.function, .statement	process.mark, process.plt	module.function\fI*\fP
 process.function, .statement	begin, end, error, never	process.function\fI*\fP
 process.mark\fI*\fP	timer
 \.function.callee	perf
-	procfs
-\fBAUTO-GENERATED-DWARF\fP	kernel.statement.absolute
-	kernel.data
-kernel.trace	kprobe.function
-	process.statement.absolute
+python2, python3	procfs
+	kernel.statement.absolute
+\fBAUTO-GENERATED-DWARF\fP	kernel.data
+	kprobe.function
+kernel.trace	process.statement.absolute
 	process.begin, .end
 	netfilter
 	java
@@ -1030,7 +1030,26 @@ Context variables defined within java probes include
 .IR $arg1
 through
 .IR $arg10
-(for up to the first 10 arguments of a method), represented as integers or strings.
+(for up to the first 10 arguments of a method), represented as character-pointers
+for the
+.B toString()
+form of each actual argument.
+The
+.IR arg1
+through
+.IR arg10
+script variables provide access to these as ordinary strings, fetched via
+.IR user_string_warn() .
+.PP
+Prior to systemtap version 3.1,
+.IR $arg1
+through
+.IR $arg10
+could contain either integers or character pointers, depending on the types of the
+objects being passed to each particular java method.  This previous behaviour may
+be invoked with the
+.I stap --compatible=3.0
+flag.
 
 .SS PROCFS
 
@@ -1319,10 +1338,11 @@ This family of probes is used to set hardware watchpoints for a given
  (global) kernel symbol. The probes take three components as inputs :
 
 1. The
-.BR virtual address / name
-of the kernel symbol to be traced is supplied as argument to this class
-of probes. ( Probes for only data segment variables are supported. Probing
-local variables of a function cannot be done.)
+.BR virtual
+address / name of the kernel symbol to be traced is supplied as
+argument to this class of probes. ( Probes for only data segment
+variables are supported. Probing local variables of a function cannot
+be done.)
 
 2. Nature of access to be probed :
 a.
@@ -1403,6 +1423,70 @@ invoked for a .counter probe; instead, the counter is read in a user
 space probe via:
 .TP
    process("PROCESS").statement("func@file") {stat <<< @perf("NAME")} 
+
+
+.SS PYTHON
+Support for probing python 2 and python 3 function is available with
+the help of an extra python support module. Note that the debuginfo
+for the version of python being probed is required. To run a python
+script with the extra python support module you'd add the '-m
+HelperSDT' option to your python command, like this:
+.SAMPLE
+stap foo.stp -c "python -m HelperSDT foo.py"
+.ESAMPLE
+Python probes look like the following:
+.SAMPLE
+python2.module("MPATTERN").function("PATTERN")
+python2.module("MPATTERN").function("PATTERN").call
+python2.module("MPATTERN").function("PATTERN").return
+python3.module("MPATTERN").function("PATTERN")
+python3.module("MPATTERN").function("PATTERN").call
+python3.module("MPATTERN").function("PATTERN").return
+.ESAMPLE
+The list above includes multiple variants and modifiers which provide
+additional functionality or filters. They are:
+.RS
+.TP
+\fB.function\fR
+Places a probe at the beginning of the named function by
+default, unless modified by PATTERN. Parameters are available as
+context variables.
+.TP
+\fB.call\fR
+Places a probe at the beginning of the named function. Parameters are
+available as context variables.
+.TP
+\fB.return\fR
+Places a probe at the moment \fBbefore\fR the return from the named
+function. Parameters and local/global python variables are available
+as context variables.
+.RE
+.PP
+PATTERN stands for a string literal that aims to identify a point in
+the python program.  It is made up of three parts:
+.IP \(bu 4
+The first part is the name of a function (e.g. "foo") or class method
+(e.g. "bar.baz"). This part may use the "*" and "?" wildcarding
+operators to match multiple names.
+.IP \(bu 4
+The second part is optional and begins with the "@" character. 
+It is followed by the path to the source file containing the function,
+which may include a wildcard pattern. The python path is searched for
+a matching filename.
+.IP \(bu 4
+Finally, the third part is optional if the file name part was given,
+and identifies the line number in the source file preceded by a ":"
+or a "+".  The line number is assumed to be an
+absolute line number if preceded by a ":", or relative to the
+declaration line of the function if preceded by a "+".
+All the lines in the function can be matched with ":*".  
+A range of lines x through y can be matched with ":x\-y". Ranges and
+specific lines can be mixed using commas, e.g. ":x,y\-z".
+.PP
+In the above list of probe points, MPATTERN stands for a python module
+or script name that names the python module of interest. This part may
+use the "*" and "?" wildcarding operators to match multiple names. The
+python path is searched for a matching filename.
 
 
 .SH EXAMPLES

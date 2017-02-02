@@ -546,9 +546,7 @@ static int _stp_ctl_send(int type, void *data, unsigned len)
 
 	/* make sure we won't overflow the buffer */
 	if (unlikely(len > STP_CTL_BUFFER_SIZE)) {
-		/* We could try to send an error message instead? */
-                printk(KERN_ERR "ctl_write_msg type=%d len=%d too large\n",
-		       type, len);
+                _stp_warn("runtime control message type=%d len=%d too large\n", type, len);
 		return 0;
 	}
 

@@ -12,6 +12,9 @@ AM_CPPFLAGS = -DBINDIR='"$(bindir)"' \
 	      -DPKGDATADIR='"$(pkgdatadir)"' \
 	      -DPKGLIBDIR='"$(pkglibexecdir)"' \
 	      -DLOCALEDIR='"$(localedir)"' \
+              -DDOCDIR='"$(docdir)"' \
+              -DPYEXECDIR='"$(pyexecdir)"' \
+              -DPY3EXECDIR='"$(py3execdir)"' \
 	      -I$(srcdir)/includes -I$(builddir)/includes/sys
 
 AM_CFLAGS = -D_GNU_SOURCE -fexceptions -Wall -Wextra -Werror -Wunused -Wformat=2 -W
@@ -49,7 +52,7 @@ stap_SOURCES = main.cxx session.cxx \
 	setupdwfl.cxx remote.cxx privilege.cxx cmdline.cxx \
 	tapset-dynprobe.cxx tapset-method.cxx translator-output.cxx \
         stapregex.cxx stapregex-tree.cxx stapregex-parse.cxx \
-	stapregex-dfa.cxx stringtable.cxx
+	stapregex-dfa.cxx stringtable.cxx tapset-python.cxx
 noinst_HEADERS = sdt_types.h
 stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @LIBINTL@ -lpthread
 stap_DEPENDENCIES =
@@ -324,7 +327,7 @@ if BUILD_SERVER
 	rm -f $(DESTDIR)$(localstatedir)/log/stap-server/log
 endif
 
-SUBDIRS = . java stapdyn staprun doc man po
+SUBDIRS = . java python stapdyn staprun doc man po
 # NB: the gcov target above uses this to enumarate linked binaries' build directories
 DIST_SUBDIRS = testsuite $(SUBDIRS)
 EXTRA_DIST = m4/ChangeLog

@@ -1,4 +1,4 @@
-#! stap -Wp2
+#! stap -wp2
 
 # This causes a mix of kretprobe-data-pouch and global-map
 # approaches for saving entry values.
@@ -8,7 +8,11 @@
 # tid as it appended.
 #
 # We try it in both orders here to make sure they don't interfere either way.
-
+#
+# NB: now that stap emits warnings for $var use in .return probes, this test
+# is more moot, because there's no easy way to suppress just that warning
+# but not the older one.  Switching to stap -w from -W.
+#
 probe kernel.function("do_filp_open").return !,
       kernel.function("filp_open").return
 {

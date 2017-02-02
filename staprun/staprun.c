@@ -2,7 +2,7 @@
  *
  * staprun.c - SystemTap module loader
  *
- * Copyright (C) 2005-2014 Red Hat, Inc.
+ * Copyright (C) 2005-2016 Red Hat, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -304,6 +304,9 @@ void disable_kprobes_optimization()
         /* PR15484; whoops, not enough, problem still seen on Debian
          * 3.8.12 kernel. */
         if (0 && (uname (&uts) == 0) && (strverscmp (uts.release, "3.4") >= 0))
+                return;
+        /* Try again with F24 era kernels. */
+        if ((uname (&uts) == 0) && (strverscmp (uts.release, "4.8") >= 0))
                 return;
 
         if (getenv ("STAP_PR13193_OVERRIDE"))

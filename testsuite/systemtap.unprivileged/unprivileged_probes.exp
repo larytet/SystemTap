@@ -5,6 +5,7 @@ if {![uprobes_p]} { untested $test; return }
 
 set exepath "loop"
 set sopath "libloop.so"
+set pypath "test.py"
 
 # These probe types should be acceptable for unprivileged users
 set unrestricted_probe_types [list \
@@ -281,6 +282,12 @@ set restricted_probe_types [list \
   "netfilter.pf(string).hook(string)" \
   "netfilter.hook(string).pf(string).priority(string)" \
   "netfilter.pf(string).hook(string).priority(string)" \
+  "python2.module(string).function(string)" \
+  "python2.module(string).function(string).call" \
+  "python2.module(string).function(string).return" \
+  "python3.module(string).function(string)" \
+  "python3.module(string).function(string).call" \
+  "python3.module(string).function(string).return" \
 ]
 
 # Add arguments to a probe type template.
@@ -335,6 +342,12 @@ proc add_args { probe_type pid } {
     regsub -all "library\\(string\\).function\\(string\\)" $probe "library(string).function(\"libloopfunc\")" probe
     # Replace "library(string).function(number)" with "library(string).function($addr_of_libloopfunc)"
     regsub -all "library\\(string\\).function\\(number\\)" $probe "library(string).function($addr_of_libloopfunc)" probe
+
+    # Replace all python[23] stuff
+    regsub -all "python2.module\\(string\\).function\\(string\\)" \
+	$probe "python2.module(\"test\").function(\"MyFunction\")" probe
+    regsub -all "python3.module\\(string\\).function\\(string\\)" \
+	$probe "python3.module(\"test\").function(\"MyFunction\")" probe
 
     # Replace "function(string)" with "function("bar")"
     regsub -all "function\\(string\\)" $probe "function(\"bar\")" probe
@@ -435,6 +448,20 @@ proc test_unrestricted_probes { privilege } {
 
 	# java support is optional
 	if {[regexp "^java" $probe_type] && ! [java_p]} {
+	    untested "$test: $option $probe_type"
+	    set tested($probe_type) 1
+	    continue
+	}
+
+	# python2 support is optional
+	if {[regexp "^python2" $probe_type] && ! [python2_p]} {
+	    untested "$test: $option $probe_type"
+	    set tested($probe_type) 1
+	    continue
+	}
+
+	# python3 support is optional
+	if {[regexp "^python3" $probe_type] && ! [python3_p]} {
 	    untested "$test: $option $probe_type"
 	    set tested($probe_type) 1
 	    continue
@@ -601,6 +628,13 @@ if { $res == "" } {
     return
 }
 
+# Need to copy over the python program. Notice we are using the tcl
+# 'exec' command redirection of '2>@1', which is equivalent to the
+# shell's '2>&1'.
+if {[catch {exec cp $srcdir/$subdir/$pypath . 2>@1} out]} {
+    verbose -log "python cp failure: $out"
+}
+
 # Extract needed addresses. Note, some architectures add a '.' to the
 # function name, so match that optionally.
 set addr_of_bar [exec objdump -d $exepath | awk {/<\.?bar>:/ { printf "0x%s\n",$1 }}]
@@ -659,3 +693,4 @@ foreach probe_type $all_probe_types {
 # Cleanup
 catch {exec rm -f loop}
 catch {exec rm -f libloop.so}
+catch {exec rm -f $pypath}

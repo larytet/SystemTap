@@ -5,10 +5,10 @@ set test "error_fn"
 
 foreach runtime [get_runtime_list] {
     if {$runtime != ""} {
-	stap_run $srcdir/$subdir/$test.stp no_load "ERROR: synthetic error\r\n" \
-	    --runtime=$runtime
+	stap_run $test no_load "ERROR: synthetic error\r\n" \
+	    --runtime=$runtime $srcdir/$subdir/$test.stp
     } else {
-	stap_run $srcdir/$subdir/$test.stp no_load "ERROR: synthetic error\r\n"
+	stap_run $test no_load "ERROR: synthetic error\r\n" $srcdir/$subdir/$test.stp
     }
 }
 

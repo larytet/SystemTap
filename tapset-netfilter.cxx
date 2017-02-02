@@ -1,5 +1,5 @@
 // tapset for netfilter hooks
-// Copyright (C) 2012-2014 Red Hat Inc.
+// Copyright (C) 2012-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -56,7 +56,6 @@ struct netfilter_var_expanding_visitor: public var_expanding_visitor
 {
   netfilter_var_expanding_visitor(systemtap_session& s);
 
-  systemtap_session& sess;
   set<string> context_vars;
 
   void visit_target_symbol (target_symbol* e);
@@ -205,7 +204,7 @@ netfilter_derived_probe::netfilter_derived_probe (systemtap_session &s, probe* p
 
   // Expand local variables in the probe body
   netfilter_var_expanding_visitor v (s);
-  v.replace (this->body);
+  var_expand_const_fold_loop (s, this->body, v);
 
   // Create probe-local vardecls, before symbol resolution might make
   // one for us, so that we can set the all-important synthetic flag.
@@ -417,7 +416,7 @@ netfilter_derived_probe_group::emit_module_exit (systemtap_session& s)
 
 
 netfilter_var_expanding_visitor::netfilter_var_expanding_visitor (systemtap_session& s):
-  sess (s)
+  var_expanding_visitor (s)
 {
 }
 

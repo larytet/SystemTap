@@ -648,6 +648,16 @@ ncurses_LIBS
 ncurses_CFLAGS
 jsonc_LIBS
 jsonc_CFLAGS
+HAVE_PYTHON_PROBES_FALSE
+HAVE_PYTHON_PROBES_TRUE
+HAVE_PYTHON3_PROBES_FALSE
+HAVE_PYTHON3_PROBES_TRUE
+PYTHON3_CPPFLAGS
+PYTHON3_CONFIG
+HAVE_PYTHON2_PROBES_FALSE
+HAVE_PYTHON2_PROBES_TRUE
+PYTHON_CPPFLAGS
+PYTHON_CONFIG
 BUILD_VIRT_FALSE
 BUILD_VIRT_TRUE
 HAVE_LIBXML2_FALSE
@@ -669,7 +679,7 @@ stap_LIBS
 elfutils_abs_srcdir
 BUILD_ELFUTILS_FALSE
 BUILD_ELFUTILS_TRUE
-python
+preferred_python
 HAVE_LIBREADLINE_FALSE
 HAVE_LIBREADLINE_TRUE
 READLINE_LIBS
@@ -715,6 +725,23 @@ PIECXXFLAGS
 PIECFLAGS
 PIELDFLAGS
 HAVE_CXX11
+py3execdir
+python3dir
+PYTHON3_PLATFORM
+PYTHON3_EXEC_PREFIX
+PYTHON3_PREFIX
+PYTHON3_VERSION
+PYTHON3
+pkgpyexecdir
+pyexecdir
+pkgpythondir
+pythondir
+PYTHON_PLATFORM
+PYTHON_EXEC_PREFIX
+PYTHON_PREFIX
+PYTHON_VERSION
+PYTHON
+PYTHON_UNKNOWN
 POSUB
 LTLIBINTL
 LIBINTL
@@ -873,6 +900,8 @@ with_python3
 with_elfutils
 with_dyninst
 enable_virt
+with_python2_probes
+with_python3_probes
 with_selinux
 with_java
 with_extra_version
@@ -889,6 +918,7 @@ CPP
 CXX
 CXXFLAGS
 CCC
+PYTHON
 PKG_CONFIG
 PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
@@ -1577,6 +1607,12 @@ Optional Packages:
                           find elfutils source code in DIRECTORY
   --with-dyninst=DIRECTORY
                           find dyninst headers/libraries in DIRECTORY
+  --without-python2-probes
+                          Disable building python version 2 probe support,
+                          even if it is available
+  --without-python3-probes
+                          Disable building python version 3 probe support,
+                          even if it is available
   --without-selinux       Do not use libselinux even if present
   --with-java=DIRECTORY   Specify JDK directory to compile libHelperSDT.so
                           against (default is /usr/lib/jvm/java)
@@ -1594,6 +1630,7 @@ Some influential environment variables:
   CPP         C preprocessor
   CXX         C++ compiler command
   CXXFLAGS    C++ compiler flags
+  PYTHON      the Python interpreter
   PKG_CONFIG  path to pkg-config utility
   PKG_CONFIG_PATH
               directories to add to pkg-config's search path
@@ -8663,6 +8700,511 @@ if test "x$GMSGFMT" = "x:"; then
    as_fn_error $? "missing gnu /usr/bin/msgfmt" "$LINENO" 5
 fi
 
+# We want the 'PYTHON' varible to be python version 2. We also want
+# our custom 'PYTHON3' varible to be python version 3.
+#
+# Note that the python2/python3 code was inspired by code in the
+# 'abrt' configure:
+#   <https://github.com/abrt/abrt/blob/master/configure.ac>
+#
+# First, figure out what version of python is in the executable named
+# 'python'. On most systems that is python version 2, but on arch
+# linux that is python version 3.
+# Extract the first word of "python", so it can be a program name with args.
+set dummy python; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PYTHON_UNKNOWN+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PYTHON_UNKNOWN in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PYTHON_UNKNOWN="$PYTHON_UNKNOWN" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PYTHON_UNKNOWN="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_PYTHON_UNKNOWN" && ac_cv_path_PYTHON_UNKNOWN="no"
+  ;;
+esac
+fi
+PYTHON_UNKNOWN=$ac_cv_path_PYTHON_UNKNOWN
+if test -n "$PYTHON_UNKNOWN"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PYTHON_UNKNOWN" >&5
+$as_echo "$PYTHON_UNKNOWN" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+if test "x$PYTHON_UNKNOWN" != "xno"; then
+   # OK, we found 'python'. What version is it?
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $PYTHON_UNKNOWN is version 2 or 3" >&5
+$as_echo_n "checking whether $PYTHON_UNKNOWN is version 2 or 3... " >&6; }
+if ${ac_cv_python_unknown_version+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_cv_python_unknown_version=`$PYTHON_UNKNOWN -c "import sys; sys.stdout.write(sys.version[:3][0])"`
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_python_unknown_version" >&5
+$as_echo "$ac_cv_python_unknown_version" >&6; }
+fi
+
+# Now we'll update the _AM_PYTHON_INTERPRETER_LIST variable (which
+# AM_PATH_PYTHON uses) to only be version 2 versions of python. Note
+# that the m4_define happens when autoconf is run, but the
+# FIRST_PYTHON_INTERPRETER variable expansion will happen when the
+# user runs configure.
+if test "x$PYTHON_UNKNOWN" != "xno" -a "x$ac_cv_python_unknown_version" = "x2"; then
+   FIRST_PYTHON_INTERPRETER=python
+else
+   FIRST_PYTHON_INTERPRETER=python2
+fi
+
+
+# Now we can call AM_PATH_PYTHON to find python version 2.6+ (and
+# version 2 only).
+
+
+
+
+
+
+        if test -n "$PYTHON"; then
+      # If the user set $PYTHON, use it and don't search something else.
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $PYTHON version is >= 2.6" >&5
+$as_echo_n "checking whether $PYTHON version is >= 2.6... " >&6; }
+      prog="import sys
+# split strings by '.' and convert to numeric.  Append some zeros
+# because we need at least 4 digits for the hex conversion.
+# map returns an iterator in Python 3.0 and a list in 2.x
+minver = list(map(int, '2.6'.split('.'))) + [0, 0, 0]
+minverhex = 0
+# xrange is not present in Python 3.0 and range returns an iterator
+for i in list(range(0, 4)): minverhex = (minverhex << 8) + minver[i]
+sys.exit(sys.hexversion < minverhex)"
+  if { echo "$as_me:$LINENO: $PYTHON -c "$prog"" >&5
+   ($PYTHON -c "$prog") >&5 2>&5
+   ac_status=$?
+   echo "$as_me:$LINENO: \$? = $ac_status" >&5
+   (exit $ac_status); }; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+			       as_fn_error $? "Python interpreter is too old" "$LINENO" 5
+fi
+      am_display_PYTHON=$PYTHON
+    else
+      # Otherwise, try each interpreter until we find one that satisfies
+      # VERSION.
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for a Python interpreter with version >= 2.6" >&5
+$as_echo_n "checking for a Python interpreter with version >= 2.6... " >&6; }
+if ${am_cv_pathless_PYTHON+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+	for am_cv_pathless_PYTHON in $FIRST_PYTHON_INTERPRETER python2 python2.7 python2.6 none; do
+	  test "$am_cv_pathless_PYTHON" = none && break
+	  prog="import sys
+# split strings by '.' and convert to numeric.  Append some zeros
+# because we need at least 4 digits for the hex conversion.
+# map returns an iterator in Python 3.0 and a list in 2.x
+minver = list(map(int, '2.6'.split('.'))) + [0, 0, 0]
+minverhex = 0
+# xrange is not present in Python 3.0 and range returns an iterator
+for i in list(range(0, 4)): minverhex = (minverhex << 8) + minver[i]
+sys.exit(sys.hexversion < minverhex)"
+  if { echo "$as_me:$LINENO: $am_cv_pathless_PYTHON -c "$prog"" >&5
+   ($am_cv_pathless_PYTHON -c "$prog") >&5 2>&5
+   ac_status=$?
+   echo "$as_me:$LINENO: \$? = $ac_status" >&5
+   (exit $ac_status); }; then :
+  break
+fi
+	done
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $am_cv_pathless_PYTHON" >&5
+$as_echo "$am_cv_pathless_PYTHON" >&6; }
+      # Set $PYTHON to the absolute path of $am_cv_pathless_PYTHON.
+      if test "$am_cv_pathless_PYTHON" = none; then
+	PYTHON=:
+      else
+        # Extract the first word of "$am_cv_pathless_PYTHON", so it can be a program name with args.
+set dummy $am_cv_pathless_PYTHON; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PYTHON+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PYTHON in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PYTHON="$PYTHON" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PYTHON="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PYTHON=$ac_cv_path_PYTHON
+if test -n "$PYTHON"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PYTHON" >&5
+$as_echo "$PYTHON" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+      fi
+      am_display_PYTHON=$am_cv_pathless_PYTHON
+    fi
+
+
+  if test "$PYTHON" = :; then
+      :
+  else
+
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $am_display_PYTHON version" >&5
+$as_echo_n "checking for $am_display_PYTHON version... " >&6; }
+if ${am_cv_python_version+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  am_cv_python_version=`$PYTHON -c "import sys; sys.stdout.write(sys.version[:3])"`
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $am_cv_python_version" >&5
+$as_echo "$am_cv_python_version" >&6; }
+  PYTHON_VERSION=$am_cv_python_version
+
+
+
+  PYTHON_PREFIX='${prefix}'
+
+  PYTHON_EXEC_PREFIX='${exec_prefix}'
+
+
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $am_display_PYTHON platform" >&5
+$as_echo_n "checking for $am_display_PYTHON platform... " >&6; }
+if ${am_cv_python_platform+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  am_cv_python_platform=`$PYTHON -c "import sys; sys.stdout.write(sys.platform)"`
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $am_cv_python_platform" >&5
+$as_echo "$am_cv_python_platform" >&6; }
+  PYTHON_PLATFORM=$am_cv_python_platform
+
+
+  # Just factor out some code duplication.
+  am_python_setup_sysconfig="\
+import sys
+# Prefer sysconfig over distutils.sysconfig, for better compatibility
+# with python 3.x.  See automake bug#10227.
+try:
+    import sysconfig
+except ImportError:
+    can_use_sysconfig = 0
+else:
+    can_use_sysconfig = 1
+# Can't use sysconfig in CPython 2.7, since it's broken in virtualenvs:
+# <https://github.com/pypa/virtualenv/issues/118>
+try:
+    from platform import python_implementation
+    if python_implementation() == 'CPython' and sys.version[:3] == '2.7':
+        can_use_sysconfig = 0
+except ImportError:
+    pass"
+
+
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $am_display_PYTHON script directory" >&5
+$as_echo_n "checking for $am_display_PYTHON script directory... " >&6; }
+if ${am_cv_python_pythondir+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test "x$prefix" = xNONE
+     then
+       am_py_prefix=$ac_default_prefix
+     else
+       am_py_prefix=$prefix
+     fi
+     am_cv_python_pythondir=`$PYTHON -c "
+$am_python_setup_sysconfig
+if can_use_sysconfig:
+    sitedir = sysconfig.get_path('purelib', vars={'base':'$am_py_prefix'})
+else:
+    from distutils import sysconfig
+    sitedir = sysconfig.get_python_lib(0, 0, prefix='$am_py_prefix')
+sys.stdout.write(sitedir)"`
+     case $am_cv_python_pythondir in
+     $am_py_prefix*)
+       am__strip_prefix=`echo "$am_py_prefix" | sed 's|.|.|g'`
+       am_cv_python_pythondir=`echo "$am_cv_python_pythondir" | sed "s,^$am__strip_prefix,$PYTHON_PREFIX,"`
+       ;;
+     *)
+       case $am_py_prefix in
+         /usr|/System*) ;;
+         *)
+	  am_cv_python_pythondir=$PYTHON_PREFIX/lib/python$PYTHON_VERSION/site-packages
+	  ;;
+       esac
+       ;;
+     esac
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $am_cv_python_pythondir" >&5
+$as_echo "$am_cv_python_pythondir" >&6; }
+  pythondir=$am_cv_python_pythondir
+
+
+
+  pkgpythondir=\${pythondir}/$PACKAGE
+
+
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $am_display_PYTHON extension module directory" >&5
+$as_echo_n "checking for $am_display_PYTHON extension module directory... " >&6; }
+if ${am_cv_python_pyexecdir+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test "x$exec_prefix" = xNONE
+     then
+       am_py_exec_prefix=$am_py_prefix
+     else
+       am_py_exec_prefix=$exec_prefix
+     fi
+     am_cv_python_pyexecdir=`$PYTHON -c "
+$am_python_setup_sysconfig
+if can_use_sysconfig:
+    sitedir = sysconfig.get_path('platlib', vars={'platbase':'$am_py_prefix'})
+else:
+    from distutils import sysconfig
+    sitedir = sysconfig.get_python_lib(1, 0, prefix='$am_py_prefix')
+sys.stdout.write(sitedir)"`
+     case $am_cv_python_pyexecdir in
+     $am_py_exec_prefix*)
+       am__strip_prefix=`echo "$am_py_exec_prefix" | sed 's|.|.|g'`
+       am_cv_python_pyexecdir=`echo "$am_cv_python_pyexecdir" | sed "s,^$am__strip_prefix,$PYTHON_EXEC_PREFIX,"`
+       ;;
+     *)
+       case $am_py_exec_prefix in
+         /usr|/System*) ;;
+         *)
+	   am_cv_python_pyexecdir=$PYTHON_EXEC_PREFIX/lib/python$PYTHON_VERSION/site-packages
+	   ;;
+       esac
+       ;;
+     esac
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $am_cv_python_pyexecdir" >&5
+$as_echo "$am_cv_python_pyexecdir" >&6; }
+  pyexecdir=$am_cv_python_pyexecdir
+
+
+
+  pkgpyexecdir=\${pyexecdir}/$PACKAGE
+
+
+
+  fi
+
+
+python_basename=$(basename "$PYTHON")
+
+cat >>confdefs.h <<_ACEOF
+#define PYTHON_BASENAME "${python_basename}"
+_ACEOF
+
+# AM_PATH_PYTHON defines 'pyexecdir'. Make sure the python and
+# pyexecdir variables get sent down to the subconfigure in the
+# testsuite directory.
+as_fn_append ac_configure_args " python='$PYTHON' pyexecdir='$pyexecdir'"
+
+# Now let's try to find python version 3.
+if test "x$PYTHON_UNKNOWN" != "xno" -a "x$python_unknown_version" = "x3"; then
+   # Extract the first word of "python", so it can be a program name with args.
+set dummy python; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PYTHON3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PYTHON3 in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PYTHON3="$PYTHON3" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PYTHON3="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PYTHON3=$ac_cv_path_PYTHON3
+if test -n "$PYTHON3"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PYTHON3" >&5
+$as_echo "$PYTHON3" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+else
+   for ac_prog in python3 python3.5 python3.4 python3.3 python3.2 python3.1 python3.0
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PYTHON3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PYTHON3 in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PYTHON3="$PYTHON3" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PYTHON3="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PYTHON3=$ac_cv_path_PYTHON3
+if test -n "$PYTHON3"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PYTHON3" >&5
+$as_echo "$PYTHON3" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+  test -n "$PYTHON3" && break
+done
+
+fi
+python3_basename=$(basename "$PYTHON3")
+
+cat >>confdefs.h <<_ACEOF
+#define PYTHON3_BASENAME "${python3_basename}"
+_ACEOF
+
+
+# If we found python version 3, set up the other variables for python
+# version 3 that AM_PATH_PYTHON sets up for python version 2.
+if test -n "$PYTHON3"; then
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for python3 version" >&5
+$as_echo_n "checking for python3 version... " >&6; }
+if ${ac_cv_python3_version+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_cv_python3_version=`$PYTHON3 -c "import sys; sys.stdout.write(sys.version[:3])"`
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_python3_version" >&5
+$as_echo "$ac_cv_python3_version" >&6; }
+   PYTHON3_VERSION=$ac_cv_python3_version
+
+   PYTHON3_PREFIX='${prefix}'
+
+   PYTHON3_EXEC_PREFIX='${exec_prefix}'
+
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for python3 platform" >&5
+$as_echo_n "checking for python3 platform... " >&6; }
+if ${ac_cv_python3_platform+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_cv_python3_platform=`$PYTHON3 -c "import sys; sys.stdout.write(sys.platform)"`
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_python3_platform" >&5
+$as_echo "$ac_cv_python3_platform" >&6; }
+   PYTHON3_PLATFORM=$ac_cv_python3_platform
+
+
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for python3 script directory" >&5
+$as_echo_n "checking for python3 script directory... " >&6; }
+if ${ac_cv_python3_dir+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_cv_python3_dir=`$PYTHON3 -c "import distutils.sysconfig; print(distutils.sysconfig.get_python_lib(0,0,prefix='$PYTHON3_PREFIX'))"`
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_python3_dir" >&5
+$as_echo "$ac_cv_python3_dir" >&6; }
+   python3dir=$ac_cv_python3_dir
+
+
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for python3 extension module directory" >&5
+$as_echo_n "checking for python3 extension module directory... " >&6; }
+if ${ac_cv_py3execdir+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_cv_py3execdir=`$PYTHON3 -c "import distutils.sysconfig; print(distutils.sysconfig.get_python_lib(1,0,prefix='$PYTHON3_EXEC_PREFIX'))"`
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_py3execdir" >&5
+$as_echo "$ac_cv_py3execdir" >&6; }
+   py3execdir=$ac_cv_py3execdir
+
+
+   # Make sure the python3 and py3execdir variables get sent down to
+   # the subconfigure in the testsuite directory.
+   as_fn_append ac_configure_args " python3='$PYTHON3' py3execdir='$ac_cv_py3execdir'"
+fi
+
 if test "${enable_prologues+set}" != set; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking to see if prologue searching should be the default" >&5
 $as_echo_n "checking to see if prologue searching should be the default... " >&6; }
@@ -10526,11 +11068,19 @@ if test "${with_python3+set}" = set; then :
 fi
 
 if test "x$with_python3" = "xyes"; then :
-  python=python3
-
+  if test -z "$PYTHON3"; then :
+  as_fn_error $? "python version 3 is required" "$LINENO" 5
 else
-  python=python
+  preferred_python=$PYTHON3
 
+fi
+else
+  if test "x$PYTHON" = "x:"; then :
+  as_fn_error $? "python version 2 is required" "$LINENO" 5
+else
+  preferred_python=$PYTHON
+
+fi
 fi
 
 build_elfutils=no
@@ -10560,7 +11110,7 @@ fi`
 
 if test $enable_translator = yes; then
   if test $build_elfutils = no; then
-    # Need libdwfl-capable recent elfutils http://elfutils.fedorahosted.org/
+    # Need libdwfl-capable recent elfutils http://elfutils.org/
 
     # On modern debian/ubuntu, libebl has been merged into libdw
     # http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=457543
@@ -11227,6 +11777,200 @@ fi
 
 
 
+# Check whether --with-python2-probes was given.
+if test "${with_python2_probes+set}" = set; then :
+  withval=$with_python2_probes;
+fi
+
+have_python2_support=no
+if test "x$with_python2_probes" != "xno"; then :
+     pathless_python=$(basename "$PYTHON")
+   # Extract the first word of "${pathless_python}-config", so it can be a program name with args.
+set dummy ${pathless_python}-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PYTHON_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PYTHON_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PYTHON_CONFIG="$PYTHON_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PYTHON_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_PYTHON_CONFIG" && ac_cv_path_PYTHON_CONFIG="no"
+  ;;
+esac
+fi
+PYTHON_CONFIG=$ac_cv_path_PYTHON_CONFIG
+if test -n "$PYTHON_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PYTHON_CONFIG" >&5
+$as_echo "$PYTHON_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+   if test "x$PYTHON_CONFIG" != "xno"; then :
+  	  	  PYTHON_CPPFLAGS=`$PYTHON_CONFIG --includes 2> /dev/null`
+	  PYTHON_CPPFLAGS=$PYTHON_CPPFLAGS
+
+	  save_CPPFLAGS="$CPPFLAGS"
+	  CPPFLAGS="$PYTHON_CPPFLAGS $CPPFLAGS"
+	  	  	  	  	  { ac_cv_header_Python_h=; unset ac_cv_header_Python_h;}
+	  for ac_header in Python.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "Python.h" "ac_cv_header_Python_h" "$ac_includes_default"
+if test "x$ac_cv_header_Python_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PYTHON_H 1
+_ACEOF
+ have_python2_support=yes
+fi
+
+done
+
+	  CPPFLAGS="$save_CPPFLAGS"
+fi
+fi
+if test "x$have_python2_support" = "xyes"; then :
+
+$as_echo "#define HAVE_PYTHON2_PROBES 1" >>confdefs.h
+
+else
+  if test "x$with_python2_probes" = "xyes"; then :
+  as_fn_error $? "python version 2 probe support requested but not found" "$LINENO" 5
+fi
+
+fi
+ if test "x$have_python2_support" = "xyes"; then
+  HAVE_PYTHON2_PROBES_TRUE=
+  HAVE_PYTHON2_PROBES_FALSE='#'
+else
+  HAVE_PYTHON2_PROBES_TRUE='#'
+  HAVE_PYTHON2_PROBES_FALSE=
+fi
+
+
+
+# Check whether --with-python3-probes was given.
+if test "${with_python3_probes+set}" = set; then :
+  withval=$with_python3_probes;
+fi
+
+have_python3_support=no
+if test "x$with_python3_probes" != "xno"; then :
+     pathless_python3=$(basename "$PYTHON3")
+   if test "x${pathless_python3}" == "x"; then
+	pathless_python3="python3"
+   fi
+   # Extract the first word of "${pathless_python3}-config", so it can be a program name with args.
+set dummy ${pathless_python3}-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PYTHON3_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PYTHON3_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PYTHON3_CONFIG="$PYTHON3_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PYTHON3_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_PYTHON3_CONFIG" && ac_cv_path_PYTHON3_CONFIG="no"
+  ;;
+esac
+fi
+PYTHON3_CONFIG=$ac_cv_path_PYTHON3_CONFIG
+if test -n "$PYTHON3_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PYTHON3_CONFIG" >&5
+$as_echo "$PYTHON3_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+   if test "x$PYTHON3_CONFIG" != "xno"; then :
+  	  	  PYTHON3_CPPFLAGS=`$PYTHON3_CONFIG --includes 2> /dev/null`
+	  PYTHON3_CPPFLAGS=$PYTHON3_CPPFLAGS
+
+	  save_CPPFLAGS="$CPPFLAGS"
+	  CPPFLAGS="$PYTHON3_CPPFLAGS $CPPFLAGS"
+	  	  	  	  	  	  	  { ac_cv_header_Python_h=; unset ac_cv_header_Python_h;}
+	  for ac_header in Python.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "Python.h" "ac_cv_header_Python_h" "$ac_includes_default"
+if test "x$ac_cv_header_Python_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PYTHON_H 1
+_ACEOF
+ have_python3_support=yes
+fi
+
+done
+
+	  CPPFLAGS="$save_CPPFLAGS"
+fi
+fi
+if test "x$have_python3_support" = "xyes"; then :
+
+$as_echo "#define HAVE_PYTHON3_PROBES 1" >>confdefs.h
+
+else
+  if test "x$with_python3_probes" = "xyes"; then :
+  as_fn_error $? "python version 3 probe support requested but not found" "$LINENO" 5
+fi
+
+fi
+ if test "x$have_python3_support" = "xyes"; then
+  HAVE_PYTHON3_PROBES_TRUE=
+  HAVE_PYTHON3_PROBES_FALSE='#'
+else
+  HAVE_PYTHON3_PROBES_TRUE='#'
+  HAVE_PYTHON3_PROBES_FALSE=
+fi
+
+
+ if test "x$have_python2_support" = "xyes" -o "x$have_python3_support" = "xyes"; then
+  HAVE_PYTHON_PROBES_TRUE=
+  HAVE_PYTHON_PROBES_FALSE='#'
+else
+  HAVE_PYTHON_PROBES_TRUE='#'
+  HAVE_PYTHON_PROBES_FALSE=
+fi
+
+
+
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for jsonc" >&5
 $as_echo_n "checking for jsonc... " >&6; }
@@ -11235,12 +11979,12 @@ if test -n "$jsonc_CFLAGS"; then
     pkg_cv_jsonc_CFLAGS="$jsonc_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"json-c\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "json-c") 2>&5
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"json-c >= 0.12\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "json-c >= 0.12") 2>&5
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_jsonc_CFLAGS=`$PKG_CONFIG --cflags "json-c" 2>/dev/null`
+  pkg_cv_jsonc_CFLAGS=`$PKG_CONFIG --cflags "json-c >= 0.12" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -11252,12 +11996,12 @@ if test -n "$jsonc_LIBS"; then
     pkg_cv_jsonc_LIBS="$jsonc_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"json-c\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "json-c") 2>&5
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"json-c >= 0.12\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "json-c >= 0.12") 2>&5
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_jsonc_LIBS=`$PKG_CONFIG --libs "json-c" 2>/dev/null`
+  pkg_cv_jsonc_LIBS=`$PKG_CONFIG --libs "json-c >= 0.12" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -11278,9 +12022,9 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        jsonc_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "json-c" 2>&1`
+	        jsonc_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "json-c >= 0.12" 2>&1`
         else
-	        jsonc_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "json-c" 2>&1`
+	        jsonc_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "json-c >= 0.12" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$jsonc_PKG_ERRORS" >&5
@@ -11780,6 +12524,8 @@ ac_config_files="$ac_config_files java/Makefile"
 
 ac_config_files="$ac_config_files java/stapbm"
 
+ac_config_files="$ac_config_files python/Makefile"
+
 ac_config_files="$ac_config_files staprun/Makefile"
 
 ac_config_files="$ac_config_files staprun/run-staprun"
@@ -12009,6 +12755,18 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${BUILD_VIRT_TRUE}" && test -z "${BUILD_VIRT_FALSE}"; then
   as_fn_error $? "conditional \"BUILD_VIRT\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_PYTHON2_PROBES_TRUE}" && test -z "${HAVE_PYTHON2_PROBES_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_PYTHON2_PROBES\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_PYTHON3_PROBES_TRUE}" && test -z "${HAVE_PYTHON3_PROBES_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_PYTHON3_PROBES\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_PYTHON_PROBES_TRUE}" && test -z "${HAVE_PYTHON_PROBES_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_PYTHON_PROBES\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_MONITOR_LIBS_TRUE}" && test -z "${HAVE_MONITOR_LIBS_FALSE}"; then
@@ -12655,6 +13413,7 @@ do
     "stapdyn/Makefile") CONFIG_FILES="$CONFIG_FILES stapdyn/Makefile" ;;
     "java/Makefile") CONFIG_FILES="$CONFIG_FILES java/Makefile" ;;
     "java/stapbm") CONFIG_FILES="$CONFIG_FILES java/stapbm" ;;
+    "python/Makefile") CONFIG_FILES="$CONFIG_FILES python/Makefile" ;;
     "staprun/Makefile") CONFIG_FILES="$CONFIG_FILES staprun/Makefile" ;;
     "staprun/run-staprun") CONFIG_FILES="$CONFIG_FILES staprun/run-staprun" ;;
     "staprun/guest/stapshd") CONFIG_FILES="$CONFIG_FILES staprun/guest/stapshd" ;;

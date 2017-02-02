@@ -17,4 +17,4 @@ proc run_test_load {} {
     return 0
 }
 
-stap_run $srcdir/$subdir/$test.stp run_test_load $all_pass_string
+stap_run $test run_test_load $all_pass_string $srcdir/$subdir/$test.stp

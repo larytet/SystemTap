@@ -3,7 +3,7 @@ if {![installtest_p]} { untested $test; return }
 
 foreach runtime [get_runtime_list] {
     set test "arith_limits"
-    set args ""
+    set args "--vp=0"
     if {$runtime != ""} {
 	lappend test "($runtime)"
 	set args "--runtime=$runtime"

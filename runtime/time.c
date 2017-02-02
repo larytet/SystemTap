@@ -176,7 +176,10 @@ __stp_time_timer_callback(unsigned long val)
     stp_time_t *time =__stp_time_local_update();
     (void) val;
 
-    /* PR6481: reenable IRQs before resetting the timer.
+    /* PR6481: make sure IRQs are enabled before resetting the timer
+       (IRQs are disabled and then reenabled in
+       __stp_time_local_update()).
+
        XXX: The worst that can probably happen is that we get
 	    two consecutive timer resets.  */
 

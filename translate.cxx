@@ -1,5 +1,5 @@
 // translation pass
-// Copyright (C) 2005-2016 Red Hat Inc.
+// Copyright (C) 2005-2017 Red Hat Inc.
 // Copyright (C) 2005-2008 Intel Corporation.
 // Copyright (C) 2010 Novell Corporation.
 //
@@ -1373,6 +1373,7 @@ c_unparser::emit_compiled_printfs ()
 			<< c->base << ", width, precision, " << c->flags << ");";
 		      break;
 		    }
+		  /* Fallthrough */
 		  // else fall-through to conv_number
 		case print_format::conv_number:
 		  o->newline() << "num_bytes += number_size(" << value << ", "
@@ -1478,6 +1479,7 @@ c_unparser::emit_compiled_printfs ()
 		    << c->base << ", width, precision, " << c->flags << ");";
 		  break;
 		}
+	      /* Fallthrough */
 	      // else fall-through to conv_number
 	    case print_format::conv_number:
 	      o->newline() << "str = number(str, end, " << value << ", "
