@@ -57,7 +57,7 @@
 # define PPC_PTRACE_DELHWDEBUG 0x87
 #endif
 
-static const _stp_val_array const _stp_arch_ptrace_request_list[] = {
+static const _stp_val_array _stp_arch_ptrace_request_list[] = {
 	V(PTRACE_GETVRREGS),
 	V(PTRACE_SETVRREGS),
 

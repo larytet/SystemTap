@@ -78,7 +78,7 @@ function _stp_compat_ptrace_area_u:string(compat_ptrace_area_uaddr:long)
 #define PTRACE_TE_ABORT_RAND	      0x5011
 #endif
 
-static const _stp_val_array const _stp_arch_ptrace_request_list[] = {
+static const _stp_val_array _stp_arch_ptrace_request_list[] = {
 	V(PTRACE_SINGLEBLOCK),
 	V(PTRACE_OLDSETOPTIONS),
 	V(PTRACE_PEEKUSR_AREA),

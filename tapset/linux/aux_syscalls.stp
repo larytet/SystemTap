@@ -236,7 +236,7 @@ function _struct_timezone_u:string(uaddr:long)
 
 function _stp_clock_nanosleep_flags_str:string(flags:long)
 %{ /* pure */ /* unprivileged */
-	static const _stp_val_array const nanosleep_flags_list[] = {
+	static const _stp_val_array nanosleep_flags_list[] = {
 		V(TIMER_ABSTIME),
 		{0, NULL}
 	};
@@ -657,8 +657,17 @@ function _struct_sockaddr_u:string(uaddr:long, len:long)
 
                 _stp_text_str(CONTEXT->out_str, &sun->sun_path[1],
                     len - sizeof(sa_family_t), MAXSTRINGLEN - 1, 0, 0, 1);
-                snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, \"\\000%s\"}",
-                    CONTEXT->out_str);
+
+		// Why a precision of (MAXSTRINGLEN - 18) here? To
+		// make sure the formatted string doesn't get
+		// truncated by a long out_str variable, we'll specify
+		// the maximum number of characters to add from
+		// out_str. That number is MAXSTRINGLEN - 17 (the
+		// length of the 'static' part of the format string) -
+		// 1 (for the formatted string's null character).
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+			 "{AF_UNIX, \"\\000%.*s\"}", (MAXSTRINGLEN - 18),
+			 CONTEXT->out_str);
             } else
 			{
                 // Just cut path if is too long
@@ -1014,7 +1023,7 @@ function _adjtx_mode_str(f) {
 %{
 #include <linux/random.h>
 
-static const _stp_val_array const _stp_getrandom_list[] = {
+static const _stp_val_array _stp_getrandom_list[] = {
 #ifdef GRND_NONBLOCK
   V(GRND_NONBLOCK),
 #endif
@@ -1039,7 +1048,7 @@ function _getrandom_flags_str:string(flag:long)
 /* Ignore helper events IN_CLOSE and IN_MOVE, which are just
  * combinations of other events. */
 
-static const _stp_val_array const _stp_inotify_watch_mask_list[] = {
+static const _stp_val_array _stp_inotify_watch_mask_list[] = {
 	V(IN_ACCESS),
 	V(IN_MODIFY),
 	V(IN_ATTRIB),
@@ -1112,7 +1121,7 @@ function _sigprocmask_how_str:string(how:long)
  */
 %{
 #include <linux/time.h>
-static const _stp_val_array const _stp_itimer_which_list[] = {
+static const _stp_val_array _stp_itimer_which_list[] = {
 	V(ITIMER_REAL),
 	V(ITIMER_VIRTUAL),
 	V(ITIMER_PROF),
@@ -1134,7 +1143,7 @@ function _itimer_which_str:string(which:long)
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsfh.h>
 #include <linux/nfsd/syscall.h>
-static const _stp_val_array const _stp_nfsctl_cmd_list[] = {
+static const _stp_val_array _stp_nfsctl_cmd_list[] = {
 	V(NFSCTL_SVC),
 	V(NFSCTL_ADDCLIENT),
 	V(NFSCTL_DELCLIENT),
@@ -1173,7 +1182,7 @@ function _nfsctl_cmd_str:string(cmd:long)
 %{
 #include <linux/time.h>
 
-static const _stp_val_array const _stp_wc_str_list[] = {
+static const _stp_val_array _stp_wc_str_list[] = {
 	V(CLOCK_REALTIME),
 	V(CLOCK_MONOTONIC),
 	V(CLOCK_PROCESS_CPUTIME_ID),
@@ -1213,7 +1222,7 @@ function _get_wc_str:string(wc:long)
 %{
 #include <linux/fcntl.h>
 
-static const _stp_val_array const _stp_flock_cmd_list[] = {
+static const _stp_val_array _stp_flock_cmd_list[] = {
 	V(LOCK_SH),
 	V(LOCK_EX),
 	V(LOCK_NB),
@@ -1225,7 +1234,7 @@ static const _stp_val_array const _stp_flock_cmd_list[] = {
 	{0, NULL}
 };
 
-static const _stp_val_array const _stp_pipe2_flags_list[] = {
+static const _stp_val_array _stp_pipe2_flags_list[] = {
 #ifdef O_NONBLOCK
 	V(O_NONBLOCK),
 #endif
@@ -1257,7 +1266,7 @@ function _sys_pipe2_flag_str:string (f:long)
 %{
 #include <linux/fcntl.h>
  
-static const _stp_val_array const _stp_open_mode_flags_list[] = {
+static const _stp_val_array _stp_open_mode_flags_list[] = {
 #ifdef O_CREAT
 	V(O_CREAT),
 #endif
@@ -1359,7 +1368,7 @@ function _sys_open_flag_str:string (f:long)
 %{
 /* Notice that the kernel defines and the user defines are named
  * differently. */
-static const _stp_val_array const _stp_access_mode_list[] = {
+static const _stp_val_array _stp_access_mode_list[] = {
 	{0, "F_OK"},
 	{MAY_READ, "R_OK"},
 	{MAY_WRITE, "W_OK"},
@@ -1424,7 +1433,7 @@ function _mknod_mode_str:string(mode:long)
 %{
 #include <linux/mman.h>
 
-static const _stp_val_array const _stp_msync_flag_list[] = {
+static const _stp_val_array _stp_msync_flag_list[] = {
 	V(MS_ASYNC),
 	V(MS_INVALIDATE),
 	V(MS_SYNC),
@@ -1443,7 +1452,7 @@ function _msync_flag_str:string(f:long)
 %{
 #include <linux/wait.h>
 
-static const _stp_val_array const _stp_wait4_op_list[] = {
+static const _stp_val_array _stp_wait4_op_list[] = {
 	V(WNOHANG),
 #if !defined(WSTOPPED) && defined(WUNTRACED)
 	V(WUNTRACED),
@@ -1565,14 +1574,14 @@ function _wait_status_str(f) {
 
 %{
 #include <linux/seccomp.h>
-static const _stp_val_array const _stp_seccomp_flags_list[] = {
+static const _stp_val_array _stp_seccomp_flags_list[] = {
 #ifdef SECCOMP_FILTER_FLAG_TSYNC
         V(SECCOMP_FILTER_FLAG_TSYNC),
 #endif
         {0, NULL}
 };
 
-static const _stp_val_array const _stp_seccomp_mode_list[] = {
+static const _stp_val_array _stp_seccomp_mode_list[] = {
 #ifdef SECCOMP_MODE_DISABLED
 	V(SECCOMP_MODE_DISABLED),
 #endif
@@ -1593,7 +1602,7 @@ function _seccomp_flags_str:string(flags:long)
 %}
 
 %{
-static const _stp_val_array const _stp_msg_flags_list[] = {
+static const _stp_val_array _stp_msg_flags_list[] = {
 	V(MSG_OOB),
 	V(MSG_PEEK),
 	V(MSG_DONTROUTE),
@@ -1651,7 +1660,7 @@ function _recvflags_str:string(flags:long)
 #ifdef __NR_memfd_create
 #include <uapi/linux/memfd.h>
 #endif
-static const _stp_val_array const _stp_mfd_flags_list[] = {
+static const _stp_val_array _stp_mfd_flags_list[] = {
 #ifdef MFD_CLOEXEC
         V(MFD_CLOEXEC),
 #endif
@@ -1670,7 +1679,7 @@ function _mfd_flags_str:string(flags:long)
 
 %{
 #include <linux/mman.h>
-static const _stp_val_array const _stp_mlock2_flags_list[] = {
+static const _stp_val_array _stp_mlock2_flags_list[] = {
 #ifdef MLOCK_ONFAULT  
          V(MLOCK_ONFAULT),
 #endif
@@ -1687,7 +1696,7 @@ function _stp_mlock2_str:string(flags:long)
 
 %{
 #include <linux/mman.h>
-static const _stp_val_array const _stp_mlockall_flags_list[] = {
+static const _stp_val_array _stp_mlockall_flags_list[] = {
 	V(MCL_CURRENT),
 	V(MCL_FUTURE),
 #ifdef MCL_ONFAULT
@@ -1705,7 +1714,7 @@ function _mlockall_flags_str:string(flags:long)
 %}
 
 %{
-static const _stp_val_array const _stp_module_flags_list[] = {
+static const _stp_val_array _stp_module_flags_list[] = {
 	V(O_TRUNC),
 	V(O_NONBLOCK),
 	{0, NULL}
@@ -1722,7 +1731,7 @@ function _module_flags_str:string(flags:long)
 %{
 #include <linux/sched.h>
 
-static const _stp_val_array const _stp_sched_policy_list[] = {
+static const _stp_val_array _stp_sched_policy_list[] = {
 	{SCHED_NORMAL, "SCHED_OTHER"}, // SCHED_NORMAL==SCHED_OTHER
 	V(SCHED_FIFO),
 	V(SCHED_RR),
@@ -1754,7 +1763,7 @@ function _sched_policy_str:string(policy:long)
 %}
 
 %{
-static const _stp_val_array const _stp_priority_which_list[] = {
+static const _stp_val_array _stp_priority_which_list[] = {
 	V(PRIO_PROCESS),
 	V(PRIO_PGRP),
 	V(PRIO_USER),
@@ -1769,7 +1778,7 @@ function _priority_which_str:string(which:long)
 %}
 
 %{
-static const _stp_val_array const _stp_shutdown_how_list[] = {
+static const _stp_val_array _stp_shutdown_how_list[] = {
 	V(SHUT_RD),
 	V(SHUT_WR),
 	V(SHUT_RDWR),
@@ -1789,7 +1798,7 @@ function _shutdown_how_str:string(how:long)
 // functions on some architectures.
 #include <linux/reboot.h>
 
-static const _stp_val_array const _stp_reboot_magic_list[] = {
+static const _stp_val_array _stp_reboot_magic_list[] = {
 	V(LINUX_REBOOT_MAGIC1),
 	V(LINUX_REBOOT_MAGIC2),
 	V(LINUX_REBOOT_MAGIC2A),
@@ -1808,7 +1817,7 @@ function _reboot_magic_str:string(magic:long)
 
 %{
 #include <linux/reboot.h>
-static const _stp_val_array const _stp_reboot_flag_list[] = {
+static const _stp_val_array _stp_reboot_flag_list[] = {
 	V(LINUX_REBOOT_CMD_RESTART),
 	V(LINUX_REBOOT_CMD_HALT),
 	V(LINUX_REBOOT_CMD_CAD_ON),
@@ -1830,7 +1839,7 @@ function _reboot_flag_str:string(flag:long)
 
 %{
 #include <linux/wait.h>
-static const _stp_val_array const _stp_waitid_which_list[] = {
+static const _stp_val_array _stp_waitid_which_list[] = {
 	V(P_ALL),
 	V(P_PID),
 	V(P_PGID),
@@ -1879,7 +1888,7 @@ function _waitid_which_str:string(flag:long)
 					 FUTEX_PRIVATE_FLAG)
 #endif
 
-static const _stp_val_array const _stp_futex_op_list[] = {
+static const _stp_val_array _stp_futex_op_list[] = {
 	V(FUTEX_WAIT),
 	V(FUTEX_WAKE),
 	V(FUTEX_FD),
@@ -1908,7 +1917,7 @@ static const _stp_val_array const _stp_futex_op_list[] = {
 	{0, NULL}
 };
 
-static const _stp_val_array const _stp_futex_wake_ops_list[] = {
+static const _stp_val_array _stp_futex_wake_ops_list[] = {
 	V(FUTEX_OP_SET),
 	V(FUTEX_OP_ADD),
 	V(FUTEX_OP_OR),
@@ -1916,7 +1925,7 @@ static const _stp_val_array const _stp_futex_wake_ops_list[] = {
 	V(FUTEX_OP_XOR),
 	{0, NULL}
 };
-static const _stp_val_array const _stp_futex_wake_cmps_list[] = {
+static const _stp_val_array _stp_futex_wake_cmps_list[] = {
 	V(FUTEX_OP_CMP_EQ),
 	V(FUTEX_OP_CMP_NE),
 	V(FUTEX_OP_CMP_LT),
@@ -1968,7 +1977,7 @@ function _futex_wake_op_str:string(encoded_op:long)
 %}
 
 %{
-static const _stp_val_array const _stp_mountflags_list[] = {
+static const _stp_val_array _stp_mountflags_list[] = {
 	V(MS_RDONLY),
 	V(MS_NOSUID),
 	V(MS_NODEV),
@@ -2008,7 +2017,7 @@ static const _stp_val_array const _stp_mountflags_list[] = {
 	{0, NULL}
 };
 
-static const _stp_val_array const _stp_umountflags_list[] = {
+static const _stp_val_array _stp_umountflags_list[] = {
 	V(MNT_FORCE),
 	V(MNT_DETACH),
 	V(MNT_EXPIRE),
@@ -2085,7 +2094,7 @@ function _statfs_f_type_str(f) {
 %{
 #include <linux/mman.h>
 
-static const _stp_val_array const _stp_mremap_flags_list[] = {
+static const _stp_val_array _stp_mremap_flags_list[] = {
 	V(MREMAP_MAYMOVE),
 	V(MREMAP_FIXED),
 	{0, NULL}
@@ -2101,7 +2110,7 @@ function _mremap_flags:string(flags:long)
 %{
 #include <linux/mman.h>
 
-static const _stp_val_array const _stp_madvice_advice_list[] = {
+static const _stp_val_array _stp_madvice_advice_list[] = {
 	V(MADV_NORMAL),
 	V(MADV_RANDOM),
 	V(MADV_SEQUENTIAL),
@@ -2151,7 +2160,7 @@ function _madvice_advice_str:string(behavior:long)
 %{
 #include <linux/fadvise.h>
 
-static const _stp_val_array const _stp_fadvice_advice_list[] = {
+static const _stp_val_array _stp_fadvice_advice_list[] = {
 	V(POSIX_FADV_NORMAL),
 	V(POSIX_FADV_RANDOM),
 	V(POSIX_FADV_SEQUENTIAL),
@@ -2178,7 +2187,7 @@ function _fadvice_advice_str:string(behavior:long)
 %{
 #include <linux/fcntl.h>
 
-static const _stp_val_array const _stp_fcntl_cmd_list[] = {
+static const _stp_val_array _stp_fcntl_cmd_list[] = {
 	V(F_DUPFD),
 	V(F_GETFD),
 	V(F_SETFD),
@@ -2254,7 +2263,7 @@ function _fcntl_cmd_str:string(cmd:long)
 #ifndef SEEK_HOLE
 #define SEEK_HOLE	4
 #endif
-static const _stp_val_array const _stp_seek_whence_list[] = {
+static const _stp_val_array _stp_seek_whence_list[] = {
 	V(SEEK_SET),
 	V(SEEK_CUR),
 	V(SEEK_END),
@@ -2273,7 +2282,7 @@ function _seek_whence_str:string(w:long)
 %{
 #include <linux/quota.h>
 
-static const _stp_val_array const _stp_quotactl_cmd_list[] = {
+static const _stp_val_array _stp_quotactl_cmd_list[] = {
 	V(Q_SYNC),
 	V(Q_QUOTAON),
 	V(Q_QUOTAOFF),
@@ -2322,7 +2331,7 @@ function _quotactl_subcmd:long(cmd:long)
 
 
 %{
-static const _stp_val_array const _stp_quotactl_format_list[] = {
+static const _stp_val_array _stp_quotactl_format_list[] = {
 	V(QFMT_VFS_OLD),
 #ifdef QFMT_VFS_V0
 	V(QFMT_VFS_V0),
@@ -2394,7 +2403,7 @@ function _struct_dqinfo_u:string(uaddr:long)
 %{
 #include <linux/socket.h>
 
-static const _stp_val_array const _stp_sockopt_optname_list[] = {
+static const _stp_val_array _stp_sockopt_optname_list[] = {
 	V(SO_DEBUG),
 	V(SO_REUSEADDR),
 	V(SO_TYPE),
@@ -2485,7 +2494,7 @@ function _sockopt_optname_str:string(opt:long)
 %}
 
 %{
-static const _stp_val_array const _stp_sockopt_level_list[] = {
+static const _stp_val_array _stp_sockopt_level_list[] = {
 	V(SOL_IP),
 	V(SOL_SOCKET),
 	V(SOL_TCP),
@@ -2552,7 +2561,7 @@ function _sockopt_level_str:string(level:long)
 %}
 
 %{
-static const _stp_val_array const _stp_sock_family_list[] = {
+static const _stp_val_array _stp_sock_family_list[] = {
 	V(PF_UNSPEC),
 	V(PF_LOCAL),			/* same thing as PF_UNIX */
 	V(PF_INET),
@@ -2722,7 +2731,7 @@ function _sock_type_str:string(type:long)
 %}
 
 %{
-static const _stp_val_array const _stp_sock_flags_list[] = {
+static const _stp_val_array _stp_sock_flags_list[] = {
 #ifdef SOCK_TYPE_MASK
 	V(SOCK_CLOEXEC),
 	V(SOCK_NONBLOCK),
@@ -2790,7 +2799,7 @@ function _sock_protocol_str:string(family:long, protocol:long)
 
 function _opoll_op_str:string(o:long)
 %{ /* pure */ /* unprivileged */
-	static const _stp_val_array const opoll_op_list[] = {
+	static const _stp_val_array opoll_op_list[] = {
 		V(EPOLL_CTL_ADD),
 		V(EPOLL_CTL_MOD),
 		V(EPOLL_CTL_DEL),
@@ -2817,7 +2826,7 @@ function _epoll_events_str(e) {
 %{
 #include <linux/resource.h>
 
-static const _stp_val_array const _stp_rlimit_resource_list[] = {
+static const _stp_val_array _stp_rlimit_resource_list[] = {
 	{ (unsigned int)RLIM_INFINITY, "RLIM_INFINITY"},
 	V(RLIMIT_CPU),
 	V(RLIMIT_FSIZE),
@@ -2841,7 +2850,7 @@ static const _stp_val_array const _stp_rlimit_resource_list[] = {
 	{0, NULL}
 };
 
-static const _stp_val_array const _stp_rusage_who_list[] = {
+static const _stp_val_array _stp_rusage_who_list[] = {
 	V(RUSAGE_SELF),
 	{(unsigned int)RUSAGE_CHILDREN, "RUSAGE_CHILDREN"},
 	{(unsigned int)RUSAGE_BOTH, "RUSAGE_BOTH"},
@@ -2905,7 +2914,7 @@ function _dfd_str:string(d:long)
 }
 
 %{
-static const _stp_val_array const _stp_adjtimex_return_str_list[] = {
+static const _stp_val_array _stp_adjtimex_return_str_list[] = {
 	V(TIME_OK),
 	V(TIME_INS),
 	V(TIME_DEL),
@@ -2928,7 +2937,7 @@ function _adjtimex_return_str:string(ret:long)
 %}
 
 %{
-static const _stp_val_array const _stp_signal_list[] = {
+static const _stp_val_array _stp_signal_list[] = {
 	{0, "SIG_0"},
 	V(SIGHUP),
 	V(SIGINT),
@@ -3000,7 +3009,7 @@ function _signal_name:string(sig:long)
 %}
 
 %{
-static const _stp_val_array const _stp_semctl_list[] = {
+static const _stp_val_array _stp_semctl_list[] = {
 	V(IPC_INFO),
 	V(SEM_INFO),
 	V(SEM_STAT),
@@ -3074,7 +3083,7 @@ function _stp_compat_sigset_u:string(setptr:long)
 %}
 
 %{
-static const _stp_val_array const _stp_fork_list[] = {
+static const _stp_val_array _stp_fork_list[] = {
 	V(CLONE_VM),
 	V(CLONE_FS),
 	V(CLONE_FILES),
@@ -3125,7 +3134,7 @@ function __fork_flags:string(flags:long)
 %}
 
 %{
-static const _stp_val_array const _stp_atflag_list[] = {
+static const _stp_val_array _stp_atflag_list[] = {
 #ifdef AT_SYMLINK_NOFOLLOW
 	V(AT_SYMLINK_NOFOLLOW),
 #endif
@@ -3156,7 +3165,7 @@ function _at_flag_str:string(f:long)
 %}
 function _epoll_create1_flag_str:string(f:long)
 %{ /* pure */ /* unprivileged */
-	static const _stp_val_array const epoll_create1_flags_list[] = {
+	static const _stp_val_array epoll_create1_flags_list[] = {
 #ifdef EPOLL_CLOEXEC
 		V(EPOLL_CLOEXEC),
 #endif
@@ -3171,7 +3180,7 @@ function _epoll_create1_flag_str:string(f:long)
 #include <linux/eventfd.h>
 #endif
 
-static const _stp_val_array const _stp_eventfd2_flag_list[] = {
+static const _stp_val_array _stp_eventfd2_flag_list[] = {
 #ifdef EFD_NONBLOCK
 	V(EFD_NONBLOCK),
 #endif
@@ -3196,7 +3205,7 @@ function _eventfd2_flag_str:string(flags:long)
 #include <linux/signalfd.h>
 #endif
 
-static const _stp_val_array const _stp_signalfd4_flags_list[] = {
+static const _stp_val_array _stp_signalfd4_flags_list[] = {
 #ifdef SFD_NONBLOCK
 	V(SFD_NONBLOCK),
 #endif
@@ -3218,7 +3227,7 @@ function _signalfd4_flags_str:string(f:long)
 #include <linux/inotify.h>
 #endif
 
-static const _stp_val_array const _stp_inotify_init1_flag_list[] = {
+static const _stp_val_array _stp_inotify_init1_flag_list[] = {
 #if defined(IN_NONBLOCK)
 	V(IN_NONBLOCK),
 #endif
@@ -3245,7 +3254,7 @@ function _dup3_flag_str:string(f:long)
 
 %{
 #include <linux/shm.h>
-static const _stp_val_array const _stp_shmat_list[] = {
+static const _stp_val_array _stp_shmat_list[] = {
 	V(SHM_RDONLY),
 	V(SHM_RND),
 	V(SHM_REMAP),
@@ -3262,7 +3271,7 @@ function _shmat_flags_str:string(f:long)
 
 %{
 #include <linux/mman.h>
-static const _stp_val_array const _stp_mprotect_list[] = {
+static const _stp_val_array _stp_mprotect_list[] = {
 	{0, "PROT_NONE"},
 	V(PROT_READ),
 	V(PROT_WRITE),
@@ -3284,7 +3293,7 @@ function _mprotect_prot_str:string(prot:long)
 
 %{
 #include <linux/mman.h>
-static const _stp_val_array const _stp_mmap_list[] = {
+static const _stp_val_array _stp_mmap_list[] = {
 	V(MAP_SHARED),
 	V(MAP_PRIVATE),
 	V(MAP_FIXED),
@@ -3380,7 +3389,7 @@ function get_mmap_args:string (args:long)
 
 function _sighandler_str:string(uaddr:long)
 %{ /* pure */ /* unprivileged */
-	static const _stp_val_array const _stp_sa_handler_list[] = {
+	static const _stp_val_array _stp_sa_handler_list[] = {
 		{0, "SIG_DFL"},
 		{1, "SIG_IGN"},
 		{0, NULL}
@@ -3391,13 +3400,13 @@ function _sighandler_str:string(uaddr:long)
 %{
 static void _stp_sigaction_str(struct sigaction *act, char *ptr, int len)
 {
-  static const _stp_val_array const _stp_sa_handler_list[] = {
+  static const _stp_val_array _stp_sa_handler_list[] = {
     {0, "SIG_DFL"},
     {1, "SIG_IGN"},
     {0, NULL}
   };
 
-  static const _stp_val_array const _stp_sa_flags_list[] = {
+  static const _stp_val_array _stp_sa_flags_list[] = {
     V(SA_NOCLDSTOP),
     V(SA_NOCLDWAIT),
     V(SA_RESETHAND),
@@ -3568,7 +3577,7 @@ function _struct_old_sigaction32_u:string(uaddr:long)
 #ifndef IRQF_ONESHOT
 #define IRQF_ONESHOT 0x00002000
 #endif
-static const _stp_val_array const _stp_irq_list[] = {
+static const _stp_val_array _stp_irq_list[] = {
 #ifdef IRQF_DISABLED
 	V(IRQF_DISABLED),
 #endif
@@ -3645,7 +3654,7 @@ function irqflags_str:string(f:long)
 
 %{
 #include <linux/ptrace.h>
-static const _stp_val_array const _stp_ptrace_options_list[] = {
+static const _stp_val_array _stp_ptrace_options_list[] = {
 #ifdef PTRACE_O_EXITKILL
 	V(PTRACE_O_EXITKILL),
 #endif
@@ -3674,7 +3683,7 @@ function _ptrace_options_str:string(f:long)
 /* ptrace syscall provisioning of argstr. */
 %{
 #include <linux/elf.h>
-static const _stp_val_array const _stp_elf_notes_list[] = {
+static const _stp_val_array _stp_elf_notes_list[] = {
 	V(NT_PRSTATUS),
 	V(NT_PRFPREG),
 	V(NT_PRPSINFO),
@@ -3801,7 +3810,7 @@ static const _stp_val_array const _stp_elf_notes_list[] = {
 /* These are the architecture-independent ptrace requests (although
  * some return architecture-dependent register buffers). */
 
-static const _stp_val_array const _stp_ptrace_request_list[] = {
+static const _stp_val_array _stp_ptrace_request_list[] = {
 	V(PTRACE_TRACEME),
 	V(PTRACE_PEEKTEXT),
 	V(PTRACE_PEEKDATA),
@@ -3908,7 +3917,7 @@ function _ptrace_return_geteventmsg_data(request,data)
 %{
 #include <linux/swap.h>
 
-static const _stp_val_array const _stp_swapon_flags_list[] = {
+static const _stp_val_array _stp_swapon_flags_list[] = {
 	V(SWAP_FLAG_PREFER),
 #ifdef SWAP_FLAG_DISCARD
 	V(SWAP_FLAG_DISCARD),
@@ -3986,7 +3995,7 @@ CATCH_DEREF_FAULT();
 %{
 #include <linux/ipc.h>
 #include <linux/shm.h>
-static const _stp_val_array const _stp_shmget_flags_list[] = {
+static const _stp_val_array _stp_shmget_flags_list[] = {
 	V(IPC_CREAT),
 	V(IPC_EXCL),
 	V(SHM_HUGETLB),
@@ -4027,7 +4036,7 @@ function _stp_msgget_key_str:string(key:long)
 %{
 #include <linux/msg.h>
 
-static const _stp_val_array const _stp_msgctl_list[] = {
+static const _stp_val_array _stp_msgctl_list[] = {
 	V(IPC_INFO),
 	V(IPC_STAT),
 	V(IPC_RMID),
@@ -4050,7 +4059,7 @@ function _stp_msgctl_cmd_str:string(cmd:long)
 %}
 
 %{
-static const _stp_val_array const _stp_msgflg_list[] = {
+static const _stp_val_array _stp_msgflg_list[] = {
 	V(MSG_NOERROR),
 	V(MSG_EXCEPT),
 	V(IPC_NOWAIT),
@@ -4121,7 +4130,7 @@ function _stp_compat_msgrcv_msgtyp:long(uaddr:long, version:long, msgtyp:long)
 %{
 #include <linux/xattr.h>
 
-static const _stp_val_array const _stp_xattr_flags_list[] = {
+static const _stp_val_array _stp_xattr_flags_list[] = {
 	V(XATTR_CREATE),
 	V(XATTR_REPLACE),
 	{0, NULL}
@@ -4190,13 +4199,13 @@ function _stp_xattr_val_str:string(uaddr:long, size:long)
 %{
 #include <linux/ioprio.h>
 
-static const _stp_val_array const _stp_ioprio_who_list[] = {
+static const _stp_val_array _stp_ioprio_who_list[] = {
 	V(IOPRIO_WHO_PROCESS),
 	V(IOPRIO_WHO_PGRP),
 	V(IOPRIO_WHO_USER),
 	{0, NULL}
 };
-static const _stp_val_array const _stp_ioprio_class_list[] = {
+static const _stp_val_array _stp_ioprio_class_list[] = {
 	V(IOPRIO_CLASS_NONE),
 	V(IOPRIO_CLASS_RT),
 	V(IOPRIO_CLASS_BE),
@@ -4225,7 +4234,7 @@ function _stp_ioprio_value_str:string(value:long)
 
 %{
 #include <linux/mempolicy.h>
-static const _stp_val_array const _stp_mempolicy_flags_list[] = {
+static const _stp_val_array _stp_mempolicy_flags_list[] = {
 	V(MPOL_F_NODE),
 	V(MPOL_F_ADDR),
 #ifdef MPOL_F_MEMS_ALLOWED
@@ -4238,7 +4247,7 @@ static const _stp_val_array const _stp_mempolicy_flags_list[] = {
 #define MPOL_MODE_FLAGS 0
 #endif
 
-static const _stp_val_array const _stp_mempolicy_mode_flags_list[] = {
+static const _stp_val_array _stp_mempolicy_mode_flags_list[] = {
 #ifdef MPOL_F_STATIC_NODES
 	V(MPOL_F_STATIC_NODES),
 #endif
@@ -4248,7 +4257,7 @@ static const _stp_val_array const _stp_mempolicy_mode_flags_list[] = {
 	{0, NULL}
 };
 
-static const _stp_val_array const _stp_mempolicy_mode_list[] = {
+static const _stp_val_array _stp_mempolicy_mode_list[] = {
 	V(MPOL_DEFAULT),
 	V(MPOL_PREFERRED),
 	V(MPOL_BIND),
@@ -4287,7 +4296,7 @@ function _mempolicy_mode_str:string(mode:long)
 %{
 #include <linux/keyctl.h>
 
-static const _stp_val_array const _stp_keyctl_cmd_list[] = {
+static const _stp_val_array _stp_keyctl_cmd_list[] = {
 	V(KEYCTL_GET_KEYRING_ID),
 	V(KEYCTL_JOIN_SESSION_KEYRING),
 	V(KEYCTL_UPDATE),
@@ -4355,7 +4364,7 @@ function _stp_keyctl_cmd_str:string(cmd:long)
 %}
 
 %{
-static const _stp_val_array const _stp_keyctl_keyring_shortcut_list[] = {
+static const _stp_val_array _stp_keyctl_keyring_shortcut_list[] = {
         V(KEY_SPEC_THREAD_KEYRING),
         V(KEY_SPEC_PROCESS_KEYRING),
         V(KEY_SPEC_SESSION_KEYRING),
@@ -4377,7 +4386,7 @@ function _stp_keyctl_keyring_shortcut_str:string(id:long)
 %}
 
 %{
-static const _stp_val_array const _stp_keyctl_default_keyrings_list[] = {
+static const _stp_val_array _stp_keyctl_default_keyrings_list[] = {
 	V(KEY_REQKEY_DEFL_NO_CHANGE),
 	V(KEY_REQKEY_DEFL_DEFAULT),
 	V(KEY_REQKEY_DEFL_THREAD_KEYRING),
@@ -4401,7 +4410,7 @@ function _stp_keyctl_default_keyrings_str:string(id:long)
 %{
 #include <linux/key.h>
 
-static const _stp_val_array const _stp_keyctl_perm_list[] = {
+static const _stp_val_array _stp_keyctl_perm_list[] = {
 #if defined(CONFIG_KEYS)
 	V(KEY_POS_VIEW),
 	V(KEY_POS_READ),
@@ -4453,7 +4462,7 @@ function _stp_keyctl_perm_str:string(mask:long)
 #define MODULE_INIT_IGNORE_VERMAGIC	2
 #endif
 
-static const _stp_val_array const _stp_finit_module_flags_list[] = {
+static const _stp_val_array _stp_finit_module_flags_list[] = {
 	V(MODULE_INIT_IGNORE_MODVERSIONS),
 	V(MODULE_INIT_IGNORE_VERMAGIC),
 	{0, NULL}
@@ -4474,7 +4483,7 @@ function _finit_module_flags_str:string(flags:long)
 #include <uapi/linux/prctl.h>
 #endif
 
-static const _stp_val_array const _stp_prctl_option_list[] = {
+static const _stp_val_array _stp_prctl_option_list[] = {
 	V(PR_SET_PDEATHSIG),
 	V(PR_GET_PDEATHSIG),
 	V(PR_GET_DUMPABLE),
@@ -4572,21 +4581,21 @@ static const _stp_val_array const _stp_prctl_option_list[] = {
 };
 
 // Options that get passed to PR_SET_UNALIGN and returned by PR_GET_UNALIGN.
-static const _stp_val_array const _stp_prctl_unalign_option_list[] = {
+static const _stp_val_array _stp_prctl_unalign_option_list[] = {
 	V(PR_UNALIGN_NOPRINT),
 	V(PR_UNALIGN_SIGBUS),
 	{0, NULL}
 };
 
 // Options that get passed to PR_SET_FPEMU and returned by PR_GET_FPEMU.
-static const _stp_val_array const _stp_prctl_fpemu_option_list[] = {
+static const _stp_val_array _stp_prctl_fpemu_option_list[] = {
 	V(PR_FPEMU_NOPRINT),
 	V(PR_FPEMU_SIGFPE),
 	{0, NULL}
 };
 
 // Options that get passed to PR_SET_FPEXC and returned by PR_GET_FPEXC.
-static const _stp_val_array const _stp_prctl_fpexc_option_list[] = {
+static const _stp_val_array _stp_prctl_fpexc_option_list[] = {
 	V(PR_FP_EXC_SW_ENABLE),
 	V(PR_FP_EXC_DIV),
 	V(PR_FP_EXC_OVF),
@@ -4601,14 +4610,14 @@ static const _stp_val_array const _stp_prctl_fpexc_option_list[] = {
 };
 
 // Options that get passed to PR_SET_TIMING and returned by PR_GET_TIMING.
-static const _stp_val_array const _stp_prctl_timing_option_list[] = {
+static const _stp_val_array _stp_prctl_timing_option_list[] = {
 	V(PR_TIMING_STATISTICAL),
 	V(PR_TIMING_TIMESTAMP),
 	{0, NULL}
 };
 
 // Options that get passed to PR_SET_ENDIAN and returned by PR_GET_ENDIAN.
-static const _stp_val_array const _stp_prctl_endian_option_list[] = {
+static const _stp_val_array _stp_prctl_endian_option_list[] = {
 	V(PR_ENDIAN_BIG),
 	V(PR_ENDIAN_LITTLE),
 	V(PR_ENDIAN_PPC_LITTLE),
@@ -4617,7 +4626,7 @@ static const _stp_val_array const _stp_prctl_endian_option_list[] = {
 
 #ifdef PR_SET_TSC
 // Options that get passed to PR_SET_TSC and returned by PR_GET_TSC.
-static const _stp_val_array const _stp_prctl_tsc_option_list[] = {
+static const _stp_val_array _stp_prctl_tsc_option_list[] = {
 	V(PR_TSC_ENABLE),
 	V(PR_TSC_SIGSEGV),
 	{0, NULL}
@@ -4626,13 +4635,13 @@ static const _stp_val_array const _stp_prctl_tsc_option_list[] = {
 
 #ifdef PR_MCE_KILL
 // Options that get passed to PR_MCE_KILL and returned by PR_MCE_KILL_GET.
-static const _stp_val_array const _stp_prctl_mce_kill_option_list[] = {
+static const _stp_val_array _stp_prctl_mce_kill_option_list[] = {
 	V(PR_MCE_KILL_CLEAR),
 	V(PR_MCE_KILL_SET),
 	{0, NULL}
 };
 // Options for PR_MCE_KILL with PR_MCE_KILL_SET.
-static const _stp_val_array const _stp_prctl_mce_kill_option2_list[] = {
+static const _stp_val_array _stp_prctl_mce_kill_option2_list[] = {
 	V(PR_MCE_KILL_LATE),
 	V(PR_MCE_KILL_EARLY),
 	V(PR_MCE_KILL_DEFAULT),
@@ -4642,7 +4651,7 @@ static const _stp_val_array const _stp_prctl_mce_kill_option2_list[] = {
 
 #ifdef PR_SET_MM
 // Options that get passed to PR_SET_MM.
-static const _stp_val_array const _stp_prctl_mm_option_list[] = {
+static const _stp_val_array _stp_prctl_mm_option_list[] = {
 	V(PR_SET_MM_START_CODE),
 	V(PR_SET_MM_END_CODE),
 	V(PR_SET_MM_START_DATA),
@@ -4680,7 +4689,7 @@ static const _stp_val_array const _stp_prctl_mm_option_list[] = {
 
 #ifdef PR_SET_PTRACER
 // Options that get passed to PR_SET_PTRACER.
-static const _stp_val_array const _stp_prctl_ptracer_option_list[] = {
+static const _stp_val_array _stp_prctl_ptracer_option_list[] = {
 	V(PR_SET_PTRACER_ANY),
 	{0, NULL}
 };
@@ -4688,7 +4697,7 @@ static const _stp_val_array const _stp_prctl_ptracer_option_list[] = {
 
 #include <linux/capability.h>
 
-static const _stp_val_array const _stp_linux_capability_list[] = {
+static const _stp_val_array _stp_linux_capability_list[] = {
 	V(CAP_CHOWN),
 	V(CAP_DAC_OVERRIDE),
 	V(CAP_DAC_READ_SEARCH),
@@ -4767,7 +4776,7 @@ static const _stp_val_array const _stp_linux_capability_list[] = {
 #define SECBIT_KEEP_CAPS_LOCKED (issecure_mask(SECURE_KEEP_CAPS_LOCKED))
 #endif
 
-static const _stp_val_array const _stp_linux_securebits_list[] = {
+static const _stp_val_array _stp_linux_securebits_list[] = {
 	V(SECBIT_NOROOT),
 	V(SECBIT_NOROOT_LOCKED),
 	V(SECBIT_NO_SETUID_FIXUP),
@@ -5014,7 +5023,7 @@ function _prctl_argstr:string(option:long, arg2:long, arg3:long, arg4:long,
 #include <linux/timerfd.h>
 #endif
 
-static const _stp_val_array const _stp_timerfd_flags_list[] = {
+static const _stp_val_array _stp_timerfd_flags_list[] = {
 #ifdef TFD_TIMER_ABSTIME
 	V(TFD_TIMER_ABSTIME),
 #endif
@@ -5046,7 +5055,7 @@ function _stp_timerfd_flags_str:string(flags:long)
 #include <linux/splice.h>
 #endif
 
-static const _stp_val_array const _stp_splice_flags_list[] = {
+static const _stp_val_array _stp_splice_flags_list[] = {
 #ifdef SPLICE_F_MOVE
 	V(SPLICE_F_MOVE),
 #endif
@@ -5073,7 +5082,7 @@ function _stp_splice_flags_str:string(flags:long)
 %{
 #include <linux/falloc.h>
 
-static const _stp_val_array const _stp_fallocate_mode_list[] = {
+static const _stp_val_array _stp_fallocate_mode_list[] = {
 	V(FALLOC_FL_KEEP_SIZE),
 #ifdef FALLOC_FL_PUNCH_HOLE
 	V(FALLOC_FL_PUNCH_HOLE),
@@ -5102,7 +5111,7 @@ function _stp_fallocate_mode_str:string(mode:long)
 #ifdef __NR_arch_prctl
 #include <asm/prctl.h>
 #endif
-static const _stp_val_array const _stp_arch_prctl_func_list[] = {
+static const _stp_val_array _stp_arch_prctl_func_list[] = {
 #ifdef ARCH_SET_FS
 	V(ARCH_SET_FS),
 #endif
@@ -5128,7 +5137,7 @@ function _stp_arch_prctl_func_str:string(func:long)
 
 
 %{
-static const _stp_val_array const _stp_adjtimex_modes_list[] = {
+static const _stp_val_array _stp_adjtimex_modes_list[] = {
        V(ADJ_OFFSET),
        V(ADJ_FREQUENCY),
        V(ADJ_MAXERROR),
@@ -5207,7 +5216,7 @@ function _struct_compat_timex_u:string(uaddr:long)
 
 %{
 #include <linux/fs.h>
-static const _stp_val_array const _stp_sync_file_range_list[] = {
+static const _stp_val_array _stp_sync_file_range_list[] = {
 #ifdef SYNC_FILE_RANGE_WAIT_BEFORE
   V(SYNC_FILE_RANGE_WAIT_BEFORE),
 #endif
@@ -5230,7 +5239,7 @@ function _sync_file_range_flags_str:string(flags:long)
 
 %{
 #include <asm/siginfo.h>
-static const _stp_val_array const _stp_siginfo_si_code_list[] = {
+static const _stp_val_array _stp_siginfo_si_code_list[] = {
   V(SI_USER),
   V(SI_KERNEL),
   V(SI_QUEUE),
@@ -5244,7 +5253,7 @@ static const _stp_val_array const _stp_siginfo_si_code_list[] = {
 };
 
 /* SIGILL si_codes */
-static const _stp_val_array const _stp_sigill_si_code_list[] = {
+static const _stp_val_array _stp_sigill_si_code_list[] = {
   V(ILL_ILLOPC),
   V(ILL_ILLOPN),
   V(ILL_ILLADR),
@@ -5257,7 +5266,7 @@ static const _stp_val_array const _stp_sigill_si_code_list[] = {
 };
 
 /* SIGFPE si_codes */
-static const _stp_val_array const _stp_sigfpe_si_code_list[] = {
+static const _stp_val_array _stp_sigfpe_si_code_list[] = {
   V(FPE_INTDIV),
   V(FPE_INTOVF),
   V(FPE_FLTDIV),
@@ -5270,7 +5279,7 @@ static const _stp_val_array const _stp_sigfpe_si_code_list[] = {
 };
 
 /* SIGSEGV si_codes */
-static const _stp_val_array const _stp_sigsegv_si_code_list[] = {
+static const _stp_val_array _stp_sigsegv_si_code_list[] = {
   V(SEGV_MAPERR),
   V(SEGV_ACCERR),
 #ifdef SEGV_BNDERR
@@ -5280,7 +5289,7 @@ static const _stp_val_array const _stp_sigsegv_si_code_list[] = {
 };
 
 /* SIGBUS si_codes */
-static const _stp_val_array const _stp_sigbus_si_code_list[] = {
+static const _stp_val_array _stp_sigbus_si_code_list[] = {
   V(BUS_ADRALN),
   V(BUS_ADRERR),
   V(BUS_OBJERR),
@@ -5294,7 +5303,7 @@ static const _stp_val_array const _stp_sigbus_si_code_list[] = {
 };
 
 /* SIGTRAP si_codes */
-static const _stp_val_array const _stp_sigtrap_si_code_list[] = {
+static const _stp_val_array _stp_sigtrap_si_code_list[] = {
   V(TRAP_BRKPT),
   V(TRAP_TRACE),
 #ifdef TRAP_BRANCH
@@ -5307,7 +5316,7 @@ static const _stp_val_array const _stp_sigtrap_si_code_list[] = {
 };
 
 /* SIGCHLD si_codes */
-static const _stp_val_array const _stp_sigchld_si_code_list[] = {
+static const _stp_val_array _stp_sigchld_si_code_list[] = {
   V(CLD_EXITED),
   V(CLD_KILLED),
   V(CLD_DUMPED),
@@ -5318,7 +5327,7 @@ static const _stp_val_array const _stp_sigchld_si_code_list[] = {
 };
 
 /* SIGPOLL si_codes */
-static const _stp_val_array const _stp_sigpoll_si_code_list[] = {
+static const _stp_val_array _stp_sigpoll_si_code_list[] = {
   V(POLL_IN),
   V(POLL_OUT),
   V(POLL_MSG),
@@ -5329,7 +5338,7 @@ static const _stp_val_array const _stp_sigpoll_si_code_list[] = {
 };
 
 /* SIGSYS si_codes */
-static const _stp_val_array const _stp_sigsys_si_code_list[] = {
+static const _stp_val_array _stp_sigsys_si_code_list[] = {
 #ifdef SYS_SECCOMP
   V(SYS_SECCOMP),
 #endif
@@ -5684,7 +5693,7 @@ function _struct_sysinfo_u:string(uaddr:long)
 
 %{
 #include <linux/kexec.h>
-static const _stp_val_array const _stp_kexec_flags_list[] = {
+static const _stp_val_array _stp_kexec_flags_list[] = {
 #if defined(CONFIG_KEXEC)
 	V(KEXEC_ON_CRASH),
 #ifdef KEXEC_PRESERVE_CONTEXT
@@ -5711,7 +5720,7 @@ static const _stp_val_array const _stp_kexec_flags_list[] = {
 	{0, NULL}
 };
 
-static const _stp_val_array const _stp_kexec_file_load_flags_list[] = {
+static const _stp_val_array _stp_kexec_file_load_flags_list[] = {
 #ifdef KEXEC_FILE_UNLOAD
 	V(KEXEC_FILE_UNLOAD),
 #endif
@@ -5742,7 +5751,7 @@ function _kexec_file_load_flags_str:string(flags:long)
 %{
 #include <linux/signal.h>
 
-static const _stp_val_array const _stp_sigaltstack_flags_list[] = {
+static const _stp_val_array _stp_sigaltstack_flags_list[] = {
   V(SS_ONSTACK),
   V(SS_DISABLE),
   {0, NULL}
@@ -5809,7 +5818,7 @@ function _stp_compat_sigaltstack_u:string(uaddr:long)
 
 %{
 #include <linux/fs.h>
-static const _stp_val_array const _stp_renameat2_flags_list[] = {
+static const _stp_val_array _stp_renameat2_flags_list[] = {
 #ifdef RENAME_NOREPLACE
 	V(RENAME_NOREPLACE),
 #endif
@@ -5836,14 +5845,14 @@ function _renameat2_flags_str:string(flags:long)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37) \
     && defined(__NR_fanotify_init) && defined(__NR_fanotify_mark)
 #include <linux/fanotify.h>
-static const _stp_val_array const _stp_fanotify_init_class_flags_list[] = {
+static const _stp_val_array _stp_fanotify_init_class_flags_list[] = {
 	V(FAN_CLASS_NOTIF),
 	V(FAN_CLASS_CONTENT),
 	V(FAN_CLASS_PRE_CONTENT),
 	{0, NULL}
 };
 
-static const _stp_val_array const _stp_fanotify_init_extra_flags_list[] = {
+static const _stp_val_array _stp_fanotify_init_extra_flags_list[] = {
 	V(FAN_CLOEXEC),
 	V(FAN_NONBLOCK),
 	V(FAN_UNLIMITED_QUEUE),
@@ -5851,7 +5860,7 @@ static const _stp_val_array const _stp_fanotify_init_extra_flags_list[] = {
 	{0, NULL}
 };
 
-static const _stp_val_array const _stp_fanotify_mark_flags_list[] = {
+static const _stp_val_array _stp_fanotify_mark_flags_list[] = {
 	V(FAN_MARK_ADD),
 	V(FAN_MARK_REMOVE),
 	V(FAN_MARK_FLUSH),
@@ -5865,7 +5874,7 @@ static const _stp_val_array const _stp_fanotify_mark_flags_list[] = {
 
 /* Note that FAN_CLOSE is (FAN_CLOSE_WRITE | FAN_CLOSE_NOWRITE). So,
  * we really can't use it. */
-static const _stp_val_array const _stp_fanotify_mark_mask_list[] = {
+static const _stp_val_array _stp_fanotify_mark_mask_list[] = {
 	V(FAN_ACCESS),
 	V(FAN_MODIFY),
 	V(FAN_CLOSE_WRITE),
@@ -5925,7 +5934,7 @@ function _fanotify_mark_mask_str:string(mask:long)
 #if defined(__NR_perf_event_open) && defined(CONFIG_PERF_EVENTS)
 #include <linux/perf_event.h>
 
-static const _stp_val_array const _stp_perf_event_open_flags_list[] = {
+static const _stp_val_array _stp_perf_event_open_flags_list[] = {
 	V(PERF_FLAG_FD_NO_GROUP),
 	V(PERF_FLAG_FD_OUTPUT),
 #ifdef PERF_FLAG_PID_CGROUP
@@ -5954,7 +5963,7 @@ function _perf_event_open_flags_str:string(flags:long)
 #include <linux/kcmp.h>
 #endif
 
-static const _stp_val_array const _stp_kcmp_type_list[] = {
+static const _stp_val_array _stp_kcmp_type_list[] = {
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	V(KCMP_FILE),
 	V(KCMP_VM),
@@ -6011,7 +6020,7 @@ function _struct_sched_attr_u:string(uaddr:long)
 #include <linux/seccomp.h>
 #endif
 
-static const _stp_val_array const _stp_seccomp_op_list[] = {
+static const _stp_val_array _stp_seccomp_op_list[] = {
 #ifdef SECCOMP_SET_MODE_STRICT
 	V(SECCOMP_SET_MODE_STRICT),
 #endif
@@ -6033,7 +6042,7 @@ function _seccomp_op_str:string(op:long)
 #include <uapi/linux/bpf.h>
 #endif
 
-static const _stp_val_array const _stp_bpf_cmd_list[] = {
+static const _stp_val_array _stp_bpf_cmd_list[] = {
 #ifdef CONFIG_BPF_SYSCALL
 	V(BPF_MAP_CREATE),
 	V(BPF_MAP_LOOKUP_ELEM),
@@ -6057,7 +6066,7 @@ function _bpf_cmd_str:string(cmd:long)
 #include <linux/membarrier.h>
 #endif
 
-static const _stp_val_array const _stp_membarrier_cmd_list[] = {
+static const _stp_val_array _stp_membarrier_cmd_list[] = {
 #ifdef CONFIG_MEMBARRIER
 	V(MEMBARRIER_CMD_QUERY),
 	V(MEMBARRIER_CMD_SHARED),
@@ -6073,7 +6082,7 @@ function _membarrier_cmd_str:string(cmd:long)
 %}
 
 %{
-static const _stp_val_array const _stp_userfaultfd_flags_list[] = {
+static const _stp_val_array _stp_userfaultfd_flags_list[] = {
 #ifdef O_NONBLOCK
 	V(O_NONBLOCK),
 #endif
@@ -6092,7 +6101,7 @@ function _userfaultfd_flags_str:string (f:long)
 %}
 
 %{
-static const _stp_val_array const _stp_preadv2_flags_list[] = {
+static const _stp_val_array _stp_preadv2_flags_list[] = {
 #ifdef RWF_HIPRI
 	V(RWF_HIPRI),
 #endif

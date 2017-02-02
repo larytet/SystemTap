@@ -5,7 +5,7 @@
 
 #include <asm/prctl.h>
 
-static const _stp_val_array const _stp_arch_prctl_list[] = {
+static const _stp_val_array _stp_arch_prctl_list[] = {
 	V(ARCH_SET_GS),
 	V(ARCH_SET_FS),
 	V(ARCH_GET_FS),
@@ -33,7 +33,7 @@ static const _stp_val_array const _stp_arch_prctl_list[] = {
 # define PTRACE_SINGLEBLOCK 33
 #endif
 
-static const _stp_val_array const _stp_arch_ptrace_request_list[] = {
+static const _stp_val_array _stp_arch_ptrace_request_list[] = {
 	V(PTRACE_GETREGS),
 	V(PTRACE_SETREGS),
 	V(PTRACE_GETFPREGS),
