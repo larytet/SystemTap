@@ -46,7 +46,12 @@
 /* returns 0 for read, 1 for write */
 function bio_rw_num:long(rw:long)
 {
-    return (rw & @const("REQ_WRITE"))
+    if (@type_member_defined("bio", bi_opf)) {
+	return ((rw & @const("REQ_OP_MASK")) == @const("REQ_OP_WRITE"))
+    }
+    else {
+	return (rw & @const("REQ_WRITE"))
+    }
 }
 
 /* returns R for read, W for write */
@@ -110,7 +115,7 @@ probe ioblock.request = kernel.function ("generic_make_request")
 
         sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
         flags = $bio->bi_flags
-        rw = $bio->bi_rw
+        rw = @choose_defined($bio->bi_opf, $bio->bi_rw)
         vcnt = $bio->bi_vcnt
         idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
         phys_segments = $bio->bi_phys_segments
@@ -162,7 +167,7 @@ probe ioblock.end = kernel.function("bio_endio")
 
         sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
         flags = $bio->bi_flags
-        rw = $bio->bi_rw
+        rw = @choose_defined($bio->bi_opf, $bio->bi_rw)
         vcnt = $bio->bi_vcnt
         idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
         phys_segments = $bio->bi_phys_segments
@@ -209,7 +214,7 @@ probe ioblock_trace.bounce = kernel.trace("block_bio_bounce")
         bytes_done = @choose_defined($bio->bi_iter->bi_size, $bio->bi_size)
         sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
         flags = $bio->bi_flags
-        rw = $bio->bi_rw
+        rw = @choose_defined($bio->bi_opf, $bio->bi_rw)
         vcnt = $bio->bi_vcnt
         idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
         phys_segments = $bio->bi_phys_segments
@@ -258,7 +263,7 @@ probe ioblock_trace.request = kernel.trace("block_bio_queue")
         bytes_done = @choose_defined($bio->bi_iter->bi_size, $bio->bi_size)
         sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
         flags = $bio->bi_flags
-        rw = $bio->bi_rw
+        rw = @choose_defined($bio->bi_opf, $bio->bi_rw)
         vcnt = $bio->bi_vcnt
         idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
         phys_segments = $bio->bi_phys_segments
@@ -308,7 +313,7 @@ probe ioblock_trace.end = kernel.trace("block_bio_complete")
 
         sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
         flags = $bio->bi_flags
-        rw = $bio->bi_rw
+        rw = @choose_defined($bio->bi_opf, $bio->bi_rw)
         vcnt = $bio->bi_vcnt
         idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
         phys_segments = $bio->bi_phys_segments
