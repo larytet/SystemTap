@@ -1,5 +1,28 @@
 * What's new in version 3.1, PRERELEASE
 
+- Syscall and nd_syscall tapsets have been merged in a way that either
+  dwarf-based, or non-dwarf probe gets automatically used based on
+  debuginfo availability (e.g. probe syscall.open).
+
+  To force use the dwarf based probe, a dw_syscall has been introduced
+  (e.g. probe dw_syscall.open) and the non-dwarf syscall probes were
+  left untouched (e.g. nd_syscall.open).
+
+- The syscall tapset files have been reorganized in a way that original
+  big tapset files carrying many syscall probes were split into smaller
+  'sysc_' prefixed tapset files.  This should reduce the syscall tapset
+  maintenance burden.
+
+- The powerpc variant of syscall.compat_sysctl got deprecated on favor of
+  syscall.sysctl32. This aligns the syscall to its respective nd_syscall and
+  to ia64/s390/x86_64 variants too.
+
+- The syscall.compat_pselect7a (this was actually a typo, but still available
+  for compatibility purposes with --compatible 1.3) has beed deprecated.
+
+- The 'description_auddr' convenience variable of syscall.add_key has been
+  deprecated.
+
 - Support has been added for probing python 2 and 3 functions using a
   custom python helper module. Python function probes can target
   function entry, returns, or specific line numbers.
