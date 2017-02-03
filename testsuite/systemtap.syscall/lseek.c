@@ -19,6 +19,8 @@ int main()
   loff_t res;
   char buf[64], buf1[32], buf2[32], buf3[32];
 
+  /* glibc might substitute llseek() for lseek(), so we handle either. */
+
   fd = open("foobar1", O_WRONLY|O_CREAT, 0666);
   //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
 
@@ -26,19 +28,19 @@ int main()
   //staptest// write (NNNN, "Hello world", 11) = 11
 
   lseek(fd, 0, SEEK_SET);
-  //staptest// lseek (NNNN, 0, SEEK_SET) = 0
+  //staptest// [[[[lseek (NNNN, 0, SEEK_SET)!!!!llseek (NNNN, 0x0, 0x0, XXXX, SEEK_SET)]]]] = 0
 
   lseek(fd, 1, SEEK_CUR);
-  //staptest// lseek (NNNN, 1, SEEK_CUR) = 1
+  //staptest// [[[[lseek (NNNN, 1, SEEK_CUR)!!!!llseek (NNNN, 0x0, 0x1, XXXX, SEEK_CUR)]]]] = NNNN
 
   lseek(-1, 0, SEEK_SET);
-  //staptest// lseek (-1, 0, SEEK_SET) = -NNNN (EBADF)
+  //staptest// [[[[lseek (-1, 0, SEEK_SET)!!!!llseek (-1, 0x0, 0x0, XXXX, SEEK_SET)]]]] = -NNNN (EBADF)
 
   lseek(fd, -1, SEEK_END);
-  //staptest// lseek (NNNN, -1, SEEK_END) = NNNN
+  //staptest// [[[[lseek (NNNN, -1, SEEK_END)!!!!llseek (NNNN, 0x[f]+, 0x[f]+, XXXX, SEEK_END)]]]] = NNNN
 
   lseek(fd, 0, -1);
-  //staptest// lseek (NNNN, 0, 0x[f]+) = -NNNN (EINVAL)
+  //staptest// [[[[lseek (NNNN, 0, 0x[f]+)!!!!llseek (NNNN, 0x0, 0x0, XXXX, 0x[f]+)]]]] = -NNNN (EINVAL)
 
 #ifdef SYS__llseek
   syscall(SYS__llseek, fd, 1, 0, &res, SEEK_SET);
