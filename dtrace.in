@@ -415,8 +415,8 @@ def main():
         providers.semaphore_write(fdesc)
         fdesc.close()
         cc1 = os.environ.get("CC", "gcc")
-        cflags = "-g " + os.environ.get("CFLAGS", "").replace('\n', ' ').replace('\r',' ').replace('\\',' ')
-        # sanitize any embedded \ etc. goo; PR21063
+        cflags = "-g " + os.environ.get("CFLAGS", "").replace('\\\n', ' ').replace('\\\r',' ')
+        # sanitize any embedded \n etc. goo; PR21063
         retcode = call(split(cc1) + defines + includes + split(cflags) +
              ["-fPIC", "-I.", "-I@prefix@/include", "-c", fname, "-o",
               filename + suffix], shell=False)

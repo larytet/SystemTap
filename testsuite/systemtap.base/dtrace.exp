@@ -36,21 +36,32 @@ if {[file exists dtrace-XXX.o]} then {
 }
 exec rm -f dtrace-XXX.o
 
+
+set env(CFLAGS) "-DFOO=\\\"5.5.5\\\" \\\n -DFOO2 \n -DFOO3"
+
+verbose -log "set tricky CFLAGS=$env(CFLAGS)"
+catch { exec sh -c {env | grep -A2 CFLAGS} } nonhex
+verbose -log "nonhexdump $nonhex"
+catch { exec sh -c {env | grep -A2 CFLAGS | od -t x1} } hex
+verbose -log "hexdump $hex"
+    
 verbose -log "$dtrace -G -s $dpath -o dtrace-XXX"
-catch {exec $python $dtrace -G -s $dpath -o dtrace-XXX}
+catch {exec $python $dtrace -G -s $dpath -o dtrace-XXX} res
 if {[file exists dtrace-XXX]} then {
     pass "$test -G -o dtrace-XXX"
 } else {
-    fail "$test -G -o dtrace-XXX"
+    fail "$test -G -o dtrace-XXX $res"
 }
 exec rm -f dtrace-XXX
 
+unset env(CFLAGS)
+
 verbose -log "$dtrace -h -s $dpath -o dtrace-XXX.h"
-catch {exec $python $dtrace -h -s $dpath -o dtrace-XXX.h}
+catch {exec $python $dtrace -h -s $dpath -o dtrace-XXX.h} res
 if {[file exists dtrace-XXX.h]} then {
     pass "$test -h -o dtrace-XXX.h"
 } else {
-    fail "$test -h -o dtrace-XXX.h"
+    fail "$test -h -o dtrace-XXX.h $res"
 }
 exec rm -f dtrace-XXX.h
 
@@ -64,20 +75,20 @@ if {[file exists dtrace-XXX]} then {
 exec rm -f dtrace-XXX
 
 verbose -log "$dtrace -G -s $dpath -o /tmp/XXX.o"
-catch {exec $python $dtrace -G -s $dpath -o /tmp/XXX.o}
+catch {exec $python $dtrace -G -s $dpath -o /tmp/XXX.o} res
 if {[file exists /tmp/XXX.o]} then {
     pass "$test -G -o /tmp/XXX.o"
 } else {
-    fail "$test -G -o /tmp/XXX.o"
+    fail "$test -G -o /tmp/XXX.o $res"
 }
 exec rm -f /tmp/XXX.o
 
 verbose -log "$dtrace -G -s $dpath -o /tmp/XXX"
-catch {exec $python $dtrace -G -s $dpath -o /tmp/XXX}
+catch {exec $python $dtrace -G -s $dpath -o /tmp/XXX} res
 if {[file exists /tmp/XXX]} then {
     pass "$test -G -o /tmp/XXX"
 } else {
-    fail "$test -G -o /tmp/XXX"
+    fail "$test -G -o /tmp/XXX $res"
 }
 exec rm -f /tmp/XXX
 
@@ -165,6 +176,7 @@ if { $ok == 4} {
     fail "$test -C -Iincpath -h -o dtrace-XXX.h $ok"
 }
 exec rm -f dtrace-XXX.h
+
 
 # -----------------------------------------------------------------
 # test --no-pyparsing
