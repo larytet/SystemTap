@@ -495,7 +495,8 @@ _stp_vsprint_binary(char * str, char * end, int64_t num,
 		str += precision;
 	}
 
-	while (precision < width-- && str <= end)
+        /* >= 0 tests to avoid compiler worrying about signed-overflows */
+        while (precision >= 0 && width >= 0 && precision < width-- && str <= end)
 		*str++ = '\0';
 
 	return str;
