@@ -180,7 +180,7 @@ proc expect_probe { func callee expout {inlined 0} {return_p 0}
     verbose -log "expecting $n line(s): '$regexp'"
     
     # Spawn stap
-    spawn stap -e "$script" -c "./$test ; true"
+    spawn stap --ldd -e "$script" -c "./$test ; true"
     expect {
 	-timeout 30
 	-re "$regexp" {
@@ -577,7 +577,7 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
 	"
 	
 	# Spawn stap
-	spawn stap -e "$script" -c "./$subtest ; true"
+	spawn stap --ldd -e "$script" -c "./$subtest ; true"
 	set failed 1
 	expect {
 	    -timeout 30
