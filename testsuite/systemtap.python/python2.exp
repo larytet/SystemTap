@@ -5,7 +5,7 @@ set PYTHON $env(PYTHON)
 
 if {! [installtest_p]} then { untested $test; return }
 if {! [python2_p]} then { untested $test; return }
-if {! [file exists "$PYTHON"]} { then untested $test; return }
+if {! [file exists "$PYTHON"]} then { untested $test; return }
 
 # To make sure the custom python module is in python's path, we'll
 # modify PYTHONPATH.
