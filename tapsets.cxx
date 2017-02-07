@@ -10972,6 +10972,14 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
     if (header_exists(s, "/fs/xfs/libxfs/xfs_format.h"))
       they_live.push_back ("#include \"fs/xfs/libxfs/xfs_format.h\"");
 
+    // Kernel 4.10 needs several headers.
+    if (header_exists(s, "/fs/xfs/libxfs/xfs_trans_resv.h"))
+      they_live.push_back ("#include \"fs/xfs/libxfs/xfs_trans_resv.h\"");
+    if (header_exists(s, "/fs/xfs/xfs_mount.h"))
+      they_live.push_back ("#include \"fs/xfs/xfs_mount.h\"");
+    if (header_exists(s, "/fs/xfs/libxfs/xfs_log_format.h"))
+      they_live.push_back ("#include \"fs/xfs/libxfs/xfs_log_format.h\"");
+
     // Sigh. xfs_types.h (no matter where it is), also needs
     // xfs_linux.h. But, on newer kernels, xfs_linux.h includes
     // xfs_types.h, but really needs a '-I' command to do so. So,
@@ -11172,6 +11180,20 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
       they_live.push_back ("struct iwl_host_cmd;");
       they_live.push_back ("struct iwl_trans;");
       they_live.push_back ("struct iwl_rx_packet;");
+    }
+
+  if (header.find("mdio") != string::npos)
+    {
+      if (header_exists(s, "/include/linux/phy.h"))
+	they_live.push_back ("#include <linux/phy.h>");
+    }
+
+  if (header.find("wbt") != string::npos)
+    {
+      if (header_exists(s, "/include/linux/blk_types.h"))
+	they_live.push_back ("#include <linux/blk_types.h>");
+      if (header_exists(s, "/include/linux/blkdev.h"))
+	they_live.push_back ("#include <linux/blkdev.h>");
     }
 
   return they_live;
