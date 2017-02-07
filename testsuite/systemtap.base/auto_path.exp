@@ -1,6 +1,9 @@
 set test "auto_path"
 if {![installtest_p]} { untested $test; return }
 
+# Note that the test diriectory name, '/tmp/stap_auto_path', is fixed
+# on purpose, since we're testing the auto path feature. This matches
+# up to the paths in the tapset directory.
 set cmd_dir "/tmp/stap_auto_path"
 set test_dir "$srcdir/$subdir"
 set include_root "$srcdir/$subdir/tapset"
@@ -22,7 +25,7 @@ exec /bin/cp ${cmd_dir}/ap ${cmd_dir}/b/ap3
 set status 0
 spawn stap -I $include_root -e {probe begin {println("begin")} probe ap1.process {println(pp()) exit()}}
 expect {
-  -timeout 10
+  -timeout 120
   -re "^begin\r\n$" {
     exec ${cmd_dir}/a/ap1
       expect {
@@ -37,7 +40,7 @@ if {$status == 1} {pass ${test}1} else {fail ${test}1}
 set status 0
 spawn stap -I $include_root -e {probe begin {println("begin")} probe ap2 {println(pp()) exit()}}
 expect {
-  -timeout 10
+  -timeout 120
   -re "^begin\r\n$" {
     exec ${cmd_dir}/a/b/ap2
     expect {
@@ -52,7 +55,7 @@ if {$status == 1} {pass ${test}2} else {fail ${test}2}
 set status 0
 spawn stap -I $include_root -e {probe begin {println("begin")} probe ap3 {println(pp()) exit()}}
 expect {
-  -timeout 10
+  -timeout 120
   -re "^begin\r\n$" {
     exec ${cmd_dir}/b/ap3
     expect {
