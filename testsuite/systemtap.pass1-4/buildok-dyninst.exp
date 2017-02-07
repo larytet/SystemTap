@@ -31,6 +31,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	buildok/conversions-embedded.stp -
 	buildok/conversions-guru-embedded.stp -
 	buildok/conversions.stp -
+	buildok/defined-entry.stp -
 	buildok/dentry-embedded.stp -
 	buildok/dev-embedded.stp -
 	buildok/eighteen.stp -
