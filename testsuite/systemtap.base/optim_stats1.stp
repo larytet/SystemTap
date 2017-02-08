@@ -2,19 +2,26 @@
 @define RANDMAX %( 1000 %)
 @define ITERS %( 1500 %)
 
+@define time
+%(
+    %( runtime == "dyninst" %?
+	gettimeofday_us()
+    %:
+	cpu_clock_us(cpu())
+    %)
+%)
+
 @define feed(agg, tagg)
 %(
-    t = time()
+    t = @time
     foreach(k in randvals)
 	@agg <<< k
-    @tagg += time() - t
+    @tagg += @time - t
 %)
 
 global x, tx = 0, y, ty = 0
 global a, ta = 0, b, tb = 0
 global randvals[@RANDCNT]
-
-function time() { return gettimeofday_us() }
 
 probe begin
 {
