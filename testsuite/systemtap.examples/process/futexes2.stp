@@ -20,7 +20,7 @@ global process_names # long-lived pid-to-execname mapping
 probe kernel.function("futex_wait_setup").return {
   if ($return != 0) next
 
-  key = & @entry($q->key)
+  key = @entry(&$q->key)
 
   offset = @KEY->both->offset
   masked_offset = offset & ~(FUT_OFF_INODE | FUT_OFF_MMSHARED)
