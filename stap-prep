@@ -33,10 +33,10 @@ NEEDED=`rpm --qf "%{name}-%{version}-%{release}.%{arch}\n" \
 if [ "$NEEDED" != "" ]; then
     echo -e "Need to install the following packages:\n$NEEDED"
     if [ `id -u` = "0" ]; then #attempt to install
-        yum install -y --enablerepo=\* $NEEDED ||
-	    (if expr "$NEEDED" : ".*debuginfo.*" >/dev/null;
-             then debuginfo-install -y $KERNEL-$KERN_REV.$KERN_ARCH;
-             fi)
+        yum install -y --enablerepo=\* $NEEDED
+        if expr "$NEEDED" : ".*debuginfo.*" >/dev/null;
+        then debuginfo-install -y $KERNEL-$KERN_REV.$KERN_ARCH;
+        fi
         rpm -q $NEEDED
         check_error $? "problem installing rpm(s) $NEEDED"
     fi
