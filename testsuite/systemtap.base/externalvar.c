@@ -40,15 +40,21 @@ main_call ()
   lib_main ();
 }
 
+// We're using the asm() statement to make sure gcc doesn't optimize
+// the variables away.
+
 int
 main ()
 {
   exevar_c = 42;
   stat_exevar_c = exevar_c;
+  asm ("nop" : "=r"(stat_exevar_c) : "r"(stat_exevar_c));
   exevar_i = 2;
   stat_exevar_i = exevar_i;
+  asm ("nop" : "=r"(stat_exevar_i) : "r"(stat_exevar_i));
   exevar_l = 21;
   stat_exevar_l = exevar_l;
+  asm ("nop" : "=r"(stat_exevar_l) : "r"(stat_exevar_l));
   exe_s = (struct exestruct *) malloc(sizeof(struct exestruct));
   exe_s->i =1;
   exe_s->l =2;
@@ -56,6 +62,7 @@ main ()
   exe_s->s1 = NULL;
   exe_s->s2 = exe_s;
   stat_exe_s = exe_s;
+  asm ("nop" : "=r"(stat_exe_s) : "r"(stat_exe_s));
   main_call ();
   return 0;
 }

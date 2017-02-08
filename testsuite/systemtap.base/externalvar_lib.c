@@ -37,6 +37,7 @@ lib_main ()
 {
   libvar = 42;
   stat_libvar = libvar;
+  asm ("nop" : "=r"(stat_libvar) : "r"(stat_libvar));
   lib_s = (struct libstruct *) malloc(sizeof(struct libstruct));
   lib_s->i = 1;
   lib_s->l = 2;
@@ -44,5 +45,6 @@ lib_main ()
   lib_s->s1 = lib_s;
   lib_s->s2 = NULL;
   stat_lib_s = lib_s;
+  asm ("nop" : "=r"(stat_lib_s) : "r"(stat_lib_s));
   lib_call ();
 }
