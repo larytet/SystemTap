@@ -5,7 +5,7 @@ set PYTHON3 $env(PYTHON3)
 
 if {! [installtest_p]} then { untested $test; return }
 if {! [python3_p]} then { untested $test; return }
-if {! [file exists "$PYTHON3"]} { then untested $test; return }
+if {! [file exists "$PYTHON3"]} then { untested $test; return }
 
 # To make sure the custom python module is in python's path, we'll
 # modify PYTHONPATH.
