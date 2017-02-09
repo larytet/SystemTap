@@ -52,7 +52,7 @@ typedef struct {
 	char *free;
 } _stp_malloc_type;
 
-static const _stp_malloc_type const _stp_malloc_types[] = {
+static const _stp_malloc_type _stp_malloc_types[] = {
 	{"kmalloc", "kfree"},
 	{"vmalloc", "vfree"},
 	{"alloc_percpu", "free_percpu"}
