@@ -2,6 +2,7 @@ set self semok
 
 proc dyninst_kfails {test} {
     global plt_probes_p
+    global effective_uid
     # Use setup_kfail <pr number> <target triplet> for known bugs.
     #
     # (Note that tcl doesn't like comments directly inside the switch
@@ -77,12 +78,22 @@ proc dyninst_kfails {test} {
 	    # close enough for our purposes.
 	    if {!$plt_probes_p} { setup_kfail PLT *-*-* }
 	}
+
+	semok/utrace14.stp {
+	    # Use setup_kfail ROOT_ONLY for tests that must be run as
+	    # root.
+	    #
+	    # In the case of utrace14.stp, it probes pid 1, which only
+	    # root can do.
+	    if {$effective_uid != 0} { setup_kfail ROOT_ONLY *-*-* }
+	}
     }
 }
 
 set uprobes_p [uprobes_p]
 set utrace_p [utrace_p]
 set plt_probes_p [plt_probes_p]
+set effective_uid [exec /usr/bin/id -u]
 foreach runtime [get_runtime_list] {
     foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	set test $self/[file tail $file]
@@ -110,6 +121,14 @@ foreach runtime [get_runtime_list] {
 
 		semok/autocast14.stp {
 		    setup_kfail 18079 *-*-* }
+
+		semok/utrace14.stp {
+		    # Use setup_kfail ROOT_ONLY for tests that must be run as
+		    # root.
+		    #
+		    # In the case of utrace14.stp, it probes pid 1, which only
+		    # root can do.
+		    if {$effective_uid != 0} { setup_kfail ROOT_ONLY *-*-* } }
 	    }
 	    verbose -log "Running $file"
 	    set rc [stap_run_batch $file]
