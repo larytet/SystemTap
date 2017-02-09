@@ -354,6 +354,25 @@ keywords: _best trace callgraph
   'kernel.function("vfs_read")' -c "cat /proc/sys/vm/* || true"
 
 
+= CONTAINER =
+
+profiling/container_check.stp - Monitor capabilities and syscalls used by a process and it children
+keywords: profiling container syscall
+
+  The container_check.stp script monitors the use of linux capablities
+  and optionally forbidden syscalls by a process and its children.  On
+  exit the script prints out lists showing the capabilies used by each
+  executable, which syscall used specific capabilites for each
+  executable, a list of forbidden syscalls used, and details on any
+  syscalls that failed during monitoring.  This script is designed to
+  help diagnose issues caused by restricted capabilies and syscalls
+  when running an application in a container.  If the script warns
+  about skipped probes, the number of active kretprobes may need to be
+  increased with "-DKRETACTIVE=100" option on the command line
+
+  # stap container_check.stp -c "ping -c 1 sourceware.org || true"
+
+
 = DIAGRAM =
 
 process/pstree.stp - Generates a process diagram in DOT form.
@@ -2003,6 +2022,16 @@ keywords: process diagram
   # stap pstree.stp -T 1
 
 
+process/sched-latency.stp - track wakeup-to-dispatch latency stats
+keywords: process scheduler time tracepoint
+
+  This script periodically reports a histogram of the latency between a
+  task (thread) being woken up and it actually being dispatched to a
+  CPU: the amount of time it's spent in the runnable queue.
+
+  # stap sched-latency.stp -T 7
+
+
 process/schedtimes.stp - Track Time Processes Spend in Various States Using Tracepoints
 keywords: process scheduler time tracepoint
 
@@ -2138,6 +2167,23 @@ keywords: io profiling
   total number of NFS functions called by the process.
 
   # stap nfs_func_users.stp -T 1
+
+
+profiling/container_check.stp - Monitor capabilities and syscalls used by a process and it children
+keywords: profiling container syscall
+
+  The container_check.stp script monitors the use of linux capablities
+  and optionally forbidden syscalls by a process and its children.  On
+  exit the script prints out lists showing the capabilies used by each
+  executable, which syscall used specific capabilites for each
+  executable, a list of forbidden syscalls used, and details on any
+  syscalls that failed during monitoring.  This script is designed to
+  help diagnose issues caused by restricted capabilies and syscalls
+  when running an application in a container.  If the script warns
+  about skipped probes, the number of active kretprobes may need to be
+  increased with "-DKRETACTIVE=100" option on the command line
+
+  # stap container_check.stp -c "ping -c 1 sourceware.org || true"
 
 
 profiling/errno.stp - Show Which Processes and System Calls Return Errors Most Frequently
@@ -2431,6 +2477,16 @@ keywords: process scheduler _best
   script source.
 
   # stap proctop.stp -T 1
+
+
+process/sched-latency.stp - track wakeup-to-dispatch latency stats
+keywords: process scheduler time tracepoint
+
+  This script periodically reports a histogram of the latency between a
+  task (thread) being woken up and it actually being dispatched to a
+  CPU: the amount of time it's spent in the runnable queue.
+
+  # stap sched-latency.stp -T 7
 
 
 process/schedtimes.stp - Track Time Processes Spend in Various States Using Tracepoints
@@ -3110,6 +3166,23 @@ keywords: syscall process
   # stap wait4time.stp -T 1
 
 
+profiling/container_check.stp - Monitor capabilities and syscalls used by a process and it children
+keywords: profiling container syscall
+
+  The container_check.stp script monitors the use of linux capablities
+  and optionally forbidden syscalls by a process and its children.  On
+  exit the script prints out lists showing the capabilies used by each
+  executable, which syscall used specific capabilites for each
+  executable, a list of forbidden syscalls used, and details on any
+  syscalls that failed during monitoring.  This script is designed to
+  help diagnose issues caused by restricted capabilies and syscalls
+  when running an application in a container.  If the script warns
+  about skipped probes, the number of active kretprobes may need to be
+  increased with "-DKRETACTIVE=100" option on the command line
+
+  # stap container_check.stp -c "ping -c 1 sourceware.org || true"
+
+
 = TCP =
 
 network/sk_stream_wait_memory.stp - Track Start and Stop of Processes Due to Network Buffer Space
@@ -3208,6 +3281,16 @@ keywords: _best process scheduler time tracepoint interrupt
   the task was running.
 
   # stap cycle_thief.stp -T 1
+
+
+process/sched-latency.stp - track wakeup-to-dispatch latency stats
+keywords: process scheduler time tracepoint
+
+  This script periodically reports a histogram of the latency between a
+  task (thread) being woken up and it actually being dispatched to a
+  CPU: the amount of time it's spent in the runnable queue.
+
+  # stap sched-latency.stp -T 7
 
 
 process/schedtimes.stp - Track Time Processes Spend in Various States Using Tracepoints
@@ -3341,6 +3424,16 @@ keywords: process monitoring syscall tracepoint
   script does not require debuginfo.
 
   # stap procmod_watcher.stp -T 1
+
+
+process/sched-latency.stp - track wakeup-to-dispatch latency stats
+keywords: process scheduler time tracepoint
+
+  This script periodically reports a histogram of the latency between a
+  task (thread) being woken up and it actually being dispatched to a
+  CPU: the amount of time it's spent in the runnable queue.
+
+  # stap sched-latency.stp -T 7
 
 
 process/schedtimes.stp - Track Time Processes Spend in Various States Using Tracepoints
