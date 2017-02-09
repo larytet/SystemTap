@@ -1257,6 +1257,16 @@ keywords: limits
   # stap rlimit_nofile.stp -T 1
 
 
+process/sched-latency.stp - track wakeup-to-dispatch latency stats
+keywords: process scheduler time tracepoint
+
+  This script periodically reports a histogram of the latency between a
+  task (thread) being woken up and it actually being dispatched to a
+  CPU: the amount of time it's spent in the runnable queue.
+
+  # stap sched-latency.stp -T 7
+
+
 process/schedtimes.stp - Track Time Processes Spend in Various States Using Tracepoints
 keywords: process scheduler time tracepoint
 
@@ -1425,6 +1435,23 @@ keywords: syscall process
   waiting for. If the waited for PID is not specified , it is "-1".
 
   # stap wait4time.stp -T 1
+
+
+profiling/container_check.stp - Monitor capabilities and syscalls used by a process and it children
+keywords: profiling container syscall
+
+  The container_check.stp script monitors the use of linux capablities
+  and optionally forbidden syscalls by a process and its children.  On
+  exit the script prints out lists showing the capabilies used by each
+  executable, which syscall used specific capabilites for each
+  executable, a list of forbidden syscalls used, and details on any
+  syscalls that failed during monitoring.  This script is designed to
+  help diagnose issues caused by restricted capabilies and syscalls
+  when running an application in a container.  If the script warns
+  about skipped probes, the number of active kretprobes may need to be
+  increased with "-DKRETACTIVE=100" option on the command line
+
+  # stap container_check.stp -c "ping -c 1 sourceware.org || true"
 
 
 profiling/errno.stp - Show Which Processes and System Calls Return Errors Most Frequently
