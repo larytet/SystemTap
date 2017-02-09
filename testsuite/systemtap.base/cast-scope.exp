@@ -1,9 +1,9 @@
 set test "cast-scope"
-set ::result_string {function direct: {._M_dataplus={._M_p="Hello World!"}}
-function cast: {._M_dataplus={._M_p="Hello World!"}}
-mark cast: {._M_dataplus={._M_p="Hello World!"}}
-statement direct: {._M_dataplus={._M_p="Hello World!"}}
-statement cast: {._M_dataplus={._M_p="Hello World!"}}}
+set ::result_string {function direct: {._str="Hello World!", ._l=12}
+function cast: {._str="Hello World!", ._l=12}
+mark cast: {._str="Hello World!", ._l=12}
+statement direct: {._str="Hello World!", ._l=12}
+statement cast: {._str="Hello World!", ._l=12}}
 
 set srcfile "$srcdir/$subdir/$test.cxx"
 set stpfile "$srcdir/$subdir/$test.stp"

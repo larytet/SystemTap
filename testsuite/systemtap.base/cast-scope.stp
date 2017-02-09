@@ -3,18 +3,18 @@ global function_string, statement_string, mark_string
 probe process.function("length@cast-scope.cxx")
 {
   function_string .= sprintf("function direct: %s\n", $str$$)
-  function_string .= sprintf("function cast: %s\n", @cast($str, "std::string")$$)
+  function_string .= sprintf("function cast: %s\n", @cast($str, "sClass")$$)
 }
 
 probe process.statement("length@cast-scope.cxx+5")
 {
   statement_string .= sprintf("statement direct: %s\n", $str$$)
-  statement_string .= sprintf("statement cast: %s\n", @cast($str, "std::string")$$)
+  statement_string .= sprintf("statement cast: %s\n", @cast($str, "sClass")$$)
 }
 
 probe process.mark("length")
 {
-  mark_string .= sprintf("mark cast: %s\n", @cast($arg1, "std::string")$$)
+  mark_string .= sprintf("mark cast: %s\n", @cast($arg1, "sClass")$$)
 }
 
 probe end
