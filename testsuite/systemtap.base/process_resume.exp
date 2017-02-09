@@ -31,7 +31,7 @@ set getpid_script {
 	printf("getpid calls = %d\n", getpid_calls) }
 }
 # Notice we don't care how many getpid() calls we see.
-set getpid_script_output "getpid calls = \[0-9\]\r\n"
+set getpid_script_output "getpid calls = \[0-9\]+\r\n"
 
 set end_script {
     global end_probes_fired = 0
