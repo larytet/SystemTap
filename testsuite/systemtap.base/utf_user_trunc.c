@@ -3,11 +3,11 @@
 typedef uint16_t u16;
 typedef uint32_t u32;
 
-#if MAXSTRINGLEN != 11
+#if MAXSTRINGLEN != 41
 #error This test is hard-coded for MAXSTRINGLEN==11
 #endif
 
-#define UPTO5  '0', '1', '2', '3', '4', '5'
+#define UPTO5  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '1', '2', '3', '4', '5'
 #define UPTO6  UPTO5, '6'
 #define UPTO7  UPTO6, '7'
 #define UPTO8  UPTO7, '8'
