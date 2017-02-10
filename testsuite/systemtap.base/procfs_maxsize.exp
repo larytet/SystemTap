@@ -25,9 +25,11 @@ proc proc_write_value { test path value } {
     }
 }
 
+set fullstring "1bcdefghijklmno2BCDEFGHIJKLMNO3qrstuvwxyz12344QRSTUVWXYZ12345bcdefghijklmno6BCDEFGHIJKLMNO7qrstuvwxyz12348QRSTUVWXYZ12340BCDEFGHIJKLMNO1qrstuvwxyz12342QRSTUVWXYZ1234"
+
 proc proc_read_write_counted { test maxsize } {
+    global fullstring
     set path "/proc/systemtap/$test/command"
-    set fullstring "abcdefghijklmnoABCDEFGHIJKLMNOpqrstuvwxyz123456789"
 
     # Read the file
     set value [proc_read_value $test $path]
@@ -45,16 +47,16 @@ proc proc_read_write_counted { test maxsize } {
     return 0;
 }
 
-# Expect 32 byte return from reading procfs file.
-proc proc_read_write_32 {} {
+# Expect 80 byte return from reading procfs file.
+proc proc_read_write_80 {} {
     global test
-    proc_read_write_counted $test 32
+    proc_read_write_counted $test 80
 }
 
-# Expect 16 byte return from reading procfs file.
-proc proc_read_write_16 {} {
+# Expect 64 byte return from reading procfs file.
+proc proc_read_write_64 {} {
     global test
-    proc_read_write_counted $test 16
+    proc_read_write_counted $test 64
 }
 
 set script1 {
@@ -63,9 +65,18 @@ set script1 {
 
     probe procfs.read {
       try {
-	$value = "abcdefghijklmno"
-	$value .= "ABCDEFGHIJKLMNO"
-	$value .= "pqrstuvwxyz1234"
+	$value = "1bcdefghijklmno"
+	$value .= "2BCDEFGHIJKLMNO"
+	$value .= "3qrstuvwxyz1234"
+	$value .= "4QRSTUVWXYZ1234"
+	$value .= "5bcdefghijklmno"
+	$value .= "6BCDEFGHIJKLMNO"
+	$value .= "7qrstuvwxyz1234"
+	$value .= "8QRSTUVWXYZ1234"
+	$value .= "9bcdefghijklmno"
+	$value .= "0BCDEFGHIJKLMNO"
+	$value .= "1qrstuvwxyz1234"
+	$value .= "2QRSTUVWXYZ1234"
       } catch {
       }
     }
@@ -85,39 +96,49 @@ set script1 {
     }
 }
 
-# Output strings in 16 and 32 byte chunks.
-set output_string_16 "value0=abcdefghijklmno\r\nvalue1=ABCDEFGHIJKLMNO\r\nvalue2=pqrstuvwxyz1234\r\nvalue3=56789\r\n"
-set output_string_32 "value0=abcdefghijklmnoABCDEFGHIJKLMNOp\r\nvalue1=qrstuvwxyz123456789\r\n"
+# Output strings in 64 and 80 byte chunks.
+set output_string_64 "value0=1bcdefghijklmno2BCDEFGHIJKLMNO3qrstuvwxyz12344QRSTUVWXYZ12345bc\r\nvalue1=defghijklmno6BCDEFGHIJKLMNO7qrstuvwxyz12348QRSTUVWXYZ12340BCDEF\r\nvalue2=GHIJKLMNO1qrstuvwxyz12342QRSTUVWXYZ1234\r\n"
+
+set output_string_80 "value0=1bcdefghijklmno2BCDEFGHIJKLMNO3qrstuvwxyz12344QRSTUVWXYZ12345bcdefghijklmno6BCD\r\nvalue1=EFGHIJKLMNO7qrstuvwxyz12348QRSTUVWXYZ12340BCDEFGHIJKLMNO1qrstuvwxyz12342QRSTUVW\r\nvalue2=XYZ1234\r\n"
 
 # By default, setting MAXSTRINGLEN should set the size of
 # procfs read and write buffers.
 set test "PROCFS_BUFFER1"
-stap_run $test proc_read_write_32 $output_string_32 -DMAXSTRINGLEN=32 -e $script1 -m $test
+stap_run $test proc_read_write_80 $output_string_80 -DMAXSTRINGLEN=80 -e $script1 -m $test
 exec /bin/rm -f ${test}.ko
 
-# Try with MAXSTRINGLEN=32 and STP_PROCFS_BUFSIZE=16
+# Try with MAXSTRINGLEN=80 and STP_PROCFS_BUFSIZE=64
 set test "PROCFS_BUFFER2"
-stap_run $test proc_read_write_16 $output_string_16 -DMAXSTRINGLEN=32 -DSTP_PROCFS_BUFSIZE=16 -e $script1 -m $test
+stap_run $test proc_read_write_64 $output_string_64 -DMAXSTRINGLEN=80 -DSTP_PROCFS_BUFSIZE=64 -e $script1 -m $test
 exec /bin/rm -f ${test}.ko
 
-# Try with MAXSTRINGLEN=16 and STP_PROCFS_BUFSIZE=32.  Note that in
-# this case, even though the procfs buffer is 32 bytes in size, since
-# strings can only hold 16 bytes, the expected output is the same as
+# Try with MAXSTRINGLEN=64 and STP_PROCFS_BUFSIZE=80.  Note that in
+# this case, even though the procfs buffer is 80 bytes in size, since
+# strings can only hold 64 bytes, the expected output is the same as
 # in the previous test.
 set test "PROCFS_BUFFER3"
-stap_run $test proc_read_write_32 $output_string_16 -DMAXSTRINGLEN=16 -DSTP_PROCFS_BUFSIZE=32 -e $script1 -m $test
+stap_run $test proc_read_write_80 $output_string_64 -DMAXSTRINGLEN=64 -DSTP_PROCFS_BUFSIZE=80 -e $script1 -m $test
 exec /bin/rm -f ${test}.ko
 
-# script2 has a '.maxsize(32). override
+# script2 has a '.maxsize(80). override
 set script2 {
     global values[10]
     global idx = 0
 
-    probe procfs.read.maxsize(32) {
+    probe procfs.read.maxsize(80) {
       try {
-	$value = "abcdefghijklmno"
-	$value .= "ABCDEFGHIJKLMNO"
-	$value .= "pqrstuvwxyz1234"
+	$value = "1bcdefghijklmno"
+	$value .= "2BCDEFGHIJKLMNO"
+	$value .= "3qrstuvwxyz1234"
+	$value .= "4QRSTUVWXYZ1234"
+	$value .= "5bcdefghijklmno"
+	$value .= "6BCDEFGHIJKLMNO"
+	$value .= "7qrstuvwxyz1234"
+	$value .= "8QRSTUVWXYZ1234"
+	$value .= "9bcdefghijklmno"
+	$value .= "0BCDEFGHIJKLMNO"
+	$value .= "1qrstuvwxyz1234"
+	$value .= "2QRSTUVWXYZ1234"
       } catch {
       }
     }
@@ -138,16 +159,16 @@ set script2 {
 }
 
 # By default, setting MAXSTRINGLEN should set the size of
-# procfs read and write buffers.  But script2 has a '.maxsize(32)'
+# procfs read and write buffers.  But script2 has a '.maxsize(80)'
 # override.
 set test "PROCFS_BUFFER4"
-stap_run $test proc_read_write_32 $output_string_16 -DMAXSTRINGLEN=16 -e $script2 -m $test
+stap_run $test proc_read_write_80 $output_string_64 -DMAXSTRINGLEN=64 -e $script2 -m $test
 exec /bin/rm -f ${test}.ko
 
-# The script2 '.maxsize(32)' override should override even setting
+# The script2 '.maxsize(80)' override should override even setting
 # STP_PROCFS_BUFSIZE.
 set test "PROCFS_BUFFER5"
-stap_run $test proc_read_write_32 $output_string_16 -DMAXSTRINGLEN=16 -DSTP_PROCFS_BUFSIZE=64 -e $script2 -m $test
+stap_run $test proc_read_write_80 $output_string_64 -DMAXSTRINGLEN=64 -DSTP_PROCFS_BUFSIZE=80 -e $script2 -m $test
 exec /bin/rm -f ${test}.ko
 
 # script3 has a maxsize override and a default size file
@@ -157,17 +178,35 @@ set script3 {
 
     probe procfs("default").read {
       try {
-	$value = "abcdefghijklmno"
-	$value .= "ABCDEFGHIJKLMNO"
-	$value .= "pqrstuvwxyz1234"
+	$value = "1bcdefghijklmno"
+	$value .= "2BCDEFGHIJKLMNO"
+	$value .= "3qrstuvwxyz1234"
+	$value .= "4QRSTUVWXYZ1234"
+	$value .= "5bcdefghijklmno"
+	$value .= "6BCDEFGHIJKLMNO"
+	$value .= "7qrstuvwxyz1234"
+	$value .= "8QRSTUVWXYZ1234"
+	$value .= "9bcdefghijklmno"
+	$value .= "0BCDEFGHIJKLMNO"
+	$value .= "1qrstuvwxyz1234"
+	$value .= "2QRSTUVWXYZ1234"
       } catch {
       }
     }
-    probe procfs.read.maxsize(32) {
+    probe procfs.read.maxsize(80) {
       try {
-	$value = "abcdefghijklmno"
-	$value .= "ABCDEFGHIJKLMNO"
-	$value .= "pqrstuvwxyz1234"
+	$value = "1bcdefghijklmno"
+	$value .= "2BCDEFGHIJKLMNO"
+	$value .= "3qrstuvwxyz1234"
+	$value .= "4QRSTUVWXYZ1234"
+	$value .= "5bcdefghijklmno"
+	$value .= "6BCDEFGHIJKLMNO"
+	$value .= "7qrstuvwxyz1234"
+	$value .= "8QRSTUVWXYZ1234"
+	$value .= "9bcdefghijklmno"
+	$value .= "0BCDEFGHIJKLMNO"
+	$value .= "1qrstuvwxyz1234"
+	$value .= "2QRSTUVWXYZ1234"
       } catch {
       }
     }
@@ -187,11 +226,12 @@ set script3 {
     }
 }
 
-proc proc_read_write_default_32 {} {
+proc proc_read_write_default_80 {} {
     global test
+    global fullstring
 
     set path "/proc/systemtap/$test/default"
-    set value2 "abcdefghijklmno"
+    set value2 [string range $fullstring 0 62]
 
     # Read the file
     set value [proc_read_value $test $path]
@@ -201,11 +241,11 @@ proc proc_read_write_default_32 {} {
 	fail "$test received incorrect initial value: $value ($value2)"
     }
 
-    proc_read_write_counted $test 32
+    proc_read_write_counted $test 80
 }
 
 set test "PROCFS_BUFFER6"
-stap_run $test proc_read_write_default_32 $output_string_16 -DMAXSTRINGLEN=16 -e $script3 -m $test
+stap_run $test proc_read_write_default_80 $output_string_64 -DMAXSTRINGLEN=64 -e $script3 -m $test
 exec /bin/rm -f ${test}.ko
 
 set script4 {
@@ -302,10 +342,10 @@ set test "PROCFS_BUFFER7"
 stap_run $test proc_read_big "" -DMAXSTRINGLEN=512 -e $script4 -m $test
 exec /bin/rm -f ${test}.ko
 
-# Expect 46 byte return from reading procfs file.
-proc proc_read_write_46 {} {
+# Expect 72 byte return from reading procfs file.
+proc proc_read_write_72 {} {
     global test
-    proc_read_write_counted $test 46
+    proc_read_write_counted $test 72
 }
 
 set script5 {
@@ -313,9 +353,11 @@ set script5 {
 
     probe procfs.read {
       try {
-	$value = "abcdefghijklmno"
-	$value .= "ABCDEFGHIJKLMNO"
-	$value .= "pqrstuvwxyz1234"
+	$value = "1bcdefghijklmno"
+	$value .= "2BCDEFGHIJKLMNO"
+	$value .= "3qrstuvwxyz1234"
+	$value .= "4QRSTUVWXYZ1234"
+	$value .= "5bcdefghijk"
       } catch (err) {
         error = err
       }
@@ -333,14 +375,14 @@ set script5 {
     }
 }
 
-set overflow_string "buffer size exceeded, consider .maxsize\\(31\\).\r\n"
+set overflow_string "buffer size exceeded, consider .maxsize\\(72\\).\r\n"
 
 # Buffer too small
 set test "PROCFS_BUFFER8"
-stap_run $test proc_read_write_16 $overflow_string -DSTP_PROCFS_BUFSIZE=16 -e $script5 -m $test
+stap_run $test proc_read_write_64 $overflow_string -DSTP_PROCFS_BUFSIZE=64 -e $script5 -m $test
 exec /bin/rm -f ${test}.ko
 
 # Buffer is exactly large enough to hold contents
 set test "PROCFS_BUFFER9"
-stap_run $test proc_read_write_46 "\r\n" -DSTP_PROCFS_BUFSIZE=46 -e $script5 -m $test
+stap_run $test proc_read_write_72 "\r\n" -DSTP_PROCFS_BUFSIZE=72 -e $script5 -m $test
 exec /bin/rm -f ${test}.ko
