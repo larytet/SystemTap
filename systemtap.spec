@@ -233,10 +233,11 @@ Summary: Programmable system-wide instrumentation system - development headers, 
 Group: Development/System
 License: GPLv2+
 URL: http://sourceware.org/systemtap/
-# Alternate kernel packages kernel-PAE-devel et al. have a virtual
-# provide for kernel-devel, so this requirement does the right thing,
-# at least past RHEL4.
-Requires: kernel-devel
+# The virtual provide 'kernel-devel-uname-r' tries to get the right
+# kernel variant  (kernel-PAE, kernel-debug, etc.) devel package
+# installed.
+Requires: kernel-devel-uname-r
+%{?fedora:Suggests: kernel-devel}
 Requires: gcc make
 # Suggest: kernel-debuginfo
 
