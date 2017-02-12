@@ -371,7 +371,7 @@ proc setup_server { args } {
     }
 
     # Create a temporary log file
-    if {[catch {exec mktemp -t stap-list-servers-XXXXXX} tmpfile]} {
+    if {[catch {exec mktemp} tmpfile]} {
         verbose -log "Failed to create temporary log file: $tmpfile"
         exit 1
     }
@@ -573,7 +573,7 @@ proc environment_sanity_test {} {
     }
 
     # Create a tempory directory.
-    if {[catch {exec mktemp -d -t staptestXXXXXX-sanity-test} tmpdir]} {
+    if {[catch {exec mktemp -d} tmpdir]} {
         verbose -log "Failed to create temporary directory: $tmpdir"
         exit 1
     }
@@ -802,7 +802,7 @@ proc prelink { FILE ADDR } {
     verbose -log "Prelink is not found on this system"
     return 0
   }
-  if {[catch {exec mktemp -t staptestXXXXXX} tmpfile]} {
+  if {[catch {exec mktemp} tmpfile]} {
     verbose -log "Failed to create prelink temporary file: $tmpfile"
     return 0
   }
