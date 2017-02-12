@@ -100,7 +100,7 @@ if {$kernel_addr == 0} {
 
 set sopath "lib$test.so"
 set exepath "$test"
-
+set pypath ""
 
 proc test_cleanup {} {
    global sopath exepath pypath
