@@ -469,6 +469,9 @@ if test "$with_rpm" != "no"; then
                     AC_DEFINE([HAVE_LIBRPM],[1],[have librpm])
                     stap_LIBS="$stap_LIBS -lc -lrpm"
                     have_librpm="yes"], [have_librpm="no"])
+  dnl explicit -lrpmdb is a separate requirement on some older librpms
+  AC_CHECK_LIB(rpmdb, rpmdbNextIterator, [
+                    stap_LIBS="$stap_LIBS -lrpmdb"])
   AC_CHECK_LIB(rpmio, rpmFreeCrypto, [
                     AC_DEFINE([HAVE_LIBRPMIO],[1],[have librpmio])
                     stap_LIBS="$stap_LIBS -lc -lrpmio"
