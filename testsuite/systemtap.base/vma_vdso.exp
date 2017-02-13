@@ -33,7 +33,7 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
 
     # Test only when we are running an install test (can execute)
     if {[installtest_p]} {
-        stap_run3 ${test_arch} $srcdir/$subdir/$test.stp ./${test_arch}.exe -c ./${test_arch}.exe
+        stap_run3 ${test_arch} $srcdir/$subdir/$test.stp -c ./${test_arch}.exe
     } else {
         untested "${test_arch}"
     }
