@@ -56,10 +56,6 @@ lappend blacklist delete_stopwatch
 #   and are being tested within buildok/stopwatches.stp. standalone call to
 #   delete_stopwatch() will cause unresolved type : identifier
 #   '_stopwatch_starttime' covered by buildok/stopwatches.stp.
-lappend blacklist qsq_start
-# ^ Ditto; Test-covered in buildok/queue_stats-embedded.stp.
-#   Standalone call to qsq_start() results in unresolved type : identifier 'qs_rtime'.
-
 
 # Returns "default" value (per above test desc) for given argtype.
 proc default_value { argtype } {
@@ -274,5 +270,3 @@ if { !$debugmode } {
 # Cleanup
 cd ..
 file delete -force "$test"
-
-
