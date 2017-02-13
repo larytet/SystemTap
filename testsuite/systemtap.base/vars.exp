@@ -29,6 +29,16 @@ proc parse_lineno { function line } {
    }
 }
 
+proc func_exists { function } {
+    set probe_point "kernel.function\(\"$function\"\)"
+    set line [get_listings $probe_point]
+    if {$line == ""} {
+	return 0
+    } else {
+	return 1
+    }
+}
+
 proc get_first_valid_lineno { function } {
    set linenos ""
    set probe_point "kernel.statement\(\"$function:*\"\)"
@@ -78,6 +88,11 @@ proc test_function { function } {
    global test
    set subtest "$test - $function"
 
+   if {! [func_exists $function]} {
+      untested "$subtest - doesn't exist"
+      return
+   }
+
    set lineno [get_first_valid_lineno $function]
    if {$lineno == 0} {
       fail "$subtest (no first lineno)"
@@ -110,4 +125,5 @@ proc test_function { function } {
 
 # Test a few different functions
 test_function {bio_copy_user@*/bio.c}
+test_function {bio_copy_user_iov@*/bio.c}
 test_function {vfs_read@fs/read_write.c}
