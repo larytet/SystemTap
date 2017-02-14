@@ -1,7 +1,7 @@
 // Block I/O tapset
 // Copyright (C) 2006 Intel Corp.
 // Copyright (C) 2006 IBM Corp.
-// Copyright (C) 2014 Red Hat Inc.
+// Copyright (C) 2014-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -13,9 +13,31 @@
 #include <linux/genhd.h>
 #ifdef STAPCONF_BLK_TYPES
 #include <linux/blk_types.h>
-#else
-#define REQ_WRITE               (1 << BIO_RW)
 #endif
+%}
+
+/* Returns the REQ_OP_* bits for a bio structure. */
+function bio_op:long(bio:long)
+%{ /* pure */ /* unprivileged */
+#if defined(bio_op)
+    struct bio *bio = (struct bio *)(long)STAP_ARG_bio;
+
+    STAP_RETVALUE = 0;
+    if (bio) {
+	/* Before calling bio_op() on bio, we need to make sure the
+	 * memory is readable. */
+	(void)kread(&(bio->bi_opf));
+	STAP_RETVALUE = bio_op(bio);
+    }
+#else
+    struct bio *bio = (struct bio *)(long)STAP_ARG_bio;
+
+    STAP_RETVALUE = 0;
+    if (bio) {
+	STAP_RETVALUE = kread(&(bio->bi_rw));
+    }
+#endif
+    CATCH_DEREF_FAULT();
 %}
 
 /* get i-node number of mapped file */
@@ -46,12 +68,7 @@
 /* returns 0 for read, 1 for write */
 function bio_rw_num:long(rw:long)
 {
-    if (@type_member_defined("bio", bi_opf)) {
-	return ((rw & @const("REQ_OP_MASK")) == @const("REQ_OP_WRITE"))
-    }
-    else {
-	return (rw & @const("REQ_WRITE"))
-    }
+    return (rw & BIO_WRITE)
 }
 
 /* returns R for read, W for write */
@@ -95,6 +112,7 @@ global BIO_READ = 0, BIO_WRITE = 1
  * 	    BIO_USER_MAPPED 6       contains user pages
  * 	    BIO_EOPNOTSUPP  7       not supported
  * @rw        : binary trace for read/write request
+ * @opf       : operations and flags
  * @vcnt      : bio vector count which represents number of array element (page, offset, length) which make up this I/O request
  * @idx       : offset into the bio vector array
  * @phys_segments : number of segments in this bio after physical address coalescing is performed
@@ -115,7 +133,14 @@ probe ioblock.request = kernel.function ("generic_make_request")
 
         sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
         flags = $bio->bi_flags
-        rw = @choose_defined($bio->bi_opf, $bio->bi_rw)
+	if (@defined($bio->bi_opf)) {
+		rw = bio_op($bio)
+		opf = $bio->bi_opf
+	}
+	else {
+		rw = $bio->bi_rw
+		opf = $bio->bi_rw
+	}
         vcnt = $bio->bi_vcnt
         idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
         phys_segments = $bio->bi_phys_segments
@@ -145,6 +170,7 @@ probe ioblock.request = kernel.function ("generic_make_request")
  *      BIO_EOPNOTSUPP  7       not supported
  * @error     : 0 on success
  * @rw        : binary trace for read/write request
+ * @opf       : operations and flags
  * @vcnt      : bio vector count which represents number of array element (page, offset, length) which makes up this I/O request
  * @idx       : offset into the bio vector array
  * @phys_segments : number of segments in this bio after physical address coalescing is performed.
@@ -167,7 +193,14 @@ probe ioblock.end = kernel.function("bio_endio")
 
         sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
         flags = $bio->bi_flags
-        rw = @choose_defined($bio->bi_opf, $bio->bi_rw)
+	if (@defined($bio->bi_opf)) {
+		rw = bio_op($bio)
+		opf = $bio->bi_opf
+	}
+	else {
+		rw = $bio->bi_rw
+		opf = $bio->bi_rw
+	}
         vcnt = $bio->bi_vcnt
         idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
         phys_segments = $bio->bi_phys_segments
@@ -193,6 +226,7 @@ probe ioblock.end = kernel.function("bio_endio")
  *     BIO_USER_MAPPED 6       contains user pages
  *     BIO_EOPNOTSUPP  7       not supported
  * @rw        : binary trace for read/write request
+ * @opf       : operations and flags
  * @vcnt      : bio vector count which represents number of array element (page, offset, length) which makes up this I/O request
  * @idx       : offset into the bio vector array
  * @phys_segments - number of segments in this bio after physical address coalescing is performed.
@@ -214,7 +248,14 @@ probe ioblock_trace.bounce = kernel.trace("block_bio_bounce")
         bytes_done = @choose_defined($bio->bi_iter->bi_size, $bio->bi_size)
         sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
         flags = $bio->bi_flags
-        rw = @choose_defined($bio->bi_opf, $bio->bi_rw)
+	if (@defined($bio->bi_opf)) {
+		rw = bio_op($bio)
+		opf = $bio->bi_opf
+	}
+	else {
+		rw = $bio->bi_rw
+		opf = $bio->bi_rw
+	}
         vcnt = $bio->bi_vcnt
         idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
         phys_segments = $bio->bi_phys_segments
@@ -242,6 +283,7 @@ probe ioblock_trace.bounce = kernel.trace("block_bio_bounce")
  *	    BIO_USER_MAPPED 6       contains user pages
  *	    BIO_EOPNOTSUPP  7       not supported
  * @rw        : binary trace for read/write request
+ * @opf       : operations and flags
  * @vcnt      : bio vector count which represents number of array element (page, offset, length) which make up this I/O request
  * @idx       : offset into the bio vector array
  * @phys_segments - number of segments in this bio after physical address coalescing is performed.
@@ -263,7 +305,14 @@ probe ioblock_trace.request = kernel.trace("block_bio_queue")
         bytes_done = @choose_defined($bio->bi_iter->bi_size, $bio->bi_size)
         sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
         flags = $bio->bi_flags
-        rw = @choose_defined($bio->bi_opf, $bio->bi_rw)
+	if (@defined($bio->bi_opf)) {
+		rw = bio_op($bio)
+		opf = $bio->bi_opf
+	}
+	else {
+		rw = $bio->bi_rw
+		opf = $bio->bi_rw
+	}
         vcnt = $bio->bi_vcnt
         idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
         phys_segments = $bio->bi_phys_segments
@@ -291,6 +340,7 @@ probe ioblock_trace.request = kernel.trace("block_bio_queue")
  *      BIO_USER_MAPPED 6       contains user pages
  *      BIO_EOPNOTSUPP  7       not supported
  * @rw        : binary trace for read/write request
+ * @opf       : operations and flags
  * @vcnt      : bio vector count which represents number of array element (page, offset, length) which makes up this I/O request
  * @idx       : offset into the bio vector array
  * @phys_segments - number of segments in this bio after physical address coalescing is performed.
@@ -313,7 +363,14 @@ probe ioblock_trace.end = kernel.trace("block_bio_complete")
 
         sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
         flags = $bio->bi_flags
-        rw = @choose_defined($bio->bi_opf, $bio->bi_rw)
+	if (@defined($bio->bi_opf)) {
+		rw = bio_op($bio)
+		opf = $bio->bi_opf
+	}
+	else {
+		rw = $bio->bi_rw
+		opf = $bio->bi_rw
+	}
         vcnt = $bio->bi_vcnt
         idx = @choose_defined($bio->bi_iter->bi_idx, $bio->bi_idx)
         phys_segments = $bio->bi_phys_segments
