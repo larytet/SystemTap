@@ -2919,7 +2919,8 @@ symresolution_info::collect_functions(void)
     {
       stapfile* f = session.library_files[i];
       for (unsigned j=0; j<f->functions.size(); j++)
-        funcs.insert(f->functions[j]->unmangled_name);
+        if (! f->functions[j]->name.starts_with("__private_"))
+          funcs.insert(f->functions[j]->unmangled_name);
     }
 
   return funcs;
@@ -3021,11 +3022,14 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
               if (iterations == 0 && ! s.suppress_warnings)
                 {
                   set<string> vars;
+
+                  // like collect_functions()
                   vector<vardecl*>::iterator it;
                   for (it = s.probes[i]->locals.begin(); it != s.probes[i]->locals.end(); it++)
                     vars.insert((*it)->unmangled_name);
                   for (it = s.globals.begin(); it != s.globals.end(); it++)
-                    vars.insert((*it)->unmangled_name);
+                    if (! (*it)->unmangled_name.starts_with("__private_"))
+                      vars.insert((*it)->unmangled_name);
 
                   vars.erase(l->name);
                   string sugs = levenshtein_suggest(l->name, vars, 5); // suggest top 5 vars
@@ -3071,6 +3075,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
                     for (it = fd->locals.begin(); it != fd->locals.end(); it++)
                         vars.insert((*it)->unmangled_name);
                     for (it = s.globals.begin(); it != s.globals.end(); it++)
+                      if (! (*it)->unmangled_name.starts_with("__private_"))
                         vars.insert((*it)->unmangled_name);
 
                     vars.erase(l->name);
@@ -3111,7 +3116,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
                 vector<vardecl*>::iterator it;
                 for (it = s.globals.begin(); it != s.globals.end(); it++)
                   if (l->name != (*it)->unmangled_name)
-                    vars.insert((*it)->unmangled_name);
+                    if (! (*it)->unmangled_name.starts_with("__private_"))
+                      vars.insert((*it)->unmangled_name);
 
                 string sugs = levenshtein_suggest(l->name, vars, 5); // suggest top 5 vars
                 s.print_warning (_F("never-assigned global variable '%s'%s",
