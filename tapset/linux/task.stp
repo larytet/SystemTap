@@ -765,6 +765,8 @@ function task_cwd_path:long(task:long)
 		// Before using the task->fs pointer, let's be
 		// paranoid and make sure it is valid to read.
 		(void)kderef_buffer(NULL, task->fs, sizeof(struct fs_struct));
+		if (put_task_struct_needed)
+			put_task_struct(task);		
 		STAP_RETURN((unsigned long)&task->fs->pwd);
 #endif
 	}
