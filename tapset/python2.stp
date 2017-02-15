@@ -1054,15 +1054,15 @@ function python2_get_var_obj:long(frame:long, var:string)
 
     # If we can't find it in the locals, we look in the globals.
     f_globals = @Py2FrameObject(frame)->f_globals
-    value = Py2Dict_GetItem(f_globals, var)
-    if (value == 0) {
+    value_obj = Py2Dict_GetItem(f_globals, var)
+    if (value_obj == 0) {
 	error(sprintf("Python variable '%s' cannot be found", var))
 	return 0
     }
-    return value
+    return value_obj
 }
 
-function python2_get_var_obj:string(frame:long, var:string, index:long)
+function python2_get_var_obj:long(frame:long, var:string, index:long)
 {
     f_code = @Py2FrameObject(frame)->f_code
     n = @Py2CodeObject(f_code)->co_nlocals
@@ -1074,8 +1074,7 @@ function python2_get_var_obj:string(frame:long, var:string, index:long)
     for (i = 0; i < n; i++) {
 	key_obj = Py2Tuple_GetItem(p, i)
 	if (var == Py2String_AsString(key_obj)) {
-	    value_obj = user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
-	    return Py2Object_GetItem(value_obj, index)
+	    return user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
 	}
     }
 
@@ -1086,5 +1085,5 @@ function python2_get_var_obj:string(frame:long, var:string, index:long)
 	error(sprintf("Python variable '%s' cannot be found", var))
 	return 0
     }
-    return Py2Object_GetItem(value_obj, index)
+    return value_obj
 }

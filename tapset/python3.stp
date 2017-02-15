@@ -1058,12 +1058,12 @@ function python3_get_var_obj:long(frame:long, var:string)
 
     # If we can't find it in the locals, we look in the globals.
     f_globals = @Py3FrameObject(frame)->f_globals
-    value = Py3Dict_GetItem(f_globals, var)
-    if (value == 0) {
+    value_obj = Py3Dict_GetItem(f_globals, var)
+    if (value_obj == 0) {
         error(sprintf("Python variable '%s' cannot be found", var))
 	return 0
     }
-    return value
+    return value_obj
 }
 
 function python3_get_var_obj:long(frame:long, var:string, index:long)
@@ -1078,8 +1078,7 @@ function python3_get_var_obj:long(frame:long, var:string, index:long)
     for (i = 0; i < n; i++) {
 	key_obj = Py3Tuple_GetItem(p, i)
 	if (var == Py3Unicode_AsASCIIString(key_obj)) {
-	    value_obj = user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
-	    return Py3Object_GetItem(value_obj, index)
+	    return user_long(localsplus + (i * %{ sizeof(intptr_t) %}))
 	}
     }
 
@@ -1090,5 +1089,5 @@ function python3_get_var_obj:long(frame:long, var:string, index:long)
 	error(sprintf("Python variable '%s' cannot be found", var))
 	return 0
     }
-    return Py3Object_GetItem(value_obj, index)
+    return value_obj
 }
