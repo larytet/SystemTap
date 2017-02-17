@@ -1,4 +1,3 @@
-auto_free.h
 buildrun.cxx
 buildrun.h
 cache.cxx
@@ -84,6 +83,7 @@ tapset-method.cxx
 tapset-netfilter.cxx
 tapset-perfmon.cxx
 tapset-procfs.cxx
+tapset-python.cxx
 tapsets.cxx
 tapsets.h
 tapset-timers.cxx
@@ -94,7 +94,6 @@ translate.cxx
 translate.h
 translator-output.cxx
 translator-output.h
-unordered.h
 util.cxx
 util.h
 version.h
