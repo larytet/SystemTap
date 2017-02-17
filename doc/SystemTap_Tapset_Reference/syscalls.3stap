@@ -1,5 +1,5 @@
 ." -*- nroff -*-
-.TH TAPSET::SYSCALLS 3stap "March 2016" "Systemtap Tapset Reference"
+.TH TAPSET::SYSCALLS 3stap "February 2017" "Systemtap Tapset Reference"
 .SH NAME
 tapset::syscalls \- systemtap syscall tapset
 
@@ -260,6 +260,10 @@ fd, flags, flags_str, iov, nr_segs
 .TP
 .B syscall.connect
 addrlen, serv_addr_uaddr, sockfd, uaddr_af, uaddr_ip, uaddr_ip_port, uaddr_ipv6_flowinfo, uaddr_ipv6_scope_id
+.P
+.TP
+.B syscall.copy_file_range
+fd_in, fd_out, flags, len, off_in, off_out
 .P
 .TP
 .B syscall.creat
@@ -694,6 +698,10 @@ advice, advice_str, length, start
 flags, flags_str, len, maxnode, mode, mode_str, nmask_uaddr, start
 .P
 .TP
+.B syscall.membarrier
+cmd, cmd_str, flags
+.P
+.TP
 .B syscall.memfd_create
 flags, flags_str, uname
 .P
@@ -724,6 +732,10 @@ dev, dirfd, dirfd_str, mode, mode_str, pathname
 .TP
 .B syscall.mlock
 addr, len
+.P
+.TP
+.B syscall.mlock2
+addr, flags, flags_str, len
 .P
 .TP
 .B syscall.mlockall
@@ -878,6 +890,10 @@ buf_uaddr, count, fd, offset
 count, fd, offset, vector_uaddr
 .P
 .TP
+.B syscall.preadv2
+count, fd, flags, flags_str, offset, vector_uaddr
+.P
+.TP
 .B syscall.prlimit64
 new_rlim_uaddr, old_rlim_uaddr, pid, resource
 .P
@@ -904,6 +920,10 @@ buf_uaddr, count, fd, offset
 .TP
 .B syscall.pwritev
 count, fd, offset, vector_uaddr
+.P
+.TP
+.B syscall.pwritev2
+count, fd, flags, flags_str, offset, vector_uaddr
 .P
 .TP
 .B syscall.quotactl
@@ -1071,7 +1091,7 @@ p_uaddr, pid, policy, policy_str
 .P
 .TP
 .B syscall.seccomp
-flags, flags_str, op, op_str, uargs, uargs_uaddr
+flags, flags_str, op, op_str, uargs_uaddr
 .P
 .TP
 .B syscall.select
@@ -1095,7 +1115,7 @@ nsops, semid, sops_uaddr, timeout_uaddr
 .P
 .TP
 .B syscall.send
-buf_uaddr, flags, flags_str, len, s
+buf, buf_uaddr, flags, flags_str, len, s
 .P
 .TP
 .B syscall.sendfile
@@ -1111,7 +1131,7 @@ flags, flags_str, msg_uaddr, s
 .P
 .TP
 .B syscall.sendto
-buf_uaddr, flags, flags_str, len, s, to_uaddr, tolen
+buf, buf_uaddr, flags, flags_str, len, s, to_uaddr, tolen
 .P
 .TP
 .B syscall.set_mempolicy
@@ -1440,6 +1460,10 @@ dfd, dfd_str, flag, flag_str, pathname, pathname_str
 .TP
 .B syscall.unshare
 unshare_flags
+.P
+.TP
+.B syscall.userfaultfd
+flags, flags_str
 .P
 .TP
 .B syscall.ustat
