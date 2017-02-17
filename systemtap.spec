@@ -71,7 +71,7 @@
 %endif
 
 Name: systemtap
-Version: 3.1
+Version: 3.2
 Release: 1%{?dist}
 # for version, see also configure.ac
 
