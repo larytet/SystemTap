@@ -13,8 +13,9 @@ Prerequisites:
 - linux kernel
 - kernel module build environment (kernel-devel rpm) and/or dyninst
 - optionally, debugging information for kernel/user-space being instrumented
-- C compiler (same as what kernel was compiled with)
-- elfutils with libdwfl for debugging information parsing
+- C compiler (same as what kernel was compiled with), to build kernel modules
+- C++11 compiler such as gcc 4.8+, to build systemtap itself
+- elfutils 0.151+ with libdwfl for debugging information parsing
 - root privileges
 
 Installation steps:
@@ -61,9 +62,7 @@ Build steps:
   % .../configure [other autoconf options]
   Or, with build it with a bundled internal copy of elfutils:
   % .../configure --with-elfutils=ELFUTILS-SOURCE-DIR [other autoconf options]
-  (Note that elfutils > 0.139 requires gcc > 4.0 or else the
-  appropriate elfutils-portability.patch.  Ensure decompression
-  library headers/libraries are installed for elfutils' use.)
+  (Ensure decompression library headers/libraries are installed for elfutils' use.)
 
   Consider configuring with "--enable-dejazilla" to automatically
   contribute to our public test result database.
