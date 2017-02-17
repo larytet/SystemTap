@@ -1137,7 +1137,11 @@ done
 # - Upstream release, see wiki page below for detailed notes.
 #   http://sourceware.org/systemtap/wiki/SystemTapReleases
 
+# PRERELEASE
 %changelog
+* Fri Feb 17 2017 Frank Ch. Eigler <fche@redhat.com> - 3.1-1
+- Upstream release.
+
 * Sun Mar 27 2016 Frank Ch. Eigler <fche@redhat.com> - 3.0-1
 - Upstream release.
 
