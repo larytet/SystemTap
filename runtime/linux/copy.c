@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * Copy from user space functions
- * Copyright (C) 2005-2014 Red Hat Inc.
+ * Copyright (C) 2005-2017 Red Hat Inc.
  * Copyright (C) 2005 Intel Corporation.
  *
  * This file is part of systemtap, and is free software.  You can
@@ -46,8 +46,14 @@ static long _stp_strncpy_from_user(char *dst, const char __user *src, long count
         mm_segment_t _oldfs = get_fs();
         set_fs(USER_DS);
         pagefault_disable();
+        /* XXX: The following preempt() manipulations should be
+           redundant with probe entry/exit code, but for unknown
+           reasons on RHEL5/6 conversions.exp intermittently fails
+           without this.  */
+        preempt_disable();
 	if (!lookup_bad_addr(VERIFY_READ, (const unsigned long)src, count))
 		res = strncpy_from_user(dst, src, count);
+        preempt_enable_no_resched();
         pagefault_enable();
         set_fs(_oldfs);
 	return res;
