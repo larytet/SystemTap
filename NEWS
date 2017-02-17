@@ -1,5 +1,7 @@
 * What's new in version 3.1, PRERELEASE
 
+- Systemtap now needs C++11 to build.
+
 - Syscall and nd_syscall tapsets have been merged in a way that either
   dwarf-based, or non-dwarf probe gets automatically used based on
   debuginfo availability (e.g. probe syscall.open).
