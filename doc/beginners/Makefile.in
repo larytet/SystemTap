@@ -303,6 +303,7 @@ sbindir = @sbindir@
 selinux_CFLAGS = @selinux_CFLAGS@
 selinux_LIBS = @selinux_LIBS@
 sharedstatedir = @sharedstatedir@
+sqlite3_CFLAGS = @sqlite3_CFLAGS@
 sqlite3_LIBS = @sqlite3_LIBS@
 srcdir = @srcdir@
 stap_LIBS = @stap_LIBS@
@@ -394,8 +395,8 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@BUILD_DOCS_FALSE@clean-local:
 @BUILD_DOCS_FALSE@uninstall-local:
+@BUILD_DOCS_FALSE@clean-local:
 @BUILD_DOCS_FALSE@install-data-hook:
 clean: clean-am
 
