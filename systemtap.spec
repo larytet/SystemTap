@@ -1,4 +1,4 @@
-%{!?with_sqlite: %global with_sqlite 1}
+%{!?with_sqlite: %global with_sqlite 0%{?fedora} >= 17 || 0%{?rhel} >= 7}
 %{!?with_docs: %global with_docs 1}
 %{!?with_htmldocs: %global with_htmldocs 0}
 %{!?with_monitor: %global with_monitor 1}
