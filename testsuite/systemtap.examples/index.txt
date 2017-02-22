@@ -2,7 +2,7 @@ SYSTEMTAP EXAMPLES INDEX
 (see also keyword-index.txt)
 
 
-For systemtap version 3.1.
+For systemtap version 3.2.
 
 general/alias_suffixes.stp - Count I/O Syscalls using Alias Suffixes
 keywords: io statistics
@@ -1682,6 +1682,12 @@ keywords: security guru
 
 
 security-band-aids/cve-2016-5195.stp - cve-2016-5195 security band-aid
+keywords: security guru
+
+  historical emergency security band-aid, for reference/education only
+
+
+security-band-aids/cve-2017-6074.stp - cve-2017-6074 security band-aid
 keywords: security guru
 
   historical emergency security band-aid, for reference/education only

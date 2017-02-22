@@ -2,7 +2,7 @@ SYSTEMTAP EXAMPLES INDEX BY KEYWORD
 (see also index.txt)
 
 
-For systemtap version 3.1.
+For systemtap version 3.2.
 
 = _BEST =
 
@@ -745,6 +745,12 @@ keywords: security guru
 
 
 security-band-aids/cve-2016-5195.stp - cve-2016-5195 security band-aid
+keywords: security guru
+
+  historical emergency security band-aid, for reference/education only
+
+
+security-band-aids/cve-2017-6074.stp - cve-2017-6074 security band-aid
 keywords: security guru
 
   historical emergency security band-aid, for reference/education only
@@ -2611,6 +2617,12 @@ keywords: security guru
 
 
 security-band-aids/cve-2016-5195.stp - cve-2016-5195 security band-aid
+keywords: security guru
+
+  historical emergency security band-aid, for reference/education only
+
+
+security-band-aids/cve-2017-6074.stp - cve-2017-6074 security band-aid
 keywords: security guru
 
   historical emergency security band-aid, for reference/education only
