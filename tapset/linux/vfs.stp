@@ -1104,7 +1104,8 @@ probe _vfs.generic_commit_write = kernel.function("generic_commit_write") ?
 	argstr = sprintf("%p, %p, %d, %d", $file, $page, $from, $to)
 }
 
-probe _vfs.block_prepare_write = kernel.function("__block_write_begin") !,
+probe _vfs.block_prepare_write = kernel.function("__block_write_begin_int") !,
+				 kernel.function("__block_write_begin") !,
 				 kernel.function("__block_prepare_write")
 {
 	page = $page
@@ -1134,6 +1135,7 @@ probe _vfs.block_prepare_write = kernel.function("__block_write_begin") !,
 }
 
 probe _vfs.block_prepare_write.return =
+	kernel.function("__block_write_begin_int").return !,
 	kernel.function("__block_write_begin").return !,
 	kernel.function("__block_prepare_write").return
 {
@@ -1188,7 +1190,7 @@ probe _vfs.block_write_begin.return =
 	name = "_vfs.block_write_begin"
 	retstr = sprintf("%d", $return)
 
-	file = @entry($file)
+	file = @choose_defined(@entry($file), "")
         pathname = @defined(@entry($file)) ? fullpath_struct_file(task_current(), @entry($file)) : ""
 	pos = @entry($pos)
 	len = @entry($len)
