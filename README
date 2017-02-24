@@ -138,4 +138,3 @@ Building a kernel.org kernel:
 
 - Instead of using the "-r" option, you can also use the environment 
   variable SYSTEMTAP_RELEASE to direct systemtap to the kernel data.
-
