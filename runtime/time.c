@@ -130,31 +130,28 @@ __stp_ktime_get_real_ts(struct timespec *ts)
 static stp_time_t*
 __stp_time_local_update(void)
 {
-    unsigned long flags, flags2;
+    unsigned long flags;
     stp_time_t *time;
     struct timespec ts;
     int64_t ns;
     cycles_t cycles;
 
-    local_irq_save(flags);
+    // PR20600: We used to disable interrupts here with
+    // local_irq_save(), then call write_seqlock_irqsave() further
+    // down when we write to 'time'. However, this caused intermittent
+    // hangs. Only disabling interrupts once here seems to fix the
+    // problem, at the cost of holding time->lock a bit longer than we
+    // originally did.
+    write_seqlock_irqsave(&time->lock, flags);
 
     __stp_ktime_get_real_ts(&ts);
     cycles = get_cycles();
     ns = (NSEC_PER_SEC * (int64_t)ts.tv_sec) + ts.tv_nsec;
     time = per_cpu_ptr(stp_time, smp_processor_id());
-
-    // Why are we calling write_seqlock_irqsave() here instead of just
-    // write_seqlock() (especially since we've already disabled
-    // interrupts using local_irq_save())? The answer is that
-    // write_seqlock_irqsave() does the correct wait for when
-    // interrupts are disabled.
-    write_seqlock_irqsave(&time->lock, flags2);
     time->base_ns = ns;
     time->base_cycles = cycles;
-    write_sequnlock_irqrestore(&time->lock, flags2);
 
-    local_irq_restore(flags);
-
+    write_sequnlock_irqrestore(&time->lock, flags);
     return time;
 }
 
