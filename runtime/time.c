@@ -142,12 +142,12 @@ __stp_time_local_update(void)
     // hangs. Only disabling interrupts once here seems to fix the
     // problem, at the cost of holding time->lock a bit longer than we
     // originally did.
+    time = per_cpu_ptr(stp_time, smp_processor_id());
     write_seqlock_irqsave(&time->lock, flags);
 
     __stp_ktime_get_real_ts(&ts);
     cycles = get_cycles();
     ns = (NSEC_PER_SEC * (int64_t)ts.tv_sec) + ts.tv_nsec;
-    time = per_cpu_ptr(stp_time, smp_processor_id());
     time->base_ns = ns;
     time->base_cycles = cycles;
 
