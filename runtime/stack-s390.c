@@ -11,7 +11,6 @@ static unsigned long
 __stp_show_stack (unsigned long sp, unsigned long low,
  		  unsigned long high, int verbose)
 {
- 
 	struct stack_frame *sf;
 	struct pt_regs *regs;
 	unsigned long ip;
@@ -62,9 +61,18 @@ static void __stp_stack_print (struct pt_regs *regs,
  
 		sp = __stp_show_stack(sp,
 			S390_lowcore.async_stack - ASYNC_SIZE,
-			S390_lowcore.async_stack,verbose);
+			S390_lowcore.async_stack, verbose);
  
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+		/* FIXME: Note that this CONFIG_THREAD_INFO_IN_TASK
+		 * code is untested, since the s390 uses the dwarf
+		 * unwinder so this code doesn't get called. */
+		__stp_show_stack(sp, ((unsigned long)current->stack),
+				 (((unsigned long)current->stack)
+				  + THREAD_SIZE), verbose);
+#else
 		__stp_show_stack(sp,
 			S390_lowcore.thread_info,
-			S390_lowcore.thread_info + THREAD_SIZE,verbose);
+			S390_lowcore.thread_info + THREAD_SIZE, verbose);
+#endif
 }
