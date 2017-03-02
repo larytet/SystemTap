@@ -74,25 +74,19 @@ esac
     echo "make >= 0"
     echo "linux-image-$ABINAME = $VERSION"
     echo "linux-headers-$ABINAME = $VERSION"
-    case "$DISTRO" in
-	Debian)
-	    echo "linux-image-$ABINAME-dbg = $VERSION"
-	    ;;
-	Ubuntu)
-	    echo "linux-image-$ABINAME-dbgsym = $VERSION"
-	    ;;
-    esac
+	echo "linux-image-$ABINAME-dbgsym = $VERSION"
 ) | while read package relation requiredversion; do
     installedversion="$(dpkg-query -W "$package" 2> /dev/null | cut -f 2)"
     if [ "$installedversion" = "" ]; then
 	availableversion="$(apt-cache show $package 2> /dev/null | grep ^Version: | cut -d " " -f 2)"
-	if [ "$availableversion" = "" ]; then
+	if [ "$availableversion" = "" -a "$(echo $package | grep dbgsym$)" ]; then
 	    echo "You need package $package but it does not seem to be available"
-	    if [ "$DISTRO" = "Ubuntu" -a "$(echo $package | grep dbgsym$)" ]; then
+	    if [ "$DISTRO" = "Ubuntu"  ]; then
 		echo " Ubuntu -dbgsym packages are typically in a separate repository"
 		echo " Follow https://wiki.ubuntu.com/DebuggingProgramCrash to add this repository"
-	    elif [ "$DISTRO" = "Debian" -a "$(echo $package | grep dbg$)" ]; then
-		echo " Debian does not have -dbg packages for all kernels. Consider switching to a kernel that has one."
+	    elif [ "$DISTRO" = "Debian" ]; then
+		echo " Debian -dbgsym packages are typically in a separate repository"
+		echo " Follow https://wiki.debian.org/AutomaticDebugPackages to add this repository"
 	    fi
 	else
 	    echo "Please install $package"
