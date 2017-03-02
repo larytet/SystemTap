@@ -61,7 +61,7 @@ case "$DISTRO" in
 	if uname -v | grep -q Debian; then
 	    VERSION="$(uname -v | cut -d " " -f 4)"
 	else
-	    VERSION="$(cut -d " " -f 5 /proc/version | cut -d ")" -f 1)"
+            VERSION="$(cut -d " " -f 3 /proc/version)"
 	fi
 	;;
     Ubuntu)
