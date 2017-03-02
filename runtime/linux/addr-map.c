@@ -53,7 +53,11 @@ lookup_bad_addr(const int type, const unsigned long addr, const size_t size)
 #else
   if (size == 0 || ULONG_MAX - addr < size - 1
       || (in_task() && !access_ok(type, (void *)addr, size))
-      || (!in_task() && ((user_addr_max() - size) < addr)))
+      || (!in_task()
+#if defined(user_addr_max)
+	  && ((user_addr_max() - size) < addr)
+#endif
+	      ))
     return 1;
 #endif
 
