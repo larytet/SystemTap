@@ -429,22 +429,22 @@ probe nd_syscall.ppc64_newuname.return ?
 #
 
 %( arch == "s390" %?
-probe nd_syscall.getresgid16
+probe nd_syscall.getresgid16 ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%p, %p, %p\n", rgid_uaddr, egid_uaddr, sgid_uaddr)
 }
-probe nd_syscall.getresgid16.return
+probe nd_syscall.getresgid16.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.getresuid16
+probe nd_syscall.getresuid16 ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%p, %p, %p\n", ruid_uaddr, euid_uaddr, suid_uaddr)
 }
-probe nd_syscall.getresuid16.return
+probe nd_syscall.getresuid16.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
