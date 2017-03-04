@@ -27,6 +27,8 @@ static void _stp_handle_privilege_credentials (struct _stp_msg_privilege_credent
 static void _stp_handle_remote_id (struct _stp_msg_remote_id* rem);
 static void _stp_handle_namespaces_pid (struct _stp_msg_ns_pid *nspid);
 
+#define __user
+
 
 static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
@@ -607,7 +609,6 @@ static int _stp_ctl_send_notify(int type, void *data, unsigned len)
 
 	return ret;
 }
-
 /** Called when someone tries to read from our .cmd file.
     Will take _stp_ctl_ready_lock and pick off the next _stp_buffer
     from the _stp_ctl_ready_q, will wait_event on _stp_ctl_wq.  */
