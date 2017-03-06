@@ -113,27 +113,27 @@ int main()
     //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"/dev/null", O_RDONLY) = NNNN
 
     __kexec_file_load(fd, fd, strlen(cmdline), cmdline, KEXEC_FILE_ON_CRASH);
-    //staptest// kexec_file_load (NNNN, NNNN, NNNN, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_ON_CRASH) = -NNNN
+    //staptest// [[[[kexec_file_load (NNNN, NNNN, NNNN, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_ON_CRASH)!!!!ni_syscall ()]]]] = -NNNN
 
     /* Limit testing. */
     __kexec_file_load(-1, fd, strlen(cmdline), cmdline, KEXEC_FILE_UNLOAD);
-    //staptest// kexec_file_load (-1, NNNN, NNNN, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_UNLOAD) = -NNNN
+    //staptest// [[[[kexec_file_load (-1, NNNN, NNNN, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_UNLOAD)!!!!ni_syscall ()]]]] = -NNNN
 
     __kexec_file_load(fd, -1, strlen(cmdline), cmdline, KEXEC_FILE_NO_INITRAMFS);
-    //staptest// kexec_file_load (NNNN, -1, NNNN, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_NO_INITRAMFS) = -NNNN
+    //staptest// [[[[kexec_file_load (NNNN, -1, NNNN, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_NO_INITRAMFS)!!!!ni_syscall ()]]]] = -NNNN
 
     __kexec_file_load(fd, fd, -1, cmdline, KEXEC_FILE_ON_CRASH);
 #if __WORDSIZE == 64
-    //staptest// kexec_file_load (NNNN, NNNN, 18446744073709551615, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_ON_CRASH) = -NNNN
+    //staptest// [[[[kexec_file_load (NNNN, NNNN, 18446744073709551615, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_ON_CRASH)!!!!ni_syscall ()]]]] = -NNNN
 #else
-    //staptest// kexec_file_load (NNNN, NNNN, 4294967295, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_ON_CRASH) = -NNNN
+    //staptest// [[[[kexec_file_load (NNNN, NNNN, 4294967295, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_ON_CRASH)!!!!ni_syscall ()]]]] = -NNNN
 #endif
 
     __kexec_file_load(fd, fd, strlen(cmdline), (char *)-1, KEXEC_FILE_ON_CRASH);
-    //staptest// kexec_file_load (NNNN, NNNN, NNNN, 0x[f]+, KEXEC_FILE_ON_CRASH) = -NNNN
+    //staptest// [[[[kexec_file_load (NNNN, NNNN, NNNN, 0x[f]+, KEXEC_FILE_ON_CRASH)!!!!ni_syscall ()]]]] = -NNNN
 
     __kexec_file_load(fd, fd, strlen(cmdline), cmdline, -1);
-    //staptest// kexec_file_load (NNNN, NNNN, NNNN, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_[^ ]+|XXXX) = -NNNN
+    //staptest// [[[[kexec_file_load (NNNN, NNNN, NNNN, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_[^ ]+|XXXX)!!!!ni_syscall ()]]]] = -NNNN
 
     close(fd);
 #endif

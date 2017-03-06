@@ -68,7 +68,7 @@ probe init {
 %)
 
 %( arch == "powerpc" %?
-    __syscall_map["ni_syscall"] = ",execveat,getrandom,kcmp,memfd_create,olduname,oldolduname,readdir,renameat2,sched_getattr,sched_setattr,sigaction,signalfd4,sigpending,sigprocmask,"
+    __syscall_map["ni_syscall"] = ",execveat,getrandom,kcmp,memfd_create,olduname,oldolduname,readdir,renameat2,sched_getattr,sched_setattr,sigaction,signalfd4,sigpending,sigprocmask,kexec_file_load,"
 %)
 
 %( arch == "s390" %?
