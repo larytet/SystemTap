@@ -5,6 +5,10 @@
 # you run this script, make sure that STRACE_SRC points to fresh strace git
 # sources.
 #
+# As of 3/2017, strace source can be obtained by the following command:
+#
+#    git clone https://git.code.sf.net/p/strace/code strace-code
+#
 # Functions syscall_name() and syscall_num() are the primary feature front-end.
 
 set -e
