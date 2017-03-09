@@ -3,7 +3,8 @@
 # unmounted synthentic filesystem, it would go into an infinite loop
 # (until killed by MAXACTION).
 
-set test "task_dentry_path"
+set test_base "task_dentry_path"
+set test "${test_base}"
 
 # Only run on make installcheck
 if {! [installtest_p]} { untested "$test"; return }
@@ -18,3 +19,17 @@ expect {
 }
 catch {close}; catch {wait}
 if {$ok == 1} { fail "$test ($ok)" } { pass "$test ($ok)" }
+
+# Test the fix for PR19021 - the tapset function task_dentry_path()
+# should handle more than just files.
+set test "${test_base}2"
+spawn stap $srcdir/$subdir/$test.stp -c "echo hi | cat > /dev/null"
+set ok 0
+expect {
+    -timeout 150
+    -re {^pipe:\[[0-9]+\]\r\n} { incr ok; exp_continue }
+    timeout { fail "$test (timeout)" }
+    eof { }
+}
+catch {close}; catch {wait}
+if {$ok == 1} { pass "$test" } { fail "$test ($ok)" }

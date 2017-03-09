@@ -1,0 +1,6 @@
+probe kernel.function("pipe_read") {
+    t = task_current()
+    println(task_dentry_path(t, $iocb->ki_filp->f_path->dentry,
+	    $iocb->ki_filp->f_path->mnt))
+    exit()
+}
