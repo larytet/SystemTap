@@ -5,6 +5,8 @@
 
 set test_base "task_dentry_path"
 set test "${test_base}"
+set test_name "$test_base (infinite loop)"
+set am_root [expr 0 == [exec id -u]]
 
 # Only run on make installcheck
 if {! [installtest_p]} { untested "$test"; return }
@@ -14,22 +16,45 @@ set ok 0
 expect {
     -timeout 150
     -re {ERROR.*MAXACTION} { incr ok; exp_continue }
-    timeout { fail "$test (timeout)" }
+    timeout { fail "$test_name (timeout)" }
     eof { }
 }
 catch {close}; catch {wait}
-if {$ok == 1} { fail "$test ($ok)" } { pass "$test ($ok)" }
+if {$ok == 1} { fail "$test_name ($ok)" } { pass "$test_name" }
 
 # Test the fix for PR19021 - the tapset function task_dentry_path()
 # should handle more than just files.
 set test "${test_base}2"
+set test_name "$test_base (synthetic files)"
 spawn stap $srcdir/$subdir/$test.stp -c "echo hi | cat > /dev/null"
 set ok 0
 expect {
     -timeout 150
     -re {^pipe:\[[0-9]+\]\r\n} { incr ok; exp_continue }
-    timeout { fail "$test (timeout)" }
+    timeout { fail "$test_name (timeout)" }
     eof { }
 }
 catch {close}; catch {wait}
-if {$ok == 1} { pass "$test" } { fail "$test ($ok)" }
+if {$ok == 1} { pass "$test_name" } { fail "$test_name ($ok)" }
+
+# Test the fix for BZ1425568 - systemtap task_dentry_path crashes
+# under chroot.
+set test "${test_base}3"
+set test_name "$test_base (chroot)"
+
+# We've got to be root to successfully do a 'chroot'.
+if {!$am_root} {
+    untested "$test_name"
+} else {
+    set curdir [pwd]
+    spawn stap $srcdir/$subdir/$test.stp -c "perl -e 'chroot(qw(/tmp))'"
+    set ok 0
+    expect {
+	-timeout 150
+	-re "^${curdir}\r\n" { incr ok; exp_continue }
+	timeout { fail "$test_name (timeout)" }
+	eof { }
+    }
+    catch {close}; catch {wait}
+    if {$ok == 1} { pass "$test_name" } { fail "$test_name ($ok)" }
+}

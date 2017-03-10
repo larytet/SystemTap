@@ -1,0 +1,6 @@
+probe kprocess.exit
+{
+    t = task_current()
+    println(task_dentry_path(t, @cast(t, "task_struct")->fs->pwd->dentry,
+	    @cast(t,"task_struct")->fs->pwd->mnt))
+}

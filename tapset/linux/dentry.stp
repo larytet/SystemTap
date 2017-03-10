@@ -190,6 +190,10 @@ function real_mount:long(vfsmnt:long)
  *   @dentry: direntry pointer.
  *   @vfsmnt: vfsmnt pointer.
  */
+/*
+ * Note that this function is based on __d_path() in RHEL6-era kernels
+ * and prepend_path() in RHEL7+ kernels.
+ */
 function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
 {
 	/*
@@ -207,6 +211,7 @@ function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
 	 */
 	dentry = & @cast(dentry, "dentry")
 	vfsmnt = & @cast(vfsmnt, "vfsmount")
+
 	if (@type_member_defined("dentry", d_op->d_dname)
 	    && dentry->d_op && dentry->d_op->d_dname
 	    && (!__dentry_IS_ROOT(dentry) || dentry != vfsmnt->mnt_root)) {
@@ -242,26 +247,34 @@ function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
 		root_vfsmnt = @cast(task, "task_struct")->fs->root->mnt
 	}
 
-	while (1) {
-		# If we've found the right dentry/vfsmnt, we're done.
-		if (dentry == root_dentry && vfsmnt == root_vfsmnt)
-			break;
+	if (@type_member_defined("mount", mnt_parent)) {
+		mnt = &@cast(real_mount(vfsmnt), "mount")
+		if (mnt == 0)
+			return "<unknown>"
+	}
 
+	# If we've found the right dentry/vfsmnt, we're done.
+	while (dentry != root_dentry || vfsmnt == root_vfsmnt) {
 		if (dentry == vfsmnt->mnt_root || __dentry_IS_ROOT(dentry)) {
-			if (! @type_member_defined("vfsmount", mnt_parent)) {
-				mnt = & @cast(real_mount(vfsmnt), "mount")
-				if (mnt == 0)
-					return "<unknown>"
-
-				/* Global root? */
-				if (mnt->mnt_parent == vfsmnt)
-					return sprintf("%s%s",
-						       d_name(mnt->mnt_mountpoint),
-						       name)
-
-				dentry = mnt->mnt_mountpoint
-				vfsmnt = & mnt->mnt_parent->mnt
+			/* Escaped? */
+			if (dentry != vfsmnt->mnt_root) {
+				return "<unknown>"
 			}
+
+			/* RHEL7+ kernels */
+			if (! @type_member_defined("vfsmount", mnt_parent)) {
+				/* Global root? */
+				if (mnt != mnt->mnt_parent) {
+					dentry = mnt->mnt_mountpoint
+					vfsmnt = & mnt->mnt_parent->mnt
+					mnt = mnt->mnt_parent
+					if (mnt == 0)
+						return "<unknown>"
+					continue
+				}
+				break
+			}
+			/* RHEL6-era kernels */
 			else {
 				/* Global root? */
 				if (vfsmnt->mnt_parent == vfsmnt)
@@ -271,11 +284,11 @@ function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
 
 				dentry = vfsmnt->mnt_mountpoint
 				vfsmnt = vfsmnt->mnt_parent
+				continue
 			}
-			continue;
 		}
-		name = __dentry_prepend(dentry, name);
-		dentry = dentry->d_parent;
+		name = __dentry_prepend(dentry, name)
+		dentry = dentry->d_parent
 	}
 
 	return sprintf("/%s", name);
