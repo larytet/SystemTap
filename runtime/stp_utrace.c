@@ -29,6 +29,14 @@
 
 #include "stp_helper_lock.h"
 
+#if defined(__set_task_state)
+#define __stp_set_task_state(tsk, state_value)		\
+	__set_task_state((tsk), (state_value))
+#else
+#define __stp_set_task_state(tsk, state_value)		\
+	do { (tsk)->state = (state_value); } while (0)
+#endif
+
 /*
  * Per-thread structure private to utrace implementation.
  * If task_struct.utrace_flags is nonzero, task_struct.utrace
@@ -1105,7 +1113,7 @@ static bool utrace_do_stop(struct task_struct *target, struct utrace *utrace)
 		 */
 		spin_lock_irq(&target->sighand->siglock);
 		if (likely(task_is_stopped(target)))
-			__set_task_state(target, TASK_TRACED);
+			__stp_set_task_state(target, TASK_TRACED);
 		spin_unlock_irq(&target->sighand->siglock);
 	} else if (utrace->resume > UTRACE_REPORT) {
 		utrace->resume = UTRACE_REPORT;
