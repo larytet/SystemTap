@@ -402,6 +402,7 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-netfilter-4_4.c", "STAPCONF_NETFILTER_V44", NULL);
   output_autoconf(s, o, "autoconf-smpcall-5args.c", "STAPCONF_SMPCALL_5ARGS", NULL);
   output_autoconf(s, o, "autoconf-smpcall-4args.c", "STAPCONF_SMPCALL_4ARGS", NULL);
+  output_autoconf(s, o, "autoconf-sched-mm.c", "STAPCONF_SCHED_MM_H", NULL);
 
   // used by tapset/timestamp_monotonic.stp
   output_exportconf(s, o, "cpu_clock", "STAPCONF_CPU_CLOCK");

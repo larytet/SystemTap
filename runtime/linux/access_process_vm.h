@@ -3,6 +3,10 @@
  * some distros export it on some architectures.  To workaround this inconsistency,
  * we copied and pasted it here.  Fortunately, everything it calls is exported.
  */
+#include <linux/sched.h>
+#ifdef STAPCONF_SCHED_MM_H
+#include <linux/sched/mm.h>
+#endif
 #include <linux/pagemap.h>
 #include <asm/cacheflush.h>
 
