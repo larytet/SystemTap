@@ -82,9 +82,11 @@
 # define _SDT_ASM_STRING_1(x)		_SDT_ASM_1(.asciz #x)
 
 # define _SDT_ARGFMT(no)		%n[_SDT_S##no]@_SDT_ARGTMPL(_SDT_A##no)
+
 # ifndef STAP_SDT_ARG_CONSTRAINT
 # define STAP_SDT_ARG_CONSTRAINT        nor
 # endif
+
 # define _SDT_STRINGIFY(x)              #x
 # define _SDT_ARG_CONSTRAINT_STRING(x)  _SDT_STRINGIFY(x)
 # define _SDT_ARG(n, x)			\
@@ -173,6 +175,8 @@ __extension__ extern unsigned long long __sdt_unsp;
 
 #if defined __powerpc__ || defined __powerpc64__
 # define _SDT_ARGTMPL(id)	%I[id]%[id]
+#elif defined __i386__
+# define _SDT_ARGTMPL(id)	%w[id]  /* gcc.gnu.org/PR80115 */
 #else
 # define _SDT_ARGTMPL(id)	%[id]
 #endif
