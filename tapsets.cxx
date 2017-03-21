@@ -10191,12 +10191,12 @@ hwbkpt_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   // Forward declare the master entry functions
   s.op->newline() << "#ifdef STAPCONF_PERF_HANDLER_NMI";
-  s.op->newline() << "static int enter_hwbkpt_probe (struct perf_event *bp,";
+  s.op->newline() << "static void enter_hwbkpt_probe (struct perf_event *bp,";
   s.op->line() << " int nmi,";
   s.op->line() << " struct perf_sample_data *data,";
   s.op->line() << " struct pt_regs *regs);";
   s.op->newline() << "#else";
-  s.op->newline() << "static int enter_hwbkpt_probe (struct perf_event *bp,";
+  s.op->newline() << "static void enter_hwbkpt_probe (struct perf_event *bp,";
   s.op->line() << " struct perf_sample_data *data,";
   s.op->line() << " struct pt_regs *regs);";
   s.op->newline() << "#endif";
@@ -10253,17 +10253,17 @@ hwbkpt_derived_probe_group::emit_module_decls (systemtap_session& s)
   // Emit the hwbkpt callback function
   s.op->newline() ;
   s.op->newline() << "#ifdef STAPCONF_PERF_HANDLER_NMI";
-  s.op->newline() << "static int enter_hwbkpt_probe (struct perf_event *bp,";
+  s.op->newline() << "static void enter_hwbkpt_probe (struct perf_event *bp,";
   s.op->line() << " int nmi,";
   s.op->line() << " struct perf_sample_data *data,";
   s.op->line() << " struct pt_regs *regs) {";
   s.op->newline() << "#else";
-  s.op->newline() << "static int enter_hwbkpt_probe (struct perf_event *bp,";
+  s.op->newline() << "static void enter_hwbkpt_probe (struct perf_event *bp,";
   s.op->line() << " struct perf_sample_data *data,";
   s.op->line() << " struct pt_regs *regs) {";
   s.op->newline() << "#endif";
   s.op->newline(1) << "unsigned int i;";
-  s.op->newline() << "if (bp->attr.type != PERF_TYPE_BREAKPOINT) return -1;";
+  s.op->newline() << "if (bp->attr.type != PERF_TYPE_BREAKPOINT) return;";
   s.op->newline() << "for (i=0; i<" << hwbkpt_probes.size() << "; i++) {";
   s.op->newline(1) << "struct perf_event_attr *hp = & stap_hwbkpt_probe_array[i];";
   // XXX: why not match stap_hwbkpt_ret_array[i] against bp instead?
@@ -10281,7 +10281,7 @@ hwbkpt_derived_probe_group::emit_module_decls (systemtap_session& s)
   common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
   s.op->newline(-1) << "}";
   s.op->newline(-1) << "}";
-  s.op->newline() << "return 0;";
+  s.op->newline() << "return;";
   s.op->newline(-1) << "}";
 }
 
@@ -10333,9 +10333,9 @@ hwbkpt_derived_probe_group::emit_module_init (systemtap_session& s)
 
   s.op->newline() << "probe_point = skp->probe->pp;"; // for error messages
   s.op->newline() << "#ifdef STAPCONF_HW_BREAKPOINT_CONTEXT";
-  s.op->newline() << "stap_hwbkpt_ret_array[i] = register_wide_hw_breakpoint(hp, (void *)&enter_hwbkpt_probe, NULL);";
+  s.op->newline() << "stap_hwbkpt_ret_array[i] = register_wide_hw_breakpoint(hp, &enter_hwbkpt_probe, NULL);";
   s.op->newline() << "#else";
-  s.op->newline() << "stap_hwbkpt_ret_array[i] = register_wide_hw_breakpoint(hp, (void *)&enter_hwbkpt_probe);";
+  s.op->newline() << "stap_hwbkpt_ret_array[i] = register_wide_hw_breakpoint(hp, &enter_hwbkpt_probe);";
   s.op->newline() << "#endif";
   s.op->newline() << "rc = 0;";
   s.op->newline() << "if (IS_ERR(stap_hwbkpt_ret_array[i])) {";
