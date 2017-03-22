@@ -25,7 +25,10 @@ probe begin {
 		pid2task(0) +
 	        task_fd_lookup(0, 0) +
 		task_cwd_path(0) +
-		task_exe_file(0))
+%(systemtap_v <= "3.2" %?
+		task_exe_file(0) +
+%)
+		current_exe_file())
 	print (task_execname (0))
 	print (pid2execname (0))
 }

@@ -36,7 +36,7 @@ if {$found_cwd == 0 && ![min_kernel_vers_p 2.6.25]} {
     setup_kfail NO_CWD *-*-*
 }
 
-if {$found_cwd == 3 && $found_stapio == 2 && $found_error == 4
+if {$found_cwd == 2 && $found_stapio == 1 && $found_error == 2
     && $found_whoami == 1} {
     pass "$test"
 } else {

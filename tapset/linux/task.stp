@@ -781,39 +781,46 @@ function task_cwd_path:long(task:long)
 %}
 
 /**
- *   sfunction task_cwd_path - get the file struct pointer for a task's executable file
+ *   sfunction current_exe_file - get the file struct pointer for the current task's executable file
+ *
+ * Description: This function returns the file struct pointer for the
+ * current task's executable file. Note that the file struct pointer
+ * isn't locked on return. The return value of this function can be
+ * passed to fullpath_struct_file() to get the path from the file
+ * struct.
+ */
+function current_exe_file:long()
+%{ /* pure */
+	struct file *exe_file = NULL;
+
+	if (current == NULL) {
+		STAP_ERROR ("No current task");
+	}
+
+	// Since we're stopped inside current, it isn't going away. So
+	// don't bother incrementing the task's usage count by calling
+	// get_task_struct()/put_task_struct(). We also don't need to
+	// bother to try to lock current->mm.
+	if (current->mm) {
+		exe_file = stap_find_exe_file(current->mm);
+		if (exe_file) {
+			STAP_RETVALUE = (unsigned long)exe_file;
+			fput(exe_file);
+		}
+	}
+%}
+
+%(systemtap_v <= "3.2" %?
+/**
+ *   sfunction task_exe_file - get the file struct pointer for a task's executable file
  *
  *   @task: task_struct pointer.
  */
 function task_exe_file:long(task:long)
-%{ /* pure */
-	struct task_struct *task
-		= (struct task_struct *)(unsigned long)STAP_ARG_task;
-	struct mm_struct *mm = NULL;
-	struct file *exe_file = NULL;
-
-	// Before using the task_struct pointer, make sure it is valid
-	// to read.
-	(void)kderef_buffer(NULL, task, sizeof(struct task_struct));
-
-	// OK, we now know it is valid to read. But, is it really a
-	// task struct?
-	if (!_stp_task_struct_valid(task)) {
-		STAP_ERROR ("invalid task struct pointer");
+{
+	if (task == task_current()) {
+		return current_exe_file()
 	}
-
-	// We'd like to call get_task_mm()/mmput() here, but they can
-	// sleep. So, let's hope incrementing the task's usage (by
-	// calling get_task_struct) is enough to keep the mm around.
-	get_task_struct(task);
-	mm = task->mm;
-	if (mm)
-		exe_file = stap_find_exe_file(mm);
-	put_task_struct(task);
-
-	if (exe_file) {
-		STAP_RETURN((unsigned long)exe_file);
-		fput(exe_file);
-	}
-	CATCH_DEREF_FAULT();
-%}
+	error("Only the exe file for the current task can be returned")
+}
+%)
