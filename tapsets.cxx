@@ -10392,6 +10392,12 @@ hwbkpt_builder::build(systemtap_session & sess,
       throw SEMANTIC_ERROR (_("CONFIG_HAVE_HW_BREAKPOINT not available on this kernel"),
                             location->components[0]->tok);
 
+  // See BZ1431263 (on aarch64, running the hw_watch_addr.stp
+  // systemtap examples cause a stuck CPU).
+  if (sess.architecture == string("arm64"))
+      throw SEMANTIC_ERROR (_("kernel.data probes are not supported on arm64 kernels"),
+                            location->components[0]->tok);
+
   has_addr = get_param (parameters, TOK_HWBKPT, hwbkpt_address);
   has_symbol_str = get_param (parameters, TOK_HWBKPT, symbol_str_val);
   has_len = get_param (parameters, TOK_LENGTH, len);
