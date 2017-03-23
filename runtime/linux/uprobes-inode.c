@@ -390,7 +390,8 @@ stapiu_target_reg(struct stapiu_target *target, struct task_struct* task)
 					 c->return_p ? "ret" : "", c->probe->index);
 				continue;
 			}
-			if (stapiu_register(target->inode, c) != 0)
+			ret = stapiu_register(target->inode, c);
+			if (ret != 0)
 				_stp_warn("probe %s inode-offset %p registration error (rc %d)",
 					  c->probe->pp, (void*) (uintptr_t) c->offset, ret);
 		}
