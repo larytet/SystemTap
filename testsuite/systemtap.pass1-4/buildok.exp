@@ -82,6 +82,9 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	    # without uprobes. (ia64 has utrace, but not uprobes.)
 	    if {$rc != 0 && ![uprobes_p]} { setup_kfail UPROBES *-*-* }
 	}
+
+	buildok/hwbkpt.stp {
+	    if {$rc != 0 && ![hwbkpt_probes_p]} { setup_kfail HWBKPT *-*-* } }
     }
     if {$rc == 0} { pass $test } else { fail $test }
 }
