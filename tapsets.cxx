@@ -10166,16 +10166,6 @@ void hwbkpt_derived_probe::join_group (systemtap_session& s)
 void hwbkpt_derived_probe_group::enroll (hwbkpt_derived_probe* p, systemtap_session& s)
 {
   hwbkpt_probes.push_back (p);
-
-  unsigned max_hwbkpt_probes_by_arch = 0;
-  if (s.architecture == "i386" || s.architecture == "x86_64")
-    max_hwbkpt_probes_by_arch = 4;
-  else if (s.architecture == "s390")
-    max_hwbkpt_probes_by_arch = 1;
-
-  if (hwbkpt_probes.size() >= max_hwbkpt_probes_by_arch)
-    s.print_warning (_F("Too many hardware breakpoint probes requested for %s (%zu vs. %u)",
-                          s.architecture.c_str(), hwbkpt_probes.size(), max_hwbkpt_probes_by_arch));
 }
 
 void
