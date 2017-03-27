@@ -10305,31 +10305,26 @@ hwbkpt_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline(-1) << "}";
   s.op->newline() << "hp->bp_type = skp->atype;";
 
-  // On x86 & x86-64, hp->bp_len is not just a number but a macro/enum (!?!).
-  if (s.architecture == "i386" || s.architecture == "x86_64" )
-    {
-      s.op->newline() << "switch(skp->len) {";
-      s.op->newline() << "case 1:";
-      s.op->newline(1) << "hp->bp_len = HW_BREAKPOINT_LEN_1;";
-      s.op->newline() << "break;";
-      s.op->newline(-1) << "case 2:";
-      s.op->newline(1) << "hp->bp_len = HW_BREAKPOINT_LEN_2;";
-      s.op->newline() << "break;";
-      s.op->newline(-1) << "case 3:";
-      s.op->newline() << "case 4:";
-      s.op->newline(1) << "hp->bp_len = HW_BREAKPOINT_LEN_4;";
-      s.op->newline() << "break;";
-      s.op->newline(-1) << "case 5:";
-      s.op->newline() << "case 6:";
-      s.op->newline() << "case 7:";
-      s.op->newline() << "case 8:";
-      s.op->newline() << "default:"; // XXX: could instead reject
-      s.op->newline(1) << "hp->bp_len = HW_BREAKPOINT_LEN_8;";
-      s.op->newline() << "break;";
-      s.op->newline(-1) << "}";
-    }
-  else // other architectures presumed straightforward
-    s.op->newline() << "hp->bp_len = skp->len;";
+  // Convert actual len to bp len.
+  s.op->newline() << "switch(skp->len) {";
+  s.op->newline() << "case 1:";
+  s.op->newline(1) << "hp->bp_len = HW_BREAKPOINT_LEN_1;";
+  s.op->newline() << "break;";
+  s.op->newline(-1) << "case 2:";
+  s.op->newline(1) << "hp->bp_len = HW_BREAKPOINT_LEN_2;";
+  s.op->newline() << "break;";
+  s.op->newline(-1) << "case 3:";
+  s.op->newline() << "case 4:";
+  s.op->newline(1) << "hp->bp_len = HW_BREAKPOINT_LEN_4;";
+  s.op->newline() << "break;";
+  s.op->newline(-1) << "case 5:";
+  s.op->newline() << "case 6:";
+  s.op->newline() << "case 7:";
+  s.op->newline() << "case 8:";
+  s.op->newline() << "default:"; // XXX: could instead reject
+  s.op->newline(1) << "hp->bp_len = HW_BREAKPOINT_LEN_8;";
+  s.op->newline() << "break;";
+  s.op->newline(-1) << "}";
 
   s.op->newline() << "probe_point = skp->probe->pp;"; // for error messages
   s.op->newline() << "#ifdef STAPCONF_HW_BREAKPOINT_CONTEXT";
