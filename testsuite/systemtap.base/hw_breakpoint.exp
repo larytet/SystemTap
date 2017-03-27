@@ -1,0 +1,147 @@
+set test "hw_breakpoint"
+if {![installtest_p]} { untested $test; return }
+# Note that 'hwbkpt_probes_p' really tests for kernel support. We
+# won't know if this hardware actually supports these probes until we
+# try them below.
+if {![hwbkpt_probes_p]} { untested $test; return }
+
+set build_dir ""
+set uname [exec /bin/uname -r]
+set mod_base stap_hwbkpt_kmod
+set mod_name ${mod_base}.ko
+set mod_cmd /proc/stap_hwbkpt_cmd
+
+proc build_and_install_module {} {
+    global build_dir
+    global srcdir subdir
+    global mod_name mod_base
+
+    # Create the build directory and populate it
+    if {[catch {exec mktemp -d -t staptestXXXXXX} build_dir]} {
+	verbose -log "Failed to create temporary directory: $build_dir"
+	return 0
+    }
+    if {[catch {exec cp $srcdir/$subdir/${mod_base}.c $build_dir/} res]} {
+	verbose -log "$res"
+	return 0
+    }
+    if {[catch {exec cp -p $srcdir/$subdir/${mod_base}.Makefile $build_dir/Makefile } res]} {
+	verbose -log "$res"
+	return 0
+    }
+
+    # Build the module
+    if {[catch {exec make -C $build_dir clean} res]} {
+	verbose -log "$res"
+	return 0
+    }
+    catch {exec make -C $build_dir} res
+    if {![file exists $build_dir/${mod_name}]} {
+	verbose -log "$res"
+	return 0
+    }
+    set res [as_root [list cp $build_dir/${mod_name} /lib/modules/$::uname/kernel/]]
+    if { $res != 0 } {
+	verbose -log "$res"
+	return 0
+    }
+
+    # Install the module
+    set res [as_root [list /sbin/insmod /lib/modules/$::uname/kernel/${mod_name}]]
+    if {$res != 0} {
+	verbose -log "$res"
+	return 0
+    }
+    return 1
+}
+
+proc cleanup_module {} {
+    global build_dir mod_name mod_base
+    as_root [list /bin/rm -f /lib/modules/$::uname/kernel/${mod_name}]
+    as_root [list /sbin/rmmod ${mod_base}]
+    if {$build_dir != ""} {
+	catch { exec rm -rf $build_dir }
+    }
+}
+
+if {[build_and_install_module] == 0} {
+    verbose -log "BUILD FAILED"
+    fail "$test (could not build/install module)"
+    return
+} else {
+    pass "$test (built and installed module)"
+}
+
+set sym_name "stap_hwbkpt_data"
+if {[catch {exec grep ${sym_name} /proc/kallsyms | awk "{print \$1}" } \
+     res]} {
+    fail "$test (couldn't find module data)"
+    cleanup_module
+    return 0
+}
+    
+set sym_addr "0x${res}"
+pass "$test (found symbol address)"
+verbose -log "probing ${sym_addr}..."
+
+# Make sure cmd file exists
+if {! [file exists ${mod_cmd}]} {
+    fail "$test (couldn't find cmd file - $mod_cmd)"
+    cleanup_module
+    return 0
+}
+pass "$test (found cmd file - $mod_cmd)"
+
+set found 0
+set no_hardware_support 0
+
+# Test address support
+spawn stap -e {probe kernel.data($1).rw { printf("value accessed\n"); exit() }} -c "echo 0 > ${mod_cmd}" ${sym_addr}
+expect {
+    -timeout 240
+    -re {ERROR: probe kernel.data.+ registration error} {
+	incr no_hardware_support; exp_continue } 
+    -re {value accessed\r\n} { incr found; exp_continue }
+    eof { }
+    timeout { fail "$test - addr (${script_name} (timeout))" }
+}
+catch {close}
+
+# get the return code of the process
+set rc [lindex [wait -i $spawn_id] 3]
+
+if { $no_hardware_support == 1 } {
+    xfail "$test - addr (kernel support, but no hardware support)"
+} elseif { $rc == 0 && $found == 1 } {
+    pass "$test - addr (hw breakpoint support)"
+} else {
+    fail "$test - addr ($rc, $found)"
+}
+
+set found 0
+set no_hardware_support 0
+
+# Test symbol support
+spawn stap -e {probe kernel.data(@1).rw { printf("value accessed\n"); exit() }} -c "echo 0 > ${mod_cmd}" ${sym_name}
+expect {
+    -timeout 240
+    -re {ERROR: probe kernel.data.+ registration error} {
+	incr no_hardware_support; exp_continue } 
+    -re {value accessed\r\n} { incr found; exp_continue }
+    eof { }
+    timeout { fail "$test - ${script_name} (timeout)" }
+}
+catch {close}
+
+# get the return code of the process
+set rc [lindex [wait -i $spawn_id] 3]
+
+if { $no_hardware_support == 1 } {
+    xfail "$test - symbol (kernel support, but no hardware support)"
+} elseif { $rc == 0 && $found == 1 } {
+    pass "$test - symbol (hw breakpoint support)"
+} else {
+    fail "$test - symbol ($rc, $found)"
+}
+
+cleanup_module
