@@ -10163,7 +10163,7 @@ void hwbkpt_derived_probe::join_group (systemtap_session& s)
   this->group = s.hwbkpt_derived_probes;
 }
 
-void hwbkpt_derived_probe_group::enroll (hwbkpt_derived_probe* p, systemtap_session& s)
+void hwbkpt_derived_probe_group::enroll (hwbkpt_derived_probe* p, systemtap_session&)
 {
   hwbkpt_probes.push_back (p);
 }
