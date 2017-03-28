@@ -61,17 +61,28 @@ guess_dyninst_rt(void)
   return libdyninstAPI_RT;
 }
 
+
 // Check that environment DYNINSTAPI_RT_LIB exists and is a valid file.
 // If not, try to guess a good value and set it.
 bool
 check_dyninst_rt(void)
 {
   static const char rt_env_name[] = "DYNINSTAPI_RT_LIB";
-  const char* rt_env = getenv(rt_env_name);
+  static const char dyn_rw_env_name[] = "DYNINST_REWRITER_PATHS";
+
+  char* rt_env = getenv(rt_env_name);
   if (rt_env)
     {
       if (file_exists(rt_env))
-        return true;
+	{
+	  if (appendenv(dyn_rw_env_name, rt_env) != 0)
+	    {
+	      int olderrno = errno;
+	      staperror() << "Can't set " << dyn_rw_env_name << ": " << strerror(olderrno);
+	      return false;
+	    }
+	  return true;
+	}
       staperror() << "Invalid " << rt_env_name << ": \"" << rt_env << "\"" << endl;
     }
 
@@ -82,7 +93,7 @@ check_dyninst_rt(void)
       return false;
     }
 
-  if (setenv(rt_env_name, rt.c_str(), 1) != 0)
+  if (appendenv(dyn_rw_env_name, rt) != 0)
     {
       int olderrno = errno;
       staperror() << "Can't set " << rt_env_name << ": " << strerror(olderrno);

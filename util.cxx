@@ -228,6 +228,23 @@ remove_file_or_dir (const char *name)
   return 0;
 }
 
+
+int
+appendenv (const char *env_name, const string source)
+{
+  string dirname = source.substr(0, source.rfind("/"));
+  char *env = getenv(env_name);
+  string new_env;
+  
+  if (env)
+    new_env = string (env) + ":" + dirname;
+  else
+    new_env = dirname;
+    
+  return setenv(env_name, new_env.c_str(), 1);
+}
+
+
 /* Obtain the gid of the given group. */
 gid_t get_gid (const char *group_name)
 {

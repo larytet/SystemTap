@@ -77,6 +77,7 @@ bool copy_file(const std::string& src, const std::string& dest,
 int create_dir(const char *dir, int mode = 0777);
 int remove_file_or_dir(const char *dir);
 extern "C" gid_t get_gid (const char *group_name);
+int appendenv (const char *env_name, const std::string source);
 bool in_group_id (gid_t target_gid);
 std::string getmemusage ();
 void tokenize(const std::string& str, std::vector<std::string>& tokens,
