@@ -889,10 +889,15 @@ probe nfs.proc3.read_done = kernel.function("nfs3_read_done") !,
 			    module("nfs").function("nfs3_read_done") ?,
 			    module("nfsv3").function("nfs3_read_done") ?
 {
-	if (@defined($hdr) || @defined($data)) {	# kernels >= 2.6.10
-		server_ip = @_nfs_data_server_ip(@choose_defined($hdr, $data))
-		prot = @_nfs_data_prot(@choose_defined($hdr, $data))
-		count = @_nfs_data_res_count(@choose_defined($hdr, $data))
+	if (@defined($hdr)) {				# kernels >= 3.17
+		server_ip = @_nfs_data_server_ip($hdr)
+		prot = @_nfs_data_prot($hdr)
+		count = @_nfs_data_res_count($hdr)
+	}
+	else if (@defined($data)) {			# kernels >= 2.6.10
+		server_ip = @_nfs_data_server_ip($data)
+		prot = @_nfs_data_prot($data)
+		count = @_nfs_data_res_count($data)
 	}
 	else {
 		server_ip = @_nfs_data_server_ip($task->tk_calldata)
@@ -923,11 +928,17 @@ probe nfs.proc4.read_done = kernel.function("nfs4_read_done") !,
 			    module("nfs").function("nfs4_read_done") ?,
 			    module("nfsv4").function("nfs4_read_done") ?
 {
-	if (@defined($hdr) || @defined($data)) {	# kernels >= 2.6.10
-		server_ip = @_nfs_data_server_ip(@choose_defined($hdr, $data))
-		prot = @_nfs_data_prot(@choose_defined($hdr, $data))
-		count = @_nfs_data_res_count(@choose_defined($hdr, $data))
-		timestamp = @_nfs_data_timestamp(@choose_defined($hdr, $data))
+	if (@defined($hdr)) {				# kernels >= 3.17
+		server_ip = @_nfs_data_server_ip($hdr)
+		prot = @_nfs_data_prot($hdr)
+		count = @_nfs_data_res_count($hdr)
+		timestamp = @_nfs_data_timestamp($hdr)
+	}
+	else if (@defined($data)) {			# kernels >= 2.6.10
+		server_ip = @_nfs_data_server_ip($data)
+		prot = @_nfs_data_prot($data)
+		count = @_nfs_data_res_count($data)
+		timestamp = @_nfs_data_timestamp($data)
 	}
 	else {
 		server_ip = @_nfs_data_server_ip($task->tk_calldata)
