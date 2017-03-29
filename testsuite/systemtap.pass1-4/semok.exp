@@ -119,9 +119,6 @@ foreach runtime [get_runtime_list] {
 		semok/plt2.stp {
 		    if {!$plt_probes_p} { untested $test; continue } }
 
-		semok/autocast14.stp {
-		    setup_kfail 18079 *-*-* }
-
 		semok/utrace14.stp {
 		    # Use setup_kfail ROOT_ONLY for tests that must be run as
 		    # root.
