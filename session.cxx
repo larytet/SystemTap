@@ -449,12 +449,12 @@ systemtap_session::version_string ()
 {
   string elfutils_version1;
 #ifdef _ELFUTILS_VERSION
-  elfutils_version1 = "0." + lex_cast(_ELFUTILS_VERSION);
+  elfutils_version1 = "0." + lex_cast(_ELFUTILS_VERSION); /* BUILD */
 #endif
-  string elfutils_version2 = dwfl_version(NULL);
+  string elfutils_version2 = dwfl_version(NULL); /* RUN */
 
   if (elfutils_version1 != elfutils_version2)
-    elfutils_version2 += string("/") + elfutils_version1;
+    elfutils_version2 += string("/") + elfutils_version1;   /* RUN/BUILD */
 
   return string (VERSION) + "/" + elfutils_version2 + ", " + STAP_EXTENDED_VERSION;
 }
