@@ -531,7 +531,7 @@ proc get_system_info {} {
     set full [exec gcc --version | head -1]
     set GCC_FullVersion "$n \[$full\]"
     # Parse elfutils version stap was compiled with
-    regexp {version [^/]*/([^,]*)} [exec stap -V 2>@ stdout] all ELF_Version
+    regexp {version [^/]*/([^,/]*)} [exec stap -V 2>@ stdout] all ELF_Version
     # selinux status
     if [file exists /usr/sbin/getenforce] {
         set SElinux [exec /usr/sbin/getenforce]
