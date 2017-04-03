@@ -11,6 +11,7 @@ proc get_syscalls {arr filter} {
     foreach rec [lsort -ascii $records] {
         set fields [split $rec " "]
         set locals ""
+	set scname "unknown"
         foreach token [lsort -ascii $fields] {
             regexp "\\.(\[^\\.\]+)" $token _ scname
             if {[regexp "^(\[\^_$\]\[^:\]+):" $token _ arg]} {
