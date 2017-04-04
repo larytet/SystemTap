@@ -1724,7 +1724,9 @@ and dereference the
 .I member
 value.  Further
 .IR \->subfield
-expressions may be appended to dereference more levels.
+expressions may be appended to dereference more levels. Note that for direct
+dereferencing of a pointer {kernel,user}_{char,int,...}($p) should be used.
+(Refer to stapfuncs(5) for more details.)
 .BR
 NOTE:
 the same dereferencing operator 
