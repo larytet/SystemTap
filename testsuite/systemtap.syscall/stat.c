@@ -1,15 +1,28 @@
 /* COVERAGE: getcwd fstat stat lstat fstatat fstatat64 utime */
 /* COVERAGE: fstat64 stat64 lstat64 */
 /* COVERAGE: newfstat newfstatat newlstat newstat */
+/* COVERAGE: statx */
 #define _GNU_SOURCE
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <fcntl.h>
 #include <utime.h>
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
+
+#ifdef __NR_statx
+/* For struct statx */
+#include <linux/stat.h>
+/* The AT_STATX_FORCE_SYNC is defined within linux/fcntl.h,
+ * but including that would cause conflict with already included fcntl.h
+ */
+#ifndef AT_STATX_FORCE_SYNC
+#define AT_STATX_FORCE_SYNC 0x2000
+#endif
+#endif
 
 // To test for glibc support for fstatat():
 //
@@ -22,12 +35,24 @@
   (_XOPEN_SOURCE >= 700 || _POSIX_C_SOURCE >= 200809L \
    || defined(_ATFILE_SOURCE))
 
+#ifdef __NR_statx
+static inline
+ssize_t statx(int dfd, const char *filename, unsigned flags,
+              unsigned int mask, struct statx *buffer)
+{
+        return syscall(__NR_statx, dfd, filename, flags, mask, buffer);
+}
+#endif
+
 int main()
 {
   int fd;
   char cwd[128];
   struct stat sbuf;
   struct utimbuf ubuf;
+#ifdef __NR_statx
+  struct statx stx;
+#endif
 
   getcwd(cwd, 128);
   //staptest// getcwd (XXXX, 128) = NNNN
@@ -50,6 +75,27 @@ int main()
   // staptest// fstat (-1, XXXX) = -NNNN
 #else
   //staptest// fstat (-1, 0x[f]+) = -NNNN
+#endif
+
+#ifdef __NR_statx
+  memset(&stx, 0xbf, sizeof(stx));
+  statx(AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, &stx);
+  //staptest// statx (AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, XXXX) = 0
+
+  statx((int)-1, "foobar", AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, &stx);
+  //staptest// statx (-1, "foobar", AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, XXXX) = -NNNN (EBADF)
+
+  statx(AT_FDCWD, (const char *)-1, AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, &stx);
+  //staptest// statx (AT_FDCWD, 0x[f]+, AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, XXXX) = -NNNN (EFAULT)
+
+  statx(AT_FDCWD, "foobar", (unsigned)-1, AT_STATX_FORCE_SYNC, &stx);
+  //staptest// statx (AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW|AT_REMOVEDIR|AT_SYMLINK_FOLLOW|AT_NO_AUTOMOUNT|AT_EMPTY_PATH|XXXX, AT_STATX_FORCE_SYNC, XXXX) = -NNNN (EINVAL)
+
+  statx(AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW, (unsigned)-1, &stx);
+  //staptest// statx (AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW, 0x[f]+, XXXX) = 0
+
+  statx(AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, (struct statx *)-1);
+  //staptest// statx (AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, 0x[f]+) = -NNNN (EFAULT)
 #endif
 
   close(fd);
@@ -168,6 +214,7 @@ int main()
   utime("foobar", (struct utimbuf *)-1);
   //staptest// utime ("foobar", \[Thu Jan  1 00:00:00 1970, Thu Jan  1 00:00:00 1970\]) = -NNNN
 #endif
+
 
   return 0;
 }

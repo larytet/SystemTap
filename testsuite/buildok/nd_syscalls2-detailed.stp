@@ -1244,7 +1244,18 @@ probe nd_syscall.stat.return
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.statfs
+probe nd_syscall.statx ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%s, %s, %s, %s, %p", dfd_str, filename, flags_str,
+	       mask_str, buf_uaddr)
+}
+probe nd_syscall.statx.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe syscall.statfs
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%p, %s\n", buf_uaddr, path)

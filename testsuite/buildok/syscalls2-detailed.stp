@@ -1230,6 +1230,17 @@ probe syscall.stat.return
 	printf("%s, %s\n", name, retstr)
 }
 
+probe syscall.statx ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%s, %s, %s, %s, %p", dfd_str, filename, flags_str,
+	       mask_str, buf_uaddr)
+}
+probe syscall.statx.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe syscall.statfs
 {
 	printf("%s, %s\n", name, argstr)

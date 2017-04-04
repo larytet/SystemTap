@@ -6115,3 +6115,21 @@ function _preadv2_flags_str:string (f:long)
 	_stp_lookup_or_str(_stp_preadv2_flags_list, flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
 %}
+
+%{
+static const _stp_val_array _stp_statx_mask_list[] = {
+#ifdef AT_STATX_SYNC_TYPE
+	V(AT_STATX_SYNC_TYPE),
+	V(AT_STATX_SYNC_AS_STAT),
+	V(AT_STATX_FORCE_SYNC),
+	V(AT_STATX_DONT_SYNC),
+#endif
+	{0, NULL}
+};
+%}
+
+function _statx_mask_str:string(cmd:long)
+%{ /* pure */ /* unprivileged */
+        _stp_lookup_str(_stp_statx_mask_list, (int)STAP_ARG_cmd,
+                        STAP_RETVALUE, MAXSTRINGLEN);
+%}
