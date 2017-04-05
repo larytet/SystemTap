@@ -20,10 +20,9 @@ probe syscall.fcntl.return = dw_syscall.fcntl.return !, nd_syscall.fcntl.return 
 
 # dw_fcntl _____________________________________________________
 
-probe dw_syscall.fcntl = kernel.function("compat_sys_fcntl").call ?,
-                      kernel.function("compat_sys_fcntl64").call ?,
-                      kernel.function("sys_fcntl64").call ?,
-                      kernel.function("sys_fcntl").call ?
+probe dw_syscall.fcntl = __dw_syscall.fcntl,
+                         kernel.function("compat_sys_fcntl").call ?,
+                         kernel.function("compat_sys_fcntl64").call ?
 {
 	@_SYSCALL_FCNTL_NAME
 	fd = __int32($fd)
@@ -32,21 +31,31 @@ probe dw_syscall.fcntl = kernel.function("compat_sys_fcntl").call ?,
 	arg = $arg
 	@_SYSCALL_FCNTL_ARGSTR
 }
-probe dw_syscall.fcntl.return = kernel.function("compat_sys_fcntl").return ?,
-                             kernel.function("compat_sys_fcntl64").return ?,
-                             kernel.function("sys_fcntl64").return ?,
-                             kernel.function("sys_fcntl").return ?
+probe __dw_syscall.fcntl = kernel.function("sys_fcntl64").call ?,
+                           kernel.function("sys_fcntl").call ?
+{
+	@__syscall_gate_compat_simple
+}
+
+probe dw_syscall.fcntl.return = __dw_syscall.fcntl.return,
+                                kernel.function("compat_sys_fcntl").return ?,
+                                kernel.function("compat_sys_fcntl64").return ?
 {
 	@_SYSCALL_FCNTL_NAME
 	retstr = return_str(1, $return)
 }
+probe __dw_syscall.fcntl.return = kernel.function("sys_fcntl64").return ?,
+                                  kernel.function("sys_fcntl").return ?
+{
+	@__syscall_gate_compat_simple
+}
+
 
 # nd_fcntl _____________________________________________________
 
-probe nd_syscall.fcntl = kprobe.function("compat_sys_fcntl") ?,
-                         kprobe.function("compat_sys_fcntl64") ?,
-                         kprobe.function("sys_fcntl64") ?,
-                         kprobe.function("sys_fcntl") ?
+probe nd_syscall.fcntl = __nd_syscall.fcntl,
+                         kprobe.function("compat_sys_fcntl") ?,
+                         kprobe.function("compat_sys_fcntl64") ?
 {
 	@_SYSCALL_FCNTL_NAME
 	asmlinkage()
@@ -56,11 +65,21 @@ probe nd_syscall.fcntl = kprobe.function("compat_sys_fcntl") ?,
 	arg = long_arg(3)
 	@_SYSCALL_FCNTL_ARGSTR
 }
-probe nd_syscall.fcntl.return = kprobe.function("compat_sys_fcntl").return ?,
-                                kprobe.function("compat_sys_fcntl64").return ?,
-                                kprobe.function("sys_fcntl64").return ?,
-                                kprobe.function("sys_fcntl").return ?
+probe __nd_syscall.fcntl = kprobe.function("sys_fcntl64") ?,
+                           kprobe.function("sys_fcntl") ?
+{
+	@__syscall_gate_compat_simple
+}
+
+probe nd_syscall.fcntl.return = __nd_syscall.fcntl.return,
+                                kprobe.function("compat_sys_fcntl").return ?,
+                                kprobe.function("compat_sys_fcntl64").return ?
 {
 	@_SYSCALL_FCNTL_NAME
 	retstr = returnstr(1)
+}
+probe __nd_syscall.fcntl.return = kprobe.function("sys_fcntl64").return ?,
+                                  kprobe.function("sys_fcntl").return ?
+{
+	@__syscall_gate_compat_simple
 }
