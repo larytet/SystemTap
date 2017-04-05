@@ -219,11 +219,14 @@ struct c_unparser: public unparser, public visitor
   void visit_logical_and_expr (logical_and_expr* e);
   void visit_array_in (array_in* e);
   void visit_regex_query (regex_query* e);
+  void visit_compound_expression(compound_expression* e);
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
   void visit_assignment (assignment* e);
   void visit_symbol (symbol* e);
+  void visit_target_register (target_register* e);
+  void visit_target_deref (target_deref* e);
   void visit_target_symbol (target_symbol* e);
   void visit_arrayindex (arrayindex* e);
   void visit_functioncall (functioncall* e);
@@ -303,8 +306,10 @@ struct c_unparser_assignment:
 		  tmpvar const & tmp,
 		  token const*  tok);
 
-  // only symbols and arrayindex nodes are possible lvalues
+  // The set of valid lvalues are limited.
   void visit_symbol (symbol* e);
+  void visit_target_register (target_register* e);
+  void visit_target_deref (target_deref* e);
   void visit_arrayindex (arrayindex* e);
 };
 
@@ -4971,6 +4976,16 @@ c_unparser::visit_regex_query (regex_query* e)
 }
 
 void
+c_unparser::visit_compound_expression(compound_expression* e)
+{
+  o->line() << "(";
+  e->left->visit (this);
+  o->line() << ", ";
+  e->right->visit (this);
+  o->line() << ")";
+}
+
+void
 c_unparser::visit_comparison (comparison* e)
 {
   o->line() << "(";
@@ -5119,6 +5134,23 @@ c_unparser::visit_symbol (symbol* e)
   o->line() << v;
 }
 
+void
+c_unparser::visit_target_register (target_register* e)
+{
+  o->line() << (e->userspace_p ? "u_fetch_register(" : "k_fetch_register(")
+	    << e->regno
+	    << ")";
+}
+
+void
+c_unparser::visit_target_deref (target_deref* e)
+{
+  o->line() << (e->userspace_p ? "uderef(" : "kderef(")
+	    << e->size << ", (";
+  e->addr->visit (this);
+  o->line() << "))";
+}
+
 
 // Assignment expansion is tricky.
 //
@@ -5184,6 +5216,44 @@ c_unparser_assignment::visit_symbol (symbol *e)
   o->newline() << res << ";";
 }
 
+void
+c_unparser_assignment::visit_target_register (target_register* e)
+{
+  exp_type ty = rvalue ? rvalue->type : e->type;
+  assert(ty == pe_long);
+
+  tmpvar rval = parent->gensym (pe_long);
+  prepare_rvalue (op, rval, e->tok);
+
+  // Given how target_registers are created in loc2stap.cxx,
+  // we should never see anything other than simple assignment.
+  assert(op == "=");
+
+  translator_output* o = parent->o;
+  o->newline() << (e->userspace_p ? "u_store_register(" : "k_store_register(")
+	       << e->regno << ", " << rval << ")";
+  o->newline() << rval << ";";
+}
+
+void
+c_unparser_assignment::visit_target_deref (target_deref* e)
+{
+  exp_type ty = rvalue ? rvalue->type : e->type;
+  assert(ty == pe_long);
+
+  tmpvar rval = parent->gensym (pe_long);
+
+  prepare_rvalue (op, rval, e->tok);
+
+  // Given how target_registers are created in loc2stap.cxx,
+  // we should never see anything other than simple assignment.
+  assert(op == "=");
+
+  translator_output* o = parent->o;
+  o->newline() << (e->userspace_p ? "store_uderef(" : "store_kderef(")
+	       << e->size << ", " << rval << ")";
+  o->newline() << rval << ";";
+}
 
 void
 c_unparser::visit_target_symbol (target_symbol* e)

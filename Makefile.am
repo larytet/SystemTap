@@ -44,7 +44,7 @@ endif
 
 stap_SOURCES = main.cxx session.cxx \
 	parse.cxx staptree.cxx elaborate.cxx translate.cxx \
-	tapsets.cxx buildrun.cxx loc2c.c hash.cxx mdfour.c \
+	tapsets.cxx buildrun.cxx loc2stap.cxx hash.cxx mdfour.c \
 	cache.cxx util.cxx coveragedb.cxx dwarf_wrappers.cxx \
 	tapset-been.cxx tapset-procfs.cxx tapset-timers.cxx tapset-netfilter.cxx \
 	tapset-perfmon.cxx tapset-mark.cxx tapset-itrace.cxx \
@@ -52,7 +52,8 @@ stap_SOURCES = main.cxx session.cxx \
 	setupdwfl.cxx remote.cxx privilege.cxx cmdline.cxx \
 	tapset-dynprobe.cxx tapset-method.cxx translator-output.cxx \
         stapregex.cxx stapregex-tree.cxx stapregex-parse.cxx \
-	stapregex-dfa.cxx stringtable.cxx tapset-python.cxx
+	stapregex-dfa.cxx stringtable.cxx tapset-python.cxx \
+	bpf-base.cxx bpf-bitset.cxx bpf-translate.cxx bpf-opt.cxx
 noinst_HEADERS = sdt_types.h
 stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @LIBINTL@ -lpthread
 stap_DEPENDENCIES =
@@ -213,13 +214,6 @@ stap_gen_cert_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@
 stap_gen_cert_LDADD = $(nss_LIBS)
 endif
 endif
-
-noinst_PROGRAMS = loc2c-test
-loc2c_test_SOURCES = loc2c-test.c loc2c.c
-loc2c_test_CFLAGS = $(stap_CFLAGS)
-loc2c_test_CPPFLAGS = $(stap_CPPFLAGS)
-loc2c_test_LDFLAGS = $(stap_LDFLAGS)
-loc2c_test_LDADD = $(stap_LDADD)
 endif
 
 # crash(8) extension
@@ -327,7 +321,7 @@ if BUILD_SERVER
 	rm -f $(DESTDIR)$(localstatedir)/log/stap-server/log
 endif
 
-SUBDIRS = . java python stapdyn staprun doc man po
+SUBDIRS = . java python stapdyn staprun stapbpf doc man po
 # NB: the gcov target above uses this to enumarate linked binaries' build directories
 DIST_SUBDIRS = testsuite $(SUBDIRS)
 EXTRA_DIST = m4/ChangeLog

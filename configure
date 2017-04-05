@@ -674,6 +674,7 @@ DYNINST_LDFLAGS
 DYNINST_CXXFLAGS
 CXXCPP
 DATE
+stapbpf_LIBS
 staprun_LIBS
 stap_LIBS
 elfutils_abs_srcdir
@@ -11403,15 +11404,20 @@ See \`config.log' for more details" "$LINENO" 5; }
 fi
 
   staprun_LIBS="$staprun_LIBS -lelf"
+  stapbpf_LIBS="$stapbpf_LIBS -lelf"
   LIBS="$save_LIBS"
 else
   # We built our own and staprun_LDFLAGS points at the install.
   staprun_LIBS="$staprun_LIBS -lelf"
+  stapbpf_LIBS="$stapbpf_LIBS -lelf"
 fi
+
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: staprun will link $staprun_LIBS" >&5
 $as_echo "$as_me: staprun will link $staprun_LIBS" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: stapbpf will link $stapbpf_LIBS" >&5
+$as_echo "$as_me: stapbpf will link $stapbpf_LIBS" >&6;}
 
 
 date=`date +%Y-%m-%d`
@@ -12608,6 +12614,8 @@ ac_config_files="$ac_config_files python/Makefile"
 
 ac_config_files="$ac_config_files staprun/Makefile"
 
+ac_config_files="$ac_config_files stapbpf/Makefile"
+
 ac_config_files="$ac_config_files staprun/run-staprun"
 
 ac_config_files="$ac_config_files staprun/guest/stapshd"
@@ -13495,6 +13503,7 @@ do
     "java/stapbm") CONFIG_FILES="$CONFIG_FILES java/stapbm" ;;
     "python/Makefile") CONFIG_FILES="$CONFIG_FILES python/Makefile" ;;
     "staprun/Makefile") CONFIG_FILES="$CONFIG_FILES staprun/Makefile" ;;
+    "stapbpf/Makefile") CONFIG_FILES="$CONFIG_FILES stapbpf/Makefile" ;;
     "staprun/run-staprun") CONFIG_FILES="$CONFIG_FILES staprun/run-staprun" ;;
     "staprun/guest/stapshd") CONFIG_FILES="$CONFIG_FILES staprun/guest/stapshd" ;;
     "staprun/guest/stapsh-daemon") CONFIG_FILES="$CONFIG_FILES staprun/guest/stapsh-daemon" ;;

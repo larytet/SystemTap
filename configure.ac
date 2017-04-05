@@ -583,14 +583,18 @@ if test $build_elfutils = no; then
   AC_CHECK_LIB(elf,elf_getshdrstrndx,[],[
     AC_MSG_FAILURE([libelf too old, need 0.142+])])
   staprun_LIBS="$staprun_LIBS -lelf"
+  stapbpf_LIBS="$stapbpf_LIBS -lelf"
   LIBS="$save_LIBS"
 else
   # We built our own and staprun_LDFLAGS points at the install.
   staprun_LIBS="$staprun_LIBS -lelf"
+  stapbpf_LIBS="$stapbpf_LIBS -lelf"
 fi
 
 AC_SUBST(staprun_LIBS)
+AC_SUBST(stapbpf_LIBS)
 AC_MSG_NOTICE([staprun will link $staprun_LIBS])
+AC_MSG_NOTICE([stapbpf will link $stapbpf_LIBS])
 
 
 dnl Plop in the build (configure) date
@@ -927,6 +931,7 @@ AC_CONFIG_FILES(java/Makefile)
 AC_CONFIG_FILES([java/stapbm], [chmod +x java/stapbm])
 AC_CONFIG_FILES(python/Makefile)
 AC_CONFIG_FILES(staprun/Makefile)
+AC_CONFIG_FILES(stapbpf/Makefile)
 AC_CONFIG_FILES([staprun/run-staprun], [chmod +x staprun/run-staprun])
 AC_CONFIG_FILES([staprun/guest/stapshd], [chmod +x staprun/guest/stapshd])
 AC_CONFIG_FILES([staprun/guest/stapsh-daemon], [chmod +x staprun/guest/stapsh-daemon])
