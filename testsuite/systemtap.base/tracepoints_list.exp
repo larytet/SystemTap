@@ -98,4 +98,23 @@ if {$tp_found > 0} {
 } else {
     fail "$test: no common tracepoints found by perf and systemtap"
 }
-    
+
+#
+# Now test the first tracepoint in each group, to make sure compile
+# requirements for each group is sufficient in itself.
+#
+# First, we'll populate the cache directory with the result of
+# building the entire tracepoint query module.
+catch { exec stap -l {kernel.trace("*")} }
+
+# Now test each group individually.
+set last_group ""
+set script_template {"probe kernel.trace(\"%s\") { exit() }"}
+foreach stp $stap_tracepoints {
+    regexp {^([^:]+):([^:]+)$} $stp dummy group tracepoint
+    if {$last_group == $group} { continue }
+    set last_group $group
+
+    set script [format $script_template "${group}:${tracepoint}"]
+    stap_compile "$test: group '$group' solo" 1 $script
+}
