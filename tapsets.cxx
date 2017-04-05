@@ -11189,6 +11189,12 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
 	they_live.push_back ("#include <linux/blkdev.h>");
     }
 
+  if (header.find("swiotlb") != string::npos)
+    {
+      if (header_exists(s, "/include/linux/swiotlb.h"))
+	they_live.push_back ("#include <linux/swiotlb.h>");
+    }
+
   return they_live;
 }
 
