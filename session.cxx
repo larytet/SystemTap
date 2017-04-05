@@ -954,8 +954,8 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
 	case 'S':
-          assert_regexp_match ("-S parameter", optarg, "^[0-9]+(,[0-9]+)?$");
           assert(optarg);
+          assert_regexp_match ("-S parameter", optarg, "^[0-9]+(,[0-9]+)?$");
 	  server_args.push_back (string ("-") + (char)grc + optarg);
 	  size_option = string (optarg);
 	  break;
@@ -1060,6 +1060,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	    // privilege level. The server also expects and depends on this behaviour when
 	    // examining the client-side options passed to it.
 	    privilege_t newPrivilege;
+	    assert(optarg);
 	    if (strcmp (optarg, "stapdev") == 0)
 	      newPrivilege = pr_stapdev;
 	    else if (strcmp (optarg, "stapsys") == 0)
@@ -1220,6 +1221,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  throw exit_exception(EXIT_SUCCESS);
 
 	case LONG_OPT_COMPATIBLE:
+          assert(optarg);
 	  server_args.push_back ("--compatible=" + string(optarg));
           if (strverscmp(optarg, VERSION) > 0) {
             cerr << _F("ERROR: systemtap version %s cannot be compatible with future version %s", VERSION, optarg)
@@ -1316,11 +1318,13 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	    cerr << _F("ERROR: %s is invalid with %s", "--modinfo", "--client-options") << endl;
 	    return 1;
 	  }
+          assert(optarg);
 	  assert_regexp_match("--modinfo parameter", optarg, "^[a-z_][a-z0-9_]*=.+$");
 	  modinfos.push_back (string(optarg));
 	  break;
 
 	case LONG_OPT_RLIMIT_AS:
+          assert(optarg);
 	  if(getrlimit(RLIMIT_AS, & our_rlimit))
 	    cerr << _F("Unable to obtain resource limits for rlimit-as : %s", strerror (errno)) << endl;
 	  if (strlen(optarg) == 0) {
@@ -1345,6 +1349,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
 	case LONG_OPT_RLIMIT_CPU:
+          assert(optarg);
 	  if(getrlimit(RLIMIT_CPU, & our_rlimit))
 	    cerr << _F("Unable to obtain resource limits for rlimit-cpu : %s", strerror (errno)) << endl;
 	  if (strlen(optarg) == 0) {
@@ -1365,6 +1370,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
 	case LONG_OPT_RLIMIT_NPROC:
+          assert(optarg);
 	  if(getrlimit(RLIMIT_NPROC, & our_rlimit))
 	    cerr << _F("Unable to obtain resource limits for rlimit-nproc : %s", strerror (errno)) << endl;
 	  if (strlen(optarg) == 0) {
@@ -1385,6 +1391,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
 	case LONG_OPT_RLIMIT_STACK:
+          assert(optarg);
 	  if(getrlimit(RLIMIT_STACK, & our_rlimit))
 	    cerr << _F("Unable to obtain resource limits for rlimit-stack : %s", strerror (errno)) << endl;
 	  if (strlen(optarg) == 0) {
@@ -1409,6 +1416,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
 	case LONG_OPT_RLIMIT_FSIZE:
+          assert(optarg);
 	  if(getrlimit(RLIMIT_FSIZE, & our_rlimit))
 	    cerr << _F("Unable to obtain resource limits for rlimit-fsize : %s", strerror (errno)) << endl;
 	  if (strlen(optarg) == 0) {
@@ -1436,7 +1444,9 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	      cerr << "ERROR: multiple --sysroot options not supported" << endl;
 	      return 1;
 	  } else {
-	      char *spath = canonicalize_file_name (optarg);
+	      char *spath;
+	      assert(optarg);
+	      spath = canonicalize_file_name (optarg);
 	      if (spath == NULL) {
 		  cerr << _F("ERROR: %s is an invalid directory for --sysroot", optarg) << endl;
 		  return 1;

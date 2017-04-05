@@ -8882,6 +8882,8 @@ private:
   void emit_module_perf_read_handlers (systemtap_session& s);
 
 public:
+  uprobe_derived_probe_group(): max_perf_counters(0) {}
+
   void emit_module_decls (systemtap_session& s);
   void emit_module_init (systemtap_session& s);
   void emit_module_refresh (systemtap_session& s);
