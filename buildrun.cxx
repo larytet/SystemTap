@@ -453,6 +453,8 @@ compile_pass (systemtap_session& s)
 		  "STAPCONF_GET_USER_PAGES_REMOTE_FLAGS", NULL);
   output_autoconf(s, o, "autoconf-get_user_pages_remote-flags_locked.c",
 		  "STAPCONF_GET_USER_PAGES_REMOTE_FLAGS_LOCKED", NULL);
+  output_autoconf(s, o, "autoconf-uapi-linux-sched-types.c",
+		  "STAPCONF_UAPI_LINUX_SCHED_TYPES", NULL);
 
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 

@@ -1730,6 +1730,9 @@ function _module_flags_str:string(flags:long)
 
 %{
 #include <linux/sched.h>
+#ifdef STAPCONF_UAPI_LINUX_SCHED_TYPES
+#include <uapi/linux/sched/types.h>
+#endif
 
 static const _stp_val_array _stp_sched_policy_list[] = {
 	{SCHED_NORMAL, "SCHED_OTHER"}, // SCHED_NORMAL==SCHED_OTHER
