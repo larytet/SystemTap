@@ -702,21 +702,25 @@ program::mk_jcond(insn_inserter &ins, condition c, value *s0, value *s1,
       break;
     case LE:
       inv = true;
+      /* Fallthrough */
     case GT:
       code = BPF_JSGT;
       break;
     case LT:
       inv = true;
+      /* Fallthrough */
     case GE:
       code = BPF_JSGE;
       break;
     case LEU:
       inv = true;
+      /* Fallthrough */
     case GTU:
       code = BPF_JGT;
       break;
     case LTU:
       inv = true;
+      /* Fallthrough */
     case GEU:
       code = BPF_JGE;
       break;

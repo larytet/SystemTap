@@ -125,21 +125,28 @@ iterative_hash (const unsigned char *k,		// the key
     {
     // the first byte of c is reserved for the length
     case 11:		c += ((uint32_t)k[10] << 24);
+			/* Fallthrough */
     case 10:		c += ((uint32_t)k[9] << 16);
+			/* Fallthrough */
     case 9:		c += ((uint32_t)k[8] << 8);
 			goto last_8;
 
     case 7:		b += ((uint32_t)k[6] << 16);
+			/* Fallthrough */
     case 6:		b += ((uint32_t)k[5] << 8);
+			/* Fallthrough */
     case 5:		b += k[4];
 			goto last_4;
 
     case 3:		a += ((uint32_t)k[2] << 16);
+			/* Fallthrough */
     case 2:		a += ((uint32_t)k[1] << 8);
+			/* Fallthrough */
     case 1:		a += k[0];
     case 0:		break;
 
     case 8: last_8:	b += load32(k + 4);
+			/* Fallthrough */
     case 4: last_4:	a += load32(k + 0);
 			break;
     }
@@ -530,21 +537,25 @@ bpf_interpret(bpf_context *c, size_t ninsns, const struct bpf_insn insns[])
 
 	case BPF_ST | BPF_MEM | BPF_B:
 	  sr = si;
+	  /* Fallthrough */
 	case BPF_STX | BPF_MEM | BPF_B:
 	  *(uint8_t *)((uintptr_t)dr + i->off) = sr;
 	  goto nowrite;
 	case BPF_ST | BPF_MEM | BPF_H:
 	  sr = si;
+	  /* Fallthrough */
 	case BPF_STX | BPF_MEM | BPF_H:
 	  *(uint16_t *)((uintptr_t)dr + i->off) = sr;
 	  goto nowrite;
 	case BPF_ST | BPF_MEM | BPF_W:
 	  sr = si;
+	  /* Fallthrough */
 	case BPF_STX | BPF_MEM | BPF_W:
 	  *(uint32_t *)((uintptr_t)dr + i->off) = sr;
 	  goto nowrite;
 	case BPF_ST | BPF_MEM | BPF_DW:
 	  sr = si;
+	  /* Fallthrough */
 	case BPF_STX | BPF_MEM | BPF_DW:
 	  *(uint64_t *)((uintptr_t)dr + i->off) = sr;
 	  goto nowrite;
@@ -570,6 +581,7 @@ bpf_interpret(bpf_context *c, size_t ninsns, const struct bpf_insn insns[])
 	case BPF_ALU64 | BPF_ARSH | BPF_X:
 	case BPF_ALU64 | BPF_ARSH | BPF_K: dr = (int64_t)dr >> s1; break;
 	case BPF_ALU64 | BPF_NEG:	   dr = -sr;
+					   /* Fallthrough */
 	case BPF_ALU64 | BPF_DIV | BPF_X:
 	case BPF_ALU64 | BPF_DIV | BPF_K:
 	  if (s1 == 0)
@@ -604,6 +616,7 @@ bpf_interpret(bpf_context *c, size_t ninsns, const struct bpf_insn insns[])
 	case BPF_ALU | BPF_ARSH | BPF_X:
 	case BPF_ALU | BPF_ARSH | BPF_K: dr = (int32_t)dr >> s1; break;
 	case BPF_ALU | BPF_NEG:		 dr = -(uint32_t)sr;
+					 /* Fallthrough */
 	case BPF_ALU | BPF_DIV | BPF_X:
 	case BPF_ALU | BPF_DIV | BPF_K:
 	  if ((uint32_t)s1 == 0)
