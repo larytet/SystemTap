@@ -13,6 +13,7 @@ AM_CFLAGS += @PIECFLAGS@
 AM_CXXFLAGS += @PIECXXFLAGS@
 AM_LDFLAGS = @PIELDFLAGS@
 
+if HAVE_LINUX_BPF_H
 bin_PROGRAMS = stapbpf
 
 stapbpf_SOURCES = stapbpf.cxx bpfinterp.cxx libbpf.c
@@ -37,3 +38,4 @@ install-exec-hook:
 		&& chgrp stapusr "$(DESTDIR)$(bindir)/stapbpf" \
 		&& chmod 04110 "$(DESTDIR)$(bindir)/stapbpf"; \
 	fi
+endif

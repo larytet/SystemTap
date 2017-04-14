@@ -52,8 +52,7 @@ stap_SOURCES = main.cxx session.cxx \
 	setupdwfl.cxx remote.cxx privilege.cxx cmdline.cxx \
 	tapset-dynprobe.cxx tapset-method.cxx translator-output.cxx \
         stapregex.cxx stapregex-tree.cxx stapregex-parse.cxx \
-	stapregex-dfa.cxx stringtable.cxx tapset-python.cxx \
-	bpf-base.cxx bpf-bitset.cxx bpf-translate.cxx bpf-opt.cxx
+	stapregex-dfa.cxx stringtable.cxx tapset-python.cxx
 noinst_HEADERS = sdt_types.h
 stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @LIBINTL@ -lpthread
 stap_DEPENDENCIES =
@@ -61,6 +60,10 @@ stap_DEPENDENCIES =
 if HAVE_LIBREADLINE
 stap_SOURCES += interactive.cxx
 stap_LDADD += @READLINE_LIBS@
+endif
+
+if HAVE_LINUX_BPF_H
+stap_SOURCES += bpf-base.cxx bpf-bitset.cxx bpf-translate.cxx bpf-opt.cxx
 endif
 
 if BUILD_VIRT

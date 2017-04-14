@@ -103,27 +103,28 @@ bin_PROGRAMS = $(am__EXEEXT_1) $(am__EXEEXT_2)
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_6 = stap-start-server stap-stop-server
 @BUILD_TRANSLATOR_TRUE@@HAVE_LIBREADLINE_TRUE@am__append_7 = interactive.cxx
 @BUILD_TRANSLATOR_TRUE@@HAVE_LIBREADLINE_TRUE@am__append_8 = @READLINE_LIBS@
-@BUILD_TRANSLATOR_TRUE@@BUILD_VIRT_TRUE@am__append_9 = stapvirt
-@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@am__append_10 = $(avahi_CFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_LINUX_BPF_H_TRUE@am__append_9 = bpf-base.cxx bpf-bitset.cxx bpf-translate.cxx bpf-opt.cxx
+@BUILD_TRANSLATOR_TRUE@@BUILD_VIRT_TRUE@am__append_10 = stapvirt
 @BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@am__append_11 = $(avahi_CFLAGS)
-@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@am__append_12 = $(avahi_LIBS)
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_13 = nsscommon.cxx csclient.cxx cscommon.cxx 
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_14 = $(nss_CFLAGS) -DSTAP
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_15 = $(nss_CFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@am__append_12 = $(avahi_CFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@am__append_13 = $(avahi_LIBS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_14 = nsscommon.cxx csclient.cxx cscommon.cxx 
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_15 = $(nss_CFLAGS) -DSTAP
 @BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_16 = $(nss_CFLAGS)
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_17 = $(nss_LIBS)
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_18 = install-scripts
-@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_19 = -Iinclude-elfutils
-@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_20 = -Llib-elfutils -Wl,-rpath-link,lib-elfutils \
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_17 = $(nss_CFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_18 = $(nss_LIBS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_19 = install-scripts
+@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_20 = -Iinclude-elfutils
+@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_21 = -Llib-elfutils -Wl,-rpath-link,lib-elfutils \
 @BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@		-Wl,--enable-new-dtags,-rpath,$(pkglibdir)
 
-@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_21 = stamp-elfutils
 @BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_22 = stamp-elfutils
-@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_23 = lib-elfutils/libdw.so
-@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_24 = install-elfutils
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@@HAVE_NSS_TRUE@am__append_25 = $(avahi_CFLAGS)
+@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_23 = stamp-elfutils
+@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_24 = lib-elfutils/libdw.so
+@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_25 = install-elfutils
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@@HAVE_NSS_TRUE@am__append_26 = $(avahi_CFLAGS)
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@@HAVE_NSS_TRUE@am__append_27 = $(avahi_LIBS)
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@@HAVE_NSS_TRUE@am__append_27 = $(avahi_CFLAGS)
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@@HAVE_NSS_TRUE@am__append_28 = $(avahi_LIBS)
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
@@ -162,7 +163,11 @@ am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(pkglibexecdir)" \
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap-gen-cert$(EXEEXT)
 PROGRAMS = $(bin_PROGRAMS) $(pkglibexec_PROGRAMS)
 @BUILD_TRANSLATOR_TRUE@@HAVE_LIBREADLINE_TRUE@am__objects_1 = stap-interactive.$(OBJEXT)
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__objects_2 = stap-nsscommon.$(OBJEXT) \
+@BUILD_TRANSLATOR_TRUE@@HAVE_LINUX_BPF_H_TRUE@am__objects_2 = stap-bpf-base.$(OBJEXT) \
+@BUILD_TRANSLATOR_TRUE@@HAVE_LINUX_BPF_H_TRUE@	stap-bpf-bitset.$(OBJEXT) \
+@BUILD_TRANSLATOR_TRUE@@HAVE_LINUX_BPF_H_TRUE@	stap-bpf-translate.$(OBJEXT) \
+@BUILD_TRANSLATOR_TRUE@@HAVE_LINUX_BPF_H_TRUE@	stap-bpf-opt.$(OBJEXT)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__objects_3 = stap-nsscommon.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap-csclient.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap-cscommon.$(OBJEXT)
 @BUILD_TRANSLATOR_TRUE@am_stap_OBJECTS = stap-main.$(OBJEXT) \
@@ -204,11 +209,8 @@ PROGRAMS = $(bin_PROGRAMS) $(pkglibexec_PROGRAMS)
 @BUILD_TRANSLATOR_TRUE@	stap-stapregex-dfa.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	stap-stringtable.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	stap-tapset-python.$(OBJEXT) \
-@BUILD_TRANSLATOR_TRUE@	stap-bpf-base.$(OBJEXT) \
-@BUILD_TRANSLATOR_TRUE@	stap-bpf-bitset.$(OBJEXT) \
-@BUILD_TRANSLATOR_TRUE@	stap-bpf-translate.$(OBJEXT) \
-@BUILD_TRANSLATOR_TRUE@	stap-bpf-opt.$(OBJEXT) $(am__objects_1) \
-@BUILD_TRANSLATOR_TRUE@	$(am__objects_2)
+@BUILD_TRANSLATOR_TRUE@	$(am__objects_1) $(am__objects_2) \
+@BUILD_TRANSLATOR_TRUE@	$(am__objects_3)
 stap_OBJECTS = $(am_stap_OBJECTS)
 am__DEPENDENCIES_1 =
 @BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@am__DEPENDENCIES_2 =  \
@@ -609,15 +611,13 @@ oldinclude_HEADERS = includes/sys/sdt.h includes/sys/sdt-config.h
 @BUILD_TRANSLATOR_TRUE@	translator-output.cxx stapregex.cxx \
 @BUILD_TRANSLATOR_TRUE@	stapregex-tree.cxx stapregex-parse.cxx \
 @BUILD_TRANSLATOR_TRUE@	stapregex-dfa.cxx stringtable.cxx \
-@BUILD_TRANSLATOR_TRUE@	tapset-python.cxx bpf-base.cxx \
-@BUILD_TRANSLATOR_TRUE@	bpf-bitset.cxx bpf-translate.cxx \
-@BUILD_TRANSLATOR_TRUE@	bpf-opt.cxx $(am__append_7) \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_13)
+@BUILD_TRANSLATOR_TRUE@	tapset-python.cxx $(am__append_7) \
+@BUILD_TRANSLATOR_TRUE@	$(am__append_9) $(am__append_14)
 @BUILD_TRANSLATOR_TRUE@noinst_HEADERS = sdt_types.h
 @BUILD_TRANSLATOR_TRUE@stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ \
 @BUILD_TRANSLATOR_TRUE@	@LIBINTL@ -lpthread $(am__append_8) \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_12) $(am__append_17)
-@BUILD_TRANSLATOR_TRUE@stap_DEPENDENCIES = $(am__append_23)
+@BUILD_TRANSLATOR_TRUE@	$(am__append_13) $(am__append_18)
+@BUILD_TRANSLATOR_TRUE@stap_DEPENDENCIES = $(am__append_24)
 @BUILD_TRANSLATOR_TRUE@@BUILD_VIRT_TRUE@stapvirt_SOURCES = stapvirt.c
 @BUILD_TRANSLATOR_TRUE@@BUILD_VIRT_TRUE@stapvirt_CFLAGS =  \
 @BUILD_TRANSLATOR_TRUE@@BUILD_VIRT_TRUE@	$(AM_CFLAGS) \
@@ -634,20 +634,20 @@ oldinclude_HEADERS = includes/sys/sdt.h includes/sys/sdt-config.h
 # of foo-bar.c if it is newer than the foo-bar.o file. Using noinst_foo_SOURCES
 # instead of foo_SOURCES prevents shipping git_version.h in dist tarballs,
 # which may cause false GIT_FOO readings.
-BUILT_SOURCES = git_version.stamp $(am__append_21)
-CLEANFILES = git_version.h $(am__append_22) $(pkglibexec_PROGRAMS)
+BUILT_SOURCES = git_version.stamp $(am__append_22)
+CLEANFILES = git_version.h $(am__append_23) $(pkglibexec_PROGRAMS)
 GIT_VERSION_CMD = $(SHELL) $(top_srcdir)/git_version.sh
-PHONIES = $(am__append_18) $(am__append_24) runcheck update-po \
+PHONIES = $(am__append_19) $(am__append_25) runcheck update-po \
 	dist-gzip rpm srpm uprobes install-uprobes
 @BUILD_TRANSLATOR_TRUE@stap_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_14)
+@BUILD_TRANSLATOR_TRUE@	$(am__append_15)
 @BUILD_TRANSLATOR_TRUE@stap_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_10) $(am__append_15)
+@BUILD_TRANSLATOR_TRUE@	$(am__append_11) $(am__append_16)
 @BUILD_TRANSLATOR_TRUE@stap_CPPFLAGS = $(AM_CPPFLAGS) -DSTAP_SDT_V2 \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_11) $(am__append_16) \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_19)
-@BUILD_TRANSLATOR_TRUE@stap_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@ \
+@BUILD_TRANSLATOR_TRUE@	$(am__append_12) $(am__append_17) \
 @BUILD_TRANSLATOR_TRUE@	$(am__append_20)
+@BUILD_TRANSLATOR_TRUE@stap_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@ \
+@BUILD_TRANSLATOR_TRUE@	$(am__append_21)
 @BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_sign_module_SOURCES = stap-sign-module.cxx nsscommon.cxx util.cxx
 @BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_sign_module_CPPFLAGS = $(AM_CPPFLAGS)
 @BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_sign_module_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ $(nss_CFLAGS)
@@ -664,15 +664,15 @@ PHONIES = $(am__append_18) $(am__append_24) runcheck update-po \
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_serverd_CXXFLAGS = $(AM_CXXFLAGS) \
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	@PIECXXFLAGS@ \
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	$(nss_CFLAGS) \
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	$(am__append_26)
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	$(am__append_27)
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_serverd_CFLAGS = $(AM_CFLAGS) \
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	@PIECFLAGS@ \
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	$(nss_CFLAGS) \
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	$(am__append_25)
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	$(am__append_26)
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_serverd_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_serverd_LDADD = $(nss_LIBS) \
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	-lpthread \
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	$(am__append_27)
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	$(am__append_28)
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_gen_cert_SOURCES = stap-gen-cert.cxx util.cxx nsscommon.cxx
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_gen_cert_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ $(nss_CFLAGS)
 @BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_gen_cert_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ $(nss_CFLAGS)
@@ -1613,6 +1613,20 @@ stap-tapset-python.obj: tapset-python.cxx
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-tapset-python.obj `if test -f 'tapset-python.cxx'; then $(CYGPATH_W) 'tapset-python.cxx'; else $(CYGPATH_W) '$(srcdir)/tapset-python.cxx'; fi`
 
+stap-interactive.o: interactive.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-interactive.o -MD -MP -MF $(DEPDIR)/stap-interactive.Tpo -c -o stap-interactive.o `test -f 'interactive.cxx' || echo '$(srcdir)/'`interactive.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-interactive.Tpo $(DEPDIR)/stap-interactive.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='interactive.cxx' object='stap-interactive.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-interactive.o `test -f 'interactive.cxx' || echo '$(srcdir)/'`interactive.cxx
+
+stap-interactive.obj: interactive.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-interactive.obj -MD -MP -MF $(DEPDIR)/stap-interactive.Tpo -c -o stap-interactive.obj `if test -f 'interactive.cxx'; then $(CYGPATH_W) 'interactive.cxx'; else $(CYGPATH_W) '$(srcdir)/interactive.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-interactive.Tpo $(DEPDIR)/stap-interactive.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='interactive.cxx' object='stap-interactive.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-interactive.obj `if test -f 'interactive.cxx'; then $(CYGPATH_W) 'interactive.cxx'; else $(CYGPATH_W) '$(srcdir)/interactive.cxx'; fi`
+
 stap-bpf-base.o: bpf-base.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-bpf-base.o -MD -MP -MF $(DEPDIR)/stap-bpf-base.Tpo -c -o stap-bpf-base.o `test -f 'bpf-base.cxx' || echo '$(srcdir)/'`bpf-base.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-bpf-base.Tpo $(DEPDIR)/stap-bpf-base.Po
@@ -1668,20 +1682,6 @@ stap-bpf-opt.obj: bpf-opt.cxx
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='bpf-opt.cxx' object='stap-bpf-opt.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-bpf-opt.obj `if test -f 'bpf-opt.cxx'; then $(CYGPATH_W) 'bpf-opt.cxx'; else $(CYGPATH_W) '$(srcdir)/bpf-opt.cxx'; fi`
-
-stap-interactive.o: interactive.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-interactive.o -MD -MP -MF $(DEPDIR)/stap-interactive.Tpo -c -o stap-interactive.o `test -f 'interactive.cxx' || echo '$(srcdir)/'`interactive.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-interactive.Tpo $(DEPDIR)/stap-interactive.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='interactive.cxx' object='stap-interactive.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-interactive.o `test -f 'interactive.cxx' || echo '$(srcdir)/'`interactive.cxx
-
-stap-interactive.obj: interactive.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-interactive.obj -MD -MP -MF $(DEPDIR)/stap-interactive.Tpo -c -o stap-interactive.obj `if test -f 'interactive.cxx'; then $(CYGPATH_W) 'interactive.cxx'; else $(CYGPATH_W) '$(srcdir)/interactive.cxx'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-interactive.Tpo $(DEPDIR)/stap-interactive.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='interactive.cxx' object='stap-interactive.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-interactive.obj `if test -f 'interactive.cxx'; then $(CYGPATH_W) 'interactive.cxx'; else $(CYGPATH_W) '$(srcdir)/interactive.cxx'; fi`
 
 stap-nsscommon.o: nsscommon.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-nsscommon.o -MD -MP -MF $(DEPDIR)/stap-nsscommon.Tpo -c -o stap-nsscommon.o `test -f 'nsscommon.cxx' || echo '$(srcdir)/'`nsscommon.cxx

@@ -641,6 +641,8 @@ HAVE_SELINUX_FALSE
 HAVE_SELINUX_TRUE
 selinux_LIBS
 selinux_CFLAGS
+HAVE_LINUX_BPF_H_FALSE
+HAVE_LINUX_BPF_H_TRUE
 support_section_question
 HAVE_MONITOR_LIBS_FALSE
 HAVE_MONITOR_LIBS_TRUE
@@ -12247,6 +12249,28 @@ support_section_question=0
 if test $stap_cv_sectionq = yes; then
   support_section_question=1
 fi
+
+for ac_header in linux/bpf.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "linux/bpf.h" "ac_cv_header_linux_bpf_h" "$ac_includes_default"
+if test "x$ac_cv_header_linux_bpf_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LINUX_BPF_H 1
+_ACEOF
+
+fi
+
+done
+
+ if test "x$ac_cv_header_linux_bpf_h" = "xyes"; then
+  HAVE_LINUX_BPF_H_TRUE=
+  HAVE_LINUX_BPF_H_FALSE='#'
+else
+  HAVE_LINUX_BPF_H_TRUE='#'
+  HAVE_LINUX_BPF_H_FALSE=
+fi
+
+
 ac_config_files="$ac_config_files includes/sys/sdt-config.h po/Makefile.in"
 
 
@@ -12859,6 +12883,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_MONITOR_LIBS_TRUE}" && test -z "${HAVE_MONITOR_LIBS_FALSE}"; then
   as_fn_error $? "conditional \"HAVE_MONITOR_LIBS\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_LINUX_BPF_H_TRUE}" && test -z "${HAVE_LINUX_BPF_H_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_LINUX_BPF_H\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_SELINUX_TRUE}" && test -z "${HAVE_SELINUX_FALSE}"; then

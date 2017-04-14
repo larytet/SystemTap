@@ -778,6 +778,11 @@ support_section_question=0
 if test $stap_cv_sectionq = yes; then
   support_section_question=1
 fi
+
+dnl Check if we have <linux/bpf.h> for bpf backend.
+AC_CHECK_HEADERS(linux/bpf.h)
+AM_CONDITIONAL(HAVE_LINUX_BPF_H, [test "x$ac_cv_header_linux_bpf_h" = "xyes"])
+
 AC_CONFIG_FILES([includes/sys/sdt-config.h po/Makefile.in])
 
 if test $build_elfutils = yes -a $enable_translator = yes; then

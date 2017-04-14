@@ -522,8 +522,8 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@HAVE_PYTHON_PROBES_FALSE@clean-local:
 @HAVE_PYTHON_PROBES_FALSE@install-exec-local:
+@HAVE_PYTHON_PROBES_FALSE@clean-local:
 clean: clean-am
 
 clean-am: clean-generic clean-local mostlyclean-am

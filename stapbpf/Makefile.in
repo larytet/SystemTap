@@ -91,7 +91,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-bin_PROGRAMS = stapbpf$(EXEEXT)
+@HAVE_LINUX_BPF_H_TRUE@bin_PROGRAMS = stapbpf$(EXEEXT)
 subdir = stapbpf
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
@@ -111,11 +111,12 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_stapbpf_OBJECTS = stapbpf-stapbpf.$(OBJEXT) \
-	stapbpf-bpfinterp.$(OBJEXT) stapbpf-libbpf.$(OBJEXT)
+@HAVE_LINUX_BPF_H_TRUE@am_stapbpf_OBJECTS = stapbpf-stapbpf.$(OBJEXT) \
+@HAVE_LINUX_BPF_H_TRUE@	stapbpf-bpfinterp.$(OBJEXT) \
+@HAVE_LINUX_BPF_H_TRUE@	stapbpf-libbpf.$(OBJEXT)
 stapbpf_OBJECTS = $(am_stapbpf_OBJECTS)
 am__DEPENDENCIES_1 =
-stapbpf_DEPENDENCIES = $(am__DEPENDENCIES_1)
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_DEPENDENCIES = $(am__DEPENDENCIES_1)
 stapbpf_LINK = $(CXXLD) $(stapbpf_CXXFLAGS) $(CXXFLAGS) \
 	$(stapbpf_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
@@ -392,15 +393,15 @@ AM_CPPFLAGS = -D_GNU_SOURCE -I$(srcdir)/../includes \
 	-DSYSCONFDIR='"$(sysconfdir)"' -DPKGDATADIR='"${pkgdatadir}"' \
 	-DPKGLIBDIR='"$(pkglibexecdir)"' -DLOCALEDIR='"$(localedir)"'
 AM_LDFLAGS = @PIELDFLAGS@
-stapbpf_SOURCES = stapbpf.cxx bpfinterp.cxx libbpf.c
-stapbpf_CFLAGS = $(AM_CFLAGS)
-stapbpf_CXXFLAGS = $(AM_CXXFLAGS)
-stapbpf_LDFLAGS = $(AM_LDFLAGS)
-stapbpf_LDADD = $(stapbpf_LIBS)
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_SOURCES = stapbpf.cxx bpfinterp.cxx libbpf.c
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_CFLAGS = $(AM_CFLAGS)
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_CXXFLAGS = $(AM_CXXFLAGS)
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_LDFLAGS = $(AM_LDFLAGS)
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_LDADD = $(stapbpf_LIBS)
 
 # Arrange for the top-level git_version.h to be regenerated at every "make".
-BUILT_SOURCES = git_version.stamp
-CLEANFILES = 
+@HAVE_LINUX_BPF_H_TRUE@BUILT_SOURCES = git_version.stamp
+@HAVE_LINUX_BPF_H_TRUE@CLEANFILES = 
 all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
@@ -658,6 +659,7 @@ maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
+@HAVE_LINUX_BPF_H_FALSE@install-exec-hook:
 clean: clean-am
 
 clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
@@ -746,17 +748,17 @@ uninstall-am: uninstall-binPROGRAMS
 
 .PRECIOUS: Makefile
 
-git_version.stamp ../git_version.h:
-	$(MAKE) -C .. $(notdir $@)
+@HAVE_LINUX_BPF_H_TRUE@git_version.stamp ../git_version.h:
+@HAVE_LINUX_BPF_H_TRUE@	$(MAKE) -C .. $(notdir $@)
 
 # Why the "id -u" condition?  This way, an unprivileged user can run
 # make install, and have "sudo stap ...." or "sudo stapbpf ...." work later.
-install-exec-hook:
-	if [ `id -u` -eq 0 ]; then \
-		getent group stapusr >/dev/null \
-		&& chgrp stapusr "$(DESTDIR)$(bindir)/stapbpf" \
-		&& chmod 04110 "$(DESTDIR)$(bindir)/stapbpf"; \
-	fi
+@HAVE_LINUX_BPF_H_TRUE@install-exec-hook:
+@HAVE_LINUX_BPF_H_TRUE@	if [ `id -u` -eq 0 ]; then \
+@HAVE_LINUX_BPF_H_TRUE@		getent group stapusr >/dev/null \
+@HAVE_LINUX_BPF_H_TRUE@		&& chgrp stapusr "$(DESTDIR)$(bindir)/stapbpf" \
+@HAVE_LINUX_BPF_H_TRUE@		&& chmod 04110 "$(DESTDIR)$(bindir)/stapbpf"; \
+@HAVE_LINUX_BPF_H_TRUE@	fi
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
