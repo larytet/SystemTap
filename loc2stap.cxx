@@ -236,7 +236,7 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
   bool saw_stack_value = false;
   bool computing_value = computing_value_orig;
   Dwarf_Word piece_size = 0;
-  Dwarf_Block implicit_value = { };
+  Dwarf_Block implicit_value = { .length = 0, .data = NULL };
   const Dwarf_Op *implicit_pointer = NULL;
   location temp_piece;
   size_t i;
