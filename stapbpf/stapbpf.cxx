@@ -37,6 +37,10 @@
 extern "C" {
 #include <linux/bpf.h>
 #include <linux/perf_event.h>
+/* Introduced in 4.1. */
+#ifndef PERF_EVENT_IOC_SET_BPF
+#define PERF_EVENT_IOC_SET_BPF _IOW('$', 8, __u32)
+#endif
 #include <libelf.h>
 }
 
