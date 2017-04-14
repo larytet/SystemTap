@@ -13,6 +13,19 @@
 #include <arpa/inet.h>
 #include "libbpf.h"
 
+/* Older headers might not have this defined yet. */
+#ifndef __NR_bpf
+# if defined(__i386__)
+#  define __NR_bpf 357
+# elif defined(__x86_64__)
+#  define __NR_bpf 321
+# elif defined(__aarch64__)
+#  define __NR_bpf 280
+# else
+#  error __NR_bpf not defined.
+# endif
+#endif
+
 static __u64 ptr_to_u64(void *ptr)
 {
 	return (__u64) (unsigned long) ptr;
@@ -22,56 +35,51 @@ int bpf_create_map(enum bpf_map_type map_type, unsigned key_size,
 		   unsigned value_size, unsigned max_entries,
 		   unsigned flags __attribute__((unused)))
 {
-	union bpf_attr attr = {
-		.map_type = map_type,
-		.key_size = key_size,
-		.value_size = value_size,
-		.max_entries = max_entries,
-	};
+	union bpf_attr attr;
+	attr.map_type = map_type;
+	attr.key_size = key_size;
+	attr.value_size = value_size;
+	attr.max_entries = max_entries;
 
 	return syscall(__NR_bpf, BPF_MAP_CREATE, &attr, sizeof(attr));
 }
 
 int bpf_update_elem(int fd, void *key, void *value, unsigned long long flags)
 {
-	union bpf_attr attr = {
-		.map_fd = fd,
-		.key = ptr_to_u64(key),
-		.value = ptr_to_u64(value),
-		.flags = flags,
-	};
+	union bpf_attr attr;
+	attr.map_fd = fd;
+	attr.key = ptr_to_u64(key);
+	attr.value = ptr_to_u64(value);
+	attr.flags = flags;
 
 	return syscall(__NR_bpf, BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
 }
 
 int bpf_lookup_elem(int fd, void *key, void *value)
 {
-	union bpf_attr attr = {
-		.map_fd = fd,
-		.key = ptr_to_u64(key),
-		.value = ptr_to_u64(value),
-	};
+	union bpf_attr attr;
+	attr.map_fd = fd;
+	attr.key = ptr_to_u64(key);
+	attr.value = ptr_to_u64(value);
 
 	return syscall(__NR_bpf, BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
 }
 
 int bpf_delete_elem(int fd, void *key)
 {
-	union bpf_attr attr = {
-		.map_fd = fd,
-		.key = ptr_to_u64(key),
-	};
+	union bpf_attr attr;
+	attr.map_fd = fd;
+	attr.key = ptr_to_u64(key);
 
 	return syscall(__NR_bpf, BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
 }
 
 int bpf_get_next_key(int fd, void *key, void *next_key)
 {
-	union bpf_attr attr = {
-		.map_fd = fd,
-		.key = ptr_to_u64(key),
-		.next_key = ptr_to_u64(next_key),
-	};
+	union bpf_attr attr;
+	attr.map_fd = fd;
+	attr.key = ptr_to_u64(key);
+	attr.next_key = ptr_to_u64(next_key);
 
 	return syscall(__NR_bpf, BPF_MAP_GET_NEXT_KEY, &attr, sizeof(attr));
 }
@@ -84,15 +92,14 @@ int bpf_prog_load(enum bpf_prog_type prog_type,
 		  const struct bpf_insn *insns, int prog_len,
 		  const char *license, int kern_version)
 {
-	union bpf_attr attr = {
-		.prog_type = prog_type,
-		.insns = ptr_to_u64((void *) insns),
-		.insn_cnt = prog_len / sizeof(struct bpf_insn),
-		.license = ptr_to_u64((void *) license),
-		.log_buf = ptr_to_u64(bpf_log_buf),
-		.log_size = LOG_BUF_SIZE,
-		.log_level = 1,
-	};
+	union bpf_attr attr;
+	attr.prog_type = prog_type;
+	attr.insns = ptr_to_u64((void *) insns);
+	attr.insn_cnt = prog_len / sizeof(struct bpf_insn);
+	attr.license = ptr_to_u64((void *) license);
+	attr.log_buf = ptr_to_u64(bpf_log_buf);
+	attr.log_size = LOG_BUF_SIZE;
+	attr.log_level = 1;
 
 	/* assign one field outside of struct init to make sure any
 	 * padding is zero initialized
@@ -106,19 +113,17 @@ int bpf_prog_load(enum bpf_prog_type prog_type,
 
 int bpf_obj_pin(int fd, const char *pathname)
 {
-	union bpf_attr attr = {
-		.pathname	= ptr_to_u64((void *)pathname),
-		.bpf_fd		= fd,
-	};
+	union bpf_attr attr;
+	attr.pathname	= ptr_to_u64((void *)pathname);
+	attr.bpf_fd	= fd;
 
 	return syscall(__NR_bpf, BPF_OBJ_PIN, &attr, sizeof(attr));
 }
 
 int bpf_obj_get(const char *pathname)
 {
-	union bpf_attr attr = {
-		.pathname	= ptr_to_u64((void *)pathname),
-	};
+	union bpf_attr attr;
+	attr.pathname = ptr_to_u64((void *)pathname);
 
 	return syscall(__NR_bpf, BPF_OBJ_GET, &attr, sizeof(attr));
 }
