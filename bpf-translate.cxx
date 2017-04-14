@@ -19,7 +19,12 @@
 
 extern "C" {
 #include <libelf.h>
-#if 1
+/* Unfortunately strtab manipulation functions were only officially added
+   to elfutils libdw in 0.167.  Before that there were internal unsupported
+   ebl variants.  While libebl.h isn't supported we'll try to use it anyway
+   if the elfutils we build against is too old.  */
+#include <elfutils/version.h>
+#if _ELFUTILS_PREREQ (0, 167)
 #include <elfutils/libdwelf.h>
 typedef Dwelf_Strent Stap_Strent;
 typedef Dwelf_Strtab Stap_Strtab;
