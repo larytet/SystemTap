@@ -1209,6 +1209,23 @@ bpf_unparser::visit_target_register (target_register* e)
     case 14: ofs = offsetof(pt_regs, r14); break;
     case 15: ofs = offsetof(pt_regs, r15); break;
     case 16: ofs = offsetof(pt_regs, rip); break;
+#elif defined(__arm__)
+    case  0: ofs = offsetof(pt_regs, uregs[0]); break;
+    case  1: ofs = offsetof(pt_regs, uregs[1]); break;
+    case  2: ofs = offsetof(pt_regs, uregs[2]); break;
+    case  3: ofs = offsetof(pt_regs, uregs[3]); break;
+    case  4: ofs = offsetof(pt_regs, uregs[4]); break;
+    case  5: ofs = offsetof(pt_regs, uregs[5]); break;
+    case  6: ofs = offsetof(pt_regs, uregs[6]); break;
+    case  7: ofs = offsetof(pt_regs, uregs[7]); break;
+    case  8: ofs = offsetof(pt_regs, uregs[8]); break;
+    case  9: ofs = offsetof(pt_regs, uregs[9]); break;
+    case  10: ofs = offsetof(pt_regs, uregs[10]); break;
+    case  11: ofs = offsetof(pt_regs, uregs[11]); break;
+    case  12: ofs = offsetof(pt_regs, uregs[12]); break;
+    case  13: ofs = offsetof(pt_regs, uregs[13]); break;
+    case  14: ofs = offsetof(pt_regs, uregs[14]); break;
+    case  15: ofs = offsetof(pt_regs, uregs[15]); break;
 #else
 # error "Unhandled architecture"
 #endif
