@@ -128,11 +128,11 @@ lose (const Dwarf_Op *lexpr, size_t len, const char *failure, size_t i)
   else
     throw SEMANTIC_ERROR(std::string(failure)
                          + " in DWARF expression ["
-			 + std::to_string(i)
-                         + "] at " + std::to_string(lexpr[i].offset)
-                         + " (" + std::to_string(lexpr[i].atom)
-                         + ": " + std::to_string(lexpr[i].number)
-                         + ", " + std::to_string(lexpr[i].number2) + ")");
+			 + lex_cast(i)
+                         + "] at " + lex_cast(lexpr[i].offset)
+                         + " (" + lex_cast(lexpr[i].atom)
+                         + ": " + lex_cast(lexpr[i].number)
+                         + ", " + lex_cast(lexpr[i].number2) + ")");
 }
 
 location *
@@ -165,7 +165,7 @@ location_context::new_local(const char *namebase)
 {
   static int counter;
   vardecl *var = new vardecl;
-  var->name = std::string(namebase) + std::to_string(counter++);
+  var->name = std::string(namebase) + lex_cast(counter++);
   var->type = pe_long;
   var->arity = 0;
   var->synthetic = true;
@@ -236,7 +236,7 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
   bool saw_stack_value = false;
   bool computing_value = computing_value_orig;
   Dwarf_Word piece_size = 0;
-  Dwarf_Block implicit_value = { .length = 0, .data = NULL };
+  Dwarf_Block implicit_value = Dwarf_Block();
   const Dwarf_Op *implicit_pointer = NULL;
   location temp_piece;
   size_t i;
@@ -633,7 +633,7 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
 		  /* fallthru */
 		case 0:  /* Should never happen */
 		  throw SEMANTIC_ERROR("not accessible at this address: "
-				       + std::to_string(pc));
+				       + lex_cast(pc));
 		default: /* Should never happen */
 		  throw SEMANTIC_ERROR(std::string("dwarf_getlocation_addr: ")
 				       + dwarf_errmsg(-1));
@@ -749,7 +749,7 @@ location_context::frame_location()
 	    case -1:
 	      throw SEMANTIC_ERROR
 		("dwarf_getlocation_addr (form "
-		 + std::to_string(dwarf_whatform (this->fb_attr))
+		 + lex_cast(dwarf_whatform (this->fb_attr))
 		 + "): " + dwarf_errmsg (-1));
 	    }
 	}
