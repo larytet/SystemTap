@@ -1226,6 +1226,39 @@ bpf_unparser::visit_target_register (target_register* e)
     case  13: ofs = offsetof(pt_regs, uregs[13]); break;
     case  14: ofs = offsetof(pt_regs, uregs[14]); break;
     case  15: ofs = offsetof(pt_regs, uregs[15]); break;
+#elif defined(__aarch64__)
+    case  0: ofs = offsetof(user_pt_regs, regs[0]); break;
+    case  1: ofs = offsetof(user_pt_regs, regs[1]); break;
+    case  2: ofs = offsetof(user_pt_regs, regs[2]); break;
+    case  3: ofs = offsetof(user_pt_regs, regs[3]); break;
+    case  4: ofs = offsetof(user_pt_regs, regs[4]); break;
+    case  5: ofs = offsetof(user_pt_regs, regs[5]); break;
+    case  6: ofs = offsetof(user_pt_regs, regs[6]); break;
+    case  7: ofs = offsetof(user_pt_regs, regs[7]); break;
+    case  8: ofs = offsetof(user_pt_regs, regs[8]); break;
+    case  9: ofs = offsetof(user_pt_regs, regs[9]); break;
+    case  10: ofs = offsetof(user_pt_regs, regs[10]); break;
+    case  11: ofs = offsetof(user_pt_regs, regs[11]); break;
+    case  12: ofs = offsetof(user_pt_regs, regs[12]); break;
+    case  13: ofs = offsetof(user_pt_regs, regs[13]); break;
+    case  14: ofs = offsetof(user_pt_regs, regs[14]); break;
+    case  15: ofs = offsetof(user_pt_regs, regs[15]); break;
+    case  16: ofs = offsetof(user_pt_regs, regs[16]); break;
+    case  17: ofs = offsetof(user_pt_regs, regs[17]); break;
+    case  18: ofs = offsetof(user_pt_regs, regs[18]); break;
+    case  19: ofs = offsetof(user_pt_regs, regs[19]); break;
+    case  20: ofs = offsetof(user_pt_regs, regs[20]); break;
+    case  21: ofs = offsetof(user_pt_regs, regs[21]); break;
+    case  22: ofs = offsetof(user_pt_regs, regs[22]); break;
+    case  23: ofs = offsetof(user_pt_regs, regs[23]); break;
+    case  24: ofs = offsetof(user_pt_regs, regs[24]); break;
+    case  25: ofs = offsetof(user_pt_regs, regs[25]); break;
+    case  26: ofs = offsetof(user_pt_regs, regs[26]); break;
+    case  27: ofs = offsetof(user_pt_regs, regs[27]); break;
+    case  28: ofs = offsetof(user_pt_regs, regs[28]); break;
+    case  29: ofs = offsetof(user_pt_regs, regs[29]); break;
+    case  30: ofs = offsetof(user_pt_regs, regs[30]); break;
+    case  31: ofs = offsetof(user_pt_regs, sp); break;
 #else
 # error "Unhandled architecture"
 #endif
