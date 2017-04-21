@@ -3327,8 +3327,8 @@ dwarf_die_type (Dwarf_Die *die, Dwarf_Die *typedie_mem, const token *tok=NULL)
 
 
 void
-dwflpp::translate_components(location_context *,
-                             Dwarf_Addr,
+dwflpp::translate_components(location_context *ctx,
+                             Dwarf_Addr pc,
                              const target_symbol *e,
                              Dwarf_Die *vardie,
                              Dwarf_Die *typedie,
@@ -3429,6 +3429,16 @@ dwflpp::translate_components(location_context *,
                                           dwarf_type_name(typedie).c_str(), source.c_str(),
                                           sugs.c_str()), c.tok);
                 }
+
+	      for (unsigned j = 0; j < locs.size(); ++j)
+		{
+		  location *n = NULL;
+		  if (!ctx->locations.empty())
+		    n = ctx->locations.back();
+                  n = translate_location (ctx, &locs[j], &dies[j],
+                                          pc, NULL, e, n);
+		  ctx->locations.push_back(n);
+		}
             }
 
           dwarf_die_type (vardie, typedie, c.tok);
@@ -3472,23 +3482,80 @@ dwflpp::resolve_unqualified_inner_typedie (Dwarf_Die *typedie,
     }
 }
 
+#if 0
+static void
+get_bitfield (const target_symbol *e,
+              Dwarf_Die *die, Dwarf_Word *bit_offset, Dwarf_Word *bit_size)
+{
+  Dwarf_Attribute attr_mem;
+  if (dwarf_attr_integrate (die, DW_AT_bit_offset, &attr_mem) == NULL
+      || dwarf_formudata (&attr_mem, bit_offset) != 0
+      || dwarf_attr_integrate (die, DW_AT_bit_size, &attr_mem) == NULL
+      || dwarf_formudata (&attr_mem, bit_size) != 0)
+    throw SEMANTIC_ERROR (_F("cannot get bit field parameters: %s",
+			  dwarf_errmsg(-1)), e->tok);
+}
+#endif
 
-expression *
-dwflpp::translate_final_fetch_or_store (Dwarf_Addr /*module_bias*/,
+void
+dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool signed_p)
+{
+  location *loc = ctx.locations.back ();
+
+  switch (loc->type)
+    {
+    case loc_value:
+      // The existing program is the value.
+      break;
+
+    case loc_address:
+      {
+        target_deref *d = new target_deref;
+        d->addr = loc->program;
+        d->size = byte_size;
+        d->signed_p = signed_p;
+        d->userspace_p = ctx.userspace_p;
+
+	loc = ctx.new_location(loc_value);
+	loc->program = d;
+	loc->byte_size = byte_size;
+	break;
+      }
+
+    case loc_register:
+      if (loc->offset != 0)
+	throw SEMANTIC_ERROR (_("cannot handle offset into register"), ctx.e->tok);
+      // The existing program is the value.
+      break;
+
+    case loc_noncontiguous:
+      throw SEMANTIC_ERROR (_("noncontiguous location for base fetch"), ctx.e->tok);
+    case loc_implicit_pointer:
+      throw SEMANTIC_ERROR (_("pointer optimized out"), ctx.e->tok);
+    case loc_unavailable:
+      throw SEMANTIC_ERROR (_("location not available"), ctx.e->tok);
+    default:
+      abort();
+    }
+}
+
+// As usual, leave the result as the last location in ctx.
+void
+dwflpp::translate_final_fetch_or_store (location_context &ctx,
                                         Dwarf_Die *vardie,
                                         Dwarf_Die *start_typedie,
                                         bool lvalue,
-                                        const target_symbol *e,
                                         Dwarf_Die *typedie)
 {
+  const target_symbol *e = ctx.e;
+
   /* First boil away any qualifiers associated with the type DIE of
      the final location to be accessed.  */
-
   resolve_unqualified_inner_typedie (start_typedie, typedie, e);
 
   /* If we're looking for an address, then we can just provide what
      we computed to this point, without using a fetch/store. */
-  if (e->addressof)
+  if (ctx.e->addressof)
     {
       if (lvalue)
         throw SEMANTIC_ERROR (_("cannot write to member address"), e->tok);
@@ -3496,7 +3563,7 @@ dwflpp::translate_final_fetch_or_store (Dwarf_Addr /*module_bias*/,
       if (dwarf_hasattr_integrate (vardie, DW_AT_bit_offset))
         throw SEMANTIC_ERROR (_("cannot take address of bit-field"), e->tok);
 
-      return NULL;
+      return;
     }
 
   /* Then switch behavior depending on the type of fetch/store we
@@ -3506,9 +3573,9 @@ dwflpp::translate_final_fetch_or_store (Dwarf_Addr /*module_bias*/,
   switch (typetag)
     {
     default:
-      throw SEMANTIC_ERROR (_F("unsupported type tag %s for %s", lex_cast(typetag).c_str(),
-                               dwarf_type_name(typedie).c_str()), e->tok);
-      break;
+      throw SEMANTIC_ERROR (_F("unsupported type tag %s for %s",
+			    lex_cast(typetag).c_str(),
+                            dwarf_type_name(typedie).c_str()), e->tok);
 
     case DW_TAG_structure_type:
     case DW_TAG_class_type:
@@ -3546,10 +3613,9 @@ dwflpp::translate_final_fetch_or_store (Dwarf_Addr /*module_bias*/,
                                (e->components[e->components.size()-1].tok) :
                                (e->tok)));
       }
-      break;
 
     case DW_TAG_base_type:
-
+    case DW_TAG_enumeration_type:
       // Reject types we can't handle in systemtap
       {
         Dwarf_Attribute encoding_attr;
@@ -3559,8 +3625,9 @@ dwflpp::translate_final_fetch_or_store (Dwarf_Addr /*module_bias*/,
         if (encoding == (Dwarf_Word) -1)
           {
             // clog << "bad type1 " << encoding << " diestr" << endl;
-            throw SEMANTIC_ERROR (_F("unsupported type (mystery encoding %s for %s", lex_cast(encoding).c_str(),
-                                     dwarf_type_name(typedie).c_str()), e->tok);
+            throw SEMANTIC_ERROR (_F("unsupported type (mystery encoding %s for %s",
+				  lex_cast(encoding).c_str(),
+                                  dwarf_type_name(typedie).c_str()), e->tok);
           }
 
         if (encoding == DW_ATE_float
@@ -3568,14 +3635,25 @@ dwflpp::translate_final_fetch_or_store (Dwarf_Addr /*module_bias*/,
             /* XXX || many others? */)
           {
             // clog << "bad type " << encoding << " diestr" << endl;
-            throw SEMANTIC_ERROR (_F("unsupported type (encoding %s) for %s", lex_cast(encoding).c_str(),
-                                     dwarf_type_name(typedie).c_str()), e->tok);
+            throw SEMANTIC_ERROR (_F("unsupported type (encoding %s) for %s",
+				     lex_cast(encoding).c_str(),
+				     dwarf_type_name(typedie).c_str()), e->tok);
           }
+
+	Dwarf_Attribute size_attr;
+	Dwarf_Word byte_size;
+	if (dwarf_attr_integrate (typedie, DW_AT_byte_size, &size_attr) == NULL
+	    || dwarf_formudata (&size_attr, &byte_size) != 0)
+	  throw SEMANTIC_ERROR (_F("cannot get byte_size attribute for type %s: %s",
+				   dwarf_diename (typedie) ?: "<anonymous>",
+				   dwarf_errmsg (-1)), e->tok);
+
+	bool signed_p = encoding == DW_ATE_signed || encoding == DW_ATE_signed_char;
+
+	// ??? where might the bare value be converted to an assignment?
+	assert(!lvalue);
+        translate_base_ref (ctx, byte_size, signed_p);
       }
-      /* Fallthrough */
-      // enumeration_types are always scalar.
-    case DW_TAG_enumeration_type:
-      /* No type cast needed for staptree intermediate code.  */
       break;
 
     case DW_TAG_array_type:
@@ -3594,8 +3672,6 @@ dwflpp::translate_final_fetch_or_store (Dwarf_Addr /*module_bias*/,
       /* No type cast needed for staptree intermediate code.  */
       break;
     }
-
-  return NULL;
 }
 
 Dwarf_Addr
@@ -3710,8 +3786,7 @@ dwflpp::literal_stmt_for_local (location_context &ctx,
      or
      $foo->bar->baz[NN] = x
   */
-  translate_final_fetch_or_store (module_bias, &vardie, &typedie,
-				  lvalue, e, die_mem);
+  translate_final_fetch_or_store (ctx, &vardie, &typedie, lvalue, die_mem);
   return true;
 }
 
@@ -3779,8 +3854,7 @@ dwflpp::literal_stmt_for_return (location_context &ctx,
      or
      $return->bar->baz[NN] = x
   */
-  translate_final_fetch_or_store (module_bias, &vardie, &typedie,
-				  lvalue, e, die_mem);
+  translate_final_fetch_or_store (ctx, &vardie, &typedie, lvalue, die_mem);
   return true;
 }
 
@@ -3851,8 +3925,7 @@ dwflpp::literal_stmt_for_pointer (location_context &ctx,
      or
      (STAP_ARG_pointer)->bar->baz[NN] = x
   */
-  translate_final_fetch_or_store (module_bias, &vardie, &typedie,
-				  lvalue, e, die_mem);
+  translate_final_fetch_or_store (ctx, &vardie, &typedie, lvalue, die_mem);
   return true;
 }
 

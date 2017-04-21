@@ -634,12 +634,12 @@ private:
                             Dwarf_Die *typedie,
                             unsigned first=0);
 
-  expression *translate_final_fetch_or_store (Dwarf_Addr module_bias,
-					      Dwarf_Die *vardie,
-					      Dwarf_Die *typedie,
-					      bool lvalue,
-					      const target_symbol *e,
-					      Dwarf_Die *enddie);
+  void translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool signed_p);
+  void translate_final_fetch_or_store (location_context &ctx,
+				       Dwarf_Die *vardie,
+				       Dwarf_Die *typedie,
+				       bool lvalue,
+				       Dwarf_Die *enddie);
 
   regex_t blacklist_func; // function/statement probes
   regex_t blacklist_func_ret; // only for .return probes

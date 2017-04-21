@@ -322,6 +322,7 @@ struct target_deref: public expression
 {
   expression* addr;
   unsigned size;
+  bool signed_p;
   bool userspace_p;
   void print (std::ostream& o) const;
   void visit (visitor* u);
