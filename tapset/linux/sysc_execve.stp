@@ -21,7 +21,13 @@
 %)
 
 probe syscall.execve = dw_syscall.execve !, nd_syscall.execve {}
-probe syscall.execve.return = dw_syscall.execve.return !, nd_syscall.execve.return {}
+probe syscall.execve.return = dw_syscall.execve.return !,
+                              nd_syscall.execve.return {}
+
+probe syscall.compat_execve = dw_syscall.compat_execve !,
+                              nd_syscall.compat_execve ? {}
+probe syscall.compat_execve.return = dw_syscall.compat_execve.return !,
+                                     nd_syscall.compat_execve.return ? {}
 
 # dw_execve _____________________________________________________
 
@@ -49,7 +55,7 @@ probe dw_syscall.execve.return = kernel.function("sys_execve").return
 # asmlinkage long compat_sys_execve(const char __user * filename,
 #	const compat_uptr_t __user * argv,
 #	const compat_uptr_t __user * envp)
-probe syscall.compat_execve = kernel.function("compat_sys_execve").call ?
+probe dw_syscall.compat_execve = kernel.function("compat_sys_execve").call ?
 {
 	@_SYSCALL_EXECVE_NAME
 	filename = user_string_quoted($filename)
@@ -60,7 +66,7 @@ probe syscall.compat_execve = kernel.function("compat_sys_execve").call ?
 	env_str = __count_compat_envp(__envp)
 	@_SYSCALL_EXECVE_ARGSTR
 }
-probe syscall.compat_execve.return =
+probe dw_syscall.compat_execve.return =
 	kernel.function("compat_sys_execve").return ?
 {
 	@_SYSCALL_EXECVE_NAME

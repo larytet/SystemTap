@@ -13,6 +13,11 @@ probe syscall.signalfd = dw_syscall.signalfd !, nd_syscall.signalfd ? {}
 probe syscall.signalfd.return = dw_syscall.signalfd.return !,
                                 nd_syscall.signalfd.return ? {}
 
+probe syscall.compat_signalfd = dw_syscall.compat_signalfd !,
+                                nd_syscall.compat_signalfd ? {}
+probe syscall.compat_signalfd.return = dw_syscall.compat_signalfd.return !,
+                                       nd_syscall.compat_signalfd.return ? {}
+
 # dw_signalfd _____________________________________________________
 
 probe dw_syscall.signalfd = __syscall.signalfd4 !, __syscall.signalfd ?
@@ -53,7 +58,7 @@ probe __syscall.signalfd.return = kernel.function("sys_signalfd").return
 	flags = 0
 	name = "signalfd"
 }
-probe syscall.compat_signalfd = kernel.function("compat_sys_signalfd4").call !,
+probe dw_syscall.compat_signalfd = kernel.function("compat_sys_signalfd4").call !,
                                 kernel.function("compat_sys_signalfd").call ?
 {
 	flags = __int32(@choose_defined($flags, 0))
@@ -67,7 +72,7 @@ probe syscall.compat_signalfd = kernel.function("compat_sys_signalfd4").call !,
 				 $sigsetsize, _signalfd4_flags_str(flags))
 	}
 }
-probe syscall.compat_signalfd.return =
+probe dw_syscall.compat_signalfd.return =
 		kernel.function("compat_sys_signalfd4").return !,
 		kernel.function("compat_sys_signalfd").return ?
 {

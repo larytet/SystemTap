@@ -12,7 +12,13 @@
 %)
 
 probe syscall.adjtimex = dw_syscall.adjtimex !, nd_syscall.adjtimex ? {}
-probe syscall.adjtimex.return = dw_syscall.adjtimex.return !, nd_syscall.adjtimex.return ? {}
+probe syscall.adjtimex.return = dw_syscall.adjtimex.return !,
+                                nd_syscall.adjtimex.return ? {}
+
+probe syscall.compat_adjtimex = dw_syscall.compat_adjtimex !,
+                                nd_syscall.compat_adjtimex ? {}
+probe syscall.compat_adjtimex.return = dw_syscall.compat_adjtimex.return !,
+                                       nd_syscall.compat_adjtimex.return ? {}
 
 # dw_adjtimex _____________________________________________________
 
@@ -29,14 +35,14 @@ probe dw_syscall.adjtimex.return = kernel.function("sys_adjtimex").return
 	retstr = _adjtimex_return_str($return)
 }
 # long compat_sys_adjtimex(struct compat_timex __user *utp)
-probe syscall.compat_adjtimex = kernel.function("compat_sys_adjtimex").call ?
+probe dw_syscall.compat_adjtimex = kernel.function("compat_sys_adjtimex").call ?
 {
 	@_SYSCALL_ADJTIMEX_NAME
 	buf_uaddr = $utp
 	buf_str = _struct_compat_timex_u(buf_uaddr)
 	@_SYSCALL_ADJTIMEX_ARGSTR
 }
-probe syscall.compat_adjtimex.return = kernel.function("compat_sys_adjtimex").return ?
+probe dw_syscall.compat_adjtimex.return = kernel.function("compat_sys_adjtimex").return ?
 {
 	@_SYSCALL_ADJTIMEX_NAME
 	retstr = _adjtimex_return_str($return)

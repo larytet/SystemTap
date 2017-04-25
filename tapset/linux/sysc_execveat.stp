@@ -18,7 +18,13 @@
 %)
 
 probe syscall.execveat = dw_syscall.execveat !, nd_syscall.execveat ? {}
-probe syscall.execveat.return = dw_syscall.execveat.return !, nd_syscall.execveat.return ? {}
+probe syscall.execveat.return = dw_syscall.execveat.return !,
+                                nd_syscall.execveat.return ? {}
+
+probe syscall.compat_execveat = dw_syscall.compat_execveat !,
+                                nd_syscall.compat_execveat ? {}
+probe syscall.compat_execveat.return = dw_syscall.compat_execveat.return !,
+                                       nd_syscall.compat_execveat.return ? {}
 
 # dw_execveat _____________________________________________________
 
@@ -49,7 +55,7 @@ probe dw_syscall.execveat.return = kernel.function("sys_execveat").return ?
         retstr = return_str(1, $return)
 }
 
-probe syscall.compat_execveat = kernel.function("compat_sys_execveat").call ?
+probe dw_syscall.compat_execveat = kernel.function("compat_sys_execveat").call ?
 {
         @_SYSCALL_EXECVEAT_NAME
         dirfd = __int32($fd)
@@ -70,7 +76,7 @@ probe syscall.compat_execveat = kernel.function("compat_sys_execveat").call ?
 	env_str = __count_compat_envp(__envp)
         @_SYSCALL_EXECVEAT_ARGSTR
 }
-probe syscall.compat_execveat.return =
+probe dw_syscall.compat_execveat.return =
 	kernel.function("compat_sys_execveat").return ?
 {
         @_SYSCALL_EXECVEAT_NAME
