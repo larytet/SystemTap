@@ -345,11 +345,14 @@ proc setup_systemtap_environment {} {
 }
 
 proc shutdown_server {} {
-    global server_pid
+    global server_pid server_logfile
     if { $server_pid != 0 } then {
 	verbose -log "Stopping the systemtap server with PID==$server_pid"
 	catch {exec stap-stop-server $server_pid}
 	set server_pid 0
+
+	# Delete the temporary server log file
+	catch {exec rm -f $server_logfile}
     }
 
     foreach module [glob -nocomplain [pwd]/stap_*.ko] {
@@ -363,17 +366,19 @@ proc shutdown_server {} {
 # Set up the environment so that tests will be performed using the systemtap
 # client and server.
 proc setup_server { args } {
-    global srcdir env installed_stap logfile use_server server_spec avahi_ok_p
+    global srcdir env installed_stap use_server server_spec avahi_ok_p
+    global server_logfile
+
+    # Create a temporary server log file. Note that we'll delete it
+    # when shutting the server down.
+    if {[catch {exec mktemp} server_logfile]} {
+        verbose -log "Failed to create temporary server log file: $server_logfile"
+        exit 1
+    }
 
     # Start the server
     if {! [start_server $args]} then {
 	return 0
-    }
-
-    # Create a temporary log file
-    if {[catch {exec mktemp} tmpfile]} {
-        verbose -log "Failed to create temporary log file: $tmpfile"
-        exit 1
     }
 
     # Make sure that stap can find the server.
@@ -391,13 +396,10 @@ proc setup_server { args } {
     verbose -log $seen_servers[exec cat stap-list-servers.out]
     verbose -log "grep for servers returned: res==$res\n$looksee"
 
-    # Delete the temporary log file
-    catch {exec rm $tmpfile}
-
     # Try to discover the port the server is listening on from the server log.
     # We're matching a line of the form:
     # "Thu Jul 25 11:58:11 2013: Using network address <addr>:37804"
-    set res [catch { exec /bin/cat $logfile | awk "/Using network address/ {print \$9}" } server_address]
+    set res [catch { exec /bin/cat $server_logfile | awk "/Using network address/ {print \$9}" } server_address]
     send_log "server_address=='$server_address'\n"
     if {$res != 0} then {
 	verbose -log "Unable to discover the address used by the systemtap server"
@@ -434,7 +436,7 @@ proc setup_server { args } {
 }
 
 proc start_server { options } {
-    global srcdir env server_pid installed_stap logfile
+    global srcdir env server_pid installed_stap server_logfile
 
     if {! [nss_p]} { return 0 }
 
@@ -455,7 +457,7 @@ proc start_server { options } {
     set status 0
     if {[catch {eval {exec env STAP_PR11197_OVERRIDE=1 \
 		    env SYSTEMTAP_STAP=[exec which stap] stap-start-server \
-		    --log=$logfile} $options} server_pid]} {
+		    --log=$server_logfile} $options} server_pid]} {
 	if {[lindex $::errorCode 0] eq "CHILDSTATUS"} {
 	    set status [lindex $::errorCode 2]
 	}
