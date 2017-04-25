@@ -1259,8 +1259,50 @@ bpf_unparser::visit_target_register (target_register* e)
     case  29: ofs = offsetof(user_pt_regs, regs[29]); break;
     case  30: ofs = offsetof(user_pt_regs, regs[30]); break;
     case  31: ofs = offsetof(user_pt_regs, sp); break;
-#else
-# error "Unhandled architecture"
+#elif defined(__powerpc__)
+    case   0: ofs = offsetof(pt_regs, gpr[0]); break;
+    case   1: ofs = offsetof(pt_regs, gpr[1]); break;
+    case   2: ofs = offsetof(pt_regs, gpr[2]); break;
+    case   3: ofs = offsetof(pt_regs, gpr[3]); break;
+    case   4: ofs = offsetof(pt_regs, gpr[4]); break;
+    case   5: ofs = offsetof(pt_regs, gpr[5]); break;
+    case   6: ofs = offsetof(pt_regs, gpr[6]); break;
+    case   7: ofs = offsetof(pt_regs, gpr[7]); break;
+    case   8: ofs = offsetof(pt_regs, gpr[8]); break;
+    case   9: ofs = offsetof(pt_regs, gpr[9]); break;
+    case  10: ofs = offsetof(pt_regs, gpr[10]); break;
+    case  11: ofs = offsetof(pt_regs, gpr[11]); break;
+    case  12: ofs = offsetof(pt_regs, gpr[12]); break;
+    case  13: ofs = offsetof(pt_regs, gpr[13]); break;
+    case  14: ofs = offsetof(pt_regs, gpr[14]); break;
+    case  15: ofs = offsetof(pt_regs, gpr[15]); break;
+    case  16: ofs = offsetof(pt_regs, gpr[16]); break;
+    case  17: ofs = offsetof(pt_regs, gpr[17]); break;
+    case  18: ofs = offsetof(pt_regs, gpr[18]); break;
+    case  19: ofs = offsetof(pt_regs, gpr[19]); break;
+    case  20: ofs = offsetof(pt_regs, gpr[20]); break;
+    case  21: ofs = offsetof(pt_regs, gpr[21]); break;
+    case  22: ofs = offsetof(pt_regs, gpr[22]); break;
+    case  23: ofs = offsetof(pt_regs, gpr[23]); break;
+    case  24: ofs = offsetof(pt_regs, gpr[24]); break;
+    case  25: ofs = offsetof(pt_regs, gpr[25]); break;
+    case  26: ofs = offsetof(pt_regs, gpr[26]); break;
+    case  27: ofs = offsetof(pt_regs, gpr[27]); break;
+    case  28: ofs = offsetof(pt_regs, gpr[28]); break;
+    case  29: ofs = offsetof(pt_regs, gpr[29]); break;
+    case  30: ofs = offsetof(pt_regs, gpr[30]); break;
+    case  31: ofs = offsetof(pt_regs, gpr[31]); break;
+    case  64: ofs = offsetof(pt_regs, ccr); break;
+    case  66: ofs = offsetof(pt_regs, msr); break;
+    case 101: ofs = offsetof(pt_regs, xer); break;
+    case 108: ofs = offsetof(pt_regs, link); break;
+    case 109: ofs = offsetof(pt_regs, ctr); break;
+    case 118: ofs = offsetof(pt_regs, dsisr); break;
+    case 119: ofs = offsetof(pt_regs, dar); break;
+# if !defined(__powerpc64__)
+    case 100: ofs = offsetof(pt_regs, mq); break;
+# endif
+    // ??? NIP is not assigned to a dwarf register number at all.
 #endif
     default:
       throw SEMANTIC_ERROR(_("unhandled register number"), e->tok);
