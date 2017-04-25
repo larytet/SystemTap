@@ -1303,6 +1303,44 @@ bpf_unparser::visit_target_register (target_register* e)
     case 100: ofs = offsetof(pt_regs, mq); break;
 # endif
     // ??? NIP is not assigned to a dwarf register number at all.
+#elif defined(__s390__)
+    case  0: ofs = offsetof(user_regs_struct, gprs[0]); break;
+    case  1: ofs = offsetof(user_regs_struct, gprs[1]); break;
+    case  2: ofs = offsetof(user_regs_struct, gprs[2]); break;
+    case  3: ofs = offsetof(user_regs_struct, gprs[3]); break;
+    case  4: ofs = offsetof(user_regs_struct, gprs[4]); break;
+    case  5: ofs = offsetof(user_regs_struct, gprs[5]); break;
+    case  6: ofs = offsetof(user_regs_struct, gprs[6]); break;
+    case  7: ofs = offsetof(user_regs_struct, gprs[7]); break;
+    case  8: ofs = offsetof(user_regs_struct, gprs[8]); break;
+    case  9: ofs = offsetof(user_regs_struct, gprs[9]); break;
+    case 10: ofs = offsetof(user_regs_struct, gprs[10]); break;
+    case 11: ofs = offsetof(user_regs_struct, gprs[11]); break;
+    case 12: ofs = offsetof(user_regs_struct, gprs[12]); break;
+    case 13: ofs = offsetof(user_regs_struct, gprs[13]); break;
+    case 14: ofs = offsetof(user_regs_struct, gprs[14]); break;
+    case 15: ofs = offsetof(user_regs_struct, gprs[15]); break;
+    // Note that the FPRs are not numbered sequentially
+    case 16: ofs = offsetof(user_regs_struct, fp_regs.fprs[0]); break;
+    case 17: ofs = offsetof(user_regs_struct, fp_regs.fprs[2]); break;
+    case 18: ofs = offsetof(user_regs_struct, fp_regs.fprs[4]); break;
+    case 19: ofs = offsetof(user_regs_struct, fp_regs.fprs[6]); break;
+    case 20: ofs = offsetof(user_regs_struct, fp_regs.fprs[1]); break;
+    case 21: ofs = offsetof(user_regs_struct, fp_regs.fprs[3]); break;
+    case 22: ofs = offsetof(user_regs_struct, fp_regs.fprs[5]); break;
+    case 23: ofs = offsetof(user_regs_struct, fp_regs.fprs[7]); break;
+    case 24: ofs = offsetof(user_regs_struct, fp_regs.fprs[8]); break;
+    case 25: ofs = offsetof(user_regs_struct, fp_regs.fprs[10]); break;
+    case 26: ofs = offsetof(user_regs_struct, fp_regs.fprs[12]); break;
+    case 27: ofs = offsetof(user_regs_struct, fp_regs.fprs[14]); break;
+    case 28: ofs = offsetof(user_regs_struct, fp_regs.fprs[9]); break;
+    case 29: ofs = offsetof(user_regs_struct, fp_regs.fprs[11]); break;
+    case 30: ofs = offsetof(user_regs_struct, fp_regs.fprs[13]); break;
+    case 31: ofs = offsetof(user_regs_struct, fp_regs.fprs[15]); break;
+    // ??? Omitting CTRs (not in user_regs_struct)
+    // ??? Omitting ACRs (lazy, and unlikely to appear in unwind)
+    case 64: ofs = offsetof(user_regs_struct, psw.mask); break;
+    case 65: ofs = offsetof(user_regs_struct, psw.addr); break;
 #endif
     default:
       throw SEMANTIC_ERROR(_("unhandled register number"), e->tok);
