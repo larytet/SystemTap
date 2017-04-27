@@ -1,0 +1,8 @@
+set test "strpos"
+set ::result_string {haystack="foo" needle="abcfoobad" strpos=-1
+haystack="abcfoobad" needle="foo" strpos=3
+haystack="foo" needle="foo" strpos=0
+haystack="foo" needle="" strpos=0
+haystack="" needle="foo" strpos=-1
+haystack="" needle="" strpos=0}
+stap_run2 $srcdir/$subdir/$test.stp

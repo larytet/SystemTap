@@ -1,0 +1,15 @@
+private function dotest(haystack, needle)
+{
+	printf("haystack=\"%s\" needle=\"%s\" strpos=%d\n",
+	       haystack, needle, strpos(haystack, needle))
+}
+
+probe oneshot
+{
+	dotest("foo", "abcfoobad")
+	dotest("abcfoobad", "foo")
+	dotest("foo", "foo")
+	dotest("foo", "")
+	dotest("", "foo")
+	dotest("", "")
+}

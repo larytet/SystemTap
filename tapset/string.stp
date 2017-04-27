@@ -75,6 +75,22 @@ function isinstr:long(s1:string,s2:string)
 %}
 
 /**
+ * sfunction strpos - Returns location of a substring within another string
+ *
+ * @s1: string to search in
+ * @s2: substring to find
+ *
+ * Description: This function returns location of the first occurence of string
+ * @s2 within @s1, namely the return value is 0 in case @s2 is a prefix of @s1.
+ * If @s2 is not a substring of @s1, then the return value is -1.
+ */
+function strpos:long(s1:string,s2:string)
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
+	long pos = (long)strstr(STAP_ARG_s1,STAP_ARG_s2);
+	STAP_RETURN ((pos != 0) ? (pos - (long)STAP_ARG_s1) : (-1));
+%}
+
+/**
  * sfunction text_str - Escape any non-printable chars in a string
  *
  * @input: the string to escape
