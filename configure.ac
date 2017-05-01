@@ -905,6 +905,30 @@ AS_IF([test "x$with_extra_version" != "xno"], [
 AC_DEFINE_UNQUOTED(STAP_EXTRA_VERSION, "$stap_extra_version", [extra stap version code])
 AC_SUBST(STAP_EXTRA_VERSION, "$stap_extra_version")
 
+dnl Handle the option to build httpd web compiliation service
+AC_ARG_ENABLE([http],
+  AS_HELP_STRING([--disable-http],
+    [Disable building http web compilation service, even if we could]))
+have_http_support=no
+AS_IF([test "x$enable_http" != "xno"],
+  [dnl Do we have the microhttpd library?
+   PKG_CHECK_MODULES([libmicrohttpd], [libmicrohttpd > 0.9.0], [have_libmicrohttpd=true], [have_libmicrohttpd=false])
+
+   dnl Do we have the uuid library?
+   PKG_CHECK_MODULES([uuid], [uuid > 2.17.0], [have_libuuid=true], [have_libuuid=false])
+
+   dnl If we have both libraries, we could build the httpd web
+   dnl complilation service.
+   AS_IF([test "x$have_libmicrohttpd" == "xtrue" -a "x$have_libuuid" == "xtrue"], [have_http_support=yes])])
+
+AS_IF([test "x$have_http_support" = "xyes"],
+  [AC_DEFINE([HAVE_HTTP_SUPPORT], [1],
+    [Define to 1 to enable http web service support in systemtap.])],
+  [AS_IF([test "x$enable_http" = "xyes"],
+    [AC_MSG_ERROR([http service support requested but not found])])
+])
+AM_CONDITIONAL([HAVE_HTTP_SUPPORT], [test "x$have_http_support" = "xyes"])
+
 dnl This is here mainly to make sure that configure --prefix=... changes
 dnl the config.h files so files depending on it are recompiled
 dnl prefix is passed through indirectly in the Makefile.am AM_CPPFLAGS.
@@ -937,6 +961,7 @@ AC_CONFIG_FILES([java/stapbm], [chmod +x java/stapbm])
 AC_CONFIG_FILES(python/Makefile)
 AC_CONFIG_FILES(staprun/Makefile)
 AC_CONFIG_FILES(stapbpf/Makefile)
+AC_CONFIG_FILES(httpd/Makefile)
 AC_CONFIG_FILES([staprun/run-staprun], [chmod +x staprun/run-staprun])
 AC_CONFIG_FILES([staprun/guest/stapshd], [chmod +x staprun/guest/stapshd])
 AC_CONFIG_FILES([staprun/guest/stapsh-daemon], [chmod +x staprun/guest/stapsh-daemon])

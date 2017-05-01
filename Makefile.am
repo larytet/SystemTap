@@ -324,7 +324,7 @@ if BUILD_SERVER
 	rm -f $(DESTDIR)$(localstatedir)/log/stap-server/log
 endif
 
-SUBDIRS = . java python stapdyn staprun stapbpf doc man po
+SUBDIRS = . java python stapdyn staprun stapbpf doc man po httpd
 # NB: the gcov target above uses this to enumarate linked binaries' build directories
 DIST_SUBDIRS = testsuite $(SUBDIRS)
 EXTRA_DIST = m4/ChangeLog
