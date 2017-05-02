@@ -111,9 +111,11 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(pkglibexecdir)"
 PROGRAMS = $(pkglibexec_PROGRAMS)
+am__dirstamp = $(am__leading_dot)dirstamp
 @HAVE_HTTP_SUPPORT_TRUE@am_stap_httpd_OBJECTS =  \
 @HAVE_HTTP_SUPPORT_TRUE@	stap_httpd-main.$(OBJEXT) \
-@HAVE_HTTP_SUPPORT_TRUE@	stap_httpd-server.$(OBJEXT)
+@HAVE_HTTP_SUPPORT_TRUE@	stap_httpd-server.$(OBJEXT) \
+@HAVE_HTTP_SUPPORT_TRUE@	../stap_httpd-util.$(OBJEXT)
 stap_httpd_OBJECTS = $(am_stap_httpd_OBJECTS)
 stap_httpd_DEPENDENCIES =
 stap_httpd_LINK = $(CXXLD) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) \
@@ -384,7 +386,7 @@ AM_CPPFLAGS = -D_GNU_SOURCE -I$(srcdir)/../includes \
 	-DSYSCONFDIR='"$(sysconfdir)"' -DPKGDATADIR='"${pkgdatadir}"' \
 	-DPKGLIBDIR='"$(pkglibexecdir)"' -DLOCALEDIR='"$(localedir)"'
 AM_LDFLAGS = @PIELDFLAGS@
-@HAVE_HTTP_SUPPORT_TRUE@stap_httpd_SOURCES = main.cxx server.cxx
+@HAVE_HTTP_SUPPORT_TRUE@stap_httpd_SOURCES = main.cxx server.cxx ../util.cxx
 @HAVE_HTTP_SUPPORT_TRUE@stap_httpd_CFLAGS = $(AM_CFLAGS)
 @HAVE_HTTP_SUPPORT_TRUE@stap_httpd_CXXFLAGS = $(AM_CXXFLAGS)
 @HAVE_HTTP_SUPPORT_TRUE@stap_httpd_CPPFLAGS = $(AM_CPPFLAGS)
@@ -470,6 +472,14 @@ uninstall-pkglibexecPROGRAMS:
 
 clean-pkglibexecPROGRAMS:
 	-test -z "$(pkglibexec_PROGRAMS)" || rm -f $(pkglibexec_PROGRAMS)
+../$(am__dirstamp):
+	@$(MKDIR_P) ..
+	@: > ../$(am__dirstamp)
+../$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) ../$(DEPDIR)
+	@: > ../$(DEPDIR)/$(am__dirstamp)
+../stap_httpd-util.$(OBJEXT): ../$(am__dirstamp) \
+	../$(DEPDIR)/$(am__dirstamp)
 
 stap-httpd$(EXEEXT): $(stap_httpd_OBJECTS) $(stap_httpd_DEPENDENCIES) $(EXTRA_stap_httpd_DEPENDENCIES) 
 	@rm -f stap-httpd$(EXEEXT)
@@ -477,10 +487,12 @@ stap-httpd$(EXEEXT): $(stap_httpd_OBJECTS) $(stap_httpd_DEPENDENCIES) $(EXTRA_st
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f ../*.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@../$(DEPDIR)/stap_httpd-util.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_httpd-main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_httpd-server.Po@am__quote@
 
@@ -527,6 +539,20 @@ stap_httpd-server.obj: server.cxx
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='server.cxx' object='stap_httpd-server.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -c -o stap_httpd-server.obj `if test -f 'server.cxx'; then $(CYGPATH_W) 'server.cxx'; else $(CYGPATH_W) '$(srcdir)/server.cxx'; fi`
+
+../stap_httpd-util.o: ../util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -MT ../stap_httpd-util.o -MD -MP -MF ../$(DEPDIR)/stap_httpd-util.Tpo -c -o ../stap_httpd-util.o `test -f '../util.cxx' || echo '$(srcdir)/'`../util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../$(DEPDIR)/stap_httpd-util.Tpo ../$(DEPDIR)/stap_httpd-util.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../util.cxx' object='../stap_httpd-util.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -c -o ../stap_httpd-util.o `test -f '../util.cxx' || echo '$(srcdir)/'`../util.cxx
+
+../stap_httpd-util.obj: ../util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -MT ../stap_httpd-util.obj -MD -MP -MF ../$(DEPDIR)/stap_httpd-util.Tpo -c -o ../stap_httpd-util.obj `if test -f '../util.cxx'; then $(CYGPATH_W) '../util.cxx'; else $(CYGPATH_W) '$(srcdir)/../util.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../$(DEPDIR)/stap_httpd-util.Tpo ../$(DEPDIR)/stap_httpd-util.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../util.cxx' object='../stap_httpd-util.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -c -o ../stap_httpd-util.obj `if test -f '../util.cxx'; then $(CYGPATH_W) '../util.cxx'; else $(CYGPATH_W) '$(srcdir)/../util.cxx'; fi`
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -615,6 +641,8 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
+	-rm -f ../$(DEPDIR)/$(am__dirstamp)
+	-rm -f ../$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -625,7 +653,7 @@ clean: clean-am
 clean-am: clean-generic clean-pkglibexecPROGRAMS mostlyclean-am
 
 distclean: distclean-am
-	-rm -rf ./$(DEPDIR)
+	-rm -rf ../$(DEPDIR) ./$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -671,7 +699,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-	-rm -rf ./$(DEPDIR)
+	-rm -rf ../$(DEPDIR) ./$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

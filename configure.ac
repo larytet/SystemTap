@@ -915,7 +915,7 @@ AS_IF([test "x$enable_http" != "xno"],
    PKG_CHECK_MODULES([libmicrohttpd], [libmicrohttpd > 0.9.0], [have_libmicrohttpd=true], [have_libmicrohttpd=false])
 
    dnl Do we have the uuid library?
-   PKG_CHECK_MODULES([uuid], [uuid > 2.17.0], [have_libuuid=true], [have_libuuid=false])
+   PKG_CHECK_MODULES([uuid], [uuid >= 2.17.0], [have_libuuid=true], [have_libuuid=false])
 
    dnl If we have both libraries, we could build the httpd web
    dnl complilation service.

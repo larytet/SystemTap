@@ -16,7 +16,7 @@ AM_LDFLAGS = @PIELDFLAGS@
 if HAVE_HTTP_SUPPORT
 pkglibexec_PROGRAMS = stap-httpd
 
-stap_httpd_SOURCES = main.cxx server.cxx
+stap_httpd_SOURCES = main.cxx server.cxx ../util.cxx
 stap_httpd_CFLAGS = $(AM_CFLAGS)
 stap_httpd_CXXFLAGS = $(AM_CXXFLAGS)
 stap_httpd_CPPFLAGS = $(AM_CPPFLAGS)

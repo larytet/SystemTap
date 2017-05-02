@@ -1,5 +1,7 @@
 #include "server.h"
 #include <iostream>
+#include <string>
+#include "../util.h"
 
 extern "C"
 {
@@ -129,20 +131,12 @@ request_handler::DELETE(const request &)
 }
 
 void
-server::add_request_handler(regex &url_path, request_handler &handler)
+server::add_request_handler(const string &url_path_re, request_handler &handler)
 {
     // Use a lock_guard to ensure the mutex gets released even if an
     // exception is thrown.
     lock_guard<mutex> lock(srv_mutex);
-    request_handlers.push_back(make_tuple(url_path, &handler));
-}
-
-void
-server::add_request_handler(const char *url_path, request_handler &handler)
-{
-    regex url_path_regex(url_path);
-
-    add_request_handler(url_path_regex, handler);
+    request_handlers.push_back(make_tuple(url_path_re, &handler));
 }
 
 int
@@ -216,7 +210,8 @@ server::access_handler(struct MHD_Connection *connection,
     }
 
     request_handler *rh = NULL;
-    clog << "Looking for a matching request handler..." << endl;
+    clog << "Looking for a matching request handler match with '"
+	 << url_str << "'..." << endl;
     {
 	// Use a lock_guard to ensure the mutex gets released even if an
 	// exception is thrown.
@@ -225,10 +220,10 @@ server::access_handler(struct MHD_Connection *connection,
 	// Search the request handlers for a matching entry.
 	for (auto it = request_handlers.begin();
 	     it != request_handlers.end(); it++) {
-	    regex url_regex = get<regex>(*it);
-	    smatch url_match;
-	    if (regex_match(url_str, url_match, url_regex)) {
-		rh = get<request_handler *>(*it);
+	    string url_path_re = get<0>(*it);
+	    vector<string> matches;
+	    if (regexp_match(url_str, url_path_re, matches) == 0) {
+		rh = get<1>(*it);
 		clog << "Found a match with '" << rh->name << "'" << endl;
 		break;
 	    }
@@ -336,7 +331,8 @@ server::start()
 				MHD_OPTION_END);
 
     if (dmn_ipv4 == NULL) {
-	string msg = "Error starting microhttpd daemon on port " + to_string(port);
+	string msg = "Error starting microhttpd daemon on port "
+	    + lex_cast(port);
 	throw runtime_error(msg);
 	return;
     }

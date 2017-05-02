@@ -1,7 +1,6 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#include <regex>
 #include <tuple>
 #include <vector>
 #include <string>
@@ -69,8 +68,8 @@ public:
 //    void stop();
 //    void wait();
 
-    void add_request_handler(regex &url_path, request_handler &handler);
-    void add_request_handler(const char *url_path, request_handler &handler);
+    void add_request_handler(const string &url_path_re,
+			     request_handler &handler);
 
 private:
     mutex srv_mutex;
@@ -79,7 +78,7 @@ private:
     // FIXME: IPv6 support needed
 
     // FIXME: should this be a map?
-    vector<tuple<regex, request_handler *>> request_handlers;
+    vector<tuple<string, request_handler *>> request_handlers;
 
     static int access_handler_shim(void *cls,
 				   struct MHD_Connection *connection,

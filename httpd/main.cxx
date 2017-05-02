@@ -27,8 +27,8 @@ main(int /*argc*/, char *const /*argv*/[])
 {
     server httpd(1234);
 
-    httpd.add_request_handler("/builds", build_collection);
-    httpd.add_request_handler("/builds/[0-9]+", build);
+    httpd.add_request_handler("/builds$", build_collection);
+    httpd.add_request_handler("/builds/[0-9]+$", build);
     // FIXME: Should this be pthread_cond_wait()/pthread_cond_timedwait()?
     while (1) {
 	sleep(1);
