@@ -45,11 +45,9 @@ function ansi_set_color(fg:long) {
 function ansi_set_color(fg:long, bg:long) {
 	printf("\033[%d;%dm", bg, fg)
 }
-%(systemtap_v <= "3.0" %?
 function ansi_set_color2(fg:long, bg:long) {
-	printf("\033[%d;%dm", bg, fg)
+	ansi_set_color(fg, bg);
 }
-%)
 
 /**
  * sfunction ansi_set_color - Set the ansi Select Graphic Rendition mode.
@@ -69,12 +67,9 @@ function ansi_set_color(fg:long, bg:long, attr:long) {
 	attr_str = attr ? sprintf(";%dm", attr) : "m"
 	printf("\033[%d;%d%s", bg, fg, attr_str)
 }
-%(systemtap_v <= "3.0" %?
 function ansi_set_color3(fg:long, bg:long, attr:long) {
-	attr_str = attr ? sprintf(";%dm", attr) : "m"
-	printf("\033[%d;%d%s", bg, fg, attr_str)
+	ansi_set_color(fg, bg, attr);
 }
-%)
 
 /**
  * sfunction ansi_reset_color - Resets Select Graphic Rendition mode.
