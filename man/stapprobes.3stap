@@ -811,21 +811,24 @@ process("FULLPATH").insn
 process(PID).insn.block
 process("FULLPATH").insn.block
 .ESAMPLE
+
 .PP
 A
-.B .begin
+.B process.begin
 probe gets called when new process described by PID or FULLPATH gets created.
+In addition, it is called once from the context of each preexisting process,
+at systemtap script startup.  This is useful to track live processes.
 A
-.B .thread.begin
+.B process.thread.begin
 probe gets called when a new thread described by PID or FULLPATH gets created.
 A
-.B .end
+.B process.end
 probe gets called when process described by PID or FULLPATH dies.
 A
-.B .thread.end
+.B process.thread.end
 probe gets called when a thread described by PID or FULLPATH dies.
 A
-.B .syscall
+.B process.syscall
 probe gets called when a thread described by PID or FULLPATH makes a
 system call.  The system call number is available in the
 .BR $syscall
@@ -834,7 +837,7 @@ are available in the
 .BR $argN
 (ex. $arg1, $arg2, ...) context variable.
 A
-.B .syscall.return
+.B process.syscall.return
 probe gets called when a thread described by PID or FULLPATH returns from a
 system call.  The system call number is available in the
 .BR $syscall
@@ -843,11 +846,12 @@ in the
 .BR $return
 context variable.
 A
-.B .insn
+.B process.insn
 probe gets called for every single-stepped instruction of the process described by PID or FULLPATH.
 A
-.B .insn.block
+.B process.insn.block
 probe gets called for every block-stepped instruction of the process described by PID or FULLPATH.
+
 .PP
 If a process probe is specified without a PID or FULLPATH, all user
 threads will be probed.  However, if systemtap was invoked with the
