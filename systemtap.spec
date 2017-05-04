@@ -35,6 +35,7 @@
 %{!?with_python3: %global with_python3 0%{?fedora} >= 23}
 %{!?with_python2_probes: %global with_python2_probes 1}
 %{!?with_python3_probes: %global with_python3_probes 0%{?fedora} >= 23}
+%{!?with_httpd: %global with_httpd 0}
 
 %ifarch ppc64le aarch64
 %global with_virthost 0
@@ -184,6 +185,11 @@ BuildRequires: python-setuptools
 %if %{with_python3_probes}
 BuildRequires: python3-devel
 BuildRequires: python3-setuptools
+%endif
+
+%if %{with_httpd}
+BuildRequires: libmicrohttpd-devel
+BuildRequires: libuuid-devel
 %endif
 
 # Install requirements
@@ -569,10 +575,16 @@ cd ..
 %global dracut_config %{nil}
 %endif
 
+%if %{with_httpd}
+%global httpd_config --enable-httpd
+%else
+%global httpd_config --disable-httpd
+%endif
+
 # We don't ship compileworthy python code, just oddball samples
 %global py_auto_byte_compile 0
 
-%configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{rpm_config} %{java_config} %{virt_config} %{dracut_config} %{python3_config} %{python2_probes_config} %{python3_probes_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
+%configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{rpm_config} %{java_config} %{virt_config} %{dracut_config} %{python3_config} %{python2_probes_config} %{python3_probes_config} ${httpd_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
 make %{?_smp_mflags}
 
 %if %{with_emacsvim}
