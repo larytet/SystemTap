@@ -44,7 +44,7 @@ endif
 
 stap_SOURCES = main.cxx session.cxx \
 	parse.cxx staptree.cxx elaborate.cxx translate.cxx \
-	tapsets.cxx buildrun.cxx loc2stap.cxx hash.cxx mdfour.c \
+	tapsets.cxx buildrun.cxx loc2c.c hash.cxx mdfour.c \
 	cache.cxx util.cxx coveragedb.cxx dwarf_wrappers.cxx \
 	tapset-been.cxx tapset-procfs.cxx tapset-timers.cxx tapset-netfilter.cxx \
 	tapset-perfmon.cxx tapset-mark.cxx tapset-itrace.cxx \
@@ -60,10 +60,6 @@ stap_DEPENDENCIES =
 if HAVE_LIBREADLINE
 stap_SOURCES += interactive.cxx
 stap_LDADD += @READLINE_LIBS@
-endif
-
-if HAVE_LINUX_BPF_H
-stap_SOURCES += bpf-base.cxx bpf-bitset.cxx bpf-translate.cxx bpf-opt.cxx
 endif
 
 if BUILD_VIRT
@@ -217,6 +213,13 @@ stap_gen_cert_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@
 stap_gen_cert_LDADD = $(nss_LIBS)
 endif
 endif
+
+noinst_PROGRAMS = loc2c-test
+loc2c_test_SOURCES = loc2c-test.c loc2c.c
+loc2c_test_CFLAGS = $(stap_CFLAGS)
+loc2c_test_CPPFLAGS = $(stap_CPPFLAGS)
+loc2c_test_LDFLAGS = $(stap_LDFLAGS)
+loc2c_test_LDADD = $(stap_LDADD)
 endif
 
 # crash(8) extension
@@ -324,7 +327,7 @@ if BUILD_SERVER
 	rm -f $(DESTDIR)$(localstatedir)/log/stap-server/log
 endif
 
-SUBDIRS = . java python stapdyn staprun stapbpf doc man po httpd
+SUBDIRS = . java python stapdyn staprun doc man po httpd
 # NB: the gcov target above uses this to enumarate linked binaries' build directories
 DIST_SUBDIRS = testsuite $(SUBDIRS)
 EXTRA_DIST = m4/ChangeLog

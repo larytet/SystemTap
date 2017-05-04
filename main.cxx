@@ -28,7 +28,6 @@
 #ifdef HAVE_LIBREADLINE
 #include "interactive.h"
 #endif
-#include "bpf.h"
 
 #if ENABLE_NLS
 #include <libintl.h>
@@ -456,17 +455,16 @@ passes_0_4 (systemtap_session &s)
     }
 
   // Now that no further changes to s.kernel_build_tree can occur, let's use it.
-  if (!s.runtime_usermode_p())
-    {
-      if ((rc = s.parse_kernel_config ()) != 0
-	  || (rc = s.parse_kernel_exports ()) != 0
-	  || (rc = s.parse_kernel_functions ()) != 0)
-	{
-	  // Try again with a server
-	  s.set_try_server ();
-	  return rc;
-	}
-    }
+  if (s.runtime_mode == systemtap_session::kernel_runtime) {
+    if ((rc = s.parse_kernel_config ()) != 0
+        || (rc = s.parse_kernel_exports ()) != 0
+        || (rc = s.parse_kernel_functions ()) != 0)
+      {
+        // Try again with a server
+        s.set_try_server ();
+        return rc;
+      }
+  }
 
   // Create the name of the C source file within the temporary
   // directory.  Note the _src prefix, explained in
@@ -507,7 +505,7 @@ passes_0_4 (systemtap_session &s)
       // otherwise, rc is 0 for a command line script
 
       vector<string> version_suffixes;
-      if (!s.runtime_usermode_p())
+      if (s.runtime_mode == systemtap_session::kernel_runtime)
         {
 	  // Construct kernel-versioning search path
 	  string kvr = s.kernel_release;
@@ -1016,42 +1014,36 @@ passes_0_4 (systemtap_session &s)
     }
 
   // PASS 3: TRANSLATION
-  // (BPF does translation and compilation at once in pass 4.)
-  if (s.runtime_mode != systemtap_session::bpf_runtime)
+  s.verbose = s.perpass_verbose[2];
+  times (& tms_before);
+  gettimeofday (&tv_before, NULL);
+  PROBE1(stap, pass3__start, &s);
+
+  rc = translate_pass (s);
+  if (! rc && s.last_pass == 3)
     {
-      s.verbose = s.perpass_verbose[2];
-      times (& tms_before);
-      gettimeofday (&tv_before, NULL);
-      PROBE1(stap, pass3__start, &s);
-
-      rc = translate_pass (s);
-
-      if (! rc && s.last_pass == 3)
-	{
-	  ifstream i (s.translated_source.c_str());
-	  cout << i.rdbuf();
-	}
-
-      times (& tms_after);
-      gettimeofday (&tv_after, NULL);
-
-      if (s.verbose)
-	clog << _("Pass 3: translated to C into \"")
-	     << s.translated_source
-	     << "\" "
-	     << getmemusage()
-	     << TIMESPRINT
-	     << endl;
-
-      if (rc && ! s.try_server ())
-	cerr << _("Pass 3: translation failed.  [man error::pass3]") << endl;
-
-      PROBE1(stap, pass3__end, &s);
-
-      assert_no_interrupts();
-      if (rc || s.last_pass == 3)
-	return rc;
+      ifstream i (s.translated_source.c_str());
+      cout << i.rdbuf();
     }
+
+  times (& tms_after);
+  gettimeofday (&tv_after, NULL);
+
+  if (s.verbose) 
+    clog << _("Pass 3: translated to C into \"")
+         << s.translated_source
+         << "\" "
+         << getmemusage()
+         << TIMESPRINT
+         << endl;
+
+  if (rc && ! s.try_server ())
+    cerr << _("Pass 3: translation failed.  [man error::pass3]") << endl;
+
+  PROBE1(stap, pass3__end, &s);
+
+  assert_no_interrupts();
+  if (rc || s.last_pass == 3) return rc;
 
   // PASS 4: COMPILATION
   s.verbose = s.perpass_verbose[3];
@@ -1059,21 +1051,13 @@ passes_0_4 (systemtap_session &s)
   gettimeofday (&tv_before, NULL);
   PROBE1(stap, pass4__start, &s);
 
-#ifdef HAVE_LINUX_BPF_H
-  if (s.runtime_mode == systemtap_session::bpf_runtime)
-    rc = translate_bpf_pass (s);
-  else
-#endif
+  if (s.use_cache)
     {
-      if (s.use_cache)
-	{
-	  find_stapconf_hash(s);
-	  get_stapconf_from_cache(s);
-	}
-      rc = compile_pass (s);
+      find_stapconf_hash(s);
+      get_stapconf_from_cache(s);
     }
-
-  if (! rc && s.last_pass <= 4)
+  rc = compile_pass (s);
+  if (! rc && s.last_pass == 4)
     {
       cout << ((s.hash_path == "") ? s.module_filename() : s.hash_path);
       cout << endl;
@@ -1082,21 +1066,18 @@ passes_0_4 (systemtap_session &s)
   times (& tms_after);
   gettimeofday (&tv_after, NULL);
 
-  if (s.verbose)
-    {
-      if (s.runtime_mode == systemtap_session::bpf_runtime)
-	clog << _("Pass 4: compiled BPF into \"");
-      else
-	clog << _("Pass 4: compiled C into \"");
-      clog << s.module_filename() << "\" " << TIMESPRINT << endl;
-    }
+  if (s.verbose) clog << _("Pass 4: compiled C into \"")
+                      << s.module_filename()
+                      << "\" "
+                      << TIMESPRINT
+                      << endl;
 
   if (rc && ! s.try_server ())
     cerr << _("Pass 4: compilation failed.  [man error::pass4]") << endl;
+
   else
     {
-      // Update cache. Cache cleaning is kicked off at the
-      // beginning of this function.
+      // Update cache. Cache cleaning is kicked off at the beginning of this function.
       if (s.use_script_cache)
         add_script_to_cache(s);
       if (s.use_cache && !s.runtime_usermode_p())
@@ -1104,7 +1085,7 @@ passes_0_4 (systemtap_session &s)
 
       // We may need to save the module in $CWD if the cache was
       // inaccessible for some reason.
-      if (! s.use_script_cache && s.last_pass <= 4)
+      if (! s.use_script_cache && s.last_pass == 4)
         s.save_module = true;
 
       // Copy module to the current directory.

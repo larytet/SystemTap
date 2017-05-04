@@ -413,22 +413,9 @@ systemtap_session::~systemtap_session ()
 const string
 systemtap_session::module_filename() const
 {
-  const char *suffix;
-  switch (runtime_mode)
-    {
-    case kernel_runtime:
-      suffix = ".ko";
-      break;
-    case dyninst_runtime:
-      suffix = ".so";
-      break;
-    case bpf_runtime:
-      suffix = ".bo";
-      break;
-    default:
-      abort();
-    }
-  return module_name + suffix;
+  if (runtime_usermode_p())
+    return module_name + ".so";
+  return module_name + ".ko";
 }
 
 #if HAVE_NSS
@@ -1634,11 +1621,6 @@ systemtap_session::parse_cmdline_runtime (const string& opt_runtime)
 {
   if (opt_runtime == string("kernel"))
     runtime_mode = kernel_runtime;
-  else if (opt_runtime == string("bpf"))
-    {
-      runtime_mode = bpf_runtime;
-      use_cache = use_script_cache = false;
-    }
   else if (opt_runtime == string("dyninst"))
     {
 #ifndef HAVE_DYNINST

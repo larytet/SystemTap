@@ -361,7 +361,6 @@ sqlite3_CFLAGS = @sqlite3_CFLAGS@
 sqlite3_LIBS = @sqlite3_LIBS@
 srcdir = @srcdir@
 stap_LIBS = @stap_LIBS@
-stapbpf_LIBS = @stapbpf_LIBS@
 staplog_CPPFLAGS = @staplog_CPPFLAGS@
 staprun_LIBS = @staprun_LIBS@
 subdirs = @subdirs@

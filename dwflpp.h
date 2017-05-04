@@ -45,7 +45,6 @@ struct inline_instance_info;
 struct symbol_table;
 struct base_query;
 struct external_function_query;
-struct expression;
 
 enum lineno_t { ABSOLUTE, RELATIVE, WILDCARD, ENUMERATED };
 enum info_status { info_unknown, info_present, info_absent };
@@ -177,8 +176,17 @@ struct inline_instance_info : base_func_info
   bool operator<(const inline_instance_info& other) const;
 };
 
-struct location;
-struct location_context;
+/* We'll need some context when dwflpp::loc2c_error is called.
+   So we can attach some detailed information about (the location of)
+   the DWARF that failed to be translated. Needs updating before each
+   loc2c c_translate call. */
+struct loc2c_context
+{
+  Dwarf_Die *die;
+  Dwarf_Addr pc;
+public:
+  loc2c_context(): die(0), pc(0) {}
+};
 
 struct dwflpp
 {
@@ -197,6 +205,10 @@ struct dwflpp
 
   std::string module_name;
   std::string function_name;
+
+  // Some context for dwflpp::loc2c_error callback.
+  // Needs updating before each loc2c c_translate call.
+  struct loc2c_context l2c_ctx;
 
   dwflpp(systemtap_session & session, const std::string& user_module, bool kernel_p);
   dwflpp(systemtap_session & session, const std::vector<std::string>& user_modules, bool kernel_p);
@@ -424,33 +436,32 @@ struct dwflpp
   bool inner_die_containing_pc(Dwarf_Die& scope, Dwarf_Addr addr,
                                Dwarf_Die& result);
 
-  bool literal_stmt_for_local (location_context &ctx,
-			       std::vector<Dwarf_Die>& scopes,
-			       std::string const & local,
-			       const target_symbol *e,
-			       bool lvalue,
-			       Dwarf_Die *die_mem);
+  std::string literal_stmt_for_local (std::vector<Dwarf_Die>& scopes,
+                                      Dwarf_Addr pc,
+                                      std::string const & local,
+                                      const target_symbol *e,
+                                      bool lvalue,
+                                      Dwarf_Die *die_mem);
   Dwarf_Die* type_die_for_local (std::vector<Dwarf_Die>& scopes,
-				 Dwarf_Addr pc,
+                                 Dwarf_Addr pc,
                                  std::string const & local,
                                  const target_symbol *e,
                                  Dwarf_Die *die_mem);
 
-  bool literal_stmt_for_return (location_context &ctx,
-				Dwarf_Die *scope_die,
-				const target_symbol *e,
-				bool lvalue,
-				Dwarf_Die *die_mem);
+  std::string literal_stmt_for_return (Dwarf_Die *scope_die,
+                                       Dwarf_Addr pc,
+                                       const target_symbol *e,
+                                       bool lvalue,
+                                       Dwarf_Die *die_mem);
   Dwarf_Die* type_die_for_return (Dwarf_Die *scope_die,
                                   Dwarf_Addr pc,
                                   const target_symbol *e,
                                   Dwarf_Die *die_mem);
 
-  bool literal_stmt_for_pointer (location_context &ctx,
-				 Dwarf_Die *type_die,
-				 const target_symbol *e,
-				 bool lvalue,
-				 Dwarf_Die *die_mem);
+  std::string literal_stmt_for_pointer (Dwarf_Die *type_die,
+                                        const target_symbol *e,
+                                        bool lvalue,
+                                        Dwarf_Die *die_mem);
   Dwarf_Die* type_die_for_pointer (Dwarf_Die *type_die,
                                    const target_symbol *e,
                                    Dwarf_Die *die_mem);
@@ -592,7 +603,9 @@ private:
 
   // This function generates code used for addressing computations of
   // target variables.
-  void emit_address (Dwarf_Addr address);
+  void emit_address (struct obstack *pool, Dwarf_Addr address);
+  static void loc2c_emit_address (void *arg, struct obstack *pool,
+                                  Dwarf_Addr address);
 
   void get_locals(std::vector<Dwarf_Die>& scopes, std::set<std::string>& locals);
   void get_locals_die(Dwarf_Die &die, std::set<std::string>& locals);
@@ -613,13 +626,13 @@ private:
   /* source file name, line and column info for pc in current cu. */
   const char *pc_line (Dwarf_Addr, int *, int *);
 
-  location *translate_location(location_context *ctx,
-			       Dwarf_Attribute *attr,
-			       Dwarf_Die *die,
-			       Dwarf_Addr pc,
-			       Dwarf_Attribute *fb_attr,
-			       const target_symbol *e,
-			       location *input);
+  struct location *translate_location(struct obstack *pool,
+                                      Dwarf_Attribute *attr,
+                                      Dwarf_Die *die,
+                                      Dwarf_Addr pc,
+                                      Dwarf_Attribute *fb_attr,
+                                      struct location **tail,
+                                      const target_symbol *e);
 
   bool find_struct_member(const target_symbol::component& c,
                           Dwarf_Die *parentdie,
@@ -627,19 +640,28 @@ private:
                           std::vector<Dwarf_Die>& dies,
                           std::vector<Dwarf_Attribute>& locs);
 
-  void translate_components(location_context *ctx,
-			    Dwarf_Addr pc,
+  void translate_components(struct obstack *pool,
+                            struct location **tail,
+                            Dwarf_Addr pc,
                             const target_symbol *e,
                             Dwarf_Die *vardie,
                             Dwarf_Die *typedie,
                             unsigned first=0);
 
-  void translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool signed_p);
-  void translate_final_fetch_or_store (location_context &ctx,
-				       Dwarf_Die *vardie,
-				       Dwarf_Die *typedie,
-				       bool lvalue,
-				       Dwarf_Die *enddie);
+  void translate_final_fetch_or_store (struct obstack *pool,
+                                       struct location **tail,
+                                       Dwarf_Addr module_bias,
+                                       Dwarf_Die *vardie,
+                                       Dwarf_Die *typedie,
+                                       bool lvalue,
+                                       const target_symbol *e,
+                                       std::string &,
+                                       std::string &,
+                                       Dwarf_Die *enddie);
+
+  std::string express_as_string (std::string prelude,
+                                 std::string postlude,
+                                 struct location *head);
 
   regex_t blacklist_func; // function/statement probes
   regex_t blacklist_func_ret; // only for .return probes

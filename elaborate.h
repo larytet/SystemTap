@@ -145,14 +145,11 @@ struct typeresolution_info: public visitor
   void visit_logical_and_expr (logical_and_expr* e);
   void visit_array_in (array_in* e);
   void visit_regex_query (regex_query* e);
-  void visit_compound_expression (compound_expression* e);
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
   void visit_assignment (assignment* e);
   void visit_symbol (symbol* e);
-  void visit_target_register (target_register* e);
-  void visit_target_deref (target_deref* e);
   void visit_target_symbol (target_symbol* e);
   void visit_arrayindex (arrayindex* e);
   void visit_functioncall (functioncall* e);
@@ -482,7 +479,6 @@ struct const_folder: public update_visitor
   void visit_unary_expression (unary_expression* e);
   void visit_logical_or_expr (logical_or_expr* e);
   void visit_logical_and_expr (logical_and_expr* e);
-  void visit_compound_expression (compound_expression* e);
   // void visit_regex_query (regex_query* e); // XXX: would require executing dfa at compile-time
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);

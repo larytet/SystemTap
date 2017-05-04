@@ -4411,31 +4411,6 @@ const_folder::visit_logical_and_expr (logical_and_expr* e)
 }
 
 void
-const_folder::visit_compound_expression (compound_expression* e)
-{
-  replace(e->left, true);
-  replace(e->right, false);
-
-  // If the LHS is pure, we can eliminate it.
-  // ??? This is unlikely, given how these are created in loc2stap.cxx.
-  if (e->left)
-    {
-      varuse_collecting_visitor vu(session);
-      e->left->visit(&vu);
-      if (!vu.side_effect_free())
-        {
-	  provide(e);
-          return;
-        }
-    }
-
-  if (session.verbose > 2)
-    clog << _("Collapsing compound expression") << *e->tok << endl;
-
-  provide(e->right);
-}
-
-void
 const_folder::visit_comparison (comparison* e)
 {
   int comp;
@@ -5802,17 +5777,6 @@ typeresolution_info::visit_regex_query (regex_query *e)
     }
 }
 
-void
-typeresolution_info::visit_compound_expression (compound_expression* e)
-{
-  // Incoming type inference applies to the RHS.
-  e->right->visit(this);
-
-  // No incoming data for the LHS.
-  t = pe_unknown;
-  e->left->visit(this);
-}
-
 
 void
 typeresolution_info::visit_comparison (comparison *e)
@@ -6158,32 +6122,6 @@ typeresolution_info::visit_symbol (symbol* e)
     }
 }
 
-void
-typeresolution_info::visit_target_register (target_register* e)
-{
-  if (t != pe_long)
-    invalid (e->tok, t);
-  if (e->type == pe_unknown)
-    {
-      e->type = pe_long;
-      resolved (e->tok, e->type);
-    }
-}
-
-void
-typeresolution_info::visit_target_deref (target_deref* e)
-{
-  // Both the target_deref result as well as the address must both be longs.
-  if (t != pe_long)
-    invalid (e->tok, t);
-  e->addr->visit (this);
-
-  if (e->type == pe_unknown)
-    {
-      e->type = pe_long;
-      resolved (e->tok, e->type);
-    }
-}
 
 void
 typeresolution_info::visit_target_symbol (target_symbol* e)

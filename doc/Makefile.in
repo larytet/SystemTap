@@ -309,6 +309,8 @@ jsonc_CFLAGS = @jsonc_CFLAGS@
 jsonc_LIBS = @jsonc_LIBS@
 libdir = @libdir@
 libexecdir = @libexecdir@
+libmicrohttpd_CFLAGS = @libmicrohttpd_CFLAGS@
+libmicrohttpd_LIBS = @libmicrohttpd_LIBS@
 libvirt_CFLAGS = @libvirt_CFLAGS@
 libvirt_LIBS = @libvirt_LIBS@
 libxml2_CFLAGS = @libxml2_CFLAGS@
@@ -341,7 +343,6 @@ sqlite3_CFLAGS = @sqlite3_CFLAGS@
 sqlite3_LIBS = @sqlite3_LIBS@
 srcdir = @srcdir@
 stap_LIBS = @stap_LIBS@
-stapbpf_LIBS = @stapbpf_LIBS@
 staplog_CPPFLAGS = @staplog_CPPFLAGS@
 staprun_LIBS = @staprun_LIBS@
 subdirs = @subdirs@
@@ -355,6 +356,8 @@ target_vendor = @target_vendor@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+uuid_CFLAGS = @uuid_CFLAGS@
+uuid_LIBS = @uuid_LIBS@
 AUTOMAKE_OPTIONS = subdir-objects
 PDF_FILES = tutorial.pdf langref.pdf
 DOC_INSTALL_DIR = $(DESTDIR)$(datadir)/doc/systemtap
@@ -528,8 +531,8 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@BUILD_DOCS_FALSE@uninstall-local:
 @BUILD_DOCS_FALSE@clean-local:
+@BUILD_DOCS_FALSE@uninstall-local:
 @BUILD_DOCS_FALSE@install-data-hook:
 clean: clean-recursive
 

@@ -22,7 +22,6 @@
 #include "hash.h"
 #include "dwflpp.h"
 #include "setupdwfl.h"
-#include "loc2stap.h"
 #include <gelf.h>
 
 #include "sdt_types.h"
@@ -409,8 +408,6 @@ struct generic_kprobe_derived_probe: public derived_probe
 
   unsigned saved_longs, saved_strings;
   generic_kprobe_derived_probe* entry_handler;
-
-  std::string args_for_bpf() const;
 };
 
 generic_kprobe_derived_probe::generic_kprobe_derived_probe(probe *base,
@@ -640,9 +637,6 @@ private:
 
 struct generic_kprobe_derived_probe_group: public derived_probe_group
 {
-  friend bool sort_for_bpf(generic_kprobe_derived_probe_group *ge,
-			   sort_for_bpf_probe_arg_vector &v);
-
 private:
   unordered_multimap<interned_string,generic_kprobe_derived_probe*> probes_by_module;
 
@@ -739,7 +733,7 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
               string pid_path = string("/proc/") + lex_cast(pid_val) + "/exe";
               module_val = sess.sysroot + pid_path;
             }
-          else
+          else 
             {
               // reset the pid_val in case anything weird got written into it
               pid_val = 0;
@@ -2042,7 +2036,7 @@ query_inline_instance_info (inline_instance_info & ii,
     {
       assert (! q->has_return); // checked by caller already
       assert (q->has_function_str || q->has_statement_str);
-
+      
       if (q->sess.verbose>2)
         clog << _F("querying entrypc %#" PRIx64 " of instance of inline '%s'\n",
                    ii.entrypc, ii.name.to_string().c_str());
@@ -3637,91 +3631,96 @@ static const string EMBEDDED_FETCH_DEREF_DONE = string("\n")
   + "#undef store_deref\n";
 
 static functioncall*
-synthetic_embedded_deref_call(dwflpp& dw, location_context &ctx,
-                              const std::string &function_name,
-			      Dwarf_Die *function_type,
-			      bool userspace_p, bool lvalue_p,
-                              expression *pointer = NULL)
+synthetic_embedded_deref_call(dwflpp& dw,
+                              Dwarf_Die* function_type,
+                              const string& function_name,
+                              const string& function_code,
+                              bool userspace_p,
+                              bool lvalue_p,
+                              target_symbol* e,
+                              expression* pointer=NULL)
 {
-  target_symbol *e = ctx.e;
-  const token *tok = e->tok;
-
-  // Synthesize a functiondecl to contain an expression.
-  string fhash = detox_path(string(tok->location.file->name));
+  // Synthesize a functiondecl for the given embedded code string.
+  string fhash = detox_path(string(e->tok->location.file->name));
   functiondecl *fdecl = new functiondecl;
   fdecl->synthetic = true;
-  fdecl->tok = tok;
+  fdecl->tok = e->tok;
   fdecl->unmangled_name = fdecl->name = "__private_" + fhash + function_name;
   // The fdecl type is generic, but we'll be detailed on the fcall below.
   fdecl->type = pe_long;
   fdecl->type_details = make_shared<exp_type_dwarf>(&dw, function_type,
                                                     userspace_p, e->addressof);
 
+  embeddedcode *ec = new embeddedcode;
+  ec->tok = e->tok;
+  string code;
+  code += "/* unprivileged */";
+  if (! lvalue_p)
+    code += "/* pure */";
+  code += EMBEDDED_FETCH_DEREF(userspace_p);
+  code += function_code;
+  code += EMBEDDED_FETCH_DEREF_DONE;
+  fdecl->body = ec;
+
   // Synthesize a functioncall.
   functioncall* fcall = new functioncall;
-  fcall->tok = tok;
+  fcall->tok = e->tok;
   fcall->referents.push_back(fdecl);
   fcall->function = fdecl->name;
   fcall->type = fdecl->type;
   fcall->type_details = fdecl->type_details;
 
-  // ??? Once upon a time we explicitly marked functions with
-  // /* unprivileged */, /* pure */, and /* stable */.  Now that we
-  // have the // function body as staptree nodes, we simply deduce
-  // the properties from the nodes.
-
   // If this code snippet uses a precomputed pointer,
   // pass that as the first argument.
   if (pointer)
     {
-      assert(ctx.pointer);
-      fdecl->formal_args.push_back(ctx.pointer);
+      vardecl *v = new vardecl;
+      v->type = pe_long;
+      v->name = "pointer";
+      v->tok = e->tok;
+      fdecl->formal_args.push_back(v);
       fcall->args.push_back(pointer);
     }
 
   // Any non-literal indexes need to be passed as arguments too.
-  if (!e->components.empty())
-    {
-      fdecl->formal_args.insert(fdecl->formal_args.end(),
-                                ctx.indicies.begin(),
-                                ctx.indicies.end());
-
-      for (unsigned i = 0; i < e->components.size(); ++i)
-        if (e->components[i].type == target_symbol::comp_expression_array_index)
-          fcall->args.push_back(e->components[i].expr_index);
-    }
+  for (unsigned i = 0; i < e->components.size(); ++i)
+    if (e->components[i].type == target_symbol::comp_expression_array_index)
+      {
+        vardecl *v = new vardecl;
+        v->type = pe_long;
+        v->name = "index" + lex_cast(i);
+        v->tok = e->tok;
+        fdecl->formal_args.push_back(v);
+        fcall->args.push_back(e->components[i].expr_index);
+      }
 
   // If this code snippet is assigning to an lvalue,
   // add a final argument for the rvalue.
   if (lvalue_p)
     {
+      // Modify the fdecl so it carries a single pe_long formal
+      // argument called "value".
+
+      // FIXME: For the time being we only support setting target
+      // variables which have base types; these are 'pe_long' in
+      // stap's type vocabulary.  Strings and pointers might be
+      // reasonable, some day, but not today.
+
+      vardecl *v = new vardecl;
+      v->type = pe_long;
+      v->name = "value";
+      v->tok = e->tok;
+      fdecl->formal_args.push_back(v);
       // NB: We don't know the value for fcall argument yet.
       // (see target_symbol_setter_functioncalls)
-      // fdecl->formal_args.push_back(...);
     }
 
-  fdecl->locals = ctx.locals;
+  if (!dw.sess.guru_mode && fdecl->formal_args.empty())
+    code += "/* stable */";
+  ec->code = code;
 
-  block *blk = new block;
-  blk->tok = tok;
-  fdecl->body = blk;
-
-  for (auto i = ctx.evals.begin(); i != ctx.evals.end(); ++i)
-    {
-      expr_statement *exp = new expr_statement;
-      exp->value = *i;
-      exp->tok = tok;
-      blk->statements.push_back(exp);
-    }
-
-  return_statement *ret = new return_statement;
-  ret->tok = tok;
-  ret->value = ctx.locations.back()->program;
-  blk->statements.push_back(ret);
-
-  // Add the synthesized decl to the session now.
+  // Add the synthesized decl to the session, and return the call.
   fdecl->join (dw.sess);
-
   return fcall;
 }
 
@@ -3737,22 +3736,19 @@ dwarf_pretty_print::deref (target_symbol* e)
     }
 
   bool lvalue_p = false;
+  string name = "_dwarf_pretty_print_deref_" + lex_cast(tick++);
 
-  location_context ctx(e, pointer);
-  ctx.pc = pc;
-  ctx.userspace_p = userspace_p;
-
+  string code;
   Dwarf_Die endtype;
   if (pointer)
-    dw.literal_stmt_for_pointer (ctx, &pointer_type, e, lvalue_p, &endtype);
+    code = dw.literal_stmt_for_pointer (&pointer_type, e, false, &endtype);
   else if (!local.empty())
-    dw.literal_stmt_for_local (ctx, scopes, local, e, lvalue_p, &endtype);
+    code = dw.literal_stmt_for_local (scopes, pc, local, e, false, &endtype);
   else
-    dw.literal_stmt_for_return (ctx, &scopes[0], e, lvalue_p, &endtype);
+    code = dw.literal_stmt_for_return (&scopes[0], pc, e, false, &endtype);
 
-  string name = "_dwarf_pretty_print_deref_" + lex_cast(tick++);
-  return synthetic_embedded_deref_call(dw, ctx, name, &endtype, userspace_p,
-				       lvalue_p, pointer);
+  return synthetic_embedded_deref_call(dw, &endtype, name, code,
+                                       userspace_p, lvalue_p, e, pointer);
 }
 
 
@@ -4389,24 +4385,21 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
         }
 
       bool userspace_p = q.has_process;
-      location_context ctx(e);
-      ctx.pc = addr;
-      ctx.userspace_p = userspace_p;
-
-      Dwarf_Die endtype;
-      if (q.has_return && (e->name == "$return"))
-	q.dw.literal_stmt_for_return (ctx, scope_die, e, lvalue, &endtype);
-      else
-	q.dw.literal_stmt_for_local (ctx, getscopes(e), e->sym_name(),
-				     e, lvalue, &endtype);
-
       string fname = (string(lvalue ? "_dwarf_tvar_set" : "_dwarf_tvar_get")
                       + "_" + escaped_indentifier_string (e->sym_name())
                       + "_" + lex_cast(tick++));
 
-      functioncall* n = synthetic_embedded_deref_call(q.dw, ctx, fname,
-						      &endtype, userspace_p,
-						      lvalue);
+
+      string code;
+      Dwarf_Die endtype;
+      if (q.has_return && (e->name == "$return"))
+        code = q.dw.literal_stmt_for_return (scope_die, addr, e, lvalue, &endtype);
+      else
+        code = q.dw.literal_stmt_for_local (getscopes(e), addr, e->sym_name(),
+                                            e, lvalue, &endtype);
+
+      functioncall* n = synthetic_embedded_deref_call(q.dw, &endtype, fname, code,
+                                                      userspace_p, lvalue, e);
 
       if (lvalue)
 	provide_lvalue_call (n);
@@ -4612,11 +4605,8 @@ dwarf_cast_query::handle_query_module()
   if (!type_die)
     return;
 
-  location_context ctx(&e, e.operand);
-  ctx.userspace_p = userspace_p;
-
+  string code;
   Dwarf_Die endtype;
-  bool ok = false;
 
   try
     {
@@ -4630,7 +4620,7 @@ dwarf_cast_query::handle_query_module()
           return;
         }
 
-      ok = dw.literal_stmt_for_pointer (ctx, type_die, &e, lvalue, &endtype);
+      code = dw.literal_stmt_for_pointer (type_die, &e, lvalue, &endtype);
     }
   catch (const semantic_error& er)
     {
@@ -4640,14 +4630,15 @@ dwarf_cast_query::handle_query_module()
       e.chain (er);
     }
 
-  if (!ok)
+  if (code.empty())
     return;
 
   string fname = (string(lvalue ? "_dwarf_cast_set" : "_dwarf_cast_get")
 		  + "_" + e.sym_name()
 		  + "_" + lex_cast(tick++));
-  result = synthetic_embedded_deref_call(dw, ctx, fname, &endtype,
-                                         userspace_p, lvalue, e.operand);
+
+  result = synthetic_embedded_deref_call(dw, &endtype, fname, code,
+                                         userspace_p, lvalue, &e, e.operand);
 }
 
 
@@ -4812,18 +4803,14 @@ exp_type_dwarf::expand(autocast_op* e, bool lvalue)
 	  return dpp.expand();
 	}
 
-      location_context ctx(e, e->operand);
-      ctx.userspace_p = userspace_p;
       Dwarf_Die endtype;
+      string code = dw->literal_stmt_for_pointer (&die, e, lvalue, &endtype);
 
-      dw->literal_stmt_for_pointer (ctx, &die, e, lvalue, &endtype);
-
-      string fname = (string(lvalue ? "_dwarf_autocast_set"
-			     : "_dwarf_autocast_get")
+      string fname = (string(lvalue ? "_dwarf_autocast_set" : "_dwarf_autocast_get")
 		      + "_" + lex_cast(tick++));
 
-      return synthetic_embedded_deref_call(*dw, ctx, fname, &endtype,
-					   userspace_p, lvalue, e->operand);
+      return synthetic_embedded_deref_call(*dw, &endtype, fname, code,
+					  userspace_p, lvalue, e, e->operand);
     }
   catch (const semantic_error &er)
     {
@@ -4894,14 +4881,11 @@ dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, dwarf_atvar_query *q)
           return DWARF_CB_ABORT;
         }
 
-      location_context ctx(&q->e);
-      ctx.userspace_p = q->userspace_p;
       Dwarf_Die endtype;
+      string code = q->dw.literal_stmt_for_local (scopes, 0, q->e.sym_name(),
+                                                  &q->e, q->lvalue, &endtype);
 
-      bool ok = q->dw.literal_stmt_for_local (ctx, scopes, q->e.sym_name(),
-					      &q->e, q->lvalue, &endtype);
-
-      if (!ok)
+      if (code.empty())
         return DWARF_CB_OK;
 
       string fname = (string(q->lvalue ? "_dwarf_tvar_set"
@@ -4909,8 +4893,9 @@ dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, dwarf_atvar_query *q)
                       + "_" + q->e.sym_name()
                       + "_" + lex_cast(q->tick++));
 
-      q->result = synthetic_embedded_deref_call (q->dw, ctx, fname, &endtype,
-                                                 q->userspace_p, q->lvalue);
+      q->result = synthetic_embedded_deref_call (q->dw, &endtype, fname, code,
+                                                 q->userspace_p, q->lvalue,
+                                                 &q->e);
     }
   catch (const semantic_error& er)
     {
@@ -5784,7 +5769,7 @@ generic_kprobe_derived_probe_group::enroll (generic_kprobe_derived_probe* p)
 }
 
 
-void
+void 
 generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
 {
   if (probes_by_module.empty()) return;
@@ -5902,7 +5887,7 @@ generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
 	  if (! p->section.empty())
 	    s.op->newline() << "#endif";
 	  s.op->newline(1);
-	}
+	}	  
       s.op->line() << " },";
     }
 
@@ -5987,7 +5972,7 @@ generic_kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
 }
 
 
-void
+void 
 generic_kprobe_derived_probe_group::emit_module_init (systemtap_session& s)
 {
   if (probes_by_module.empty()) return;
@@ -6003,46 +5988,7 @@ generic_kprobe_derived_probe_group::emit_module_init (systemtap_session& s)
                                      << "ARRAY_SIZE(stap_kprobe_probes));";
 }
 
-std::string
-generic_kprobe_derived_probe::args_for_bpf() const
-{
-  std::stringstream o;
-
-  o << (has_return ? "kretprobe/" : "kprobe/");
-
-  if (!symbol_name.empty())
-    {
-      if (!module.empty())
-	o << module << ":";
-      o << symbol_name;
-      if (offset)
-	o << "+0x" << std::hex << offset;
-    }
-  else
-    o << "0x" << std::hex << addr;
-
-  return o.str();
-}
-
-bool
-sort_for_bpf(generic_kprobe_derived_probe_group *ge,
-	     sort_for_bpf_probe_arg_vector &v)
-{
-  if (ge->probes_by_module.empty())
-    return false;
-
-  for (auto i = ge->probes_by_module.begin();
-       i != ge->probes_by_module.end(); ++i)
-    {
-      generic_kprobe_derived_probe *p = i->second;
-      v.push_back(std::pair<derived_probe *, std::string>
-		  (p, p->args_for_bpf()));
-    }
-
-  return true;
-}
-
-void
+void 
 generic_kprobe_derived_probe_group::emit_module_refresh (systemtap_session& s)
 {
   if (probes_by_module.empty()) return;
@@ -6055,7 +6001,7 @@ generic_kprobe_derived_probe_group::emit_module_refresh (systemtap_session& s)
                                    << "ARRAY_SIZE(stap_kprobe_probes));";
 }
 
-void
+void 
 generic_kprobe_derived_probe_group::emit_module_exit (systemtap_session& s)
 {
   if (probes_by_module.empty()) return;
@@ -8054,7 +8000,7 @@ handle_module_token(systemtap_session &sess, interned_string &module_token_val)
 						     sess.sysroot,
 						     sess.sysenv);
 	  module_token_val = module_token_val2;
-	}
+	}   
       // If we're here, then it's an in-tree module. Replace any
       // dashes with underscores.
       else
@@ -9824,7 +9770,7 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
 					    const string& path,
 					    const string& library
 					    ):
-  generic_kprobe_derived_probe (base, location,
+  generic_kprobe_derived_probe (base, location, 
 				module, "" /* FIXME: * section */,
 				stmt_addr, has_return,
 				has_maxactive, maxactive_val,
@@ -10614,19 +10560,15 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
         }
 
       bool userspace_p = false;
-      location_context ctx(e, e2);
-      ctx.userspace_p = userspace_p;
-
-      Dwarf_Die endtype;
-      dw.literal_stmt_for_pointer (ctx, &arg->type_die, e, lvalue, &endtype);
-
-      string fname = (string(lvalue ? "_tracepoint_tvar_set"
-			     : "_tracepoint_tvar_get")
+      string fname = (string(lvalue ? "_tracepoint_tvar_set" : "_tracepoint_tvar_get")
                       + "_" + e->sym_name()
                       + "_" + lex_cast(tick++));
 
-      functioncall* n = synthetic_embedded_deref_call(dw, ctx, fname, &endtype,
-						      userspace_p, lvalue, e2);
+      Dwarf_Die endtype;
+      string code = dw.literal_stmt_for_pointer (&arg->type_die, e, lvalue, &endtype);
+
+      functioncall* n = synthetic_embedded_deref_call(dw, &endtype, fname, code,
+                                                      userspace_p, lvalue, e, e2);
 
       if (lvalue)
 	provide_lvalue_call (n);
@@ -10756,6 +10698,15 @@ tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
   // determine which header defined this tracepoint
   string decl_file = dwarf_decl_file(&func_die);
   header = decl_file;
+
+#if 0 /* This convention is not enforced. */
+  size_t header_pos = decl_file.rfind("trace/");
+  if (header_pos == string::npos)
+    throw SEMANTIC_ERROR ("cannot parse header location for tracepoint '"
+                                  + tracepoint_name + "' in '"
+                                  + decl_file + "'");
+  header = decl_file.substr(header_pos);
+#endif
 
   // tracepoints from FOO_event_types.h should really be included from FOO.h
   // XXX can dwarf tell us the include hierarchy?  it would be better to

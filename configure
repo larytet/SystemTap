@@ -647,8 +647,6 @@ HAVE_SELINUX_FALSE
 HAVE_SELINUX_TRUE
 selinux_LIBS
 selinux_CFLAGS
-HAVE_LINUX_BPF_H_FALSE
-HAVE_LINUX_BPF_H_TRUE
 support_section_question
 HAVE_MONITOR_LIBS_FALSE
 HAVE_MONITOR_LIBS_TRUE
@@ -682,7 +680,6 @@ DYNINST_LDFLAGS
 DYNINST_CXXFLAGS
 CXXCPP
 DATE
-stapbpf_LIBS
 staprun_LIBS
 stap_LIBS
 elfutils_abs_srcdir
@@ -11425,20 +11422,15 @@ See \`config.log' for more details" "$LINENO" 5; }
 fi
 
   staprun_LIBS="$staprun_LIBS -lelf"
-  stapbpf_LIBS="$stapbpf_LIBS -lelf"
   LIBS="$save_LIBS"
 else
   # We built our own and staprun_LDFLAGS points at the install.
   staprun_LIBS="$staprun_LIBS -lelf"
-  stapbpf_LIBS="$stapbpf_LIBS -lelf"
 fi
-
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: staprun will link $staprun_LIBS" >&5
 $as_echo "$as_me: staprun will link $staprun_LIBS" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: stapbpf will link $stapbpf_LIBS" >&5
-$as_echo "$as_me: stapbpf will link $stapbpf_LIBS" >&6;}
 
 
 date=`date +%Y-%m-%d`
@@ -12268,28 +12260,6 @@ support_section_question=0
 if test $stap_cv_sectionq = yes; then
   support_section_question=1
 fi
-
-for ac_header in linux/bpf.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "linux/bpf.h" "ac_cv_header_linux_bpf_h" "$ac_includes_default"
-if test "x$ac_cv_header_linux_bpf_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LINUX_BPF_H 1
-_ACEOF
-
-fi
-
-done
-
- if test "x$ac_cv_header_linux_bpf_h" = "xyes"; then
-  HAVE_LINUX_BPF_H_TRUE=
-  HAVE_LINUX_BPF_H_FALSE='#'
-else
-  HAVE_LINUX_BPF_H_TRUE='#'
-  HAVE_LINUX_BPF_H_FALSE=
-fi
-
-
 ac_config_files="$ac_config_files includes/sys/sdt-config.h po/Makefile.in"
 
 
@@ -12832,8 +12802,6 @@ ac_config_files="$ac_config_files python/Makefile"
 
 ac_config_files="$ac_config_files staprun/Makefile"
 
-ac_config_files="$ac_config_files stapbpf/Makefile"
-
 ac_config_files="$ac_config_files httpd/Makefile"
 
 ac_config_files="$ac_config_files staprun/run-staprun"
@@ -13079,10 +13047,6 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_MONITOR_LIBS_TRUE}" && test -z "${HAVE_MONITOR_LIBS_FALSE}"; then
   as_fn_error $? "conditional \"HAVE_MONITOR_LIBS\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${HAVE_LINUX_BPF_H_TRUE}" && test -z "${HAVE_LINUX_BPF_H_FALSE}"; then
-  as_fn_error $? "conditional \"HAVE_LINUX_BPF_H\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_SELINUX_TRUE}" && test -z "${HAVE_SELINUX_FALSE}"; then
@@ -13731,7 +13695,6 @@ do
     "java/stapbm") CONFIG_FILES="$CONFIG_FILES java/stapbm" ;;
     "python/Makefile") CONFIG_FILES="$CONFIG_FILES python/Makefile" ;;
     "staprun/Makefile") CONFIG_FILES="$CONFIG_FILES staprun/Makefile" ;;
-    "stapbpf/Makefile") CONFIG_FILES="$CONFIG_FILES stapbpf/Makefile" ;;
     "httpd/Makefile") CONFIG_FILES="$CONFIG_FILES httpd/Makefile" ;;
     "staprun/run-staprun") CONFIG_FILES="$CONFIG_FILES staprun/run-staprun" ;;
     "staprun/guest/stapshd") CONFIG_FILES="$CONFIG_FILES staprun/guest/stapshd" ;;

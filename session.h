@@ -256,7 +256,7 @@ public:
   enum { color_never, color_auto, color_always } color_mode;
   enum { prologue_searching_never, prologue_searching_auto, prologue_searching_always } prologue_searching_mode;
 
-  enum { kernel_runtime, dyninst_runtime, bpf_runtime } runtime_mode;
+  enum { kernel_runtime, dyninst_runtime } runtime_mode;
   bool runtime_usermode_p() const { return runtime_mode == dyninst_runtime; }
 
   // NB: It is very important for all of the above (and below) fields

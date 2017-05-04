@@ -65,10 +65,6 @@ struct be_derived_probe: public derived_probe
 
 struct be_derived_probe_group: public generic_dpg<be_derived_probe>
 {
-  friend bool sort_for_bpf(be_derived_probe_group *be,
-			   std::vector<derived_probe *> &begin_v,
-			   std::vector<derived_probe *> &end_v);
-
 public:
   void emit_module_decls (systemtap_session& s);
   void emit_module_init (systemtap_session& s);
@@ -190,32 +186,7 @@ be_derived_probe_group::emit_module_exit (systemtap_session& s)
   s.op->newline(-2) << "}";
 }
 
-bool
-sort_for_bpf(be_derived_probe_group *be,
-	     std::vector<derived_probe *> &begin_v,
-	     std::vector<derived_probe *> &end_v)
-{
-  if (be->probes.empty())
-    return false;
 
-  sort(be->probes.begin(), be->probes.end(), be_derived_probe::comp);
-
-  for (auto i = be->probes.begin(); i != be->probes.end(); ++i)
-    {
-      be_derived_probe *p = *i;
-      if (p->type == BEGIN)
-	begin_v.push_back(p);
-    }
-
-  for (auto i = be->probes.rbegin(); i != be->probes.rend(); ++i)
-    {
-      be_derived_probe *p = *i;
-      if (p->type != BEGIN)
-	end_v.push_back(p);
-    }
-
-  return true;
-}
 
 // ------------------------------------------------------------------------
 // never probes are never run

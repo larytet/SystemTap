@@ -717,7 +717,8 @@ uprobes_pass (systemtap_session& s)
   return rc;
 }
 
-static vector<string>
+static
+vector<string>
 make_dyninst_run_command (systemtap_session& s, const string& remotedir,
 			  const string&)
 {
@@ -754,10 +755,13 @@ make_dyninst_run_command (systemtap_session& s, const string& remotedir,
   return cmd;
 }
 
-static vector<string>
-make_kernel_run_command (systemtap_session& s, const string& remotedir,
-			 const string& version)
+vector<string>
+make_run_command (systemtap_session& s, const string& remotedir,
+                  const string& version)
 {
+  if (s.runtime_usermode_p())
+    return make_dyninst_run_command(s, remotedir, version);
+
   // for now, just spawn staprun
   vector<string> cmd { getenv("SYSTEMTAP_STAPRUN") ?: BINDIR "/staprun" };
 
@@ -827,50 +831,6 @@ make_kernel_run_command (systemtap_session& s, const string& remotedir,
   return cmd;
 }
 
-static vector<string>
-make_bpf_run_command (systemtap_session& s, const string& remotedir,
-		      const string&)
-{
-  vector<string> cmd;
-  cmd.push_back(getenv("SYSTEMTAP_STAPBPF") ?: BINDIR "/stapbpf");
-
-  for (unsigned i=1; i<s.verbose; i++)
-    cmd.push_back("-v");
-  if (s.suppress_warnings)
-    cmd.push_back("-w");
-
-  if (!s.output_file.empty())
-    {
-      cmd.push_back("-o");
-      cmd.push_back(s.output_file);
-    }
-
-  cmd.push_back((remotedir.empty() ? s.tmpdir : remotedir)
-		+ "/" + s.module_filename());
-
-  // FIXME add module arguments
-  // ??? Maybe insert these via BEGIN probe.
-  // cmd.insert(cmd.end(), s.globalopts.begin(), s.globalopts.end());
-
-  return cmd;
-}
-
-vector<string>
-make_run_command (systemtap_session& s, const string& remotedir,
-                  const string& version)
-{
-  switch (s.runtime_mode)
-    {
-    case systemtap_session::kernel_runtime:
-      return make_kernel_run_command (s, remotedir, version);
-    case systemtap_session::dyninst_runtime:
-      return make_dyninst_run_command(s, remotedir, version);
-    case systemtap_session::bpf_runtime:
-      return make_bpf_run_command(s, remotedir, version);
-    default:
-      abort();
-    }
-}
 
 // Build tiny kernel modules to query tracepoints.
 // Given a (header-file -> test-contents) map, compile them ASAP, and return

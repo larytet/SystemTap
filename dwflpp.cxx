@@ -23,7 +23,6 @@
 #include "hash.h"
 #include "rpm_finder.h"
 #include "setupdwfl.h"
-#include "loc2stap.h"
 
 #include <cstdlib>
 #include <algorithm>
@@ -45,12 +44,14 @@ extern "C" {
 #include <elfutils/libdw.h>
 #include <dwarf.h>
 #include <elf.h>
+#include <obstack.h>
 #include <regex.h>
 #include <glob.h>
 #include <fnmatch.h>
 #include <stdio.h>
 #include <sys/types.h>
 
+#include "loc2c.h"
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 }
@@ -70,6 +71,21 @@ using namespace __gnu_cxx;
 
 
 static string TOK_KERNEL("kernel");
+
+
+// RAII style tracker for obstack pool, used because of complex exception flows
+#define obstack_chunk_alloc malloc
+#define obstack_chunk_free free
+struct obstack_tracker
+{
+  struct obstack* p;
+  obstack_tracker(struct obstack*p): p(p) {
+    obstack_init (p);
+  }
+  ~obstack_tracker() {
+    obstack_free (this->p, 0);
+  }
+};
 
 
 dwflpp::dwflpp(systemtap_session & session, const string& name, bool kernel_p):
@@ -2336,6 +2352,13 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
   for(auto it = funcs.begin(); it != funcs.end(); it++)
     {
+#if 0 /* someday */
+      Dwarf_Addr* bkpts = 0;
+      int n = dwarf_entry_breakpoints (& it->die, & bkpts);
+      // ...
+      free (bkpts);
+#endif
+
       Dwarf_Addr entrypc = it->entrypc;
       Dwarf_Addr highpc; // NB: highpc is exclusive: [entrypc,highpc)
       DWFL_ASSERT ("dwarf_highpc", dwarf_highpc (& it->die,
@@ -2634,6 +2657,103 @@ dwflpp::inner_die_containing_pc(Dwarf_Die& scope, Dwarf_Addr addr,
     }
   return true;
 }
+
+
+void
+dwflpp::loc2c_error (void *arg, const char *fmt, ...)
+{
+  const char *msg = "?";
+  char *tmp = NULL;
+  int rc;
+  va_list ap;
+  va_start (ap, fmt);
+  rc = vasprintf (& tmp, fmt, ap);
+  if (rc < 0)
+    msg = "?";
+  else
+    msg = tmp;
+  va_end (ap);
+
+  dwflpp *pp = (dwflpp *) arg;
+  semantic_error err(ERR_SRC, msg);
+  string what = pp->die_location_as_string(pp->l2c_ctx.die);
+  string where = pp->pc_location_as_function_string (pp->l2c_ctx.pc);
+  err.details.push_back(what);
+  err.details.push_back(where);
+  throw err;
+}
+
+
+// This function generates code used for addressing computations of
+// target variables.
+void
+dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
+{
+  int n = dwfl_module_relocations (module);
+  DWFL_ASSERT ("dwfl_module_relocations", n >= 0);
+  Dwarf_Addr reloc_address = address;
+  const char *secname = "";
+  if (n > 1)
+    {
+      int i = dwfl_module_relocate_address (module, &reloc_address);
+      DWFL_ASSERT ("dwfl_module_relocate_address", i >= 0);
+      secname = dwfl_module_relocation_info (module, i, NULL);
+    }
+
+  if (sess.verbose > 2)
+    {
+      clog << _F("emit dwarf addr %#" PRIx64 " => module %s section %s relocaddr %#" PRIx64,
+                 address, module_name.c_str (), (secname ?: "null"),
+                 reloc_address) << endl;
+    }
+
+  if (n > 0 && !(n == 1 && secname == NULL))
+   {
+      DWFL_ASSERT ("dwfl_module_relocation_info", secname);
+      if (n > 1 || secname[0] != '\0')
+        {
+          // This gives us the module name, and section name within the
+          // module, for a kernel module (or other ET_REL module object).
+          obstack_printf (pool, "({ unsigned long addr = 0; ");
+          obstack_printf (pool, "addr = _stp_kmodule_relocate (\"%s\",\"%s\",%#" PRIx64 "); ",
+                          module_name.c_str(), secname, reloc_address);
+          obstack_printf (pool, "addr; })");
+        }
+      else if (n == 1 && module_name == TOK_KERNEL && secname[0] == '\0')
+        {
+          // elfutils' way of telling us that this is a relocatable kernel address, which we
+          // need to treat the same way here as dwarf_query::add_probe_point does: _stext.
+          address -= sess.sym_stext;
+          secname = "_stext";
+          // Note we "cache" the result here through a static because the
+          // kernel will never move after being loaded (unlike modules and
+          // user-space dynamic share libraries).
+          obstack_printf (pool, "({ static unsigned long addr = 0; ");
+          obstack_printf (pool, "if (addr==0) addr = _stp_kmodule_relocate (\"%s\",\"%s\",%#" PRIx64 "); ",
+                          module_name.c_str(), secname, address); // PR10000 NB: not reloc_address
+          obstack_printf (pool, "addr; })");
+        }
+      else
+        {
+          obstack_printf (pool, "/* pragma:vma */");
+          obstack_printf (pool, "({ unsigned long addr = 0; ");
+          obstack_printf (pool, "addr = _stp_umodule_relocate (\"%s\",%#" PRIx64 ", current); ",
+                          resolve_path(module_name.c_str()).c_str(), address);
+          obstack_printf (pool, "addr; })");
+        }
+    }
+  else
+    obstack_printf (pool, "%#" PRIx64 "UL", address); // assume as constant
+}
+
+
+void
+dwflpp::loc2c_emit_address (void *arg, struct obstack *pool,
+                            Dwarf_Addr address)
+{
+  static_cast<dwflpp *>(arg)->emit_address (pool, address);
+}
+
 
 void
 dwflpp::get_locals(vector<Dwarf_Die>& scopes, set<string>& locals)
@@ -3073,10 +3193,12 @@ dwflpp::pc_location_as_function_string(Dwarf_Addr pc)
 }
 
 struct location *
-dwflpp::translate_location(location_context *ctx,
-			   Dwarf_Attribute *attr, Dwarf_Die *die,
-			   Dwarf_Addr pc, Dwarf_Attribute *fb_attr,
-                           const target_symbol *e, location *input)
+dwflpp::translate_location(struct obstack *pool,
+                           Dwarf_Attribute *attr, Dwarf_Die *die,
+			   Dwarf_Addr pc,
+                           Dwarf_Attribute *fb_attr,
+                           struct location **tail,
+                           const target_symbol *e)
 {
 
   /* DW_AT_data_member_location, can be either constant offsets
@@ -3084,7 +3206,13 @@ dwflpp::translate_location(location_context *ctx,
 
   /* There is no location expression, but a constant value instead.  */
   if (dwarf_whatattr (attr) == DW_AT_const_value)
-    return ctx->translate_constant (attr);
+    {
+      l2c_ctx.pc = pc;
+      l2c_ctx.die = die;
+      *tail = c_translate_constant (pool, &loc2c_error, this,
+				    &loc2c_emit_address, 0, pc, attr);
+      return *tail;
+    }
 
   Dwarf_Op *expr;
   size_t len;
@@ -3136,7 +3264,7 @@ dwflpp::translate_location(location_context *ctx,
       }
     }
 
-  Dwarf_Op *cfa_ops = NULL;
+  Dwarf_Op *cfa_ops;
   // pc is in the dw address space of the current module, which is what
   // c_translate_location expects. get_cfa_ops wants the global dwfl address.
   // cfa_ops only make sense for locals.
@@ -3145,13 +3273,15 @@ dwflpp::translate_location(location_context *ctx,
       Dwarf_Addr addr = pc + module_bias;
       cfa_ops = get_cfa_ops (addr);
     }
+  else
+    cfa_ops = NULL;
 
-  // ??? Reset these afterward.
-  ctx->cfa_ops = cfa_ops;
-  ctx->fb_attr = fb_attr;
-  ctx->pc = pc;
-
-  return ctx->translate_location (expr, len, input);
+  l2c_ctx.pc = pc;
+  l2c_ctx.die = die;
+  return c_translate_location (pool, &loc2c_error, this,
+                               &loc2c_emit_address,
+                               1, 0 /* PR9768 */,
+                               pc, attr, expr, len, tail, fb_attr, cfa_ops);
 }
 
 
@@ -3327,7 +3457,8 @@ dwarf_die_type (Dwarf_Die *die, Dwarf_Die *typedie_mem, const token *tok=NULL)
 
 
 void
-dwflpp::translate_components(location_context *ctx,
+dwflpp::translate_components(struct obstack *pool,
+                             struct location **tail,
                              Dwarf_Addr pc,
                              const target_symbol *e,
                              Dwarf_Die *vardie,
@@ -3338,6 +3469,15 @@ dwflpp::translate_components(location_context *ctx,
   while (i < e->components.size())
     {
       const target_symbol::component& c = e->components[i];
+
+      /* XXX: This would be desirable, but we don't get the target_symbol token,
+         and printing that gives us the file:line number too early anyway. */
+#if 0
+      // Emit a marker to note which field is being access-attempted, to give
+      // better error messages if deref() fails.
+      string piece = string(...target_symbol token...) + string ("#") + lex_cast(components[i].second);
+      obstack_printf (pool, "c->last_stmt = %s;", lex_cast_qstring(piece).c_str());
+#endif
 
       switch (dwarf_tag (typedie))
         {
@@ -3351,7 +3491,11 @@ dwflpp::translate_components(location_context *ctx,
 
         case DW_TAG_reference_type:
         case DW_TAG_rvalue_reference_type:
-	  /* No type cast needed for staptree intermediate code.  */
+          if (pool)
+	    {
+	      l2c_ctx.die = typedie;
+	      c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+	    }
           dwarf_die_type (typedie, typedie, c.tok);
           break;
 
@@ -3361,7 +3505,11 @@ dwflpp::translate_components(location_context *ctx,
             throw SEMANTIC_ERROR (_F("invalid access '%s' vs '%s'", lex_cast(c).c_str(),
                                      dwarf_type_name(typedie).c_str()), c.tok);
 
-	  /* No type cast needed for staptree intermediate code.  */
+          if (pool)
+	    {
+	      l2c_ctx.die = typedie;
+	      c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+	    }
           if (c.type != target_symbol::comp_literal_array_index &&
               c.type != target_symbol::comp_expression_array_index)
             {
@@ -3374,11 +3522,22 @@ dwflpp::translate_components(location_context *ctx,
         case DW_TAG_array_type:
           if (c.type == target_symbol::comp_literal_array_index)
             {
-	      /* No type cast needed for staptree intermediate code.  */
+              if (pool)
+		{
+		  l2c_ctx.die = typedie;
+                  c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
+				     NULL, c.num_index);
+		}
             }
           else if (c.type == target_symbol::comp_expression_array_index)
             {
-	      /* No type cast needed for staptree intermediate code.  */
+              string index = "STAP_ARG_index" + lex_cast(i);
+              if (pool)
+		{
+		  l2c_ctx.die = typedie;
+                  c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
+                                     index.c_str(), 0);
+		}
             }
           else
             throw SEMANTIC_ERROR (_F("invalid access '%s' for array type",
@@ -3430,15 +3589,10 @@ dwflpp::translate_components(location_context *ctx,
                                           sugs.c_str()), c.tok);
                 }
 
-	      for (unsigned j = 0; j < locs.size(); ++j)
-		{
-		  location *n = NULL;
-		  if (!ctx->locations.empty())
-		    n = ctx->locations.back();
-                  n = translate_location (ctx, &locs[j], &dies[j],
-                                          pc, NULL, e, n);
-		  ctx->locations.push_back(n);
-		}
+              for (unsigned j = 0; j < locs.size(); ++j)
+                if (pool)
+                  translate_location (pool, &locs[j], &dies[j],
+                                      pc, NULL, tail, e);
             }
 
           dwarf_die_type (vardie, typedie, c.tok);
@@ -3482,80 +3636,27 @@ dwflpp::resolve_unqualified_inner_typedie (Dwarf_Die *typedie,
     }
 }
 
-#if 0
-static void
-get_bitfield (const target_symbol *e,
-              Dwarf_Die *die, Dwarf_Word *bit_offset, Dwarf_Word *bit_size)
-{
-  Dwarf_Attribute attr_mem;
-  if (dwarf_attr_integrate (die, DW_AT_bit_offset, &attr_mem) == NULL
-      || dwarf_formudata (&attr_mem, bit_offset) != 0
-      || dwarf_attr_integrate (die, DW_AT_bit_size, &attr_mem) == NULL
-      || dwarf_formudata (&attr_mem, bit_size) != 0)
-    throw SEMANTIC_ERROR (_F("cannot get bit field parameters: %s",
-			  dwarf_errmsg(-1)), e->tok);
-}
-#endif
 
 void
-dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool signed_p)
-{
-  location *loc = ctx.locations.back ();
-
-  switch (loc->type)
-    {
-    case loc_value:
-      // The existing program is the value.
-      break;
-
-    case loc_address:
-      {
-        target_deref *d = new target_deref;
-        d->addr = loc->program;
-        d->size = byte_size;
-        d->signed_p = signed_p;
-        d->userspace_p = ctx.userspace_p;
-
-	loc = ctx.new_location(loc_value);
-	loc->program = d;
-	loc->byte_size = byte_size;
-	break;
-      }
-
-    case loc_register:
-      if (loc->offset != 0)
-	throw SEMANTIC_ERROR (_("cannot handle offset into register"), ctx.e->tok);
-      // The existing program is the value.
-      break;
-
-    case loc_noncontiguous:
-      throw SEMANTIC_ERROR (_("noncontiguous location for base fetch"), ctx.e->tok);
-    case loc_implicit_pointer:
-      throw SEMANTIC_ERROR (_("pointer optimized out"), ctx.e->tok);
-    case loc_unavailable:
-      throw SEMANTIC_ERROR (_("location not available"), ctx.e->tok);
-    default:
-      abort();
-    }
-}
-
-// As usual, leave the result as the last location in ctx.
-void
-dwflpp::translate_final_fetch_or_store (location_context &ctx,
+dwflpp::translate_final_fetch_or_store (struct obstack *pool,
+                                        struct location **tail,
+                                        Dwarf_Addr /*module_bias*/,
                                         Dwarf_Die *vardie,
                                         Dwarf_Die *start_typedie,
                                         bool lvalue,
+                                        const target_symbol *e,
+                                        string &,
+                                        string & postlude,
                                         Dwarf_Die *typedie)
 {
-  const target_symbol *e = ctx.e;
-
   /* First boil away any qualifiers associated with the type DIE of
      the final location to be accessed.  */
+
   resolve_unqualified_inner_typedie (start_typedie, typedie, e);
 
   /* If we're looking for an address, then we can just provide what
      we computed to this point, without using a fetch/store. */
-  if (ctx.e->addressof)
+  if (e->addressof)
     {
       if (lvalue)
         throw SEMANTIC_ERROR (_("cannot write to member address"), e->tok);
@@ -3563,6 +3664,8 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
       if (dwarf_hasattr_integrate (vardie, DW_AT_bit_offset))
         throw SEMANTIC_ERROR (_("cannot take address of bit-field"), e->tok);
 
+      l2c_ctx.die = vardie;
+      c_translate_addressof (pool, 1, 0, vardie, typedie, tail, "STAP_RETVALUE");
       return;
     }
 
@@ -3573,9 +3676,9 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
   switch (typetag)
     {
     default:
-      throw SEMANTIC_ERROR (_F("unsupported type tag %s for %s",
-			    lex_cast(typetag).c_str(),
-                            dwarf_type_name(typedie).c_str()), e->tok);
+      throw SEMANTIC_ERROR (_F("unsupported type tag %s for %s", lex_cast(typetag).c_str(),
+                               dwarf_type_name(typedie).c_str()), e->tok);
+      break;
 
     case DW_TAG_structure_type:
     case DW_TAG_class_type:
@@ -3613,9 +3716,10 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
                                (e->components[e->components.size()-1].tok) :
                                (e->tok)));
       }
+      break;
 
     case DW_TAG_base_type:
-    case DW_TAG_enumeration_type:
+
       // Reject types we can't handle in systemtap
       {
         Dwarf_Attribute encoding_attr;
@@ -3625,9 +3729,8 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
         if (encoding == (Dwarf_Word) -1)
           {
             // clog << "bad type1 " << encoding << " diestr" << endl;
-            throw SEMANTIC_ERROR (_F("unsupported type (mystery encoding %s for %s",
-				  lex_cast(encoding).c_str(),
-                                  dwarf_type_name(typedie).c_str()), e->tok);
+            throw SEMANTIC_ERROR (_F("unsupported type (mystery encoding %s for %s", lex_cast(encoding).c_str(),
+                                     dwarf_type_name(typedie).c_str()), e->tok);
           }
 
         if (encoding == DW_ATE_float
@@ -3635,43 +3738,103 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
             /* XXX || many others? */)
           {
             // clog << "bad type " << encoding << " diestr" << endl;
-            throw SEMANTIC_ERROR (_F("unsupported type (encoding %s) for %s",
-				     lex_cast(encoding).c_str(),
-				     dwarf_type_name(typedie).c_str()), e->tok);
+            throw SEMANTIC_ERROR (_F("unsupported type (encoding %s) for %s", lex_cast(encoding).c_str(),
+                                     dwarf_type_name(typedie).c_str()), e->tok);
           }
-
-	Dwarf_Attribute size_attr;
-	Dwarf_Word byte_size;
-	if (dwarf_attr_integrate (typedie, DW_AT_byte_size, &size_attr) == NULL
-	    || dwarf_formudata (&size_attr, &byte_size) != 0)
-	  throw SEMANTIC_ERROR (_F("cannot get byte_size attribute for type %s: %s",
-				   dwarf_diename (typedie) ?: "<anonymous>",
-				   dwarf_errmsg (-1)), e->tok);
-
-	bool signed_p = encoding == DW_ATE_signed || encoding == DW_ATE_signed_char;
-
-	// ??? where might the bare value be converted to an assignment?
-	assert(!lvalue);
-        translate_base_ref (ctx, byte_size, signed_p);
       }
+      /* Fallthrough */
+      // enumeration_types are always scalar.
+    case DW_TAG_enumeration_type:
+
+      l2c_ctx.die = vardie;
+      if (lvalue)
+        c_translate_store (pool, 1, 0 /* PR9768 */, vardie, typedie, tail,
+                           "STAP_ARG_value");
+      else
+        c_translate_fetch (pool, 1, 0 /* PR9768 */, vardie, typedie, tail,
+                           "STAP_RETVALUE");
       break;
 
     case DW_TAG_array_type:
     case DW_TAG_pointer_type:
     case DW_TAG_reference_type:
     case DW_TAG_rvalue_reference_type:
-      if (lvalue)
-        {
-          if (typetag == DW_TAG_array_type)
-            throw SEMANTIC_ERROR (_("cannot write to array address"), e->tok);
-          if (typetag == DW_TAG_reference_type ||
-              typetag == DW_TAG_rvalue_reference_type)
-            throw SEMANTIC_ERROR (_("cannot write to reference"), e->tok);
-          assert (typetag == DW_TAG_pointer_type);
-        }
-      /* No type cast needed for staptree intermediate code.  */
+
+        if (lvalue)
+          {
+            if (typetag == DW_TAG_array_type)
+              throw SEMANTIC_ERROR (_("cannot write to array address"), e->tok);
+            if (typetag == DW_TAG_reference_type ||
+                typetag == DW_TAG_rvalue_reference_type)
+              throw SEMANTIC_ERROR (_("cannot write to reference"), e->tok);
+            assert (typetag == DW_TAG_pointer_type);
+	    l2c_ctx.die = typedie;
+            c_translate_pointer_store (pool, 1, 0 /* PR9768 */, typedie, tail,
+                                       "STAP_ARG_value");
+          }
+        else
+          {
+            // We have the pointer: cast it to an integral type via &(*(...))
+
+            // NB: per bug #1187, at one point char*-like types were
+            // automagically converted here to systemtap string values.
+            // For several reasons, this was taken back out, leaving
+            // pointer-to-string "conversion" (copying) to tapset functions.
+
+	    l2c_ctx.die = typedie;
+            if (typetag == DW_TAG_array_type)
+              c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail, NULL, 0);
+            else
+              c_translate_pointer (pool, 1, 0 /* PR9768 */, typedie, tail);
+            c_translate_addressof (pool, 1, 0 /* PR9768 */, NULL, NULL, tail,
+                                   "STAP_RETVALUE");
+          }
       break;
     }
+
+  if (lvalue)
+    postlude += "  STAP_RETVALUE = STAP_ARG_value;\n";
+}
+
+
+string
+dwflpp::express_as_string (string prelude,
+                           string postlude,
+                           struct location *head)
+{
+  size_t bufsz = 0;
+  char *buf = 0; // NB: it would leak to pre-allocate a buffer here
+  FILE *memstream = open_memstream (&buf, &bufsz);
+  assert(memstream);
+
+  fprintf(memstream, "{\n");
+  fprintf(memstream, "%s", prelude.c_str());
+
+  unsigned int stack_depth;
+  bool deref = c_emit_location (memstream, head, 1, &stack_depth);
+
+  // Ensure that DWARF keeps loc2c to a "reasonable" stack size
+  // 32 intptr_t leads to max 256 bytes on the stack
+  if (stack_depth > 32)
+    throw SEMANTIC_ERROR("oversized DWARF stack");
+
+  fprintf(memstream, "%s", postlude.c_str());
+  fprintf(memstream, "  goto out;\n");
+
+  // dummy use of deref_fault label, to disable warning if deref() not used
+  fprintf(memstream, "if (0) goto deref_fault;\n");
+
+  // XXX: deref flag not reliable; emit fault label unconditionally
+  (void) deref;
+  fprintf(memstream,
+          "deref_fault:\n"
+          "  goto out;\n");
+  fprintf(memstream, "}\n");
+
+  fclose (memstream);
+  string result(buf);
+  free (buf);
+  return result;
 }
 
 Dwarf_Addr
@@ -3710,9 +3873,9 @@ dwflpp::vardie_from_symtable (Dwarf_Die *vardie, Dwarf_Addr *addr)
   return *addr;
 }
 
-bool
-dwflpp::literal_stmt_for_local (location_context &ctx,
-				vector<Dwarf_Die>& scopes,
+string
+dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
+                                Dwarf_Addr pc,
                                 string const & local,
                                 const target_symbol *e,
                                 bool lvalue,
@@ -3725,25 +3888,30 @@ dwflpp::literal_stmt_for_local (location_context &ctx,
   // needs to remain valid until express_as_string() has finished with it.
   Dwarf_Op addr_loc;
 
-  fb_attr = find_variable_and_frame_base (scopes, ctx.pc, local, e,
+  fb_attr = find_variable_and_frame_base (scopes, pc, local, e,
                                           &vardie, &fb_attr_mem);
 
   if (sess.verbose>2)
     {
-      if (ctx.pc)
+      if (pc)
         clog << _F("finding location for local '%s' near address %#" PRIx64
-                   ", module bias %#" PRIx64 "\n", local.c_str(), ctx.pc,
+                   ", module bias %#" PRIx64 "\n", local.c_str(), pc,
 	           module_bias);
       else
         clog << _F("finding location for global '%s' in CU '%s'\n",
 		   local.c_str(), cu_name().c_str());
     }
 
-  /* Given $foo->bar->baz[NN], translate the location of foo. */
-  Dwarf_Attribute attr_mem;
-  ctx.attr = &attr_mem;
-  ctx.fb_attr = fb_attr;
+  struct obstack pool;
+  obstack_tracker p (&pool);
 
+  struct location *tail = NULL;
+
+  /* Given $foo->bar->baz[NN], translate the location of foo. */
+
+  struct location *head;
+
+  Dwarf_Attribute attr_mem;
   if (dwarf_attr_integrate (&vardie, DW_AT_const_value, &attr_mem) == NULL
       && dwarf_attr_integrate (&vardie, DW_AT_location, &attr_mem) == NULL)
     {
@@ -3753,19 +3921,24 @@ dwflpp::literal_stmt_for_local (location_context &ctx,
       if (dwarf_attr_integrate (&vardie, DW_AT_external, &attr_mem) != NULL
 	  && vardie_from_symtable (&vardie, &addr_loc.number) != 0)
 	{
-	  ctx.translate_location (&addr_loc, 1, NULL);
+	  l2c_ctx.pc = pc;
+	  l2c_ctx.die = &vardie;
+	  head = c_translate_location (&pool, &loc2c_error, this,
+				       &loc2c_emit_address,
+				       1, 0, pc,
+				       NULL, &addr_loc, 1, &tail, NULL, NULL);
 	}
       else
 	{
 	  string msg = _F("failed to retrieve location attribute for '%s' [man error::dwarf]", local.c_str());
 	  semantic_error err(ERR_SRC, msg, e->tok);
 	  err.details.push_back(die_location_as_string(&vardie));
-	  err.details.push_back(pc_location_as_function_string(ctx.pc));
+	  err.details.push_back(pc_location_as_function_string(pc));
 	  throw err;
 	}
     }
   else
-    translate_location (&ctx, &attr_mem, &vardie, ctx.pc, fb_attr, e, NULL);
+    head = translate_location (&pool, &attr_mem, &vardie, pc, fb_attr, &tail, e);
 
   /* Translate the ->bar->baz[NN] parts. */
 
@@ -3775,19 +3948,26 @@ dwflpp::literal_stmt_for_local (location_context &ctx,
       string msg = _F("failed to retrieve type attribute for '%s' [man error::dwarf]", local.c_str());
       semantic_error err(ERR_SRC, msg, e->tok);
       err.details.push_back(die_location_as_string(&vardie));
-      err.details.push_back(pc_location_as_function_string(ctx.pc));
+      err.details.push_back(pc_location_as_function_string(pc));
       throw err;
     }
 
-  translate_components (&ctx, ctx.pc, e, &vardie, &typedie, 0);
+  translate_components (&pool, &tail, pc, e, &vardie, &typedie);
 
   /* Translate the assignment part, either
      x = $foo->bar->baz[NN]
      or
      $foo->bar->baz[NN] = x
   */
-  translate_final_fetch_or_store (ctx, &vardie, &typedie, lvalue, die_mem);
-  return true;
+
+  string prelude, postlude;
+  translate_final_fetch_or_store (&pool, &tail, module_bias,
+                                  &vardie, &typedie, lvalue, e,
+                                  prelude, postlude, die_mem);
+
+  /* Write the translation to a string. */
+  string result = express_as_string(prelude, postlude, head);
+  return result;
 }
 
 Dwarf_Die*
@@ -3805,16 +3985,14 @@ dwflpp::type_die_for_local (vector<Dwarf_Die>& scopes,
   if (dwarf_attr_die (&vardie, DW_AT_type, typedie) == NULL)
     throw SEMANTIC_ERROR(_F("failed to retrieve type attribute for '%s' [man error::dwarf]", local.c_str()), e->tok);
 
-  location_context ctx(const_cast<target_symbol *>(e));
-  ctx.pc = pc;
-  translate_components (&ctx, pc, e, &vardie, typedie);
+  translate_components (NULL, NULL, pc, e, &vardie, typedie);
   return typedie;
 }
 
 
-bool
-dwflpp::literal_stmt_for_return (location_context &ctx,
-				 Dwarf_Die *scope_die,
+string
+dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
+                                 Dwarf_Addr pc,
                                  const target_symbol *e,
                                  bool lvalue,
                                  Dwarf_Die *die_mem)
@@ -3822,6 +4000,10 @@ dwflpp::literal_stmt_for_return (location_context &ctx,
   if (sess.verbose>2)
       clog << _F("literal_stmt_for_return: finding return value for %s (%s)\n",
                 (dwarf_diename(scope_die) ?: "<unknown>"), (dwarf_diename(cu) ?: "<unknown>"));
+
+  struct obstack pool;
+  obstack_tracker p (&pool);
+  struct location *tail = NULL;
 
   /* Given $return->bar->baz[NN], translate the location of return. */
   const Dwarf_Op *locops;
@@ -3837,7 +4019,13 @@ dwflpp::literal_stmt_for_return (location_context &ctx,
                             (dwarf_diename(scope_die) ?: "<unknown>"),
                             (dwarf_diename(cu) ?: "<unknown>")), e->tok);
 
-  ctx.translate_location (locops, nlocops, NULL);
+  l2c_ctx.pc = pc;
+  l2c_ctx.die = scope_die;
+  struct location  *head = c_translate_location (&pool, &loc2c_error, this,
+                                                 &loc2c_emit_address,
+                                                 1, 0 /* PR9768 */,
+                                                 pc, NULL, locops, nlocops,
+                                                 &tail, NULL, NULL);
 
   /* Translate the ->bar->baz[NN] parts. */
 
@@ -3847,15 +4035,22 @@ dwflpp::literal_stmt_for_return (location_context &ctx,
                             (dwarf_diename(&vardie) ?: "<unknown>"),
                             (dwarf_diename(cu) ?: "<unknown>")), e->tok);
   
-  translate_components (&ctx, ctx.pc, e, &vardie, &typedie);
+  translate_components (&pool, &tail, pc, e, &vardie, &typedie);
 
   /* Translate the assignment part, either
      x = $return->bar->baz[NN]
      or
      $return->bar->baz[NN] = x
   */
-  translate_final_fetch_or_store (ctx, &vardie, &typedie, lvalue, die_mem);
-  return true;
+
+  string prelude, postlude;
+  translate_final_fetch_or_store (&pool, &tail, module_bias,
+                                  &vardie, &typedie, lvalue, e,
+                                  prelude, postlude, die_mem);
+
+  /* Write the translation to a string. */
+  string result = express_as_string(prelude, postlude, head);
+  return result;
 }
 
 Dwarf_Die*
@@ -3870,14 +4065,13 @@ dwflpp::type_die_for_return (Dwarf_Die *scope_die,
                            (dwarf_diename(&vardie) ?: "<unknown>"),
                            (dwarf_diename(cu) ?: "<unknown>")), e->tok);
 
-  translate_components (NULL, pc, e, &vardie, typedie);
+  translate_components (NULL, NULL, pc, e, &vardie, typedie);
   return typedie;
 }
 
 
-bool
-dwflpp::literal_stmt_for_pointer (location_context &ctx,
-				  Dwarf_Die *start_typedie,
+string
+dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
                                   const target_symbol *e,
                                   bool lvalue,
                                   Dwarf_Die *die_mem)
@@ -3886,8 +4080,14 @@ dwflpp::literal_stmt_for_pointer (location_context &ctx,
       clog << _F("literal_stmt_for_pointer: finding value for %s (%s)\n",
                   dwarf_type_name(start_typedie).c_str(), (dwarf_diename(cu) ?: "<unknown>"));
 
-  assert(ctx.pointer != NULL);
-  location *tail = ctx.translate_argument (ctx.pointer);
+  struct obstack pool;
+  obstack_tracker p (&pool);
+  l2c_ctx.pc = 1;
+  l2c_ctx.die = start_typedie;
+  struct location *head = c_translate_argument (&pool, &loc2c_error, this,
+                                                &loc2c_emit_address,
+                                                1, "STAP_ARG_pointer");
+  struct location *tail = head;
 
   /* Translate the ->bar->baz[NN] parts. */
 
@@ -3907,26 +4107,33 @@ dwflpp::literal_stmt_for_pointer (location_context &ctx,
       if (typetag != DW_TAG_pointer_type &&
           typetag != DW_TAG_array_type)
         {
+	  l2c_ctx.die = &typedie;
           if (c->type == target_symbol::comp_literal_array_index)
-            tail = ctx.translate_array_pointer (&typedie, tail,
-			new literal_number (c->num_index));
+            c_translate_array_pointer (&pool, 1, &typedie, &tail, NULL, c->num_index);
           else
-            tail = ctx.translate_array_pointer (&typedie, tail,
-						ctx.indicies[0]);
+            c_translate_array_pointer (&pool, 1, &typedie, &tail, "STAP_ARG_index0", 0);
           ++first;
         }
     }
 
   /* Now translate the rest normally. */
-  translate_components (&ctx, 0, e, &vardie, &typedie, first);
+
+  translate_components (&pool, &tail, 0, e, &vardie, &typedie, first);
 
   /* Translate the assignment part, either
      x = (STAP_ARG_pointer)->bar->baz[NN]
      or
      (STAP_ARG_pointer)->bar->baz[NN] = x
   */
-  translate_final_fetch_or_store (ctx, &vardie, &typedie, lvalue, die_mem);
-  return true;
+
+  string prelude, postlude;
+  translate_final_fetch_or_store (&pool, &tail, module_bias,
+                                  &vardie, &typedie, lvalue, e,
+                                  prelude, postlude, die_mem);
+
+  /* Write the translation to a string. */
+  string result = express_as_string(prelude, postlude, head);
+  return result;
 }
 
 Dwarf_Die*
@@ -3951,8 +4158,7 @@ dwflpp::type_die_for_pointer (Dwarf_Die *start_typedie,
         ++first;
     }
 
-  location_context ctx(const_cast<target_symbol *>(e));
-  translate_components (&ctx, 0, e, &vardie, typedie, first);
+  translate_components (NULL, NULL, 0, e, &vardie, typedie, first);
   return typedie;
 }
 
