@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-# Makefile.am --- automake input file for systemtap
+# Makefile.am --- automake input file for systemtap runtime tools
 
 VPATH = @srcdir@
 am__is_gnu_make = { \
@@ -91,8 +91,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-@HAVE_HTTP_SUPPORT_TRUE@pkglibexec_PROGRAMS = stap-httpd$(EXEEXT)
-subdir = httpd
+@HAVE_LINUX_BPF_H_TRUE@bin_PROGRAMS = stapbpf$(EXEEXT)
+subdir = stapbpf
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
@@ -109,17 +109,16 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-am__installdirs = "$(DESTDIR)$(pkglibexecdir)"
-PROGRAMS = $(pkglibexec_PROGRAMS)
-am__dirstamp = $(am__leading_dot)dirstamp
-@HAVE_HTTP_SUPPORT_TRUE@am_stap_httpd_OBJECTS =  \
-@HAVE_HTTP_SUPPORT_TRUE@	stap_httpd-main.$(OBJEXT) \
-@HAVE_HTTP_SUPPORT_TRUE@	stap_httpd-server.$(OBJEXT) \
-@HAVE_HTTP_SUPPORT_TRUE@	../stap_httpd-util.$(OBJEXT)
-stap_httpd_OBJECTS = $(am_stap_httpd_OBJECTS)
-stap_httpd_DEPENDENCIES =
-stap_httpd_LINK = $(CXXLD) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) \
-	$(stap_httpd_LDFLAGS) $(LDFLAGS) -o $@
+am__installdirs = "$(DESTDIR)$(bindir)"
+PROGRAMS = $(bin_PROGRAMS)
+@HAVE_LINUX_BPF_H_TRUE@am_stapbpf_OBJECTS = stapbpf-stapbpf.$(OBJEXT) \
+@HAVE_LINUX_BPF_H_TRUE@	stapbpf-bpfinterp.$(OBJEXT) \
+@HAVE_LINUX_BPF_H_TRUE@	stapbpf-libbpf.$(OBJEXT)
+stapbpf_OBJECTS = $(am_stapbpf_OBJECTS)
+am__DEPENDENCIES_1 =
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_DEPENDENCIES = $(am__DEPENDENCIES_1)
+stapbpf_LINK = $(CXXLD) $(stapbpf_CXXFLAGS) $(CXXFLAGS) \
+	$(stapbpf_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -140,6 +139,18 @@ AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+AM_V_CC = $(am__v_CC_@AM_V@)
+am__v_CC_ = $(am__v_CC_@AM_DEFAULT_V@)
+am__v_CC_0 = @echo "  CC      " $@;
+am__v_CC_1 = 
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CCLD = $(am__v_CCLD_@AM_V@)
+am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
+am__v_CCLD_0 = @echo "  CCLD    " $@;
+am__v_CCLD_1 = 
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
 AM_V_CXX = $(am__v_CXX_@AM_V@)
@@ -153,7 +164,7 @@ AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
 am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
 am__v_CXXLD_0 = @echo "  CXXLD   " $@;
 am__v_CXXLD_1 = 
-SOURCES = $(stap_httpd_SOURCES)
+SOURCES = $(stapbpf_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -386,21 +397,20 @@ AM_CPPFLAGS = -D_GNU_SOURCE -I$(srcdir)/../includes \
 	-DSYSCONFDIR='"$(sysconfdir)"' -DPKGDATADIR='"${pkgdatadir}"' \
 	-DPKGLIBDIR='"$(pkglibexecdir)"' -DLOCALEDIR='"$(localedir)"'
 AM_LDFLAGS = @PIELDFLAGS@
-@HAVE_HTTP_SUPPORT_TRUE@stap_httpd_SOURCES = main.cxx server.cxx ../util.cxx
-@HAVE_HTTP_SUPPORT_TRUE@stap_httpd_CFLAGS = $(AM_CFLAGS)
-@HAVE_HTTP_SUPPORT_TRUE@stap_httpd_CXXFLAGS = $(AM_CXXFLAGS)
-@HAVE_HTTP_SUPPORT_TRUE@stap_httpd_CPPFLAGS = $(AM_CPPFLAGS)
-@HAVE_HTTP_SUPPORT_TRUE@stap_httpd_LDADD = -lpthread -lmicrohttpd -luuid
-@HAVE_HTTP_SUPPORT_TRUE@stap_httpd_LDFLAGS = $(AM_LDFLAGS)
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_SOURCES = stapbpf.cxx bpfinterp.cxx libbpf.c
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_CFLAGS = $(AM_CFLAGS)
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_CXXFLAGS = $(AM_CXXFLAGS)
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_LDFLAGS = $(AM_LDFLAGS)
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_LDADD = $(stapbpf_LIBS)
 
 # Arrange for the top-level git_version.h to be regenerated at every "make".
-BUILT_SOURCES = git_version.stamp
-CLEANFILES = 
+@HAVE_LINUX_BPF_H_TRUE@BUILT_SOURCES = git_version.stamp
+@HAVE_LINUX_BPF_H_TRUE@CLEANFILES = 
 all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
-.SUFFIXES: .cxx .o .obj
+.SUFFIXES: .c .cxx .o .obj
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -410,9 +420,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign httpd/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign stapbpf/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign httpd/Makefile
+	  $(AUTOMAKE) --foreign stapbpf/Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
 	  *config.status*) \
@@ -430,12 +440,12 @@ $(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
-install-pkglibexecPROGRAMS: $(pkglibexec_PROGRAMS)
+install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
-	@list='$(pkglibexec_PROGRAMS)'; test -n "$(pkglibexecdir)" || list=; \
+	@list='$(bin_PROGRAMS)'; test -n "$(bindir)" || list=; \
 	if test -n "$$list"; then \
-	  echo " $(MKDIR_P) '$(DESTDIR)$(pkglibexecdir)'"; \
-	  $(MKDIR_P) "$(DESTDIR)$(pkglibexecdir)" || exit 1; \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(bindir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(bindir)" || exit 1; \
 	fi; \
 	for p in $$list; do echo "$$p $$p"; done | \
 	sed 's/$(EXEEXT)$$//' | \
@@ -454,47 +464,68 @@ install-pkglibexecPROGRAMS: $(pkglibexec_PROGRAMS)
 	while read type dir files; do \
 	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
 	    test -z "$$files" || { \
-	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(pkglibexecdir)$$dir'"; \
-	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(pkglibexecdir)$$dir" || exit $$?; \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(bindir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(bindir)$$dir" || exit $$?; \
 	    } \
 	; done
 
-uninstall-pkglibexecPROGRAMS:
+uninstall-binPROGRAMS:
 	@$(NORMAL_UNINSTALL)
-	@list='$(pkglibexec_PROGRAMS)'; test -n "$(pkglibexecdir)" || list=; \
+	@list='$(bin_PROGRAMS)'; test -n "$(bindir)" || list=; \
 	files=`for p in $$list; do echo "$$p"; done | \
 	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
 	      -e 's/$$/$(EXEEXT)/' \
 	`; \
 	test -n "$$list" || exit 0; \
-	echo " ( cd '$(DESTDIR)$(pkglibexecdir)' && rm -f" $$files ")"; \
-	cd "$(DESTDIR)$(pkglibexecdir)" && rm -f $$files
+	echo " ( cd '$(DESTDIR)$(bindir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(bindir)" && rm -f $$files
 
-clean-pkglibexecPROGRAMS:
-	-test -z "$(pkglibexec_PROGRAMS)" || rm -f $(pkglibexec_PROGRAMS)
-../$(am__dirstamp):
-	@$(MKDIR_P) ..
-	@: > ../$(am__dirstamp)
-../$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) ../$(DEPDIR)
-	@: > ../$(DEPDIR)/$(am__dirstamp)
-../stap_httpd-util.$(OBJEXT): ../$(am__dirstamp) \
-	../$(DEPDIR)/$(am__dirstamp)
+clean-binPROGRAMS:
+	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
 
-stap-httpd$(EXEEXT): $(stap_httpd_OBJECTS) $(stap_httpd_DEPENDENCIES) $(EXTRA_stap_httpd_DEPENDENCIES) 
-	@rm -f stap-httpd$(EXEEXT)
-	$(AM_V_CXXLD)$(stap_httpd_LINK) $(stap_httpd_OBJECTS) $(stap_httpd_LDADD) $(LIBS)
+stapbpf$(EXEEXT): $(stapbpf_OBJECTS) $(stapbpf_DEPENDENCIES) $(EXTRA_stapbpf_DEPENDENCIES) 
+	@rm -f stapbpf$(EXEEXT)
+	$(AM_V_CXXLD)$(stapbpf_LINK) $(stapbpf_OBJECTS) $(stapbpf_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
-	-rm -f ../*.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@../$(DEPDIR)/stap_httpd-util.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_httpd-main.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_httpd-server.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stapbpf-bpfinterp.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stapbpf-libbpf.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stapbpf-stapbpf.Po@am__quote@
+
+.c.o:
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ $<
+
+.c.obj:
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+
+stapbpf-libbpf.o: libbpf.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CFLAGS) $(CFLAGS) -MT stapbpf-libbpf.o -MD -MP -MF $(DEPDIR)/stapbpf-libbpf.Tpo -c -o stapbpf-libbpf.o `test -f 'libbpf.c' || echo '$(srcdir)/'`libbpf.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stapbpf-libbpf.Tpo $(DEPDIR)/stapbpf-libbpf.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libbpf.c' object='stapbpf-libbpf.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CFLAGS) $(CFLAGS) -c -o stapbpf-libbpf.o `test -f 'libbpf.c' || echo '$(srcdir)/'`libbpf.c
+
+stapbpf-libbpf.obj: libbpf.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CFLAGS) $(CFLAGS) -MT stapbpf-libbpf.obj -MD -MP -MF $(DEPDIR)/stapbpf-libbpf.Tpo -c -o stapbpf-libbpf.obj `if test -f 'libbpf.c'; then $(CYGPATH_W) 'libbpf.c'; else $(CYGPATH_W) '$(srcdir)/libbpf.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stapbpf-libbpf.Tpo $(DEPDIR)/stapbpf-libbpf.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libbpf.c' object='stapbpf-libbpf.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CFLAGS) $(CFLAGS) -c -o stapbpf-libbpf.obj `if test -f 'libbpf.c'; then $(CYGPATH_W) 'libbpf.c'; else $(CYGPATH_W) '$(srcdir)/libbpf.c'; fi`
 
 .cxx.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -512,47 +543,33 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
-stap_httpd-main.o: main.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -MT stap_httpd-main.o -MD -MP -MF $(DEPDIR)/stap_httpd-main.Tpo -c -o stap_httpd-main.o `test -f 'main.cxx' || echo '$(srcdir)/'`main.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_httpd-main.Tpo $(DEPDIR)/stap_httpd-main.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='main.cxx' object='stap_httpd-main.o' libtool=no @AMDEPBACKSLASH@
+stapbpf-stapbpf.o: stapbpf.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -MT stapbpf-stapbpf.o -MD -MP -MF $(DEPDIR)/stapbpf-stapbpf.Tpo -c -o stapbpf-stapbpf.o `test -f 'stapbpf.cxx' || echo '$(srcdir)/'`stapbpf.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stapbpf-stapbpf.Tpo $(DEPDIR)/stapbpf-stapbpf.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='stapbpf.cxx' object='stapbpf-stapbpf.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -c -o stap_httpd-main.o `test -f 'main.cxx' || echo '$(srcdir)/'`main.cxx
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -c -o stapbpf-stapbpf.o `test -f 'stapbpf.cxx' || echo '$(srcdir)/'`stapbpf.cxx
 
-stap_httpd-main.obj: main.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -MT stap_httpd-main.obj -MD -MP -MF $(DEPDIR)/stap_httpd-main.Tpo -c -o stap_httpd-main.obj `if test -f 'main.cxx'; then $(CYGPATH_W) 'main.cxx'; else $(CYGPATH_W) '$(srcdir)/main.cxx'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_httpd-main.Tpo $(DEPDIR)/stap_httpd-main.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='main.cxx' object='stap_httpd-main.obj' libtool=no @AMDEPBACKSLASH@
+stapbpf-stapbpf.obj: stapbpf.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -MT stapbpf-stapbpf.obj -MD -MP -MF $(DEPDIR)/stapbpf-stapbpf.Tpo -c -o stapbpf-stapbpf.obj `if test -f 'stapbpf.cxx'; then $(CYGPATH_W) 'stapbpf.cxx'; else $(CYGPATH_W) '$(srcdir)/stapbpf.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stapbpf-stapbpf.Tpo $(DEPDIR)/stapbpf-stapbpf.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='stapbpf.cxx' object='stapbpf-stapbpf.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -c -o stap_httpd-main.obj `if test -f 'main.cxx'; then $(CYGPATH_W) 'main.cxx'; else $(CYGPATH_W) '$(srcdir)/main.cxx'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -c -o stapbpf-stapbpf.obj `if test -f 'stapbpf.cxx'; then $(CYGPATH_W) 'stapbpf.cxx'; else $(CYGPATH_W) '$(srcdir)/stapbpf.cxx'; fi`
 
-stap_httpd-server.o: server.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -MT stap_httpd-server.o -MD -MP -MF $(DEPDIR)/stap_httpd-server.Tpo -c -o stap_httpd-server.o `test -f 'server.cxx' || echo '$(srcdir)/'`server.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_httpd-server.Tpo $(DEPDIR)/stap_httpd-server.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='server.cxx' object='stap_httpd-server.o' libtool=no @AMDEPBACKSLASH@
+stapbpf-bpfinterp.o: bpfinterp.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -MT stapbpf-bpfinterp.o -MD -MP -MF $(DEPDIR)/stapbpf-bpfinterp.Tpo -c -o stapbpf-bpfinterp.o `test -f 'bpfinterp.cxx' || echo '$(srcdir)/'`bpfinterp.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stapbpf-bpfinterp.Tpo $(DEPDIR)/stapbpf-bpfinterp.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='bpfinterp.cxx' object='stapbpf-bpfinterp.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -c -o stap_httpd-server.o `test -f 'server.cxx' || echo '$(srcdir)/'`server.cxx
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -c -o stapbpf-bpfinterp.o `test -f 'bpfinterp.cxx' || echo '$(srcdir)/'`bpfinterp.cxx
 
-stap_httpd-server.obj: server.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -MT stap_httpd-server.obj -MD -MP -MF $(DEPDIR)/stap_httpd-server.Tpo -c -o stap_httpd-server.obj `if test -f 'server.cxx'; then $(CYGPATH_W) 'server.cxx'; else $(CYGPATH_W) '$(srcdir)/server.cxx'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_httpd-server.Tpo $(DEPDIR)/stap_httpd-server.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='server.cxx' object='stap_httpd-server.obj' libtool=no @AMDEPBACKSLASH@
+stapbpf-bpfinterp.obj: bpfinterp.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -MT stapbpf-bpfinterp.obj -MD -MP -MF $(DEPDIR)/stapbpf-bpfinterp.Tpo -c -o stapbpf-bpfinterp.obj `if test -f 'bpfinterp.cxx'; then $(CYGPATH_W) 'bpfinterp.cxx'; else $(CYGPATH_W) '$(srcdir)/bpfinterp.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stapbpf-bpfinterp.Tpo $(DEPDIR)/stapbpf-bpfinterp.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='bpfinterp.cxx' object='stapbpf-bpfinterp.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -c -o stap_httpd-server.obj `if test -f 'server.cxx'; then $(CYGPATH_W) 'server.cxx'; else $(CYGPATH_W) '$(srcdir)/server.cxx'; fi`
-
-../stap_httpd-util.o: ../util.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -MT ../stap_httpd-util.o -MD -MP -MF ../$(DEPDIR)/stap_httpd-util.Tpo -c -o ../stap_httpd-util.o `test -f '../util.cxx' || echo '$(srcdir)/'`../util.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../$(DEPDIR)/stap_httpd-util.Tpo ../$(DEPDIR)/stap_httpd-util.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../util.cxx' object='../stap_httpd-util.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -c -o ../stap_httpd-util.o `test -f '../util.cxx' || echo '$(srcdir)/'`../util.cxx
-
-../stap_httpd-util.obj: ../util.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -MT ../stap_httpd-util.obj -MD -MP -MF ../$(DEPDIR)/stap_httpd-util.Tpo -c -o ../stap_httpd-util.obj `if test -f '../util.cxx'; then $(CYGPATH_W) '../util.cxx'; else $(CYGPATH_W) '$(srcdir)/../util.cxx'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../$(DEPDIR)/stap_httpd-util.Tpo ../$(DEPDIR)/stap_httpd-util.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../util.cxx' object='../stap_httpd-util.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -c -o ../stap_httpd-util.obj `if test -f '../util.cxx'; then $(CYGPATH_W) '../util.cxx'; else $(CYGPATH_W) '$(srcdir)/../util.cxx'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -c -o stapbpf-bpfinterp.obj `if test -f 'bpfinterp.cxx'; then $(CYGPATH_W) 'bpfinterp.cxx'; else $(CYGPATH_W) '$(srcdir)/bpfinterp.cxx'; fi`
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -610,7 +627,7 @@ check: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) check-am
 all-am: Makefile $(PROGRAMS)
 installdirs:
-	for dir in "$(DESTDIR)$(pkglibexecdir)"; do \
+	for dir in "$(DESTDIR)$(bindir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -641,19 +658,18 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
-	-rm -f ../$(DEPDIR)/$(am__dirstamp)
-	-rm -f ../$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
+@HAVE_LINUX_BPF_H_FALSE@install-exec-hook:
 clean: clean-am
 
-clean-am: clean-generic clean-pkglibexecPROGRAMS mostlyclean-am
+clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
 
 distclean: distclean-am
-	-rm -rf ../$(DEPDIR) ./$(DEPDIR)
+	-rm -rf ./$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -676,8 +692,9 @@ install-dvi: install-dvi-am
 
 install-dvi-am:
 
-install-exec-am: install-pkglibexecPROGRAMS
-
+install-exec-am: install-binPROGRAMS
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
 install-html: install-html-am
 
 install-html-am:
@@ -699,7 +716,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-	-rm -rf ../$(DEPDIR) ./$(DEPDIR)
+	-rm -rf ./$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -715,28 +732,38 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-pkglibexecPROGRAMS
+uninstall-am: uninstall-binPROGRAMS
 
-.MAKE: all check install install-am install-strip
+.MAKE: all check install install-am install-exec-am install-strip
 
-.PHONY: CTAGS GTAGS TAGS all all-am check check-am clean clean-generic \
-	clean-pkglibexecPROGRAMS cscopelist-am ctags ctags-am \
+.PHONY: CTAGS GTAGS TAGS all all-am check check-am clean \
+	clean-binPROGRAMS clean-generic cscopelist-am ctags ctags-am \
 	distclean distclean-compile distclean-generic distclean-tags \
 	dvi dvi-am html html-am info info-am install install-am \
-	install-data install-data-am install-dvi install-dvi-am \
-	install-exec install-exec-am install-html install-html-am \
-	install-info install-info-am install-man install-pdf \
-	install-pdf-am install-pkglibexecPROGRAMS install-ps \
+	install-binPROGRAMS install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-exec-hook \
+	install-html install-html-am install-info install-info-am \
+	install-man install-pdf install-pdf-am install-ps \
 	install-ps-am install-strip installcheck installcheck-am \
 	installdirs maintainer-clean maintainer-clean-generic \
 	mostlyclean mostlyclean-compile mostlyclean-generic pdf pdf-am \
 	ps ps-am tags tags-am uninstall uninstall-am \
-	uninstall-pkglibexecPROGRAMS
+	uninstall-binPROGRAMS
 
 .PRECIOUS: Makefile
 
-git_version.stamp ../git_version.h:
-	$(MAKE) -C .. $(notdir $@)
+@HAVE_LINUX_BPF_H_TRUE@git_version.stamp ../git_version.h:
+@HAVE_LINUX_BPF_H_TRUE@	$(MAKE) -C .. $(notdir $@)
+
+# Why the "id -u" condition?  This way, an unprivileged user can run
+# make install, and have "sudo stap ...." or "sudo stapbpf ...." work later.
+@HAVE_LINUX_BPF_H_TRUE@install-exec-hook:
+@HAVE_LINUX_BPF_H_TRUE@	if [ `id -u` -eq 0 ]; then \
+@HAVE_LINUX_BPF_H_TRUE@		getent group stapusr >/dev/null || groupadd -g 156 -r stapusr 2>/dev/null || groupadd -r stapusr; \
+@HAVE_LINUX_BPF_H_TRUE@		getent group stapusr >/dev/null \
+@HAVE_LINUX_BPF_H_TRUE@		&& chgrp stapusr "$(DESTDIR)$(bindir)/stapbpf" \
+@HAVE_LINUX_BPF_H_TRUE@		&& chmod 04110 "$(DESTDIR)$(bindir)/stapbpf"; \
+@HAVE_LINUX_BPF_H_TRUE@	fi
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
