@@ -3794,7 +3794,7 @@ c_unparser::visit_embeddedcode (embeddedcode *s)
     o->newline() << "assert_is_myproc();";
   o->newline() << "{";
 
-  if (s->code.find ("CATCH_DEREF_FAULT") != string::npos)
+  if (1 || s->code.find ("CATCH_DEREF_FAULT") != string::npos)
     o->newline() << "__label__ deref_fault;";
 
   vector<vardecl*> read_defs;
