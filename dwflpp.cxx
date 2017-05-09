@@ -3150,6 +3150,7 @@ dwflpp::translate_location(location_context *ctx,
   ctx->cfa_ops = cfa_ops;
   ctx->fb_attr = fb_attr;
   ctx->pc = pc;
+  ctx->dw = this;
 
   return ctx->translate_location (expr, len, input);
 }
@@ -3807,6 +3808,7 @@ dwflpp::type_die_for_local (vector<Dwarf_Die>& scopes,
 
   location_context ctx(const_cast<target_symbol *>(e));
   ctx.pc = pc;
+  ctx.dw = this;
   translate_components (&ctx, pc, e, &vardie, typedie);
   return typedie;
 }
@@ -3952,6 +3954,7 @@ dwflpp::type_die_for_pointer (Dwarf_Die *start_typedie,
     }
 
   location_context ctx(const_cast<target_symbol *>(e));
+  ctx.dw = this;
   translate_components (&ctx, 0, e, &vardie, typedie, first);
   return typedie;
 }

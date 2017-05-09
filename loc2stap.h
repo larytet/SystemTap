@@ -41,6 +41,7 @@ struct location
   { }
 };
 
+class dwflpp;
 class location_context
 {
 public:
@@ -57,6 +58,7 @@ public:
   Dwarf_Addr pc;
   Dwarf_Attribute *fb_attr;
   const Dwarf_Op *cfa_ops;
+  dwflpp *dw;
 
   // Temporaries required while computing EVALS and LOCATIONS.
   symbol *frame_base;
@@ -97,6 +99,7 @@ public:
 public:
   location_context(target_symbol *, expression * = NULL);
 
+  expression *translate_address(Dwarf_Addr a);
   location *translate_constant(Dwarf_Attribute *a);
   location *translate_location(const Dwarf_Op *locexpr,
 			       size_t locexprlen, location *input);

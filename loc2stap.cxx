@@ -16,6 +16,7 @@
 #include <elfutils/version.h>
 
 #include "loc2stap.h"
+#include "dwflpp.h"
 
 #if ! _ELFUTILS_PREREQ(0, 153)
 #define DW_OP_GNU_entry_value 0xf3
@@ -25,7 +26,8 @@
 
 
 location_context::location_context(target_symbol *ee, expression *pp)
-  : e(ee), attr(0), dwbias(0), pc(0), fb_attr(0), cfa_ops(0), frame_base(0)
+  : e(ee), attr(0), dwbias(0), pc(0), fb_attr(0), cfa_ops(0),
+    dw(0), frame_base(0)
 {
   // If this code snippet uses a precomputed pointer, create an
   // parameter variable to hold it.
@@ -50,6 +52,65 @@ location_context::location_context(target_symbol *ee, expression *pp)
       }
 }
 
+expression *
+location_context::translate_address(Dwarf_Addr addr)
+{
+  if (dw == NULL)
+    return new literal_number(addr);
+
+  int n = dwfl_module_relocations (dw->module);
+  Dwarf_Addr reloc_addr = addr;
+  const char *secname = "";
+
+  if (n > 1)
+    {
+      int i = dwfl_module_relocate_address (dw->module, &reloc_addr);
+      secname = dwfl_module_relocation_info (dw->module, i, NULL);
+    }
+
+  if (n > 0 && !(n == 1 && secname == NULL))
+    {
+      std::string c;
+
+      if (n > 1 || secname[0] != 0)
+	{
+	  // This gives us the module name and section name within the
+	  // module, for a kernel module.
+          c = "({ unsigned long addr = 0; "
+              "addr = _stp_kmodule_relocate (\""
+              + dw->module_name + "\", \"" + secname + "\", "
+              + lex_cast_hex (reloc_addr)
+	      + "); addr; })";
+	}
+      else if (n == 1 && dw->module_name == "kernel" && secname[0] == 0)
+	{
+	  // elfutils way of telling us that this is a relocatable kernel
+	  // address, which we need to treat the same way here as
+	  // dwarf_query::add_probe_point does.
+          c = "({ unsigned long addr = 0; "
+              "addr = _stp_kmodule_relocate (\"kernel\", \"_stext\", "
+              + lex_cast_hex (addr - dw->sess.sym_stext)
+	      + "); addr; })";
+	}
+      else
+	{
+          c = "/* pragma:vma */ "
+              "({ unsigned long addr = 0; "
+              "addr = _stp_umodule_relocate (\""
+              + resolve_path(dw->module_name.c_str()) + "\", "
+              + lex_cast_hex (addr)
+	      + ", current); addr; })";
+	}
+
+      embedded_expr *r = new embedded_expr;
+      r->tok = e->tok;
+      r->code = c;
+      return r;
+    }
+  else
+    return new literal_number(addr);
+}
+
 location *
 location_context::translate_constant(Dwarf_Attribute *attr)
 {
@@ -64,11 +125,8 @@ location_context::translate_constant(Dwarf_Attribute *attr)
 	  throw SEMANTIC_ERROR(std::string("cannot get constant address: ")
                                + dwarf_errmsg (-1));
 
-        // ??? dwflpp::emit_address does quite a lot with section names
-	// and relocatable addresses and suchlike.  Should we create a
-	// new staptree to wrap this?
         loc = new_location(loc_value);
-	loc->program = new literal_number(this->dwbias + addr);
+	loc->program = translate_address(this->dwbias + addr);
       }
       break;
 
@@ -384,11 +442,8 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
 	    /* Constant-value operations.  */
 
 	  case DW_OP_addr:
-	    // ??? dwflpp::emit_address does quite a lot with section names
-	    // and relocatable addresses and suchlike.  Should we create a
-	    // new staptree to wrap this?
-	    value = this->dwbias + expr[i].number;
-	    goto op_const;
+	    PUSH(translate_address(this->dwbias + expr[i].number));
+	    break;
 
 	  case DW_OP_lit0 ... DW_OP_lit31:
 	    value = expr[i].atom - DW_OP_lit0;
