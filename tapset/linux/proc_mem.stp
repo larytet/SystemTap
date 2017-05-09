@@ -124,7 +124,7 @@ function proc_mem_size:long ()
    if (_stp_valid_task(task)) {
      mm = task->mm
      if (mm != 0)
-       return mm->total_vm
+       return @mm(mm)->total_vm
    }
    return 0
 }
@@ -144,7 +144,7 @@ function proc_mem_size:long (pid:long)
   if (_stp_valid_task(task)) {
     mm = task->mm
     if (mm != 0)
-      return mm->total_vm
+      return @mm(mm)->total_vm
   }
   return 0
 }
@@ -260,8 +260,8 @@ function proc_mem_txt:long ()
   if (_stp_valid_task(task)) {
     mm = task->mm
     if (mm != 0) {
-      s = mm->start_code
-      e = mm->end_code
+      s = @mm(mm)->start_code
+      e = @mm(mm)->end_code
       return _stp_mem_txt_adjust(s, e)
     }
   }
@@ -283,8 +283,8 @@ function proc_mem_txt:long (pid:long)
   if (_stp_valid_task(task)) {
     mm = task->mm
     if (mm != 0) {
-      s = mm->start_code
-      e = mm->end_code
+      s = @mm(mm)->start_code
+      e = @mm(mm)->end_code
       return _stp_mem_txt_adjust (s, e)
     }
   }
@@ -308,8 +308,9 @@ function proc_mem_data:long ()
   if (_stp_valid_task(task)) {
     mm = task->mm
     if (mm != 0) {
-      return (@defined(&@mm(0)->data_vm) ? (mm->data_vm + mm->stack_vm)
-	      : (mm->total_vm - mm->shared_vm))
+      return (@defined(&@mm(0)->data_vm)
+	      ? (@mm(mm)->data_vm + @mm(mm)->stack_vm)
+	      : (@mm(mm)->total_vm - @mm(mm)->shared_vm))
     }
   }
   return 0
@@ -330,8 +331,9 @@ function proc_mem_data:long (pid:long)
   if (_stp_valid_task(task)) {
     mm = task->mm
     if (mm != 0) {
-      return (@defined(&@mm(0)->data_vm) ? (mm->data_vm + mm->stack_vm)
-	      : (mm->total_vm - mm->shared_vm))
+      return (@defined(&@mm(0)->data_vm)
+              ? (@mm(mm)->data_vm + @mm(mm)->stack_vm)
+	      : (@mm(mm)->total_vm - @mm(mm)->shared_vm))
     }
   }
   return 0

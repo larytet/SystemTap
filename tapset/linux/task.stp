@@ -40,7 +40,7 @@ function task_current:long () {
         return -1;
     }
     sig = @task(task)->signal;
-    return sig->rlim[nd_limit]->rlim_cur;
+    return @cast(sig, "signal_struct")->rlim[nd_limit]->rlim_cur;
 }
 
 /* sfunction task_rlimit - The current resource limit of the task

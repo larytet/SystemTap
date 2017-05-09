@@ -559,8 +559,8 @@ function cmdline_args:string(n:long, m:long, delim:string)
   if (__mm == 0)
     return "";
 
-  __arg_start = __mm->arg_start;
-  __arg_end = __mm->arg_end;
+  __arg_start = @mm(__mm)->arg_start;
+  __arg_end = @mm(__mm)->arg_end;
   if (__arg_start == 0 || __arg_end == 0)
     return "";
 
