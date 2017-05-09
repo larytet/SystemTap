@@ -188,6 +188,9 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	    # without utrace.
 	    if {$rc == 1 && ![utrace_p]} { setup_kfail UTRACE *-*-*} }
 
+	buildok/fortyfour.stp -
+	buildok/map_probe_cond.stp -
+	buildok/pretty-uprobes.stp -
 	buildok/pretty-uprobes.stp -
 	buildok/ucontext-symbols-embedded.stp -
 	buildok/ucontext-unwind-embedded.stp {

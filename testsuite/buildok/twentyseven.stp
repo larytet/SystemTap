@@ -1,6 +1,6 @@
 #! stap -p4
 
-probe kernel.function("do_execve")
+probe kernel.function("do_execve").call
 {
   print(@defined($__argv) ? $__argv[0] : $argv[0])
 }
