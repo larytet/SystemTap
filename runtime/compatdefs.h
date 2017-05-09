@@ -57,6 +57,10 @@ static inline int _stp_is_compat_task(void)
  */
 #include <asm/processor.h>
 #include <asm/ptrace.h>
+#include <linux/sched.h>
+#ifdef STAPCONF_SCHED_TASK_STACK_H
+#include <linux/sched/task_stack.h>
+#endif
 
 #if !defined(task_pt_regs)
 #if defined(__powerpc__)
