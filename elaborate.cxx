@@ -1657,56 +1657,59 @@ struct embeddedcode_info: public functioncall_traversing_visitor
 {
 protected:
   systemtap_session& session;
+  void examine (const interned_string &, const token *tok);
 
 public:
   embeddedcode_info (systemtap_session& s): session(s) { }
 
-  void visit_embeddedcode (embeddedcode* c)
-  {
-    if (! vma_tracker_enabled(session)
-	&& c->code.find("/* pragma:vma */") != string::npos)
-      {
-	if (session.verbose > 2)
-          clog << _F("Turning on task_finder vma_tracker, pragma:vma found in %s",
-                     current_function->unmangled_name.to_string().c_str()) << endl;
-
-	// PR15052: stapdyn doesn't have VMA-tracking yet.
-	if (session.runtime_usermode_p())
-	  throw SEMANTIC_ERROR(_("VMA-tracking is only supported by the kernel runtime (PR15052)"), c->tok);
-
-	enable_vma_tracker(session);
-      }
-
-    if (! session.need_unwind
-	&& c->code.find("/* pragma:unwind */") != string::npos)
-      {
-	if (session.verbose > 2)
-	  clog << _F("Turning on unwind support, pragma:unwind found in %s",
-		    current_function->unmangled_name.to_string().c_str()) << endl;
-	session.need_unwind = true;
-      }
-
-    if (! session.need_symbols
-	&& c->code.find("/* pragma:symbols */") != string::npos)
-      {
-	if (session.verbose > 2)
-	  clog << _F("Turning on symbol data collecting, pragma:symbols found in %s",
-		    current_function->unmangled_name.to_string().c_str())
-	       << endl;
-	session.need_symbols = true;
-      }
-
-    if (! session.need_lines
-        && c->code.find("/* pragma:lines */") != string::npos)
-      {
-        if (session.verbose > 2)
-	  clog << _F("Turning on debug line data collecting, pragma:lines found in %s",
-		    current_function->unmangled_name.to_string().c_str())
-	       << endl;
-	session.need_lines = true;
-      }
-  }
+  void visit_embeddedcode (embeddedcode* c) { examine (c->code, c->tok); }
+  void visit_embedded_expr (embedded_expr* e) { examine (e->code, e->tok); }
 };
+
+void
+embeddedcode_info::examine (const interned_string &code, const token *tok)
+{
+  if (! vma_tracker_enabled(session)
+      && code.find("/* pragma:vma */") != string::npos)
+    {
+      if (session.verbose > 2)
+        clog << _F("Turning on task_finder vma_tracker, pragma:vma found in %s",
+		   current_function->unmangled_name.to_string().c_str()) << endl;
+
+      // PR15052: stapdyn doesn't have VMA-tracking yet.
+      if (session.runtime_usermode_p())
+	throw SEMANTIC_ERROR(_("VMA-tracking is only supported by the kernel runtime (PR15052)"), tok);
+
+      enable_vma_tracker(session);
+    }
+
+  if (! session.need_unwind
+      && code.find("/* pragma:unwind */") != string::npos)
+    {
+      if (session.verbose > 2)
+	clog << _F("Turning on unwind support, pragma:unwind found in %s",
+		   current_function->unmangled_name.to_string().c_str()) << endl;
+      session.need_unwind = true;
+    }
+
+  if (! session.need_symbols
+      && code.find("/* pragma:symbols */") != string::npos)
+    {
+      if (session.verbose > 2)
+	clog << _F("Turning on symbol data collecting, pragma:symbols found in %s",
+		   current_function->unmangled_name.to_string().c_str()) << endl;
+      session.need_symbols = true;
+    }
+
+  if (! session.need_lines
+      && code.find("/* pragma:lines */") != string::npos)
+    {
+      if (session.verbose > 2)
+	clog << _F("Turning on debug line data collecting, pragma:lines found in %s",
+		   current_function->unmangled_name.to_string().c_str()) << endl;
+      session.need_lines = true;
+    }
+}
 
 void embeddedcode_info_pass (systemtap_session& s)
 {
