@@ -1,4 +1,6 @@
 set test "pr18649"
+if {![installtest_p]} { untested $test; return }
+if {![uprobes_p]} { untested "$test"; return }
 
 set test_srcpath "[pwd]/test.c"
 set test_exepath "[pwd]/test"

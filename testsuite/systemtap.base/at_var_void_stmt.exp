@@ -6,6 +6,7 @@ set output_string ".*?enter func sub\r\n"
 
 # Only run on make installcheck and uprobes present.
 if {! [installtest_p]} { untested "$test"; return }
+if {! [uprobes_p]} { untested "$test"; return }
 
 set res [target_compile ${testpath}/$test.c $test executable \
     "additional_flags=-O2 additional_flags=-g"]

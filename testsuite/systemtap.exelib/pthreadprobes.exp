@@ -1,8 +1,6 @@
 set test pthreadprobes
-if {! [installtest_p]} {
-   untested $test
-   return
-}
+if {! [installtest_p]} { untested $test; return }
+if {! [uprobes_p]} { untested "$test"; return }
 
 # compile the testcase
 catch {exec gcc -g -o $test $srcdir/$subdir/$test.c -lpthread -lrt} err

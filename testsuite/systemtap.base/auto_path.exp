@@ -1,5 +1,6 @@
 set test "auto_path"
 if {![installtest_p]} { untested $test; return }
+if {![uprobes_p]} { untested "$test"; return }
 
 # Note that the test diriectory name, '/tmp/stap_auto_path', is fixed
 # on purpose, since we're testing the auto path feature. This matches

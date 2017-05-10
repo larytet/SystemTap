@@ -5,6 +5,7 @@ set testname usymfileline
 # info for the user program.
 
 if {![installtest_p]} { untested $test; return }
+if {![uprobes_p]} { untested "$test"; return }
 
 # compile the c++ program
 set compile_flags "additional_flags=-g compiler=g++"

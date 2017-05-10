@@ -1,6 +1,9 @@
 # Check that the set_user_* functions work correctly.
 
 set test "set_user"
+if {![installtest_p]} { untested $test; return }
+if {![uprobes_p]} { untested "$test"; return }
+
 set srcfile "$srcdir/$subdir/$test.c"
 set exefile "[pwd]/$test.exe"
 set test_flags "additional_flags=-g"
