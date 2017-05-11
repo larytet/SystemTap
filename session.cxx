@@ -467,7 +467,7 @@ systemtap_session::version ()
              "Copyright (C) 2005-2017 Red Hat, Inc. and others\n"
              "This is free software; see the source for copying conditions.\n",
              version_string().c_str());
-  cout << _F("tested kernel versions: %s ... %s\n", "2.6.18", "4.10-rc8");
+  cout << _F("tested kernel versions: %s ... %s\n", "2.6.18", "4.11");
   
   cout << _("enabled features:")
 #ifdef HAVE_AVAHI
