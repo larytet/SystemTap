@@ -17,6 +17,7 @@ using namespace std;
 struct response
 {
     unsigned int status_code;
+    map<string, string> headers;
     string content;
     string content_type;
 
@@ -27,12 +28,12 @@ struct response
     }
 };
 
+extern response get_404_response();
+
 struct request
 {
-#if 0
-    endpoint_matches matches;
-#endif
     map<string, string> params;
+    vector<string> matches;
 #if 0
     request_headers headers;
     std::string body;

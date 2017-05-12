@@ -20,7 +20,7 @@ stap_httpd_SOURCES = main.cxx server.cxx ../util.cxx
 stap_httpd_CFLAGS = $(AM_CFLAGS)
 stap_httpd_CXXFLAGS = $(AM_CXXFLAGS)
 stap_httpd_CPPFLAGS = $(AM_CPPFLAGS)
-stap_httpd_LDADD = -lpthread -lmicrohttpd -luuid
+stap_httpd_LDADD = -lpthread -lmicrohttpd -luuid -ljson-c
 stap_httpd_LDFLAGS =  $(AM_LDFLAGS)
 endif
 

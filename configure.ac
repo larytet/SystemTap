@@ -908,9 +908,9 @@ AS_IF([test "x$enable_http" != "xno"],
    dnl Do we have the uuid library?
    PKG_CHECK_MODULES([uuid], [uuid >= 2.17.0], [have_libuuid=true], [have_libuuid=false])
 
-   dnl If we have both libraries, we could build the httpd web
-   dnl complilation service.
-   AS_IF([test "x$have_libmicrohttpd" == "xtrue" -a "x$have_libuuid" == "xtrue"], [have_http_support=yes])])
+   dnl If we have both libraries (and the json-c library), we could
+   dnl build the httpd web complilation service.
+   AS_IF([test "x$have_libmicrohttpd" == "xtrue" -a "x$have_libuuid" == "xtrue" -a "x$have_jsonc" == "xyes"], [have_http_support=yes])])
 
 AS_IF([test "x$have_http_support" = "xyes"],
   [AC_DEFINE([HAVE_HTTP_SUPPORT], [1],

@@ -389,7 +389,7 @@ AM_LDFLAGS = @PIELDFLAGS@
 @HAVE_HTTP_SUPPORT_TRUE@stap_httpd_CFLAGS = $(AM_CFLAGS)
 @HAVE_HTTP_SUPPORT_TRUE@stap_httpd_CXXFLAGS = $(AM_CXXFLAGS)
 @HAVE_HTTP_SUPPORT_TRUE@stap_httpd_CPPFLAGS = $(AM_CPPFLAGS)
-@HAVE_HTTP_SUPPORT_TRUE@stap_httpd_LDADD = -lpthread -lmicrohttpd -luuid
+@HAVE_HTTP_SUPPORT_TRUE@stap_httpd_LDADD = -lpthread -lmicrohttpd -luuid -ljson-c
 @HAVE_HTTP_SUPPORT_TRUE@stap_httpd_LDFLAGS = $(AM_LDFLAGS)
 
 # Arrange for the top-level git_version.h to be regenerated at every "make".

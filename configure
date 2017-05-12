@@ -12743,7 +12743,7 @@ $as_echo "yes" >&6; }
 	have_libuuid=true
 fi
 
-         if test "x$have_libmicrohttpd" == "xtrue" -a "x$have_libuuid" == "xtrue"; then :
+         if test "x$have_libmicrohttpd" == "xtrue" -a "x$have_libuuid" == "xtrue" -a "x$have_jsonc" == "xyes"; then :
   have_http_support=yes
 fi
 fi

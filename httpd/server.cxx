@@ -101,7 +101,7 @@ connection_info::postdataiterator(enum MHD_ValueKind kind,
     return MHD_YES;
 }
 
-static response
+response
 get_404_response()
 {
     response error404(404);
@@ -209,6 +209,7 @@ server::access_handler(struct MHD_Connection *connection,
 	return queue_response(get_404_response(), connection);
     }
 
+    struct request rq_info;
     request_handler *rh = NULL;
     clog << "Looking for a matching request handler match with '"
 	 << url_str << "'..." << endl;
@@ -221,8 +222,7 @@ server::access_handler(struct MHD_Connection *connection,
 	for (auto it = request_handlers.begin();
 	     it != request_handlers.end(); it++) {
 	    string url_path_re = get<0>(*it);
-	    vector<string> matches;
-	    if (regexp_match(url_str, url_path_re, matches) == 0) {
+	    if (regexp_match(url_str, url_path_re, rq_info.matches) == 0) {
 		rh = get<1>(*it);
 		clog << "Found a match with '" << rh->name << "'" << endl;
 		break;
@@ -236,7 +236,6 @@ server::access_handler(struct MHD_Connection *connection,
 
     // Prepare to call the appropriate request handler method by
     // gathering up all the request info.
-    struct request rq_info;
     enum MHD_ValueKind kind = ((rq_method == request_method::POST)
 			       ? MHD_POSTDATA_KIND
 			       : MHD_GET_ARGUMENT_KIND);
@@ -292,13 +291,13 @@ server::queue_response(const response &response, MHD_Connection *connection)
 	return MHD_NO;
     }
 
-#if 0
-    for (const auto &header : response.headers) {
-        MHD_add_response_header(mhd_response, header.first.c_str(),
-				header.second.c_str());
+    for (auto it = response.headers.begin(); it != response.headers.end();
+	 it++) {
+        MHD_add_response_header(mhd_response, it->first.c_str(),
+				it->second.c_str());
     }
-#endif
-    MHD_add_response_header(mhd_response, MHD_HTTP_HEADER_CONTENT_TYPE, response.content_type.c_str());
+    MHD_add_response_header(mhd_response, MHD_HTTP_HEADER_CONTENT_TYPE,
+			    response.content_type.c_str());
 
 //    MHD_add_response_header(mhd_response, MHD_HTTP_HEADER_SERVER, server_identifier_.c_str());
     int ret = MHD_queue_response(connection, response.status_code,
