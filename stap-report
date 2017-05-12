@@ -109,11 +109,21 @@ run "lsmod"
 run "avahi-browse -r -t _stap._tcp"
 run "ifconfig -a"
 run "ps awux | grep stap"
-for file in /boot/vmlinuz-`uname -r` /usr/lib/debug/lib/modules/`uname -r`/vmlinux /lib/modules/`uname -r`/build/vmlinux
+for dir in /boot /usr/lib/debug/lib/modules/`uname -r` /lib/modules/`uname -r`/build
 do
-    if [ -f $file ]; then
-        run "(eu-readelf -n $file || readelf -n $file) | grep Build"
-    fi
+    for file in $dir/vmlinuz-`uname -r` $dir/vmlinuz $dir/vmlinux-`uname -r` $dir/vmlinux `locate -r '/vmlinu[xz]' 2>/dev/null`
+    do
+        if [ -f $file ]; then
+            if grep -q ELF $file; then
+                echo $file
+                run "(eu-readelf -n $file 2>/dev/null || readelf -n $file 2>/dev/null) | grep Build"
+            fi
+        fi
+    done
+done
+locate vmlinux.id 2>/dev/null | while read file
+do
+    run "cat $file"
 done
 run "hexdump -C /sys/kernel/notes"
 for file in /sys/module/*/notes/.*build*
