@@ -1486,7 +1486,11 @@ ostream& operator << (ostream& o, const symboldecl& k)
   return o;
 }
 
-
+void
+debug(expression *e)
+{
+  cout << *e << endl;
+}
 
 // ------------------------------------------------------------------------
 // visitors
