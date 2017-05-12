@@ -11,7 +11,7 @@
 
 /**
  * sfunction execname - Returns the execname of a target process (or group of processes)
- * 
+ *
  * Description: Returns the execname of a target process (or group of processes).
  */
 function execname:string ()
@@ -21,7 +21,7 @@ function execname:string ()
 
 /**
  * sfunction pid - Returns the ID of a target process
- * 
+ *
  * Description: This function returns the ID of a target process.
  */
 function pid:long ()
@@ -44,7 +44,7 @@ function ns_pid:long ()
 
 /**
  * sfunction tid - Returns the thread ID of a target process
- * 
+ *
  * Description: This function returns the thread ID of the target process.
  */
 function tid:long ()
@@ -155,7 +155,7 @@ function ns_sid:long ()
 
 /**
  * sfunction pexecname - Returns the execname of a target process's parent process
- * 
+ *
  * Description: This function returns the execname of a target
  * process's parent procces.
  */
@@ -170,7 +170,7 @@ function pexecname:string ()
 
 /**
  * sfunction gid - Returns the group ID of a target process
- * 
+ *
  * Description: This function returns the group ID of a target process.
  */
 function gid:long ()
@@ -303,7 +303,7 @@ function is_myproc:long ()
 %( systemtap_v <= "1.4" %?
 /**
  * sfunction cpuid - Returns the current cpu number
- * 
+ *
  * Description: This function returns the current cpu number.
  * Deprecated in SystemTap 1.4 and removed in SystemTap 1.5.
  */
@@ -350,7 +350,7 @@ function user_mode:long ()
 
 /**
  * sfunction is_return - Whether the current probe context is a return probe
- * 
+ *
  * Description: Returns 1 if the current probe context is a return probe,
  * returns 0 otherwise.
  */
@@ -365,7 +365,7 @@ function is_return:long ()
 
 /**
  * sfunction target - Return the process ID of the target process
- * 
+ *
  * Description: This function returns the process ID of the target
  * process.  This is useful in conjunction with the -x PID or
  * -c CMD command-line options to stap. An example of its use is
@@ -384,7 +384,7 @@ function target:long ()
 
 /**
  * sfunction module_name - The module name of the current script
- * 
+ *
  * Description: This function returns the name of the stap module.
  * Either generated randomly (stap_[0-9a-f]+_[0-9a-f]+)
  * or set by stap -m <module_name>.
@@ -422,7 +422,7 @@ function module_size:string() %{
 /**
  * sfunction stp_pid - The process id of the stapio process
  *
- * Description: This function returns the process id of the 
+ * Description: This function returns the process id of the
  * stapio process that launched this script. There could be
  * other SystemTap scripts and stapio processes running on
  * the system.
@@ -436,11 +436,11 @@ function stp_pid:long ()
 /**
  * sfunction remote_id - The index of this instance in a remote execution.
  *
- * Description: This function returns a number 0..N, which is the unique 
+ * Description: This function returns a number 0..N, which is the unique
  * index of this particular script execution from a swarm of
  * "stap --remote A --remote B ..." runs, and is the same number
  * "stap --remote-prefix" would print.  The function returns -1 if the
- * script was not launched with "stap --remote", or if the remote 
+ * script was not launched with "stap --remote", or if the remote
  * staprun/stapsh are older than version 1.7.
  */
 function remote_id:long () {
@@ -464,7 +464,7 @@ function remote_uri:string () {
 
 /**
  * sfunction stack_size - Return the size of the kernel stack
- * 
+ *
  * Description: This function returns the size of the kernel stack.
  */
 function stack_size:long ()
@@ -555,7 +555,7 @@ function uaddr:long ()
 function cmdline_args:string(n:long, m:long, delim:string)
 {
   __args = "";
-  __mm = task_current()->mm;
+  __mm = @task(task_current())->mm;
   if (__mm == 0)
     return "";
 
@@ -567,7 +567,7 @@ function cmdline_args:string(n:long, m:long, delim:string)
   for (__nr=0;
        (__arg_start < __arg_end) && // still string content left?
          (m<0 || __nr<=m); // caller still interested?
-       __nr++) { 
+       __nr++) {
 
     __arg = user_string(__arg_start, ""); // argv[__nr], unquoted
     __arg_start += strlen(__arg) + 1; // skip over for next iteration

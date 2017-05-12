@@ -122,7 +122,7 @@ function proc_mem_size:long ()
 {
    task = task_current()
    if (_stp_valid_task(task)) {
-     mm = task->mm
+     mm = @task(task)->mm
      if (mm != 0)
        return @mm(mm)->total_vm
    }
@@ -142,7 +142,7 @@ function proc_mem_size:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
-    mm = task->mm
+    mm = @task(task)->mm
     if (mm != 0)
       return @mm(mm)->total_vm
   }
@@ -164,7 +164,7 @@ function proc_mem_rss:long ()
 {
   task = task_current()
   if (_stp_valid_task(task)) {
-    mm = task->mm
+    mm = @task(task)->mm
     if (mm != 0)
       return (_stp_get_mm_counter(mm, _MM_FILEPAGES())
 	      + _stp_get_mm_counter(mm, _MM_ANONPAGES()))
@@ -185,7 +185,7 @@ function proc_mem_rss:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
-    mm = task->mm
+    mm = @task(task)->mm
     if (mm != 0)
         return (_stp_get_mm_counter(mm, _MM_FILEPAGES())
                 + _stp_get_mm_counter(mm, _MM_ANONPAGES()))
@@ -208,7 +208,7 @@ function proc_mem_shr:long ()
 {
   task = task_current()
   if (_stp_valid_task(task)) {
-    mm = task->mm
+    mm = @task(task)->mm
     if (mm != 0)
       return _stp_get_mm_counter(mm, _MM_FILEPAGES())
   }
@@ -228,7 +228,7 @@ function proc_mem_shr:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
-    mm = task->mm
+    mm = @task(task)->mm
     if (mm != 0)
       return _stp_get_mm_counter(mm, _MM_FILEPAGES())
   }
@@ -258,7 +258,7 @@ function proc_mem_txt:long ()
 {
   task = task_current()
   if (_stp_valid_task(task)) {
-    mm = task->mm
+    mm = @task(task)->mm
     if (mm != 0) {
       s = @mm(mm)->start_code
       e = @mm(mm)->end_code
@@ -281,7 +281,7 @@ function proc_mem_txt:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
-    mm = task->mm
+    mm = @task(task)->mm
     if (mm != 0) {
       s = @mm(mm)->start_code
       e = @mm(mm)->end_code
@@ -306,7 +306,7 @@ function proc_mem_data:long ()
 {
   task = task_current()
   if (_stp_valid_task(task)) {
-    mm = task->mm
+    mm = @task(task)->mm
     if (mm != 0) {
       return (@defined(&@mm(0)->data_vm)
 	      ? (@mm(mm)->data_vm + @mm(mm)->stack_vm)
@@ -329,7 +329,7 @@ function proc_mem_data:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
-    mm = task->mm
+    mm = @task(task)->mm
     if (mm != 0) {
       return (@defined(&@mm(0)->data_vm)
               ? (@mm(mm)->data_vm + @mm(mm)->stack_vm)
