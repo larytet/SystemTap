@@ -1,5 +1,5 @@
 /* dyninst probe locking header file
- * Copyright (C) 2012 Red Hat Inc.
+ * Copyright (C) 2012, 2017 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -15,6 +15,7 @@
 struct stp_probe_lock {
 	#ifdef STP_TIMING
 	atomic_t *skipped;
+	atomic_t *contention;
 	#endif
 	pthread_rwlock_t *lock;
 	unsigned write_p;
@@ -43,6 +44,9 @@ stp_lock_probe(const struct stp_probe_lock *locks, unsigned num_locks)
 				if (++retries > MAXTRYLOCK)
 					goto skip;
 #endif
+				#ifdef STP_TIMING
+					atomic_inc(locks[i].contention);
+				#endif
 				udelay (TRYLOCKDELAY);
 			}
 		else
@@ -51,6 +55,9 @@ stp_lock_probe(const struct stp_probe_lock *locks, unsigned num_locks)
 				if (++retries > MAXTRYLOCK)
 					goto skip;
 #endif
+				#ifdef STP_TIMING
+					atomic_inc(locks[i].contention);
+				#endif
 				udelay (TRYLOCKDELAY);
 			}
 	}
