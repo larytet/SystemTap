@@ -640,6 +640,7 @@ private:
 				       Dwarf_Die *typedie,
 				       bool lvalue,
 				       Dwarf_Die *enddie);
+  void translate_pointer(location_context &ctx, Dwarf_Die *typedie);
 
   regex_t blacklist_func; // function/statement probes
   regex_t blacklist_func_ret; // only for .return probes

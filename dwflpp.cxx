@@ -3352,7 +3352,7 @@ dwflpp::translate_components(location_context *ctx,
 
         case DW_TAG_reference_type:
         case DW_TAG_rvalue_reference_type:
-	  /* No type cast needed for staptree intermediate code.  */
+	  translate_pointer (*ctx, typedie);
           dwarf_die_type (typedie, typedie, c.tok);
           break;
 
@@ -3362,7 +3362,7 @@ dwflpp::translate_components(location_context *ctx,
             throw SEMANTIC_ERROR (_F("invalid access '%s' vs '%s'", lex_cast(c).c_str(),
                                      dwarf_type_name(typedie).c_str()), c.tok);
 
-	  /* No type cast needed for staptree intermediate code.  */
+	  translate_pointer (*ctx, typedie);
           if (c.type != target_symbol::comp_literal_array_index &&
               c.type != target_symbol::comp_expression_array_index)
             {
@@ -3670,8 +3670,36 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
             throw SEMANTIC_ERROR (_("cannot write to reference"), e->tok);
           assert (typetag == DW_TAG_pointer_type);
         }
-      /* No type cast needed for staptree intermediate code.  */
+      translate_pointer (ctx, typedie);
       break;
+    }
+}
+
+void
+dwflpp::translate_pointer(location_context &ctx, Dwarf_Die *typedie)
+{
+  // ??? We also get DW_TAG_array_type here.  
+  // assert (dwarf_tag (typedie) == DW_TAG_pointer_type ||
+  //        dwarf_tag (typedie) == DW_TAG_reference_type ||
+  //        dwarf_tag (typedie) == DW_TAG_rvalue_reference_type);
+
+  location *loc = ctx.locations.back ();
+  if (loc->type != loc_implicit_pointer)
+    {
+      Dwarf_Attribute size_attr;
+      Dwarf_Word byte_size;
+      if (dwarf_attr_integrate (typedie, DW_AT_byte_size, &size_attr) == NULL
+	  || dwarf_formudata (&size_attr, &byte_size) != 0)
+	throw SEMANTIC_ERROR (_F("cannot get byte_size attribute for type %s: %s",
+				 dwarf_diename (typedie) ?: "<anonymous>",
+				 dwarf_errmsg (-1)), ctx.e->tok);
+
+      /* We know this is a pointer, therefore the signedness is irrelevant.  */
+      translate_base_ref (ctx, byte_size, false);
+      /* We're going to want to dereference this pointer.  Therefore note
+	 that this is an address.  */
+      loc = ctx.locations.back ();
+      loc->type = loc_address;
     }
 }
 
