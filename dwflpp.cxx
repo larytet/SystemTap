@@ -3512,6 +3512,7 @@ dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool si
     case loc_address:
       {
         target_deref *d = new target_deref;
+	d->tok = ctx.e->tok;
         d->addr = loc->program;
         d->size = byte_size;
         d->signed_p = signed_p;
@@ -3650,9 +3651,6 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
 				   dwarf_errmsg (-1)), e->tok);
 
 	bool signed_p = encoding == DW_ATE_signed || encoding == DW_ATE_signed_char;
-
-	// ??? where might the bare value be converted to an assignment?
-	assert(!lvalue);
         translate_base_ref (ctx, byte_size, signed_p);
       }
       break;

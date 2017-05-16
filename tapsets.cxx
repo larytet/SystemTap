@@ -3693,11 +3693,32 @@ synthetic_embedded_deref_call(dwflpp& dw, location_context &ctx,
 
   // If this code snippet is assigning to an lvalue,
   // add a final argument for the rvalue.
+  expression *ref_exp = ctx.locations.back()->program;
   if (lvalue_p)
     {
       // NB: We don't know the value for fcall argument yet.
       // (see target_symbol_setter_functioncalls)
-      // fdecl->formal_args.push_back(...);
+
+      vardecl *rvalue = new vardecl;
+      rvalue->type = pe_long;
+      rvalue->name = "rvalue";
+      rvalue->tok = tok;
+
+      fdecl->formal_args.push_back(rvalue);
+
+      symbol *sym = new symbol;
+      sym->name = rvalue->name;
+      sym->tok = rvalue->tok;
+      sym->type = pe_long;
+      sym->referent = rvalue;
+
+      assignment *a = new assignment;
+      a->tok = tok;
+      a->op = "=";
+      a->left = ref_exp;
+      a->right = sym;
+
+      ref_exp = a;
     }
 
   fdecl->locals = ctx.locals;
@@ -3716,7 +3737,7 @@ synthetic_embedded_deref_call(dwflpp& dw, location_context &ctx,
 
   return_statement *ret = new return_statement;
   ret->tok = tok;
-  ret->value = ctx.locations.back()->program;
+  ret->value = ref_exp;
   blk->statements.push_back(ret);
 
   // Add the synthesized decl to the session now.
