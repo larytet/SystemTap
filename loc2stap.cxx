@@ -287,11 +287,14 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
 
 #define POP(VAR)	if (stack.empty()) goto underflow;	\
 			expression *VAR = stack.back();		\
-			stack.pop_back();
+			stack.pop_back();			\
+			tos_register = false;
 
-#define PUSH(VAL)	stack.push_back(VAL)
+#define PUSH(VAL)	stack.push_back(VAL);			\
+			tos_register = false;
 
   bool saw_stack_value = false;
+  bool tos_register = false;
   bool computing_value = computing_value_orig;
   Dwarf_Word piece_size = 0;
   Dwarf_Block implicit_value = Dwarf_Block();
@@ -314,6 +317,7 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
         case loc_register:
 	  assert(computing_value);
 	  PUSH(new_target_reg(input->regno));
+	  tos_register = true;
 	  break;
         default:
 	  abort();
@@ -574,6 +578,7 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
 	    reg = expr[i].number;
 	  op_reg:
 	    PUSH(new_target_reg(reg));
+	    tos_register = true;
 	    break;
 
 	    /* Special magic.  */
@@ -654,6 +659,7 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
     if (i == piece_expr_start)
       {
 	assert(stack.empty());
+	assert(!tos_register);
 	temp_piece.type = loc_unavailable;
       }
     else if (stack.empty())
@@ -710,7 +716,7 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
     else
       {
 	expression *val = stack.back();
-        if (computing_value)
+        if (computing_value || tos_register)
 	  {
 	    if (target_register *reg = dynamic_cast<target_register *>(val))
 	      {
@@ -718,16 +724,11 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
 		temp_piece.regno = reg->regno;
 	      }
 	    else
-	      {
-		temp_piece.type = loc_value;
-		temp_piece.program = val;
-	      }
+	      temp_piece.type = loc_value;
 	  }
 	else
-	  {
-	    temp_piece.type = loc_address;
-	    temp_piece.program = val;
-	  }
+	  temp_piece.type = loc_address;
+	temp_piece.program = val;
       }
 
     // stack goes out of scope here
