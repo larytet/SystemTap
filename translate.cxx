@@ -5258,8 +5258,9 @@ c_unparser_assignment::visit_target_deref (target_deref* e)
 
   translator_output* o = parent->o;
   o->newline() << (e->userspace_p ? "store_uderef(" : "store_kderef(")
-	       << e->size << ", " << rval << ")";
-  o->newline() << rval << ";";
+	       << e->size << ", (";
+  e->addr->visit (parent);
+  o->line() << "), " << rval << ")";
 }
 
 void
