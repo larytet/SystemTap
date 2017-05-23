@@ -13,10 +13,10 @@
 
 extern "C" {
 #include <unistd.h>
-#if 0
+#include <string.h>
 #include <signal.h>
 #include <errno.h>
-#endif
+#include <sys/signalfd.h>
 #include <uuid/uuid.h>
 #include <json-c/json_object.h>
 }
@@ -63,6 +63,7 @@ string build_info::content()
 	os << "  \"cmdline\": "
 	   << json_object_to_json_string_ext(j, JSON_C_TO_STRING_PLAIN) << endl;
     }
+    json_object_put(j);
 
     os << "}" << endl;
     return os.str();
@@ -70,6 +71,18 @@ string build_info::content()
 
 mutex builds_mutex;
 vector<build_info *> build_infos;
+
+static void cleanup()
+{    
+    {
+	// Use a lock_guard to ensure the mutex gets released even if an
+	// exception is thrown.
+	lock_guard<mutex> lock(builds_mutex);
+	for (size_t idx = 0; idx < build_infos.size(); idx++) {
+	    delete build_infos[idx];
+	}
+    }
+}
 
 class build_collection : public request_handler
 {
@@ -160,16 +173,89 @@ response individual_build::GET(const request &req)
 build_collection builds("build collection");
 individual_build build("individual build");
 
+server *httpd = NULL;
+
+static void *
+signal_thread(void *arg)
+{
+    int signal_fd = (int)(long)arg;
+
+    while (1) {
+	struct signalfd_siginfo si;
+	ssize_t s;
+
+	s = read(signal_fd, &si, sizeof(si));
+	if (s != sizeof(si)) {
+	    cerr << "signal fd read error: "<< strerror(errno) << endl;
+	    continue;
+	}
+
+	// FIXME: we might think about using SIGHUP to aks us to
+	// re-read configuration data.
+	if (si.ssi_signo == SIGINT || si.ssi_signo == SIGTERM
+	    || si.ssi_signo == SIGHUP || si.ssi_signo == SIGQUIT
+	    || si.ssi_signo == SIGCHLD) {
+
+	    // Since we're using signalfd(), we can call code that
+	    // isn't signal-safe (like server::stop).
+	    httpd->stop();
+	    break;
+	}
+    }
+    close(signal_fd);
+    return NULL;
+}
+
+static void
+setup_main_signals(pthread_t *tid)
+{
+    static sigset_t s;
+
+    /* Block several signals; other threads created by main() will
+     * inherit a copy of the signal mask. */
+    sigemptyset(&s);
+    sigaddset(&s, SIGINT);
+    sigaddset(&s, SIGTERM);
+    sigaddset(&s, SIGHUP);
+    sigaddset(&s, SIGQUIT);
+    sigaddset(&s, SIGCHLD);
+    pthread_sigmask(SIG_BLOCK, &s, NULL);
+
+    /* Create a signalfd. This way we can synchronously handle the
+     * signals. */
+    int signal_fd = signalfd(-1, &s, SFD_CLOEXEC);
+    if (signal_fd < 0) {
+	cerr << "Failed to create signal file descriptor: "
+	     << strerror(errno) << endl;
+	exit(1);
+    }
+
+    /* Let the special signal thread handle signals. */
+    if (pthread_create(tid, NULL, signal_thread, (void *)(long)signal_fd) < 0) {
+	cerr << "Failed to create thread: " << strerror(errno) << endl;
+	exit(1);
+    }
+}
+
 int
 main(int /*argc*/, char *const /*argv*/[])
 {
-    server httpd(1234);
+    pthread_t tid;
 
-    httpd.add_request_handler("/builds$", builds);
-    httpd.add_request_handler("/builds/([0-9a-f]+)$", build);
-    // FIXME: Should this be pthread_cond_wait()/pthread_cond_timedwait()?
-    while (1) {
-	sleep(1);
-    }
+    setup_main_signals(&tid);
+
+    httpd = new server(1234);
+    httpd->add_request_handler("/builds$", builds);
+    httpd->add_request_handler("/builds/([0-9a-f]+)$", build);
+
+    // Wait for the server to shut itself down.
+    httpd->wait();
+    delete httpd;
+
+    // Clean up the signal thread.
+    pthread_join(tid, NULL);
+
+    // Do other cleanup.
+    cleanup();
     return 0;
 }

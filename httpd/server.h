@@ -6,6 +6,7 @@
 #include <string>
 #include <mutex>
 #include <map>
+#include <condition_variable>
 
 extern "C"
 {
@@ -55,6 +56,8 @@ class server
 {
 public:
     void start();
+    void wait();
+    void stop();
 
     server(uint16_t port) : port(port), dmn_ipv4(NULL)
     {
@@ -63,16 +66,14 @@ public:
 
     ~server()
     {
+	stop();
     }
-
-//    void initialize();
-//    void stop();
-//    void wait();
 
     void add_request_handler(const string &url_path_re,
 			     request_handler &handler);
 
 private:
+    condition_variable running_cv;
     mutex srv_mutex;
     uint16_t port;
     struct MHD_Daemon *dmn_ipv4;

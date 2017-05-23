@@ -338,6 +338,27 @@ server::start()
 }
 
 void
+server::stop()
+{
+    if (dmn_ipv4 != NULL) {
+	clog << "Stopping daemon..." << endl;
+	MHD_stop_daemon(dmn_ipv4);
+	dmn_ipv4 = NULL;
+        running_cv.notify_all(); // notify waiters
+    }
+}
+
+void
+server::wait()
+{
+    std::mutex m;
+    {
+        std::unique_lock<std::mutex> lk(m);
+        running_cv.wait(lk, [this]{return (dmn_ipv4 == NULL);});
+    }
+}
+
+void
 server::request_completed_handler_shim(void *cls,
 				       struct MHD_Connection *connection,
 				       void **con_cls,
