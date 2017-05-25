@@ -3668,7 +3668,8 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
             throw SEMANTIC_ERROR (_("cannot write to reference"), e->tok);
           assert (typetag == DW_TAG_pointer_type);
         }
-      translate_pointer (ctx, typedie);
+      if (typetag != DW_TAG_array_type)
+        translate_pointer (ctx, typedie);
       break;
     }
 }
