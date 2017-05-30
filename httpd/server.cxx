@@ -16,9 +16,9 @@ static int
 get_key_values(void *cls, enum MHD_ValueKind /*kind*/,
 	       const char *key, const char *value)
 {
-    map<string, string> *kv_map = static_cast<map<string, string> *>(cls);
+    struct request *rq_info = static_cast<struct request *>(cls);
 
-    (*kv_map)[key] = value ? value : "";
+    rq_info->params[key].push_back(value ? value : "");
     return MHD_YES;
 }
 
@@ -46,7 +46,7 @@ struct connection_info
 			 size_t size);
 
     MHD_PostProcessor *postprocessor;
-    map<string, string> post_params;
+    map<string, vector<string>> post_params;
 
     connection_info(struct MHD_Connection *connection)
     {
@@ -240,7 +240,7 @@ server::access_handler(struct MHD_Connection *connection,
 			       ? MHD_POSTDATA_KIND
 			       : MHD_GET_ARGUMENT_KIND);
     MHD_get_connection_values(connection, kind, &get_key_values,
-			      &rq_info.params);
+			      &rq_info);
 
     // POST data might or might not have been handled by
     // MHD_get_connection_values(). We have to post-process the POST

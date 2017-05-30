@@ -10,6 +10,7 @@
 #include "iostream"
 #include "iomanip"
 #include <sstream>
+#include "../util.h"
 
 extern "C" {
 #include <unistd.h>
@@ -39,7 +40,7 @@ struct build_info
 
     string kver;
     string arch;
-    string cmdline;
+    vector<string> cmd_args;
 
     build_info() {
 	uuid_generate(uuid);
@@ -48,6 +49,7 @@ struct build_info
     }
 
     string content();
+    void start_module_build();
 };
 
 string build_info::content()
@@ -58,16 +60,27 @@ string build_info::content()
     os << "  \"kver\": \"" << kver << "\"" << endl;
     os << "  \"arch\": \"" << arch << "\"" << endl;
 
-    struct json_object *j = json_object_new_string(cmdline.c_str());
-    if (j) {
-	os << "  \"cmdline\": "
-	   << json_object_to_json_string_ext(j, JSON_C_TO_STRING_PLAIN) << endl;
+    os << "  \"cmd_args\": [" << endl;
+    for (auto it = cmd_args.begin(); it != cmd_args.end(); it++) {
+	struct json_object *j = json_object_new_string((*it).c_str());
+	if (j) {
+	    os << "    "
+	       << json_object_to_json_string_ext(j, JSON_C_TO_STRING_PLAIN)
+	       << endl;
+	    json_object_put(j);
+	}
     }
-    json_object_put(j);
+    os << "  ]" << endl;
 
     os << "}" << endl;
     return os.str();
 }
+
+void build_info::start_module_build()
+{
+    stap_spawn(1, cmd_args, NULL);
+}
+
 
 mutex builds_mutex;
 vector<build_info *> build_infos;
@@ -98,18 +111,18 @@ response build_collection::POST(const request &req)
     build_info *b = new build_info;
     for (auto it = req.params.begin(); it != req.params.end(); it++) {
 	if (it->first == "kver") {
-	    b->kver = it->second;
+	    b->kver = it->second[0];
 	}
 	else if (it->first == "arch") {
-	    b->arch = it->second;
+	    b->arch = it->second[0];
 	}
-	else if (it->first == "cmdline") {
-	    b->cmdline = it->second;
+	else if (it->first == "cmd_args") {
+	    b->cmd_args = it->second;
 	}
     }
 
     // Make sure we've got everything we need.
-    if (b->kver.empty() || b->arch.empty() || b->cmdline.empty()) {
+    if (b->kver.empty() || b->arch.empty() || b->cmd_args.empty()) {
 	// Return an error.
 	clog << "400 - bad request" << endl;
 	response error400(400);

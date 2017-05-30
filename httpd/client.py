@@ -22,8 +22,10 @@ r = requests.get('http://localhost:1234')
 print r.status_code
 #print r.headers['content-type']
 
-# For now, just pass over the kernel version and arch.
-payload = {'kver': os.uname()[2], 'arch': os.uname()[4], 'cmdline': '-ve "probe begin { exit() }"'}
+# For now, just pass over the kernel version and arch and a basic command line.
+payload = (('kver', os.uname()[2]), ('arch', os.uname()[4]),
+           ('cmd_args', '-vp4'), ('cmd_args', '-e'),
+           ('cmd_args', '"probe begin { exit() }"'))
 r = requests.post('http://localhost:1234/builds', data=payload)
 #logging.debug("Response: Status code: %d", r.status_code)
 #logging.debug("Request: %s %s %s", r.request.method, r.request.url, r.request.body)

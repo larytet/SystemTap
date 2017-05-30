@@ -33,7 +33,7 @@ extern response get_404_response();
 
 struct request
 {
-    map<string, string> params;
+    map<string, vector<string>> params;
     vector<string> matches;
 #if 0
     request_headers headers;
