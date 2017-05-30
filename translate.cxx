@@ -3823,6 +3823,9 @@ c_unparser::visit_embeddedcode (embeddedcode *s)
   for (vector<vardecl*>::const_iterator it = write_defs.begin(); it != write_defs.end(); ++it)
     c_global_write_undef(*it);
 
+  if (1 || s->code.find ("CATCH_DEREF_FAULT") != string::npos)
+    o->newline() << ";";
+
   o->newline() << "}";
 }
 
