@@ -236,6 +236,7 @@ expression *
 location_context::new_target_reg(unsigned int regno)
 {
   target_register *reg = new target_register;
+  reg->tok = e->tok;
   reg->regno = regno;
   reg->userspace_p = this->userspace_p;
   return reg;
@@ -248,6 +249,7 @@ location_context::new_plus_const(expression *l, int64_t r)
     return l;
 
   binary_expression *val = new binary_expression;
+  val->tok = e->tok;
   val->op = "+";
   val->left = l;
   val->right = new literal_number(r);
@@ -265,6 +267,7 @@ location_context::save_expression(expression *val)
   symbol *sym = new_local(".tmp.");
 
   assignment *set = new assignment;
+  set->tok = e->tok;
   set->op = "=";
   set->left = sym;
   set->right = val;

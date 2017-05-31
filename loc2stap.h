@@ -81,7 +81,7 @@ public:
   symbol *new_symref(vardecl *var);
   symbol *new_local(const char *namebase);
   expression *new_target_reg(unsigned regno);
-  static expression *new_plus_const(expression *, int64_t);
+  expression *new_plus_const(expression *, int64_t);
   expression *save_expression(expression *);
   symbol *frame_location();
 

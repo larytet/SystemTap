@@ -3189,6 +3189,11 @@ struct assignment_symbol_fetcher
     sym = NULL;
   }
 
+  void visit_target_register (target_register*)
+  {
+    sym = NULL;
+  }
+
   void throwone (const token* t)
   {
     if (t->type == tok_operator && t->content == ".")
