@@ -3620,37 +3620,48 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
     case DW_TAG_enumeration_type:
       // Reject types we can't handle in systemtap
       {
-        Dwarf_Attribute encoding_attr;
-        Dwarf_Word encoding = (Dwarf_Word) -1;
-        dwarf_formudata (dwarf_attr_integrate (typedie, DW_AT_encoding, &encoding_attr),
-                         & encoding);
-        if (encoding == (Dwarf_Word) -1)
-          {
-            // clog << "bad type1 " << encoding << " diestr" << endl;
-            throw SEMANTIC_ERROR (_F("unsupported type (mystery encoding %s for %s",
-				  lex_cast(encoding).c_str(),
-                                  dwarf_type_name(typedie).c_str()), e->tok);
-          }
+        bool signed_p = false;
 
-        if (encoding == DW_ATE_float
-            || encoding == DW_ATE_complex_float
-            /* XXX || many others? */)
-          {
-            // clog << "bad type " << encoding << " diestr" << endl;
-            throw SEMANTIC_ERROR (_F("unsupported type (encoding %s) for %s",
-				     lex_cast(encoding).c_str(),
-				     dwarf_type_name(typedie).c_str()), e->tok);
-          }
+        if (typetag == DW_TAG_base_type)
+	  {
+            Dwarf_Attribute encoding_attr;
+            Dwarf_Word encoding = (Dwarf_Word) -1;
+
+	    dwarf_formudata (dwarf_attr_integrate (typedie, DW_AT_encoding,
+						   &encoding_attr), &encoding);
+	    if (encoding == (Dwarf_Word) -1)
+	      {
+		throw (SEMANTIC_ERROR
+		       (_F("unsupported type (mystery encoding %s for %s",
+			   lex_cast(encoding).c_str(),
+                           dwarf_type_name(typedie).c_str()), e->tok));
+	      }
+
+	    if (encoding == DW_ATE_float
+	        || encoding == DW_ATE_complex_float
+	        /* XXX || many others? */)
+	      {
+		throw (SEMANTIC_ERROR
+		       (_F("unsupported type (encoding %s) for %s",
+			   lex_cast(encoding).c_str(),
+			   dwarf_type_name(typedie).c_str()), e->tok));
+	      }
+
+	    signed_p = (encoding == DW_ATE_signed
+			|| encoding == DW_ATE_signed_char);
+	  }
 
 	Dwarf_Attribute size_attr;
 	Dwarf_Word byte_size;
 	if (dwarf_attr_integrate (typedie, DW_AT_byte_size, &size_attr) == NULL
 	    || dwarf_formudata (&size_attr, &byte_size) != 0)
-	  throw SEMANTIC_ERROR (_F("cannot get byte_size attribute for type %s: %s",
-				   dwarf_diename (typedie) ?: "<anonymous>",
-				   dwarf_errmsg (-1)), e->tok);
+	  {
+	    throw (SEMANTIC_ERROR
+		   (_F("cannot get byte_size attribute for type %s: %s",
+		       dwarf_diename (typedie) ?: "<anonymous>",
+		       dwarf_errmsg (-1)), e->tok));
+	  }
 
-	bool signed_p = encoding == DW_ATE_signed || encoding == DW_ATE_signed_char;
         translate_base_ref (ctx, byte_size, signed_p);
       }
       break;
