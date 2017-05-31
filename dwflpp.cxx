@@ -3362,7 +3362,8 @@ dwflpp::translate_components(location_context *ctx,
             throw SEMANTIC_ERROR (_F("invalid access '%s' vs '%s'", lex_cast(c).c_str(),
                                      dwarf_type_name(typedie).c_str()), c.tok);
 
-	  translate_pointer (*ctx, typedie);
+	  if (!ctx->locations.empty())
+	    translate_pointer (*ctx, typedie);
           if (c.type != target_symbol::comp_literal_array_index &&
               c.type != target_symbol::comp_expression_array_index)
             {
@@ -3431,13 +3432,12 @@ dwflpp::translate_components(location_context *ctx,
                                           sugs.c_str()), c.tok);
                 }
 
-	      for (unsigned j = 0; j < locs.size(); ++j)
+	      if (!ctx->locations.empty())
 		{
-		  location *n = NULL;
-		  if (!ctx->locations.empty())
-		    n = ctx->locations.back();
-                  n = translate_location (ctx, &locs[j], &dies[j],
-                                          pc, NULL, e, n);
+		  location *n = ctx->locations.back();
+	          for (unsigned j = 0; j < locs.size(); ++j)
+		    n = translate_location (ctx, &locs[j], &dies[j],
+					    pc, NULL, e, n);
 		  ctx->locations.push_back(n);
 		}
             }
