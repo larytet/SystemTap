@@ -48,7 +48,7 @@ int main ()
     copy_file_range(-1, &off_in, fd_out, &off_out, buf_size, 0);
     //staptest// copy_file_range (-1, XXXX, NNNN, XXXX, 59, 0x0) = -NNNN
 
-    copy_file_range(fd_in, (off_t*)-1, fd_out, &off_out, buf_size, 0);
+    copy_file_range(fd_in, (loff_t*)-1, fd_out, &off_out, buf_size, 0);
 #ifdef __s390__
     //staptest// copy_file_range (NNNN, 0x[7]?[f]+, NNNN, XXXX, 59, 0x0) = -NNNN
 #else
@@ -58,20 +58,24 @@ int main ()
     copy_file_range(fd_in, &off_in, -1, &off_out, buf_size, 0);
     //staptest// copy_file_range (NNNN, XXXX, -1, XXXX, 59, 0x0) = -NNNN
 
-    copy_file_range(fd_in, &off_in, fd_out, (off_t*)-1, buf_size, 0);
+    copy_file_range(fd_in, &off_in, fd_out, (loff_t*)-1, buf_size, 0);
 #ifdef __s390__
     //staptest// copy_file_range (NNNN, XXXX, NNNN, 0x[7]?[f]+, 59, 0x0) = -NNNN
 #else
     //staptest// copy_file_range (NNNN, XXXX, NNNN, 0x[f]+, 59, 0x0) = -NNNN
 #endif
 
-    copy_file_range(fd_in, &off_in, fd_out, &off_out, -1, 0);
-    //staptest// copy_file_range (NNNN, XXXX, NNNN, XXXX, -1, 0x0) = -NNNN
+    copy_file_range(fd_in, &off_in, fd_out, &off_out, -1L, 0);
+#if __WORDSIZE == 64
+    //staptest// copy_file_range (NNNN, XXXX, NNNN, XXXX, 18446744073709551615, 0x0) = NNNN
+#else
+    //staptest// copy_file_range (NNNN, XXXX, NNNN, XXXX, 4294967295, 0x0) = NNNN
+#endif
 
     /* Note: flags is unused and should be set to 0, otherwise an
      * error occurs. This may change if the syscall is developed. */
     copy_file_range(fd_in, &off_in, fd_out, &off_out, buf_size, -1);
-    //staptest// copy_file_range (NNNN, XXXX, NNNN, XXXX, 59, 0xffffffff) = -NNNN
+    //staptest// copy_file_range (NNNN, XXXX, NNNN, XXXX, 59, 0xffffffff) = NNNN
 
     close(fd_out);
     close(fd_in);

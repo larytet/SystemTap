@@ -39,7 +39,7 @@ probe __syscall.accept4 = kernel.function("sys_accept4").call
 }
 probe __syscall.socketcall.accept4 = kernel.function("sys_socketcall").call ?
 {
-	if ($call != @const("SYS_ACCEPT4")) next;
+	if (__int32($call) != @const("SYS_ACCEPT4")) next;
 	sockfd = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	addr_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	addrlen_uaddr = user_ulong(&@cast($args, "ulong")[2])
@@ -48,7 +48,7 @@ probe __syscall.socketcall.accept4 = kernel.function("sys_socketcall").call ?
 probe __syscall.compat_socketcall.accept4 =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != @const("SYS_ACCEPT4")) next;
+	if (__int32($call) != @const("SYS_ACCEPT4")) next;
 	sockfd = user_int(&@cast($args, "unsigned int")[0])
 	addr_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
 	addrlen_uaddr = user_uint32(&@cast($args, "unsigned int")[2])
@@ -68,7 +68,7 @@ probe __syscall.socketcall.accept4.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if (@entry($call) != @const("SYS_ACCEPT4")) next;
+	if (__int32(@entry($call)) != @const("SYS_ACCEPT4")) next;
 }
 
 # nd_accept4 _____________________________________________________

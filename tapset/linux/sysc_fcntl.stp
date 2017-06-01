@@ -28,7 +28,7 @@ probe dw_syscall.fcntl = __dw_syscall.fcntl,
 	fd = __int32($fd)
 	cmd = __int32($cmd)
 	cmd_str = _fcntl_cmd_str(cmd)
-	arg = $arg
+	arg = @__pointer($arg)
 	@_SYSCALL_FCNTL_ARGSTR
 }
 probe __dw_syscall.fcntl = kernel.function("sys_fcntl64").call ?,

@@ -3618,7 +3618,7 @@ function irqflags_str:string(f:long)
 @__private30 function _stp_struct_iovec_u:string(iov_uaddr:long)
 %{ /* pure */
 	char *iov_uaddr = (void *)(intptr_t)STAP_ARG_iov_uaddr;
-	struct iovec iov;
+	struct iovec iov = { 0 };
 	if (iov_uaddr == NULL)
 		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
@@ -3638,7 +3638,7 @@ function irqflags_str:string(f:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
 	char *iov_uaddr = (void *)(intptr_t)STAP_ARG_iov_uaddr;
-	struct compat_iovec iov;
+	struct compat_iovec iov = { 0 };
 	if (iov_uaddr == NULL)
 		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {

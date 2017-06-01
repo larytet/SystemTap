@@ -38,7 +38,7 @@ probe dw_syscall.recvfrom = __syscall.socketcall.recvfrom ?,
 }
 probe __syscall.socketcall.recvfrom = kernel.function("sys_socketcall").call ?
 {
-	if ($call != @const("SYS_RECVFROM")) next
+	if (__int32($call) != @const("SYS_RECVFROM")) next
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	len = user_ulong(&@cast($args, "ulong")[2])
@@ -49,7 +49,7 @@ probe __syscall.socketcall.recvfrom = kernel.function("sys_socketcall").call ?
 probe __syscall.compat_socketcall.recvfrom =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != @const("SYS_RECVFROM")) next
+	if (__int32($call) != @const("SYS_RECVFROM")) next
 	s = user_int(&@cast($args, "unsigned int")[0])
 	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
 	len = user_uint32(&@cast($args, "unsigned int")[2])
@@ -76,7 +76,7 @@ probe dw_syscall.recvfrom.return = __syscall.socketcall.return ?,
 probe __syscall.socketcall.return = kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if (@entry($call) != @const("SYS_RECVFROM")) next
+	if (__int32(@entry($call)) != @const("SYS_RECVFROM")) next
 }
 probe __syscall.recvfrom.return = kernel.function("sys_recvfrom").return ?
 {

@@ -30,8 +30,8 @@ probe dw_syscall.timer_create = __syscall.timer_create,
 	@_SYSCALL_TIMER_CREATE_NAME
 	clockid = __int32($which_clock)
 	clockid_str = _get_wc_str(__int32($which_clock))
-	evp_uaddr = $timer_event_spec
-	timerid_uaddr = $created_timer_id
+	evp_uaddr = @__pointer($timer_event_spec)
+	timerid_uaddr = @__pointer($created_timer_id)
 	@_SYSCALL_TIMER_CREATE_ARGSTR
 }
 probe __syscall.timer_create = kernel.function("sys_timer_create").call

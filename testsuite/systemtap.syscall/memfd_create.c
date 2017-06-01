@@ -21,7 +21,11 @@ int main()
 #if __WORDSIZE == 64
    //staptest// [[[[memfd_create (0x[16]?[f]+, MFD_CLOEXEC|MFD_ALLOW_SEALING)!!!!ni_syscall ()]]]] = -NNNN
 #else
+#ifdef __s390__
+   //staptest// [[[[memfd_create (0x[7]?[f]+, MFD_CLOEXEC|MFD_ALLOW_SEALING)!!!!ni_syscall ()]]]] = -NNNN
+#else
    //staptest// [[[[memfd_create (0x[8]?[f]+, MFD_CLOEXEC|MFD_ALLOW_SEALING)!!!!ni_syscall ()]]]] = -NNNN
+#endif
 #endif
    syscall(__NR_memfd_create,"memfd_create1", -1);
    //staptest// [[[[memfd_create ("memfd_create1", MFD_[^ ]+|XXXX)!!!!ni_syscall ()]]]] = -NNNN

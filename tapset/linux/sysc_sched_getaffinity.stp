@@ -33,7 +33,7 @@ probe dw_syscall.sched_getaffinity =
 	@_SYSCALL_SCHED_GETAFFINITY_NAME
 	pid = __int32($pid)
 	len = __uint32($len)
-	mask_uaddr = $user_mask_ptr
+	mask_uaddr = @__pointer($user_mask_ptr)
 	@_SYSCALL_SCHED_GETAFFINITY_ARGSTR
 }
 probe dw_syscall.sched_getaffinity.return =

@@ -30,7 +30,7 @@ probe dw_syscall.pwrite = kernel.function("sys_pwrite64").call
 	@_SYSCALL_PWRITE_NAME
 	fd = __int32($fd)
 	buf_uaddr = $buf
-	count = __ulong($count)
+	count = @__compat_ulong($count)
 	buf_str = user_buffer_quoted(buf_uaddr, count, syscall_string_trunc)
 	offset = $pos
 	@_SYSCALL_PWRITE_ARGSTR
@@ -71,6 +71,9 @@ probe nd_syscall.pwrite.return = kprobe.function("sys_pwrite64").return ?
 
 # long sys32_pwrite64(unsigned int fd, const char __user *ubuf,
 #				size_t count, u32 poshi, u32 poslo)
+# COMPAT_SYSCALL_DEFINE5(s390_pwrite64, unsigned int, fd,
+#		         const char __user *, ubuf,
+#		         compat_size_t, count, u32, high, u32, low)
 
 probe syscall.pwrite32 = dw_syscall.pwrite32 !, nd_syscall.pwrite32 ? {}
 probe syscall.pwrite32.return = dw_syscall.pwrite32.return !,
@@ -78,17 +81,26 @@ probe syscall.pwrite32.return = dw_syscall.pwrite32.return !,
 
 # dw_pwrite32 _____________________________________________________
 
-probe dw_syscall.pwrite32 = kernel.function("sys32_pwrite64").call ?
+probe dw_syscall.pwrite32 =
+%( arch == "s390" %?
+	kernel.function("compat_sys_s390_pwrite64").call ?,
+%)
+	kernel.function("sys32_pwrite64").call ?
 {
 	@_SYSCALL_PWRITE_NAME
 	fd = __int32($fd)
-	count = $count
-	offset = ($poshi << 32) + $poslo
-	buf_uaddr = @choose_defined($buf, $ubuf)
+	count = @__compat_ulong($count)
+	offset = ((@choose_defined($poshi, $high) << 32)
+		  + __uint32(@choose_defined($poslo, $low)))
+	buf_uaddr = @__pointer(@choose_defined($buf, $ubuf))
 	buf_str = user_buffer_quoted(buf_uaddr, count, syscall_string_trunc)
 	@_SYSCALL_PWRITE_ARGSTR
 }
-probe dw_syscall.pwrite32.return = kernel.function("sys32_pwrite64").return ?
+probe dw_syscall.pwrite32.return =
+%( arch == "s390" %?
+	kernel.function("compat_sys_s390_pwrite64").return ?,
+%)
+	kernel.function("sys32_pwrite64").return ?
 {
 	@_SYSCALL_PWRITE_NAME
 	retstr = return_str(1, $return)
@@ -96,7 +108,11 @@ probe dw_syscall.pwrite32.return = kernel.function("sys32_pwrite64").return ?
 
 # nd_pwrite32 _____________________________________________________
 
-probe nd_syscall.pwrite32 = kprobe.function("sys32_pwrite64") ?
+probe nd_syscall.pwrite32 =
+%( arch == "s390" %?
+	kprobe.function("compat_sys_s390_pwrite64") ?,
+%)
+	kprobe.function("sys32_pwrite64") ?
 {
 	@_SYSCALL_PWRITE_NAME
 	asmlinkage()
@@ -107,7 +123,11 @@ probe nd_syscall.pwrite32 = kprobe.function("sys32_pwrite64") ?
 	offset = (u32_arg(4) << 32) + u32_arg(5)
 	@_SYSCALL_PWRITE_ARGSTR
 }
-probe nd_syscall.pwrite32.return = kprobe.function("sys32_pwrite64").return ?
+probe nd_syscall.pwrite32.return =
+%( arch == "s390" %?
+	kprobe.function("compat_sys_s390_pwrite64").return ?,
+%)
+	kprobe.function("sys32_pwrite64").return ?
 {
 	@_SYSCALL_PWRITE_NAME
 	retstr = returnstr(1)

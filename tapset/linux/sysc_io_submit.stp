@@ -22,7 +22,7 @@ probe dw_syscall.io_submit = __syscall.io_submit,
 	kernel.function("compat_sys_io_submit").call ?
 {
 	@_SYSCALL_IO_SUBMIT_NAME
-	ctx_id = __ulong($ctx_id)
+	ctx_id = @__compat_ulong($ctx_id)
 	nr = @__compat_long($nr)
 	iocbpp_uaddr = @choose_defined($iocbpp, $iocb)
 	@_SYSCALL_IO_SUBMIT_ARGSTR

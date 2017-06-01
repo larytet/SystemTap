@@ -23,6 +23,9 @@ probe dw_syscall.fstatat = kernel.function("sys_fstatat64").call ?,
                         kernel.function("sys_newfstatat").call ?,
                         kernel.function("compat_sys_newfstatat").call ?,
                         kernel.function("sys32_fstatat64").call ?,
+%( arch == "s390" %?
+                        kernel.function("compat_sys_s390_fstatat64").call ?,
+%)
                         kernel.function("sys32_fstatat").call ?
 {
 	@_SYSCALL_FSTATAT_NAME
@@ -35,10 +38,13 @@ probe dw_syscall.fstatat = kernel.function("sys_fstatat64").call ?,
 	@_SYSCALL_FSTATAT_ARGSTR
 }
 probe dw_syscall.fstatat.return = kernel.function("sys_fstatat64").return ?,
-                               kernel.function("sys_newfstatat").return ?,
-                               kernel.function("compat_sys_newfstatat").return ?,
-                               kernel.function("sys32_fstatat64").return ?,
-			       kernel.function("sys32_fstatat").return ?
+	kernel.function("sys_newfstatat").return ?,
+	kernel.function("compat_sys_newfstatat").return ?,
+	kernel.function("sys32_fstatat64").return ?,
+%( arch == "s390" %?
+	kernel.function("compat_sys_s390_fstatat64").return ?,
+%)
+	kernel.function("sys32_fstatat").return ?
 {
 	@_SYSCALL_FSTATAT_NAME
 	retstr = return_str(1, $return)
@@ -50,6 +56,9 @@ probe nd_syscall.fstatat = kprobe.function("sys_fstatat64") ?,
                            kprobe.function("sys_newfstatat") ?,
                            kprobe.function("compat_sys_newfstatat") ?,
                            kprobe.function("sys32_fstatat64") ?,
+%( arch == "s390" %?
+                           kprobe.function("compat_sys_s390_fstatat64") ?,
+%)
 			   kprobe.function("sys32_fstatat") ?
 {
 	@_SYSCALL_FSTATAT_NAME
@@ -63,10 +72,13 @@ probe nd_syscall.fstatat = kprobe.function("sys_fstatat64") ?,
 	@_SYSCALL_FSTATAT_ARGSTR
 }
 probe nd_syscall.fstatat.return = kprobe.function("sys_fstatat64").return ?,
-                                  kprobe.function("sys_newfstatat").return ?,
-                                  kprobe.function("compat_sys_newfstatat").return ?,
-                                  kprobe.function("sys32_fstatat64").return ?,
-				  kprobe.function("sys32_fstatat").return ?
+	kprobe.function("sys_newfstatat").return ?,
+	kprobe.function("compat_sys_newfstatat").return ?,
+	kprobe.function("sys32_fstatat64").return ?,
+%( arch == "s390" %?
+	kprobe.function("compat_sys_s390_fstatat64").return ?,
+%)
+	kprobe.function("sys32_fstatat").return ?
 {
 	@_SYSCALL_FSTATAT_NAME
 	retstr = returnstr(1)

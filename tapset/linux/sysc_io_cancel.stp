@@ -23,7 +23,7 @@ probe syscall.io_cancel.return = dw_syscall.io_cancel.return !, nd_syscall.io_ca
 probe dw_syscall.io_cancel = kernel.function("sys_io_cancel").call
 {
 	@_SYSCALL_IO_CANCEL_NAME
-	ctx_id = __ulong($ctx_id)
+	ctx_id = @__compat_ulong($ctx_id)
 	iocb_uaddr = $iocb
 	result_uaddr = $result
 	@_SYSCALL_IO_CANCEL_ARGSTR

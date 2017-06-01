@@ -24,7 +24,7 @@ probe dw_syscall.fstatfs64 = kernel.function("sys_fstatfs64").call ?,
 	@_SYSCALL_FSTATFS64_NAME
 	fd = __int32($fd)
 	sz = __ulong($sz)
-	buf_uaddr = $buf
+	buf_uaddr = @__pointer($buf)
 	@_SYSCALL_FSTATFS64_ARGSTR
 }
 probe dw_syscall.fstatfs64.return = kernel.function("sys_fstatfs64").return ?,

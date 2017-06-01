@@ -19,15 +19,16 @@ probe syscall.read.return = dw_syscall.read.return !,
 
 probe dw_syscall.read =
 %( arch == "s390" %?
-	__syscall.read, kernel.function("sys32_read").call ?
+	__syscall.read, kernel.function("sys32_read").call ?,
+	kernel.function("compat_sys_s390_read").call ?
 %:
 	__syscall.read
 %)
 {
 	@_SYSCALL_READ_NAME
 	fd = __int32($fd)
-	buf_uaddr = $buf
-	count = __ulong($count)
+	buf_uaddr = @__pointer($buf)
+	count = @__compat_ulong($count)
 	@_SYSCALL_READ_ARGSTR
 }
 probe __syscall.read = kernel.function("sys_read").call
@@ -38,7 +39,8 @@ probe __syscall.read = kernel.function("sys_read").call
 }
 probe dw_syscall.read.return =
 %( arch == "s390" %?
-	__syscall.read.return, kernel.function("sys32_read").return ?
+	__syscall.read.return, kernel.function("sys32_read").return ?,
+	kernel.function("compat_sys_s390_read").return ?
 %:
 	__syscall.read.return
 %)
@@ -57,7 +59,8 @@ probe __syscall.read.return = kernel.function("sys_read").return
 
 probe nd_syscall.read =
 %( arch == "s390" %?
-	__nd_syscall.read, kprobe.function("sys32_read").call ?
+	__nd_syscall.read, kprobe.function("sys32_read") ?,
+	kprobe.function("compat_sys_s390_read") ?
 %:
 	__nd_syscall.read
 %)
@@ -77,7 +80,8 @@ probe __nd_syscall.read = kprobe.function("sys_read")
 }
 probe nd_syscall.read.return =
 %( arch == "s390" %?
-	__nd_syscall.read.return, kprobe.function("sys32_read").return ?
+	__nd_syscall.read.return, kprobe.function("sys32_read").return ?,
+	kprobe.function("compat_sys_s390_read").return ?
 %:
 	__nd_syscall.read.return
 %)

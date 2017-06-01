@@ -25,7 +25,7 @@ probe dw_syscall.mq_notify =
 {
 	@_SYSCALL_MQ_NOTIFY_NAME
 	mqdes = __int32($mqdes)
-	notification_uaddr = $u_notification
+	notification_uaddr = @__pointer($u_notification)
 	@_SYSCALL_MQ_NOTIFY_ARGSTR
 }
 probe __syscall.mq_notify = kernel.function("sys_mq_notify").call

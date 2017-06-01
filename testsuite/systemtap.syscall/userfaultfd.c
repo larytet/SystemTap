@@ -26,7 +26,7 @@ int main()
     struct uffdio_api api;
 
     fd = userfaultfd(0);
-    //staptest// userfaultfd (0x0) = NNNN
+    //staptest// [[[[userfaultfd (0x0)!!!!ni_syscall ()]]]] = NNNN
 
     // userfaulfd API sanity check
     memset(&api, 0, sizeof(api));
@@ -36,10 +36,10 @@ int main()
     //staptest// ioctl (NNNN, NNNN, XXXX) = NNNN
 
     close(fd);
-    //staptest// close (NNNN) = 0
+    //staptest// close (NNNN) = NNNN
 
     fd = userfaultfd(-1);
-    //staptest// userfaultfd (O_[^ ]+|XXXX) = -NNNN
+    //staptest// [[[[userfaultfd (O_[^ ]+|XXXX)!!!!ni_syscall ()]]]] = -NNNN
 #endif
     return 0;
 }

@@ -26,7 +26,7 @@ probe dw_syscall.ptrace = kernel.function("sys_ptrace").call ?,
 		kernel.function("compat_sys_ptrace").call ?
 {
 	@_SYSCALL_PTRACE_NAME
-	request = $request
+	request = @__compat_ulong($request)
 	pid = __int32($pid)
 	addr = @__compat_ulong($addr)
 	data = @__compat_ulong(@choose_defined($data, $cdata))

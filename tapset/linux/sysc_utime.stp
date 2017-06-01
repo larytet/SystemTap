@@ -66,9 +66,9 @@ probe syscall.compat_utime.return = dw_syscall.compat_utime.return !,
 probe dw_syscall.compat_utime = kernel.function("compat_sys_utime").call ?
 {
 	@_SYSCALL_UTIME_NAME
-	filename_uaddr = $filename
-	filename = user_string_quoted($filename)
-	buf_uaddr = $t
+	filename_uaddr = @__pointer($filename)
+	filename = user_string_quoted(filename_uaddr)
+	buf_uaddr = @__pointer($t)
 	actime = _struct_compat_utimbuf_actime(buf_uaddr)
 	modtime = _struct_compat_utimbuf_modtime(buf_uaddr)
 	@_SYSCALL_UTIME_ARGSTR

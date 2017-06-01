@@ -35,9 +35,9 @@ probe dw_syscall.process_vm_readv = kernel.function("sys_process_vm_readv").call
 {
 	@_SYSCALL_PROCESS_VM_READV_NAME
 	pid = __int32($pid)
-	local_iov_uaddr = $lvec
+	local_iov_uaddr = @__pointer($lvec)
 	liovcnt = @__compat_ulong($liovcnt)
-	remote_iov_uaddr = $rvec
+	remote_iov_uaddr = @__pointer($rvec)
 	riovcnt = @__compat_ulong($riovcnt)
 	flags = @__compat_ulong($flags)
 	@_SYSCALL_PROCESS_VM_READV_ARGSTR

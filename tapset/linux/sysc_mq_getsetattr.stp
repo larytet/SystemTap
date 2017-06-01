@@ -28,8 +28,8 @@ probe dw_syscall.mq_getsetattr =
 {
 	@_SYSCALL_MQ_GETSETATTR_NAME
 	mqdes = __int32($mqdes)
-	u_mqstat_uaddr = $u_mqstat
-	u_omqstat_uaddr = $u_omqstat
+	u_mqstat_uaddr = @__pointer($u_mqstat)
+	u_omqstat_uaddr = @__pointer($u_omqstat)
 	@_SYSCALL_MQ_GETSETATTR_ARGSTR
 }
 probe __syscall.mq_getsetattr = kernel.function("sys_mq_getsetattr").call

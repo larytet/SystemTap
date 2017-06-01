@@ -80,10 +80,10 @@ probe dw_syscall.compat_pselect7 = kernel.function("compat_sys_pselect7").call ?
 	@__compat_syscall_gate(@const("__NR_compat_pselect7"))
 	@_SYSCALL_PSELECT7_NAME
 	nfds = __int32($n)
-	readfds = $inp
-	writefds = $outp
-	exceptfds = $exp
-	timeout = $tsp
+	readfds = @__pointer($inp)
+	writefds = @__pointer($outp)
+	exceptfds = @__pointer($exp)
+	timeout = @__pointer($tsp)
 	timeout_str = _struct_compat_timespec_u(timeout, 1)
 	sigmask = $sig
 	sigsetsize = $sigsetsize

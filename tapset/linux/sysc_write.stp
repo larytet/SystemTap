@@ -22,7 +22,8 @@ probe syscall.write.return = dw_syscall.write.return !, nd_syscall.write.return 
 
 probe dw_syscall.write =
 %( arch == "s390" %?
-	__syscall.write, kernel.function("sys32_write").call ?
+	__syscall.write, kernel.function("sys32_write").call ?,
+	kernel.function("compat_sys_s390_write").call ?
 %:
 	__syscall.write
 %)
@@ -30,7 +31,7 @@ probe dw_syscall.write =
 	@_SYSCALL_WRITE_NAME
 	fd = __int32($fd)
 	buf_uaddr = $buf
-	count = __ulong($count)
+	count = @__compat_ulong($count)
 	buf_str = user_buffer_quoted(buf_uaddr, count, syscall_string_trunc)
 	@_SYSCALL_WRITE_ARGSTR
 }
@@ -42,7 +43,8 @@ probe __syscall.write = kernel.function("sys_write").call
 }
 probe dw_syscall.write.return =
 %( arch == "s390" %?
-	__syscall.write.return, kernel.function("sys32_write").return ?
+	__syscall.write.return, kernel.function("sys32_write").return ?,
+	kernel.function("compat_sys_s390_write").return ?
 %:
 	__syscall.write.return
 %)
@@ -61,7 +63,8 @@ probe __syscall.write.return = kernel.function("sys_write").return
 
 probe nd_syscall.write =
 %( arch == "s390" %?
-	__nd_syscall.write, kprobe.function("sys32_write").call ?
+	__nd_syscall.write, kprobe.function("sys32_write") ?,
+	kprobe.function("compat_sys_s390_write") ?
 %:
 	__nd_syscall.write
 %)
@@ -82,7 +85,8 @@ probe __nd_syscall.write = kprobe.function("sys_write")
 }
 probe nd_syscall.write.return =
 %( arch == "s390" %?
-	__nd_syscall.write.return, kprobe.function("sys32_write").return ?
+	__nd_syscall.write.return, kprobe.function("sys32_write").return ?,
+	kprobe.function("compat_sys_s390_write").return ?
 %:
 	__nd_syscall.write.return
 %)

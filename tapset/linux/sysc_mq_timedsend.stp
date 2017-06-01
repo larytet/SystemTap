@@ -34,9 +34,9 @@ probe dw_syscall.mq_timedsend =
 {
 	@_SYSCALL_MQ_TIMEDSEND_NAME
 	mqdes = __int32($mqdes)
-	msg_ptr_uaddr = $u_msg_ptr
+	msg_ptr_uaddr = @__pointer($u_msg_ptr)
 	msg_prio = __uint32($msg_prio)
-	abs_timeout_uaddr = $u_abs_timeout
+	abs_timeout_uaddr = @__pointer($u_abs_timeout)
 %( CONFIG_64BIT == "y" %?
 	msg_len = @__compat_ulong($msg_len)
 %:

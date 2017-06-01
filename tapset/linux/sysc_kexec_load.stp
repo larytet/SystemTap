@@ -29,10 +29,10 @@ probe dw_syscall.kexec_load = __syscall.kexec_load.call ?,
                            kernel.function("compat_sys_kexec_load").call ?
 {
 	@_SYSCALL_KEXEC_LOAD_NAME
-	entry = __ulong($entry)
+	entry = @__compat_ulong($entry)
 	nr_segments = __ulong($nr_segments)
-	segments_uaddr = $segments
-	flags = __ulong($flags)
+	segments_uaddr = @__pointer($segments)
+	flags = @__compat_ulong($flags)
 	flags_str = _kexec_flags_str(flags)
 	@_SYSCALL_KEXEC_LOAD_ARGSTR
 }

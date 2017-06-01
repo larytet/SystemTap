@@ -77,10 +77,10 @@ probe dw_syscall.compat_select = kernel.function("compat_sys_select").call ?
 {
 	@_SYSCALL_SELECT_NAME
 	n = __int32($n)
-	readfds_uaddr = $inp
-	writefds_uaddr = $outp
-	exceptfds_uaddr = $exp
-	timeout_uaddr = $tvp
+	readfds_uaddr = @__pointer($inp)
+	writefds_uaddr = @__pointer($outp)
+	exceptfds_uaddr = @__pointer($exp)
+	timeout_uaddr = @__pointer($tvp)
 	timeout_str = _struct_compat_timeval_u(timeout_uaddr, 1)
 	@_SYSCALL_SELECT_ARGSTR
 }

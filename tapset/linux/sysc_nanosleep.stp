@@ -43,9 +43,9 @@ probe dw_syscall.nanosleep.return = kernel.function("sys_nanosleep").return
 probe dw_syscall.compat_nanosleep = kernel.function("compat_sys_nanosleep").call ?
 {
 	@_SYSCALL_NANOSLEEP_NAME
-	req_uaddr = $rqtp
+	req_uaddr = @__pointer($rqtp)
 	req_str = _struct_compat_timespec_u(req_uaddr, 1)
-	rem_uaddr = $rmtp
+	rem_uaddr = @__pointer($rmtp)
 	@_SYSCALL_NANOSLEEP_ARGSTR
 }
 probe dw_syscall.compat_nanosleep.return = kernel.function("compat_sys_nanosleep").return ?

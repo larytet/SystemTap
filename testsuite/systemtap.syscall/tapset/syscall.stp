@@ -56,7 +56,7 @@ probe init {
 %)
 
 %( arch == "x86_64" %?
-    __syscall_map["ni_syscall"] = ",get_thread_area,kcmp,nfsservctl,set_thread_area,uselib,"
+    __syscall_map["ni_syscall"] = ",bpf,get_thread_area,kcmp,nfsservctl,set_thread_area,uselib,"
 %)
 
 %( arch == "arm" %?
@@ -64,15 +64,15 @@ probe init {
 %)
 
 %( arch == "arm64" %?
-    __syscall_map["ni_syscall"] = ",get_mempolicy,kcmp,mbind,migrate_pages,move_pages,set_mempolicy,"
+    __syscall_map["ni_syscall"] = ",bpf,get_mempolicy,kcmp,mbind,migrate_pages,move_pages,set_mempolicy,"
 %)
 
 %( arch == "powerpc" %?
-    __syscall_map["ni_syscall"] = ",execveat,getrandom,kcmp,memfd_create,olduname,oldolduname,readdir,renameat2,sched_getattr,sched_setattr,sigaction,signalfd4,sigpending,sigprocmask,kexec_file_load,"
+    __syscall_map["ni_syscall"] = ",bpf,execveat,getrandom,ioperm,kcmp,memfd_create,nfsservctl,olduname,oldolduname,readdir,renameat2,sched_getattr,sched_setattr,seccomp,sigaction,signalfd4,sigpending,sigprocmask,kexec_file_load,uselib,"
 %)
 
 %( arch == "s390" %?
-    __syscall_map["ni_syscall"] = ",kcmp,readdir,nfsservctl,"
+    __syscall_map["ni_syscall"] = ",bpf,get_mempolicy,ioperm,kcmp,mbind,migrate_pages,move_pages,nfsservctl,readdir,set_mempolicy,uselib,userfaultfd,"
 %)
 
 }

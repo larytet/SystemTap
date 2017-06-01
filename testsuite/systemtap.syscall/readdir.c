@@ -39,7 +39,7 @@ int main() {
 
     __readdir(fd, (void *)-1, 0);
 #ifdef __s390__
-    //staptest// [[[[readdir (NNNN, 0x7[f]+, 0)!!!!ni_syscall ()]]]] = NNNN
+    //staptest// [[[[readdir (NNNN, 0x[7]?[f]+, 0)!!!!ni_syscall ()]]]] = NNNN
 #else
     //staptest// [[[[readdir (NNNN, 0x[f]+, 0)!!!!ni_syscall ()]]]] = NNNN
 #endif

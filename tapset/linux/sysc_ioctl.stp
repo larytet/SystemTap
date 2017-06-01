@@ -24,7 +24,7 @@ probe dw_syscall.ioctl = __syscall.ioctl ?,
 	@_SYSCALL_IOCTL_NAME
 	fd = __int32($fd)
 	request = __int32($cmd)
-	argp = @choose_defined($arg, $arg32)
+	argp = @__compat_ulong(@choose_defined($arg, $arg32))
 	@_SYSCALL_IOCTL_ARGSTR
 }
 probe __syscall.ioctl = kernel.function("sys_ioctl").call

@@ -58,11 +58,11 @@ probe dw_syscall.execve.return = kernel.function("sys_execve").return
 probe dw_syscall.compat_execve = kernel.function("compat_sys_execve").call ?
 {
 	@_SYSCALL_EXECVE_NAME
-	filename = user_string_quoted($filename)
+	filename = user_string_quoted(@__pointer($filename))
 	# kernel 3.0 changed the pointer's name to __argv
-	__argv = @choose_defined($__argv, $argv)
+	__argv = @__pointer(@choose_defined($__argv, $argv))
 	args = __get_compat_argv(__argv, 0)
-	__envp = @choose_defined($__envp, $envp)
+	__envp = @__pointer(@choose_defined($__envp, $envp))
 	env_str = __count_compat_envp(__envp)
 	@_SYSCALL_EXECVE_ARGSTR
 }

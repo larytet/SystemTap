@@ -108,4 +108,5 @@ int main()
     //staptest// fadvise64 (NNNN, 0, 1024, 0x[f]+) = NNNN
 #endif
     close(fd);
+    return 0;
 }

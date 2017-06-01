@@ -48,7 +48,7 @@ probe dw_syscall.compat_futex = kernel.function("compat_sys_futex").call ?
 	futex_uaddr = @__pointer($uaddr)
 	op = __int32($op)
 	val = __int32($val)
-	utime_uaddr = $utime
+	utime_uaddr = @__pointer($utime)
 	uaddr2_uaddr = $uaddr2
 	val3 = __int32($val3)
 	@__futex_argstr(futex_uaddr, op, val, utime_uaddr, uaddr2_uaddr, val3)

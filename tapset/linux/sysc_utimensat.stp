@@ -77,9 +77,9 @@ probe dw_syscall.compat_utimensat = kernel.function("compat_sys_utimensat").call
 	@_SYSCALL_UTIMENSAT_NAME
 	dfd = __int32($dfd)
 	dfd_str = _dfd_str(__int32($dfd))
-	filename_uaddr = $filename
-	filename = user_string_quoted($filename)
-	tsp_uaddr = $t
+	filename_uaddr = @__pointer($filename)
+	filename = user_string_quoted(filename_uaddr)
+	tsp_uaddr = @__pointer($t)
 	tsp_str = _struct_compat_timespec_u(tsp_uaddr, 2)
 	flags = __int32($flags)
 	flags_str = _at_flag_str(__int32($flags))

@@ -67,8 +67,8 @@ probe syscall.compat_sys_utimes.return = dw_syscall.compat_sys_utimes.return !,
 probe dw_syscall.compat_sys_utimes = kernel.function("compat_sys_utimes").call ?
 {
 	@_SYSCALL_UTIMES_NAME
-	filename = user_string_quoted($filename)
-	timeval = $t
+	filename = user_string_quoted(@__pointer($filename))
+	timeval = @__pointer($t)
 	tvp_uaddr_str = _struct_compat_timeval_u(timeval, 2)
 	@_SYSCALL_UTIMES_ARGSTR
 }

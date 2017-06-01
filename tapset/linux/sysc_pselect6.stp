@@ -75,12 +75,12 @@ probe dw_syscall.compat_pselect6 = kernel.function("compat_sys_pselect6").call ?
 {
 	@_SYSCALL_PSELECT6_NAME
 	nfds = __int32($n)
-	readfds = $inp
-	writefds = $outp
-	exceptfds = $exp
-	timeout = $tsp
+	readfds = @__pointer($inp)
+	writefds = @__pointer($outp)
+	exceptfds = @__pointer($exp)
+	timeout = @__pointer($tsp)
 	timeout_str = _struct_compat_timespec_u(timeout, 1)
-	sigmask = $sig
+	sigmask = @__pointer($sig)
 	@_SYSCALL_PSELECT6_ARGSTR
 }
 probe dw_syscall.compat_pselect6.return = kernel.function("compat_sys_pselect6").return ?

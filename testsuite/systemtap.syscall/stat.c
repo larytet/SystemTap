@@ -86,16 +86,24 @@ int main()
   //staptest// statx (-1, "foobar", AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, XXXX) = -NNNN (EBADF)
 
   statx(AT_FDCWD, (const char *)-1, AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, &stx);
+#ifdef __s390__
+  //staptest// statx (AT_FDCWD, 0x[7]?[f]+, AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, XXXX) = -NNNN (EFAULT)
+#else
   //staptest// statx (AT_FDCWD, 0x[f]+, AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, XXXX) = -NNNN (EFAULT)
+#endif
 
   statx(AT_FDCWD, "foobar", (unsigned)-1, AT_STATX_FORCE_SYNC, &stx);
   //staptest// statx (AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW|AT_REMOVEDIR|AT_SYMLINK_FOLLOW|AT_NO_AUTOMOUNT|AT_EMPTY_PATH|XXXX, AT_STATX_FORCE_SYNC, XXXX) = -NNNN (EINVAL)
 
   statx(AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW, (unsigned)-1, &stx);
-  //staptest// statx (AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW, 0x[f]+, XXXX) = 0
+  //staptest// statx (AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW, 0x[f]+, XXXX) = NNNN
 
   statx(AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, (struct statx *)-1);
+#ifdef __s390__
+  //staptest// statx (AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, 0x[7]?[f]+) = -NNNN (EFAULT)
+#else
   //staptest// statx (AT_FDCWD, "foobar", AT_SYMLINK_NOFOLLOW, AT_STATX_FORCE_SYNC, 0x[f]+) = -NNNN (EFAULT)
+#endif
 #endif
 
   close(fd);

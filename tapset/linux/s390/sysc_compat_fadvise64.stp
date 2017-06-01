@@ -35,7 +35,8 @@ probe syscall.compat_fadvise64.return = dw_syscall.compat_fadvise64.return !,
 
 # dw_compat_fadvise64 _____________________________________________________
 
-probe dw_syscall.compat_fadvise64 = kernel.function("sys32_fadvise64").call ?
+probe dw_syscall.compat_fadvise64 = kernel.function("sys32_fadvise64").call ?,
+	kernel.function("compat_sys_s390_fadvise64").call ?
 {
 	@_SYSCALL_COMPAT_FADVISE64_NAME
 	fd = __int32($fd)
@@ -43,7 +44,7 @@ probe dw_syscall.compat_fadvise64 = kernel.function("sys32_fadvise64").call ?
 		offset = $offset
 	}
 	else {
-	        offset = (($high << 32) | $low)
+	        offset = (($high << 32) | __uint32($low))
 	}
 	len = __int32($len)
 	advice = __int32($advise)
@@ -51,7 +52,8 @@ probe dw_syscall.compat_fadvise64 = kernel.function("sys32_fadvise64").call ?
 	@_SYSCALL_COMPAT_FADVISE64_ARGSTR
 }
 probe dw_syscall.compat_fadvise64.return =
-	kernel.function("sys32_fadvise64").return ?
+	kernel.function("sys32_fadvise64").return ?,
+	kernel.function("compat_sys_s390_fadvise64").return ?
 {
 	@_SYSCALL_COMPAT_FADVISE64_NAME
 	retstr = return_str(1, $return)
@@ -59,7 +61,8 @@ probe dw_syscall.compat_fadvise64.return =
 
 # nd_compat_fadvise64 _____________________________________________________
 
-probe nd_syscall.compat_fadvise64 = kprobe.function("sys32_fadvise64") ?
+probe nd_syscall.compat_fadvise64 = kprobe.function("sys32_fadvise64") ?,
+	kprobe.function("compat_sys_s390_fadvise64") ?
 {
 	asmlinkage()
 	@_SYSCALL_COMPAT_FADVISE64_NAME
@@ -79,7 +82,8 @@ probe nd_syscall.compat_fadvise64 = kprobe.function("sys32_fadvise64") ?
 	@_SYSCALL_COMPAT_FADVISE64_ARGSTR
 }
 probe nd_syscall.compat_fadvise64.return =
-	kprobe.function("sys32_fadvise64").return ?
+	kprobe.function("sys32_fadvise64").return ?,
+	kprobe.function("compat_sys_s390_fadvise64").return ?
 {
 	@_SYSCALL_COMPAT_FADVISE64_NAME
 	retstr = returnstr(1)
@@ -103,18 +107,21 @@ probe syscall.compat_fadvise64_64.return = dw_syscall.compat_fadvise64_64.return
 
 # dw_compat_fadvise64_64 _____________________________________________________
 
-probe dw_syscall.compat_fadvise64_64 = kernel.function("sys32_fadvise64_64").call ?
+probe dw_syscall.compat_fadvise64_64 =
+	kernel.function("sys32_fadvise64_64").call ?,
+	kernel.function("compat_sys_s390_fadvise64_64").call ?
 {
 	@_SYSCALL_COMPAT_FADVISE64_NAME
-	fd = user_int(&$args->fd)
-	offset = user_int64(&$args->offset)
-	len = user_int64(&$args->len)
-	advice = user_int(&$args->advice)
+	fd = user_int(&@cast(@__pointer($args), "fadvise64_64_args")->fd)
+	offset = user_int64(&@cast(@__pointer($args), "fadvise64_64_args")->offset)
+	len = user_int64(&@cast(@__pointer($args), "fadvise64_64_args")->len)
+	advice = user_int(&@cast(@__pointer($args), "fadvise64_64_args")->advice)
 	advice_str = _fadvice_advice_str(advice)
 	@_SYSCALL_COMPAT_FADVISE64_ARGSTR
 }
 probe dw_syscall.compat_fadvise64_64.return =
-	kernel.function("sys32_fadvise64_64").return ?
+	kernel.function("sys32_fadvise64_64").return ?,
+	kernel.function("compat_sys_s390_fadvise64_64").return ?
 {
 	@_SYSCALL_COMPAT_FADVISE64_NAME
 	retstr = return_str(1, $return)
@@ -122,7 +129,8 @@ probe dw_syscall.compat_fadvise64_64.return =
 
 # nd_compat_fadvise64_64 _____________________________________________________
 
-probe nd_syscall.compat_fadvise64_64 = kprobe.function("sys32_fadvise64_64") ?
+probe nd_syscall.compat_fadvise64_64 = kprobe.function("sys32_fadvise64_64") ?,
+	kprobe.function("compat_sys_s390_fadvise64_64") ?
 {
 	@_SYSCALL_COMPAT_FADVISE64_NAME
 	__args = &@cast(pointer_arg(1), "unsigned int", "kernel<linux/types.h>")
@@ -134,7 +142,8 @@ probe nd_syscall.compat_fadvise64_64 = kprobe.function("sys32_fadvise64_64") ?
 	@_SYSCALL_COMPAT_FADVISE64_ARGSTR
 }
 probe nd_syscall.compat_fadvise64_64.return =
-	kprobe.function("sys32_fadvise64_64").return ?
+	kprobe.function("sys32_fadvise64_64").return ?,
+	kprobe.function("compat_sys_s390_fadvise64_64").return ?
 {
 	@_SYSCALL_COMPAT_FADVISE64_NAME
 	retstr = returnstr(1)

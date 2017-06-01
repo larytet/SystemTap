@@ -33,8 +33,8 @@ probe dw_syscall.timer_settime = __syscall.timer_settime,
 	@_SYSCALL_TIMER_SETTIME_NAME
 	timerid = __int32($timer_id)
 	flags = __int32($flags)
-	value_uaddr  = @choose_defined($new, $new_setting)
-	ovalue_uaddr = @choose_defined($old, $old_setting)
+	value_uaddr  = @__pointer(@choose_defined($new, $new_setting))
+	ovalue_uaddr = @__pointer(@choose_defined($old, $old_setting))
 %( CONFIG_COMPAT == "y" %?
 	value_str = (@__compat_task ? _struct_compat_itimerspec_u(value_uaddr)
 	             : _struct_itimerspec_u(value_uaddr))

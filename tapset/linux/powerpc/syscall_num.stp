@@ -2,8 +2,8 @@
 
 global __syscall_32_num2name[382]
 global __syscall_32_name2num[382]
-global __syscall_64_num2name[373]
-global __syscall_64_name2num[373]
+global __syscall_64_num2name[374]
+global __syscall_64_name2num[374]
 
 probe init {
 __syscall_32_num2name[0]="restart_syscall"
@@ -734,8 +734,8 @@ __syscall_32_num2name[363]="switch_endian"
 __syscall_32_name2num["switch_endian"]=363
 __syscall_32_num2name[364]="userfaultfd"
 __syscall_32_name2num["userfaultfd"]=364
-__syscall_32_num2name[365]="membarrier"
-__syscall_32_name2num["membarrier"]=365
+__syscall_32_num2name[365]="copy_file_range"
+__syscall_32_name2num["copy_file_range"]=365
 __syscall_32_num2name[366]="semop"
 __syscall_32_name2num["semop"]=366
 __syscall_32_num2name[367]="semget"
@@ -1516,4 +1516,6 @@ __syscall_64_num2name[381]="pwritev2"
 __syscall_64_name2num["pwritev2"]=381
 __syscall_64_num2name[382]="kexec_file_load"
 __syscall_64_name2num["kexec_file_load"]=382
+__syscall_64_num2name[383]="statx"
+__syscall_64_name2num["statx"]=383
 } /* probe init */

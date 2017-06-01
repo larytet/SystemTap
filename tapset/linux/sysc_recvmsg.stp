@@ -41,7 +41,7 @@ probe __syscall.recvmsg = kernel.function("sys_recvmsg").call ?
 }
 probe __syscall.socketcall.recvmsg = kernel.function("sys_socketcall").call ?
 {
-	if ($call != @const("SYS_RECVMSG")) next;
+	if (__int32($call) != @const("SYS_RECVMSG")) next;
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	msg_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	flags = __uint32(user_ulong(&@cast($args, "ulong")[2]))
@@ -60,7 +60,7 @@ probe __syscall.recvmsg.return = kernel.function("sys_recvmsg").return ?
 probe __syscall.socketcall.recvmsg.return =
 	kernel.function("sys_socketcall").return ?
 {
-	if (@entry($call) != @const("SYS_RECVMSG")) next;
+	if (__int32(@entry($call)) != @const("SYS_RECVMSG")) next;
 }
 
 # nd_recvmsg _____________________________________________________
@@ -139,7 +139,7 @@ probe syscall.compat_sys_recvmsg.return = dw_syscall.compat_sys_recvmsg.return !
 probe dw_syscall.compat_sys_recvmsg =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != @const("SYS_RECVMSG")) next;
+	if (__int32($call) != @const("SYS_RECVMSG")) next;
 	@_SYSCALL_RECVMSG_NAME
 	s = user_int(&@cast($args, "unsigned int")[0])
 	msg_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
@@ -150,7 +150,7 @@ probe dw_syscall.compat_sys_recvmsg =
 probe dw_syscall.compat_sys_recvmsg.return =
  	kernel.function("compat_sys_socketcall").return ?
 {
-	if (@entry($call) != @const("SYS_RECVMSG")) next;
+	if (__int32(@entry($call)) != @const("SYS_RECVMSG")) next;
 	@_SYSCALL_RECVMSG_NAME
 	retstr = return_str(1, $return)
 }

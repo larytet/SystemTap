@@ -47,7 +47,7 @@ int main()
 #endif
 
   settimeofday(&tv, NULL);
-  //staptest// settimeofday (\[NNNN.NNNN\], NULL) =
+  //staptest// settimeofday (\[NNNN.NNNN\], NULL) = NNNN
 
   settimeofday((struct timeval *)-1, NULL);
 #ifdef __s390__

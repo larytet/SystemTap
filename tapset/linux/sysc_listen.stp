@@ -31,14 +31,14 @@ probe __syscall.listen = kernel.function("sys_listen").call ?
 }
 probe __syscall.socketcall.listen = kernel.function("sys_socketcall").call ?
 {
-	if ($call != @const("SYS_LISTEN")) next;
+	if (__int32($call) != @const("SYS_LISTEN")) next;
 	sockfd = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	backlog = __int32(user_ulong(&@cast($args, "ulong")[1]))
 }
 probe __syscall.compat_socketcall.listen =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != @const("SYS_LISTEN")) next;
+	if (__int32($call) != @const("SYS_LISTEN")) next;
 	sockfd = user_int(&@cast($args, "unsigned int")[0])
 	backlog = user_int(&@cast($args, "unsigned int")[1])
 }
@@ -56,7 +56,7 @@ probe __syscall.socketcall.listen.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if (@entry($call) != @const("SYS_LISTEN")) next;
+	if (__int32(@entry($call)) != @const("SYS_LISTEN")) next;
 }
 
 # nd_listen _____________________________________________________

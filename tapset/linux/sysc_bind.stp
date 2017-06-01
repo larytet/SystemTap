@@ -33,7 +33,7 @@ probe __syscall.bind = kernel.function("sys_bind").call ?
 }
 probe __syscall.socketcall.bind = kernel.function("sys_socketcall").call ?
 {
-	if ($call != @const("SYS_BIND")) next;
+	if (__int32($call) != @const("SYS_BIND")) next;
 	sockfd = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	my_addr_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	addrlen = __int32(user_ulong(&@cast($args, "ulong")[2]))
@@ -41,7 +41,7 @@ probe __syscall.socketcall.bind = kernel.function("sys_socketcall").call ?
 probe __syscall.compat_socketcall.bind =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != @const("SYS_BIND")) next;
+	if (__int32($call) != @const("SYS_BIND")) next;
 	sockfd = user_int(&@cast($args, "unsigned int")[0])
 	my_addr_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
 	addrlen = user_int(&@cast($args, "unsigned int")[2])
@@ -60,7 +60,7 @@ probe __syscall.socketcall.bind.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if (@entry($call) != @const("SYS_BIND")) next;
+	if (__int32(@entry($call)) != @const("SYS_BIND")) next;
 }
 
 # nd_bind _____________________________________________________

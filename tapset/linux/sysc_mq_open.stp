@@ -32,9 +32,9 @@ probe dw_syscall.mq_open = __syscall.mq_open,
                         kernel.function("compat_sys_mq_open").call ?
 {
 	@_SYSCALL_MQ_OPEN_NAME
-	name_uaddr = $u_name
-	filename = user_string_quoted($u_name)
-	u_attr_uaddr = $u_attr
+	name_uaddr = @__pointer($u_name)
+	filename = user_string_quoted(name_uaddr)
+	u_attr_uaddr = @__pointer($u_attr)
 	oflag = __int32($oflag)
 	oflag_str = _sys_open_flag_str(oflag)
 	mode = (@__compat_task ? __ushort($mode) : __uint32($mode))

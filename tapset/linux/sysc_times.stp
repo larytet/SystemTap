@@ -23,7 +23,7 @@ probe dw_syscall.times = kernel.function("compat_sys_times").call ?,
                       kernel.function("sys_times").call ?
 {
 	@_SYSCALL_TIMES_NAME
-	buf_uaddr = $tbuf
+	buf_uaddr = @__pointer($tbuf)
 	buf_str = _struct_tms_u(buf_uaddr)
 	@_SYSCALL_TIMES_ARGSTR
 }

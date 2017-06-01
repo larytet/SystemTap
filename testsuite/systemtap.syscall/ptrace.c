@@ -41,6 +41,14 @@
 #define PTRACE_SETFPREGS PT_SETFPREGS
 #endif
 
+/* Sigh. On s390x, the user headers have the PTRACE_GETREGS and
+ * PTRACE_SINGLEBLOCK constants with the same value. The kernel only
+ * supports PTRACE_SINGLEBLOCK. Fix this. */
+#if ((defined(__s390__) || defined(__s390x__)) && defined(PTRACE_GETREGS) \
+     && defined(PTRACE_SINGLEBLOCK))
+#undef PTRACE_GETREGS
+#endif
+
 static void do_child(void)
 {
     struct sigaction child_act;

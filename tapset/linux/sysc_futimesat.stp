@@ -45,9 +45,9 @@ probe dw_syscall.compat_futimesat = kernel.function("compat_sys_futimesat").call
 	@_SYSCALL_FUTIMESAT_NAME
 	dirfd = __int32($dfd)
 	dirfd_str = _dfd_str(__int32($dfd))
-	filename_uaddr = $filename
+	filename_uaddr = @__pointer($filename)
 	filename = user_string_quoted($filename)
-	tvp_uaddr = $t
+	tvp_uaddr = @__pointer($t)
 	tvp_str = _struct_compat_timeval_u(tvp_uaddr, 2)
 	@_SYSCALL_FUTIMESAT_ARGSTR
 }

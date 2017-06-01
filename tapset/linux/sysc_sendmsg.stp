@@ -40,7 +40,7 @@ probe __syscall.sendmsg = kernel.function("sys_sendmsg").call ?
 }
 probe __syscall.socketcall.sendmsg = kernel.function("sys_socketcall").call ?
 {
-	if ($call != @const("SYS_SENDMSG")) next;
+	if (__int32($call) != @const("SYS_SENDMSG")) next;
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	msg_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	flags = __uint32(user_ulong(&@cast($args, "ulong")[2]))
@@ -64,7 +64,7 @@ probe __syscall.sendmsg.return = kernel.function("sys_sendmsg").return ?
 probe __syscall.socketcall.sendmsg.return =
 	kernel.function("sys_socketcall").return ?
 {
-	if (@entry($call) != @const("SYS_SENDMSG")) next;
+	if (__int32(@entry($call)) != @const("SYS_SENDMSG")) next;
 }
 
 # nd_sendmsg _____________________________________________________
@@ -147,7 +147,7 @@ probe syscall.compat_sys_sendmsg.return = dw_syscall.compat_sys_sendmsg.return !
 probe dw_syscall.compat_sys_sendmsg =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != @const("SYS_SENDMSG")) next;
+	if (__int32($call) != @const("SYS_SENDMSG")) next;
 	@_SYSCALL_SENDMSG_NAME
 	s = user_int(&@cast($args, "unsigned int")[0])
 	msg_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
@@ -158,7 +158,7 @@ probe dw_syscall.compat_sys_sendmsg =
 probe dw_syscall.compat_sys_sendmsg.return =
  	kernel.function("compat_sys_socketcall").return ?
 {
-	if (@entry($call) != @const("SYS_SENDMSG")) next;
+	if (__int32(@entry($call)) != @const("SYS_SENDMSG")) next;
 	@_SYSCALL_SENDMSG_NAME
 	retstr = return_str(1, $return)
 }

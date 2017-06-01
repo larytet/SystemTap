@@ -68,11 +68,11 @@ probe dw_syscall.compat_execveat = kernel.function("compat_sys_execveat").call ?
         fd_str = dirfd_str
 %)
         filename = user_string_quoted(@__pointer($filename))
-        flags = int_arg($flags)
-	 flags_str = _at_flag_str(__int32($flags))
-        __argv = @choose_defined($__argv, $argv)
+        flags = __int32($flags)
+	flags_str = _at_flag_str(__int32($flags))
+        __argv = @__pointer(@choose_defined($__argv, $argv))
         args = __get_compat_argv(__argv, 0)
-	__envp = @choose_defined($__envp, $envp)
+	__envp = @__pointer(@choose_defined($__envp, $envp))
 	env_str = __count_compat_envp(__envp)
         @_SYSCALL_EXECVEAT_ARGSTR
 }

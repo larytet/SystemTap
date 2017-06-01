@@ -45,7 +45,7 @@ probe __syscall.sendto = kernel.function("sys_sendto").call ?
 }
 probe __syscall.socketcall.sendto = kernel.function("sys_socketcall").call ?
 {
-	if ($call != @const("SYS_SENDTO")) next;
+	if (__int32($call) != @const("SYS_SENDTO")) next;
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	len = user_ulong(&@cast($args, "ulong")[2])
@@ -56,7 +56,7 @@ probe __syscall.socketcall.sendto = kernel.function("sys_socketcall").call ?
 probe __syscall.compat_socketcall.sendto =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != @const("SYS_SENDTO")) next;
+	if (__int32($call) != @const("SYS_SENDTO")) next;
 	s = user_int(&@cast($args, "unsigned int")[0])
 	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
 	len = user_uint32(&@cast($args, "unsigned int")[2])
@@ -69,7 +69,7 @@ probe dw_syscall.sendto.return = kernel.function("sys_sendto").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
 	if (@defined(@entry($call))) {
-		if (@entry($call) != @const("SYS_SENDTO")) next;
+		if (__int32(@entry($call)) != @const("SYS_SENDTO")) next;
 	}
 	else {
 		@__syscall_gate(@const("__NR_sendto"))

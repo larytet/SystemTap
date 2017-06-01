@@ -44,7 +44,7 @@ probe __syscall.setsockopt = kernel.function("sys_setsockopt").call ?
 }
 probe __syscall.socketcall.setsockopt = kernel.function("sys_socketcall").call ?
 {
-	if ($call != @const("SYS_SETSOCKOPT")) next;
+	if (__int32($call) != @const("SYS_SETSOCKOPT")) next;
 	fd = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	level = __int32(user_ulong(&@cast($args, "ulong")[1]))
 	optname = __int32(user_ulong(&@cast($args, "ulong")[2]))
@@ -54,7 +54,7 @@ probe __syscall.socketcall.setsockopt = kernel.function("sys_socketcall").call ?
 probe __syscall.compat_socketcall.setsockopt =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != @const("SYS_SETSOCKOPT")) next;
+	if (__int32($call) != @const("SYS_SETSOCKOPT")) next;
 	fd = user_int(&@cast($args, "unsigned int")[0])
 	level = user_int(&@cast($args, "unsigned int")[1])
 	optname = user_int(&@cast($args, "unsigned int")[2])
@@ -76,7 +76,7 @@ probe __syscall.socketcall.setsockopt.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if (@entry($call) != @const("SYS_SETSOCKOPT")) next;
+	if (__int32(@entry($call)) != @const("SYS_SETSOCKOPT")) next;
 }
 
 # nd_setsockopt _____________________________________________________

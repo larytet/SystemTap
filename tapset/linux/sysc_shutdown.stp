@@ -34,14 +34,14 @@ probe __syscall.shutdown = kernel.function("sys_shutdown").call ?
 }
 probe __syscall.socketcall.shutdown = kernel.function("sys_socketcall").call ?
 {
-	if ($call != @const("SYS_SHUTDOWN")) next;
+	if (__int32($call) != @const("SYS_SHUTDOWN")) next;
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	how = __int32(user_ulong(&@cast($args, "ulong")[1]))
 }
 probe __syscall.compat_socketcall.shutdown =
 	kernel.function("compat_sys_socketcall").call ?
 {
-	if ($call != @const("SYS_SHUTDOWN")) next;
+	if (__int32($call) != @const("SYS_SHUTDOWN")) next;
 	s = user_int(&@cast($args, "unsigned int")[0])
 	how = user_int(&@cast($args, "unsigned int")[1])
 }
@@ -59,7 +59,7 @@ probe __syscall.socketcall.shutdown.return =
 	kernel.function("sys_socketcall").return ?,
 	kernel.function("compat_sys_socketcall").return ?
 {
-	if (@entry($call) != @const("SYS_SHUTDOWN")) next;
+	if (__int32(@entry($call)) != @const("SYS_SHUTDOWN")) next;
 }
 
 # nd_shutdown _____________________________________________________

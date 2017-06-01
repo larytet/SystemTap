@@ -24,9 +24,9 @@ probe dw_syscall.statfs64 = kernel.function("sys_statfs64").call ?,
 	kernel.function("compat_sys_statfs64").call ?
 {
 	@_SYSCALL_STATFS64_NAME
-	path = user_string_quoted(@choose_defined($pathname, $path))
+	path = user_string_quoted(@__pointer(@choose_defined($pathname, $path)))
 	sz = __ulong($sz)
-	buf_uaddr = $buf
+	buf_uaddr = @__pointer($buf)
 	@_SYSCALL_STATFS64_ARGSTR
 }
 probe dw_syscall.statfs64.return = kernel.function("sys_statfs64").return ?,

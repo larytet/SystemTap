@@ -22,7 +22,7 @@ int main()
 
     uselib((const char *)-1);
 #ifdef __s390__
-    //staptest// uselib (0x[7]?[f]+) = -NNNN
+    //staptest// [[[[uselib (0x[7]?[f]+)!!!!ni_syscall ()]]]] = -NNNN
 #else
     //staptest// [[[[uselib (0x[f]+) = -NNNN!!!!ni_syscall () = -NNNN (ENOSYS)]]]]
 #endif

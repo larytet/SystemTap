@@ -38,4 +38,5 @@ int main()
   //staptest// getgroups (NNNN, 0x[f]+) = NNNN
 #endif
 #endif
+  return 0;
 }

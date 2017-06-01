@@ -70,9 +70,9 @@ probe dw_syscall.settimeofday32 = kernel.function("sys32_settimeofday").call ?,
                                kernel.function("compat_sys_settimeofday").call ?
 {
 	@_SYSCALL_SETTIMEOFDAY_NAME
-	tv_uaddr = $tv
+	tv_uaddr = @__pointer($tv)
 	tv_str = _struct_compat_timeval_u(tv_uaddr, 1)
-	tz_uaddr = $tz
+	tz_uaddr = @__pointer($tz)
 	tz_str = _struct_timezone_u(tz_uaddr)
 	@_SYSCALL_SETTIMEOFDAY_ARGSTR
 }

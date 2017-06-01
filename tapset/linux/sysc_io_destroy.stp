@@ -20,7 +20,7 @@ probe syscall.io_destroy.return = dw_syscall.io_destroy.return !,
 probe dw_syscall.io_destroy = kernel.function("sys_io_destroy").call
 {
 	@_SYSCALL_IO_DESTROY_NAME
-	ctx = __ulong($ctx)
+	ctx = @__compat_ulong($ctx)
 	@_SYSCALL_IO_DESTROY_ARGSTR
 }
 probe dw_syscall.io_destroy.return = kernel.function("sys_io_destroy").return

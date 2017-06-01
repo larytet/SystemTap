@@ -44,7 +44,11 @@ int main()
     //staptest// [[[[sched_getattr (-1, NULL, 0, 0)!!!!ni_syscall ()]]]] = -NNNN
 
     __sched_getattr(0, (void *)-1, 0, 0);
+#ifdef __s390__
+    //staptest// [[[[sched_getattr (0, 0x[7]?[f]+, 0, 0)!!!!ni_syscall ()]]]] = -NNNN
+#else
     //staptest// [[[[sched_getattr (0, 0x[f]+, 0, 0)!!!!ni_syscall ()]]]] = -NNNN
+#endif
 
     __sched_getattr(0, 0, -1, 0);
     //staptest// [[[[sched_getattr (0, NULL, 4294967295, 0)!!!!ni_syscall ()]]]] = -NNNN
@@ -56,7 +60,11 @@ int main()
     //staptest// [[[[sched_setattr (-1, NULL, 0)!!!!ni_syscall ()]]]] = -NNNN
 
     __sched_setattr(0, (void *)-1, 0);
+#ifdef __s390__
+    //staptest// [[[[sched_setattr (0, 0x[7]?[f]+, 0)!!!!ni_syscall ()]]]] = -NNNN
+#else
     //staptest// [[[[sched_setattr (0, 0x[f]+, 0)!!!!ni_syscall ()]]]] = -NNNN
+#endif
 
     __sched_setattr(0, NULL, -1);
     //staptest// [[[[sched_setattr (0, NULL, 4294967295)!!!!ni_syscall ()]]]] = -NNNN

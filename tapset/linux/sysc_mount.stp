@@ -30,12 +30,12 @@ probe dw_syscall.mount = kernel.function("compat_sys_mount").call ?,
                       kernel.function("sys_mount").call
 {
 	@_SYSCALL_MOUNT_NAME
-	source = user_string_quoted($dev_name)
-	target = user_string_quoted($dir_name)
-	filesystemtype = user_string_quoted($type)
-	mountflags = $flags
-	mountflags_str = _mountflags_str($flags)
-	data = user_string_n_quoted($data, syscall_string_trunc)
+	source = user_string_quoted(@__pointer($dev_name))
+	target = user_string_quoted(@__pointer($dir_name))
+	filesystemtype = user_string_quoted(@__pointer($type))
+	mountflags = @__compat_ulong($flags)
+	mountflags_str = _mountflags_str(mountflags)
+	data = user_string_n_quoted(@__pointer($data), syscall_string_trunc)
 	@_SYSCALL_MOUNT_ARGSTR
 }
 probe dw_syscall.mount.return = kernel.function("compat_sys_mount").return ?,

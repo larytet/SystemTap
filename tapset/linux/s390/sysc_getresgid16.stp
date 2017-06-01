@@ -21,7 +21,8 @@ probe syscall.getresgid16.return = dw_syscall.getresgid16.return !,
 
 # dw_getresgid16 _____________________________________________________
 
-probe dw_syscall.getresgid16 = kernel.function("sys32_getresgid16") ?
+probe dw_syscall.getresgid16 = kernel.function("sys32_getresgid16").call ?,
+	kernel.function("compat_sys_s390_getresgid16").call ?
 {
 	@_SYSCALL_GETRESGID16_NAME
 	rgid_uaddr = @choose_defined($rgidp, $rgid)
@@ -29,7 +30,9 @@ probe dw_syscall.getresgid16 = kernel.function("sys32_getresgid16") ?
 	sgid_uaddr = @choose_defined($sgidp, $sgid)
 	@_SYSCALL_GETRESGID16_ARGSTR
 }
-probe dw_syscall.getresgid16.return = kernel.function("sys32_getresgid16").return ?
+probe dw_syscall.getresgid16.return =
+	kernel.function("sys32_getresgid16").return ?,
+	kernel.function("compat_sys_s390_getresgid16").return ?
 {
 	@_SYSCALL_GETRESGID16_NAME
 	retstr = return_str(1, $return)
@@ -37,7 +40,8 @@ probe dw_syscall.getresgid16.return = kernel.function("sys32_getresgid16").retur
 
 # nd_getresgid16 _____________________________________________________
 
-probe nd_syscall.getresgid16 = kprobe.function("sys32_getresgid16") ?
+probe nd_syscall.getresgid16 = kprobe.function("sys32_getresgid16") ?,
+	kprobe.function("compat_sys_s390_getresgid16") ?
 {
 	@_SYSCALL_GETRESGID16_NAME
 	asmlinkage()
@@ -46,7 +50,9 @@ probe nd_syscall.getresgid16 = kprobe.function("sys32_getresgid16") ?
 	sgid_uaddr = pointer_arg(3)
 	@_SYSCALL_GETRESGID16_ARGSTR
 }
-probe nd_syscall.getresgid16.return = kprobe.function("sys32_getresgid16").return ?
+probe nd_syscall.getresgid16.return =
+	kprobe.function("sys32_getresgid16").return ?,
+	kprobe.function("compat_sys_s390_getresgid16").return ?
 {
 	@_SYSCALL_GETRESGID16_NAME
 	retstr = returnstr(1)

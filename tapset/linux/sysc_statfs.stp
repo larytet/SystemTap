@@ -23,8 +23,8 @@ probe dw_syscall.statfs = kernel.function("compat_sys_statfs").call ?,
                        kernel.function("sys_statfs").call ?
 {
 	@_SYSCALL_STATFS_NAME
-	buf_uaddr = $buf
-	path = user_string_quoted(@choose_defined($pathname, $path))
+	buf_uaddr = @__pointer($buf)
+	path = user_string_quoted(@__pointer(@choose_defined($pathname, $path)))
 	@_SYSCALL_STATFS_ARGSTR
 }
 

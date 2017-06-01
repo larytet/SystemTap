@@ -98,7 +98,7 @@ probe dw_syscall.compat_clock_nanosleep =
 	flag_str = _stp_clock_nanosleep_flags_str(__int32($flags))
 %)
 	flags_str = _stp_clock_nanosleep_flags_str(__int32($flags))
-	req_uaddr = $rqtp
+	req_uaddr = @__pointer($rqtp)
 	req_str = _struct_compat_timespec_u(req_uaddr, 1)
 	rem_uaddr = $rmtp
 	@_SYSCALL_CLOCK_NANOSLEEP_ARGSTR

@@ -32,7 +32,7 @@ probe dw_syscall.io_getevents = __syscall.io_getevents ?,
 	kernel.function("compat_sys_io_getevents").call ?
 {
 	@_SYSCALL_IO_GETEVENTS_NAME
-        ctx_id = __ulong($ctx_id)
+        ctx_id = @__compat_ulong($ctx_id)
 	events_uaddr = $events
 	timeout_uaddr = $timeout
 	nr = @__compat_long($nr)
