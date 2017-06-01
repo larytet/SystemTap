@@ -3530,6 +3530,47 @@ dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool si
       // The existing program is the value.
       break;
 
+    case loc_constant:
+      {
+	if (loc->byte_size < byte_size)
+	  throw SEMANTIC_ERROR (_("requested size larger than constant"),
+				ctx.e->tok);
+
+	/* ??? Byte ordering.  */
+	int64_t val;
+	switch (byte_size)
+	  {
+	  case 1:
+	    if (signed_p)
+	      val = *(int8_t *)loc->constant_block;
+	    else
+	      val = *(uint8_t *)loc->constant_block;
+	    break;
+	  case 2:
+	    if (signed_p)
+	      val = *(int16_t *)loc->constant_block;
+	    else
+	      val = *(uint16_t *)loc->constant_block;
+	    break;
+	  case 4:
+	    if (signed_p)
+	      val = *(int32_t *)loc->constant_block;
+	    else
+	      val = *(uint32_t *)loc->constant_block;
+	    break;
+	  case 8:
+	    val = *(int64_t *)loc->constant_block;
+	    break;
+	  default:
+	    throw SEMANTIC_ERROR (_("unhandled constant size"), ctx.e->tok);
+	  }
+
+	loc = ctx.new_location(loc_value);
+	loc->program = new literal_number(val);
+	loc->byte_size = byte_size;
+	break;
+      }
+
     case loc_noncontiguous:
       throw SEMANTIC_ERROR (_("noncontiguous location for base fetch"), ctx.e->tok);
     case loc_implicit_pointer:
