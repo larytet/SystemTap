@@ -5242,7 +5242,6 @@ c_unparser_assignment::visit_target_register (target_register* e)
   translator_output* o = parent->o;
   o->newline() << (e->userspace_p ? "u_store_register(" : "k_store_register(")
 	       << e->regno << ", " << rval << ")";
-  o->newline() << rval << ";";
 }
 
 void
