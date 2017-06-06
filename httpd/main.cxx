@@ -56,21 +56,25 @@ string build_info::content()
 {
     ostringstream os;
     os << "{" << endl;
-    os << "  \"uuid\": \"" << uuid_str << "\"" << endl;
-    os << "  \"kver\": \"" << kver << "\"" << endl;
-    os << "  \"arch\": \"" << arch << "\"" << endl;
+    os << "  \"uuid\": \"" << uuid_str << "\"," << endl;
+    os << "  \"kver\": \"" << kver << "\"," << endl;
+    os << "  \"arch\": \"" << arch << "\"," << endl;
 
     os << "  \"cmd_args\": [" << endl;
+    bool first = true;
     for (auto it = cmd_args.begin(); it != cmd_args.end(); it++) {
 	struct json_object *j = json_object_new_string((*it).c_str());
 	if (j) {
+	    if (!first)
+		os << "," << endl;
+	    else
+		first = false;
 	    os << "    "
-	       << json_object_to_json_string_ext(j, JSON_C_TO_STRING_PLAIN)
-	       << endl;
+	       << json_object_to_json_string_ext(j, JSON_C_TO_STRING_PLAIN);
 	    json_object_put(j);
 	}
     }
-    os << "  ]" << endl;
+    os << endl << "  ]" << endl;
 
     os << "}" << endl;
     return os.str();

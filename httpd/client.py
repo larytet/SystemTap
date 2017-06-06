@@ -4,6 +4,7 @@ import requests
 import os
 import logging
 import time
+import json
 
 # These two lines enable debugging at httplib level (requests->urllib3->http.client)
 # You will see the REQUEST, including HEADERS and DATA, and RESPONSE with HEADERS but without DATA.
@@ -25,7 +26,7 @@ print r.status_code
 # For now, just pass over the kernel version and arch and a basic command line.
 payload = (('kver', os.uname()[2]), ('arch', os.uname()[4]),
            ('cmd_args', '-vp4'), ('cmd_args', '-e'),
-           ('cmd_args', '"probe begin { exit() }"'))
+           ('cmd_args', 'probe begin { exit() }'))
 r = requests.post('http://localhost:1234/builds', data=payload)
 #logging.debug("Response: Status code: %d", r.status_code)
 #logging.debug("Request: %s %s %s", r.request.method, r.request.url, r.request.body)
@@ -41,4 +42,10 @@ while True:
     r = requests.get(uri)
     if r.status_code == 200:
         logging.debug("Body: %s", r.text)
+
+        # The body should be valid JSON
+        try:
+            jd = json.loads(r.text)
+        except ValueError:
+            print "Couldn't parse JSON data"
         break
