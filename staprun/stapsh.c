@@ -123,6 +123,7 @@ struct pollfd pfds[3];
 
 static unsigned prefix_data = 0;
 static unsigned verbose = 0;
+static unsigned dyninst = 0;
 
 struct stapsh_option {
   const char* name;
@@ -132,6 +133,7 @@ struct stapsh_option {
 static const struct stapsh_option options[] = {
   { "verbose", &verbose },
   { "data", &prefix_data },
+  { "dyninst", &dyninst },
 };
 static const unsigned noptions = sizeof(options) / sizeof(*options);
 
@@ -325,6 +327,9 @@ parse_args(int argc, char* const argv[])
       case 'l':
         listening_port = optarg;
         break;
+      case 'd':
+	++dyninst;
+	break;
       case '?':
       default:
         usage (argv[0], 2);
@@ -558,7 +563,7 @@ spawn_staprun(char** args)
 
   if ((err = posix_spawn(&pid, args[0], &fa, NULL, args, environ)) != 0)
     {
-      reply("ERROR: Can't launch staprun: %s\n", strerror(err));
+      reply("ERROR: Can't launch stap backend: %s\n", strerror(err));
       posix_spawn_file_actions_destroy(&fa);
       return -1;
     }
@@ -574,6 +579,8 @@ do_run()
     return 1;
 
   char staprun[] = BINDIR "/staprun";
+  if (dyninst)
+    strcpy(staprun, BINDIR "/stapdyn");
   char* args[STAPSH_MAX_ARGS + 1] = { staprun, 0 };
   unsigned nargs = 1;
 

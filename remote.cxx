@@ -445,8 +445,9 @@ class stapsh : public remote {
       {
         int rc = 0;
 
-        string localmodule = s->tmpdir + "/" + s->module_name + ".ko";
-        string remotemodule = s->module_name + ".ko";
+        string extension = s->runtime_mode == systemtap_session::dyninst_runtime ? ".so" : ".ko";
+        string localmodule = s->tmpdir + "/" + s->module_name + extension;
+        string remotemodule = s->module_name + extension;
         if ((rc = send_file(localmodule, remotemodule)))
           return rc;
 
@@ -480,10 +481,14 @@ class stapsh : public remote {
             ! staprun_r_arg.empty())
           cmd.insert(cmd.end(), { "-r", staprun_r_arg });
 
+	if (s->runtime_mode == systemtap_session::dyninst_runtime)
+	  cmd.insert(cmd.end(), "-d");
+
         for (unsigned i = 1; i < cmd.size(); ++i)
           run << ' ' << qpencode(cmd[i]);
         run << '\n';
 
+	cout << run.str() << endl;
         int rc = send_command(run.str());
 
         if (!rc)
@@ -1209,7 +1214,7 @@ remote::create(systemtap_session& s, const string& uri, int idx)
       it = 0;
     }
 
-  if (it && idx >= 0) // PR13354: remote metadata for staprun -r IDX:URI
+  if (it && idx >= 0 && false /*&& s->runtime_mode == systemtap_session::dyninst_runtime*/ ) // PR13354: remote metadata for staprun -r IDX:URI
     {
       stringstream r_arg;
       r_arg << idx << ":" << uri;
