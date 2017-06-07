@@ -36,9 +36,40 @@ r = requests.post('http://localhost:1234/builds', data=payload)
 
 uri = 'http://localhost:1234' + r.headers['location']
 delay = int(r.headers['retry-after'])
+result_found = False
 while True:
     print "Waiting %d seconds..." % delay
     time.sleep(delay)
+
+    # We want to handle redirects ourselves just to be sure everything
+    # is working properly.
+    r = requests.get(uri, allow_redirects=False)
+    logging.debug("Status code: %d", r.status_code)
+    if r.status_code == 200:
+        logging.debug("200 Body: %s", r.text)
+
+        # The body should be valid JSON
+        try:
+            jd = json.loads(r.text)
+        except ValueError:
+            print "Couldn't parse JSON data"
+
+    elif r.status_code == 303:
+        logging.debug("303 Body: %s", r.text)
+
+        # The body should be valid JSON
+        try:
+            jd = json.loads(r.text)
+        except ValueError:
+            print "Couldn't parse JSON data"
+        uri = 'http://localhost:1234' + r.headers['location']
+        result_found = True
+        break
+    else:
+        logging.debug("Unhandled status code: %d", r.status_code)
+
+# Get the result info
+if result_found:
     r = requests.get(uri)
     if r.status_code == 200:
         logging.debug("Body: %s", r.text)
@@ -48,4 +79,3 @@ while True:
             jd = json.loads(r.text)
         except ValueError:
             print "Couldn't parse JSON data"
-        break
