@@ -115,6 +115,7 @@ am__dirstamp = $(am__leading_dot)dirstamp
 @HAVE_HTTP_SUPPORT_TRUE@am_stap_httpd_OBJECTS =  \
 @HAVE_HTTP_SUPPORT_TRUE@	stap_httpd-main.$(OBJEXT) \
 @HAVE_HTTP_SUPPORT_TRUE@	stap_httpd-server.$(OBJEXT) \
+@HAVE_HTTP_SUPPORT_TRUE@	stap_httpd-api.$(OBJEXT) \
 @HAVE_HTTP_SUPPORT_TRUE@	../stap_httpd-util.$(OBJEXT)
 stap_httpd_OBJECTS = $(am_stap_httpd_OBJECTS)
 stap_httpd_DEPENDENCIES =
@@ -385,7 +386,7 @@ AM_CPPFLAGS = -D_GNU_SOURCE -I$(srcdir)/../includes \
 	-DSYSCONFDIR='"$(sysconfdir)"' -DPKGDATADIR='"${pkgdatadir}"' \
 	-DPKGLIBDIR='"$(pkglibexecdir)"' -DLOCALEDIR='"$(localedir)"'
 AM_LDFLAGS = @PIELDFLAGS@
-@HAVE_HTTP_SUPPORT_TRUE@stap_httpd_SOURCES = main.cxx server.cxx ../util.cxx
+@HAVE_HTTP_SUPPORT_TRUE@stap_httpd_SOURCES = main.cxx server.cxx api.cxx ../util.cxx
 @HAVE_HTTP_SUPPORT_TRUE@stap_httpd_CFLAGS = $(AM_CFLAGS)
 @HAVE_HTTP_SUPPORT_TRUE@stap_httpd_CXXFLAGS = $(AM_CXXFLAGS)
 @HAVE_HTTP_SUPPORT_TRUE@stap_httpd_CPPFLAGS = $(AM_CPPFLAGS)
@@ -492,6 +493,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@../$(DEPDIR)/stap_httpd-util.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_httpd-api.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_httpd-main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_httpd-server.Po@am__quote@
 
@@ -538,6 +540,20 @@ stap_httpd-server.obj: server.cxx
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='server.cxx' object='stap_httpd-server.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -c -o stap_httpd-server.obj `if test -f 'server.cxx'; then $(CYGPATH_W) 'server.cxx'; else $(CYGPATH_W) '$(srcdir)/server.cxx'; fi`
+
+stap_httpd-api.o: api.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -MT stap_httpd-api.o -MD -MP -MF $(DEPDIR)/stap_httpd-api.Tpo -c -o stap_httpd-api.o `test -f 'api.cxx' || echo '$(srcdir)/'`api.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_httpd-api.Tpo $(DEPDIR)/stap_httpd-api.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='api.cxx' object='stap_httpd-api.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -c -o stap_httpd-api.o `test -f 'api.cxx' || echo '$(srcdir)/'`api.cxx
+
+stap_httpd-api.obj: api.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -MT stap_httpd-api.obj -MD -MP -MF $(DEPDIR)/stap_httpd-api.Tpo -c -o stap_httpd-api.obj `if test -f 'api.cxx'; then $(CYGPATH_W) 'api.cxx'; else $(CYGPATH_W) '$(srcdir)/api.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_httpd-api.Tpo $(DEPDIR)/stap_httpd-api.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='api.cxx' object='stap_httpd-api.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -c -o stap_httpd-api.obj `if test -f 'api.cxx'; then $(CYGPATH_W) 'api.cxx'; else $(CYGPATH_W) '$(srcdir)/api.cxx'; fi`
 
 ../stap_httpd-util.o: ../util.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_httpd_CPPFLAGS) $(CPPFLAGS) $(stap_httpd_CXXFLAGS) $(CXXFLAGS) -MT ../stap_httpd-util.o -MD -MP -MF ../$(DEPDIR)/stap_httpd-util.Tpo -c -o ../stap_httpd-util.o `test -f '../util.cxx' || echo '$(srcdir)/'`../util.cxx
