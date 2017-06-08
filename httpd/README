@@ -1,0 +1,150 @@
+This file describes the RESTful compile-server API. The API looks like
+the following:
+
+Method		URI			DESCRIPTION
+POST		/builds			create build
+GET		/builds/123		retrieve build info
+DELETE		/builds/123		delete build
+GET		/results/789		retrieve result info
+GET		/results/789/FILE	retrieve result files
+
+All the individual item numbers in the URIs will be UUIDs.
+
+You'll notice that DELETE is missing from most the above. For now
+anyway, we'll let the server decide when to delete the
+containers. Also note that the server will decide when a new
+container needs to be created (based on the build id information).
+
+Also note at this point that we're not going to authenticate
+users. We're going to leave that level of authentication to a
+front-end reverse-proxy server, rather than worry about it ourselves.
+
+How are we going to handle the perhaps long creation time, if we
+have to create a new docker container for instance? It would look
+like this:
+
+  client:  POST /builds (all the parameters, kernel version,
+		arch, etc.)
+  server:  202 Accepted - URI of queued build task (like /builds/456)
+
+Note that the server could return an error here, especially if the
+architectures don't match. Also note that there could be a GET needed
+here on the returned URI to upload a script file (if that wasn't done
+in the POST data).
+
+So then how does the client know when the queued build task is
+finished? It polls the queued build task:
+
+  client: GET /builds/456
+  server: 200 OK (along with buildid details)
+
+Eventually, the client will get the following:
+
+  client: GET /builds/456
+  server: 303 See Other - along with the URI of the result info.
+
+The client would then retrieve the result info, which will list all
+the files produced.
+
+After retrieving the module (using GET), the client can delete the
+buildid (at this point the server would also delete the linked
+result files).
+
+  client: DELETE /builds/456
+  server: 300 OK
+
+One semi-tricky server note. Let's say a job comes in to build a
+module for kernel X. While building a container for kernel X, a
+second request comes in to build a module for kernel X. The server
+should reuse the in-progress container from the first build, not
+try to build a 2nd container for the same kernel. This implies that
+the containers should contain a reference count. That information
+should be persistent across server shutdown and startup, so we'll
+need a small database.
+
+FIXME: at some point we'll need to add other stuff the current
+client/server code supports, like certificates used for module
+signing, MOK signing, etc.
+
+The server could support several possible "back ends":
+
+- LOCAL: use the kernel devel environment(s) on the local
+  machine. If nothing else, this could be used for testing the
+  server. The server wouldn't add any more kernel devel
+  environments here, but if the devel environment for kernel X is
+  already installed here, it seems odd to build a container.
+- MOCK: build a mock "container" to build the module in
+- DOCKER: build a docker container to build the module in
+- VAGRANT: build a vagrant container to build the module in
+
+The user wouldn't be bothered with picking from these, the server will
+decide which one to use based on which one matches up with the server
+system. In other words, if the docker application isn't present the
+server shouldn't try to use it.
+
+The server will also need to "garbage collect" at some point,
+making sure the we only keep X containers around and deleting ones
+that haven't been used recently.
+
+Here's an example run:
+
+- The client sends a POST /builds request:
+
+    POST /builds kver=4.12.0-0.rc3.git0.2.fc27.x86_64&arch=x86_64&cmd_args=-vp4&cmd_args=-e&cmd_args=probe+begin+%7B+exit%28%29+%7D'
+
+  The server responds with:
+
+    HTTP/1.1 202 Accepted
+    Retry-After: 10
+    Location: /builds/ad64
+
+  This tells the client to wait 10 seconds then do a GET on
+  /builds/ad64.
+
+- The client does a GET:
+
+    GET /builds/ad64
+
+  The server responds with a JSON encoded body:
+
+    HTTP/1.1 200 OK
+    Location: /builds/ad64
+    Body: {
+      "uuid": "ad64",
+      "kver": "4.12.0-0.rc3.git0.2.fc27.x86_64",
+      "arch": "x86_64",
+      "cmd_args": [
+        "-vp4",
+        "-e",
+        "probe begin { exit() }"
+      ]
+    }
+
+  The client keeps doing the same GET until...
+  
+- When the build is finished, the server will respond with a 303:
+
+    HTTP/1.1 303 See Other
+    Location: /results/39ff
+
+  The client then does a GET on the /results/URI:
+
+    GET /results/39ff
+
+  The server responds:
+
+    HTTP/1.1 200 OK
+    Body: {
+      "uuid": "39ff",
+      "module": "stap_148a63cdf6aa94d33cf66abb47be7194_1073.ko"
+    }
+
+- The client can then to a GET on the module itself:
+
+    GET /results/39ff/stap_148a63cdf6aa94d33cf66abb47be7194_1073.ko
+
+  The server responds (along with the module data):
+  
+    HTTP/1.1 200 OK
+    
+- At this point the client could issue a DELETE on /builds/ad64.
