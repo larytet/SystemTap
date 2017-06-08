@@ -8,6 +8,9 @@ extern "C"
 #include <stdlib.h>
 #include <string.h>
 #include <microhttpd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 }
 
 using namespace std;
@@ -284,9 +287,25 @@ server::queue_response(const response &response, MHD_Connection *connection)
 {
     struct MHD_Response *mhd_response;
 
-    mhd_response = MHD_create_response_from_buffer(response.content.length(),
-						   (void *) response.content.c_str(),
-						   MHD_RESPMEM_MUST_COPY);
+    // If we have a file, ignore the rest of the response.
+    if (! response.file.empty()) {
+	int fd = open(response.file.c_str(), O_RDONLY);
+	// If we can't open the file, send a 404.
+	if (fd < 0) {
+	    return queue_response(get_404_response(), connection);
+	}
+	struct stat stat_buf;
+	if (fstat(fd, &stat_buf) < 0) {
+	    close(fd);
+	    return queue_response(get_404_response(), connection);
+	}	    
+	mhd_response = MHD_create_response_from_fd(stat_buf.st_size, fd);
+    }
+    else {
+	mhd_response = MHD_create_response_from_buffer(response.content.length(),
+						       (void *) response.content.c_str(),
+						       MHD_RESPMEM_MUST_COPY);
+    }
     if (mhd_response == NULL) {
 	return MHD_NO;
     }

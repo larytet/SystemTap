@@ -62,6 +62,9 @@ public:
     }
 
     virtual void generate_response(response &r) = 0;
+    virtual void generate_file_response(response &r, string &) { 
+	r = get_404_response();
+    }
 
 protected:
     mutex res_mutex;
@@ -80,6 +83,7 @@ public:
     }
 
     void generate_response(response &r);
+    void generate_file_response(response &r, string &f);
 
 protected:
     string module_path;
@@ -152,6 +156,34 @@ void result_info::generate_response(response &r)
     }
     os << endl << "}" << endl;
     r.content = os.str();
+}
+
+void result_info::generate_file_response(response &r, string &file)
+{
+    // We don't want to serve any old file (which would be a security
+    // hole), only the files we told the user about.
+    clog << "Trying to retrieve file '" << file << "'" << endl;
+    string path;
+    r.status_code = 200;
+    {
+	// Use a lock_guard to ensure the mutex gets released even if an
+	// exception is thrown.
+	lock_guard<mutex> lock(res_mutex);
+
+	if (!module_file.empty() && file == module_file) {
+	    path = module_path;
+	}
+    }
+
+    if (!path.empty()) {
+	cerr << "File requested:  " << file << endl;
+	cerr << "Served from   :  " << path << endl;
+	r.file = path;
+    }
+    else {
+	cerr << "Couldn't find file" << endl;
+	r = get_404_response();
+    }
 }
 
 void build_info::generate_response(response &r)
@@ -238,15 +270,15 @@ static void cleanup()
     }
 }
 
-class build_collection : public request_handler
+class build_collection_rh : public request_handler
 {
 public:
     response POST(const request &req);
 
-    build_collection(string n) : request_handler(n) {}
+    build_collection_rh(string n) : request_handler(n) {}
 };
 
-response build_collection::POST(const request &req)
+response build_collection_rh::POST(const request &req)
 {
     // Gather up the info we need.
     string kver, arch;
@@ -293,17 +325,17 @@ response build_collection::POST(const request &req)
     return resp;
 }
 
-class individual_build : public request_handler
+class individual_build_rh : public request_handler
 {
 public:
     response GET(const request &req);
 
-    individual_build(string n) : request_handler(n) {}
+    individual_build_rh(string n) : request_handler(n) {}
 };
 
-response individual_build::GET(const request &req)
+response individual_build_rh::GET(const request &req)
 {
-    clog << "individual_build::GET" << endl;
+    clog << "individual_build_rh::GET" << endl;
 
     // matches[0] is the entire string '/builds/XXXX'. matches[1] is
     // just the buildid 'XXXX'.
@@ -331,17 +363,17 @@ response individual_build::GET(const request &req)
     return rsp;
 }
 
-class individual_result : public request_handler
+class individual_result_rh : public request_handler
 {
 public:
     response GET(const request &req);
 
-    individual_result(string n) : request_handler(n) {}
+    individual_result_rh(string n) : request_handler(n) {}
 };
 
-response individual_result::GET(const request &req)
+response individual_result_rh::GET(const request &req)
 {
-    clog << "individual_result::GET" << endl;
+    clog << "individual_result_rh::GET" << endl;
 
     // matches[0] is the entire string '/results/XXXX'. matches[1] is
     // just the id_str 'XXXX'.
@@ -369,9 +401,50 @@ response individual_result::GET(const request &req)
     return rsp;
 }
 
-build_collection builds_rh("build collection");
-individual_build build_rh("individual build");
-individual_result results_rh("individual result");
+class result_file_rh : public request_handler
+{
+public:
+    response GET(const request &req);
+
+    result_file_rh(string n) : request_handler(n) {}
+};
+
+response result_file_rh::GET(const request &req)
+{
+    clog << "result_file_rh::GET" << endl;
+
+    // matches[0] is the entire string
+    // '/results/XXXX/FILE'. matches[1] is the result uuid string
+    // 'XXXX'. matches[2] is the filename 'FILE'.
+    string id_str = req.matches[1];
+    string file_str = req.matches[2];
+    result_info *ri = NULL;
+    {
+	// Use a lock_guard to ensure the mutex gets released even if an
+	// exception is thrown.
+	lock_guard<mutex> lock(results_mutex);
+	for (auto it = result_infos.begin(); it != result_infos.end(); it++) {
+	    if (id_str == (*it)->get_uuid_str()) {
+		ri = *it;
+		break;
+	    }
+	}
+    }
+
+    if (ri == NULL) {
+	clog << "Couldn't find result id '" << id_str << "'" << endl;
+	return get_404_response();
+    }
+
+    response rsp(0);
+    ri->generate_file_response(rsp, file_str);
+    return rsp;
+}
+
+build_collection_rh builds_rh("build collection");
+individual_build_rh build_rh("individual build");
+individual_result_rh result_rh("individual result");
+result_file_rh result_file_rh("result file");
 
 server *httpd = NULL;
 
@@ -551,7 +624,8 @@ main(int /*argc*/, char *const /*argv*/[])
     httpd = new server(1234);
     httpd->add_request_handler("/builds$", builds_rh);
     httpd->add_request_handler("/builds/([0-9a-f]+)$", build_rh);
-    httpd->add_request_handler("/results/([0-9a-f]+)$", results_rh);
+    httpd->add_request_handler("/results/([0-9a-f]+)$", result_rh);
+    httpd->add_request_handler("/results/([^/]+)/([^/]+)$", result_file_rh);
 
     // Wait for the server to shut itself down.
     httpd->wait();

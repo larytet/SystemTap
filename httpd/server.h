@@ -19,6 +19,7 @@ struct response
 {
     unsigned int status_code;
     map<string, string> headers;
+    string file;
     string content;
     string content_type;
 
