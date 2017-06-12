@@ -144,6 +144,11 @@ struct expression : public visitable
   const token* tok;
   expression ();
   virtual ~expression ();
+  // NB: this pretty-printer function must generate such text that
+  // allows distinguishing operationally-different instances.  During
+  // stap -p2/-p3, function bodies with identical pretty-printed
+  // bodies may be duplicate-eliminated.  So print any relevant member
+  // variables somehow.
   virtual void print (std::ostream& o) const = 0;
   virtual void visit (visitor* u) = 0;
   virtual bool is_symbol(symbol *& sym_out);
