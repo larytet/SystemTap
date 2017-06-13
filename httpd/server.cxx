@@ -19,6 +19,7 @@ extern "C"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <limits.h>
 }
 
 using namespace std;
@@ -33,6 +34,14 @@ get_key_values(void *cls, enum MHD_ValueKind /*kind*/,
     return MHD_YES;
 }
 
+
+struct upload_file_info
+{
+    string filename;
+    int fd;
+
+    upload_file_info() : fd(-1) {}
+};
 
 struct connection_info
 {
@@ -59,6 +68,10 @@ struct connection_info
     MHD_PostProcessor *postprocessor;
     map<string, vector<string>> post_params;
 
+    string post_dir;
+    map<string, vector<upload_file_info>> post_files;
+    void post_files_cleanup();
+
     connection_info(struct MHD_Connection *connection)
     {
         postprocessor
@@ -74,8 +87,27 @@ struct connection_info
             MHD_destroy_post_processor(postprocessor);
 	    postprocessor = NULL;
         }
+	post_files_cleanup();
     }
 };
+
+void
+connection_info::post_files_cleanup()
+{
+    post_dir.clear();
+    for (auto i = post_files.begin(); i != post_files.end(); i++) {
+	if (! i->second.empty()) {
+	    for (auto j = i->second.begin(); j != i->second.end();
+		 j++) {
+		if ((*j).fd == -1) {
+		    close((*j).fd);
+		    (*j).fd = -1;
+		}
+	    }
+	}
+    }
+    post_files.clear();
+}
 
 int
 connection_info::postdataiterator_shim(void *cls,
@@ -99,14 +131,79 @@ connection_info::postdataiterator_shim(void *cls,
 int
 connection_info::postdataiterator(enum MHD_ValueKind kind,
 				  const char *key,
-				  const char */*filename*/,
+				  const char *filename,
 				  const char */*content_type*/,
 				  const char */*transfer_encoding*/,
 				  const char *data,
-				  uint64_t /*off*/,
-				  size_t /*size*/)
+				  uint64_t /*offset*/,
+				  size_t size)
 {
-    if (key) {
+    if (filename && key) {
+	clog << __FUNCTION__ << ":" << __LINE__
+	     << ": key='" << key
+	     << "', filename='" << filename 
+	     << ", size=" << size << endl;
+
+	// If we've got a filename, we need a temporary directory to
+	// put it in. Otherwise if we're handling multiple requests at
+	// once, the requests could overwrite each other's files.
+	if (post_dir.empty()) {
+	    char tmpdir[PATH_MAX];
+	    snprintf(tmpdir, PATH_MAX, "%s/stap-server.XXXXXX",
+		     getenv("TMPDIR") ?: "/tmp");
+	    char *rc = mkdtemp(tmpdir);
+	    if (rc == NULL) {
+		return MHD_NO;
+	    }
+	    post_dir = rc;
+	}
+
+	// See if we've seen this key before.
+	upload_file_info ufi;
+	auto it = post_files.find(key);
+	// We've seen this key before, but perhaps not this filename.
+	bool filename_found = false;
+	if (it != post_files.end()) {
+	    for (auto j = it->second.begin(); j != it->second.end(); j++) {
+		if ((*j).filename == filename) {
+		    ufi = (*j);
+		    filename_found = true;
+		    break;
+		}
+	    }
+	}
+
+	if (! filename_found) {
+	    // If we haven't seen this filename before, validate the
+	    // path. We only want a plain filename - no directories
+	    // ('/') or relative paths ('..') allowed. We don't want
+	    // the user trying anything sneaky like
+	    // "../../etc/passwd".
+	    ufi.filename = filename;
+	    if (ufi.filename.find("..") != string::npos
+		|| ufi.filename.find('/') != string::npos) {
+		return MHD_NO;
+	    }
+
+	    // Open the file.
+	    string full_path = post_dir + "/" + filename;
+	    ufi.fd = open(full_path.c_str(),
+			  O_WRONLY|O_CLOEXEC|O_CREAT|O_EXCL, S_IRWXU);
+	    if (ufi.fd < 0) {
+		return MHD_NO;
+	    }
+
+	    // Remember this file. Note that key values don't have to
+	    // be unique.
+	    post_files[key].push_back(ufi);
+	}	
+	if (size > 0) {
+	    ssize_t rc = write(ufi.fd, data, size);
+	    if (rc < 0 || (size_t)rc != size)
+		return MHD_NO;
+	}
+    }
+    else if (key) {
 	return get_key_values(&post_params, kind, key, data);
     }
     return MHD_YES;
@@ -272,6 +369,17 @@ server::access_handler(struct MHD_Connection *connection,
 	rq_info.params.insert(con_info->post_params.begin(),
 			      con_info->post_params.end());
 	con_info->post_params.clear();
+    }
+    if (!con_info->post_files.empty()) {
+	// Copy all the POST file info into the request.
+	rq_info.base_dir = con_info->post_dir;
+	for (auto i = con_info->post_files.begin();
+	     i != con_info->post_files.end(); i++) {
+	    for (auto j = i->second.begin(); j != i->second.end(); j++) {
+		rq_info.files[i->first].push_back(j->filename);
+	    }
+	}
+	con_info->post_files_cleanup();
     }
 
     // Now that all the request info has been gathered, call the right

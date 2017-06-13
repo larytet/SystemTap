@@ -19,6 +19,7 @@ extern "C" {
 #include <string.h>
 #include <errno.h>
 #include <glob.h>
+#include <sched.h>
 #include <uuid/uuid.h>
 #include <json-c/json_object.h>
 }
@@ -92,13 +93,14 @@ protected:
 class build_info : public resource
 {
 public:
-    build_info(string &k, string &a, vector<string> &args)
+    build_info(string &k, string &a, vector<string> &args, string &bd)
 	: resource("/builds/")
     {
 	builder_thread_running = false;
 	kver = k;
 	arch = a;
 	cmd_args = args;
+	base_dir = bd;
 	result = NULL;
     }
 
@@ -127,6 +129,7 @@ private:
     string kver;
     string arch;
     vector<string> cmd_args;
+    string base_dir;
 
     bool builder_thread_running;
     pthread_t builder_tid;
@@ -268,8 +271,9 @@ public:
 response build_collection_rh::POST(const request &req)
 {
     // Gather up the info we need.
-    string kver, arch;
+    string kver, arch, base_dir;
     vector<string> cmd_args;
+    vector<string> files;
     for (auto it = req.params.begin(); it != req.params.end(); it++) {
 	if (it->first == "kver") {
 	    kver = it->second[0];
@@ -279,6 +283,16 @@ response build_collection_rh::POST(const request &req)
 	}
 	else if (it->first == "cmd_args") {
 	    cmd_args = it->second;
+	}
+    }
+    if (! req.files.empty()) {
+	clog << "Files received:" << endl;
+	base_dir = req.base_dir;
+	for (auto i = req.files.begin(); i != req.files.end(); i++) {
+	    for (auto j = i->second.begin(); j != i->second.end();
+		 j++) {
+		clog << *j << endl;
+	    }
 	}
     }
 
@@ -292,7 +306,7 @@ response build_collection_rh::POST(const request &req)
     }
 
     // Create a build with the information we've gathered.
-    build_info *b = new build_info(kver, arch, cmd_args);
+    build_info *b = new build_info(kver, arch, cmd_args, base_dir);
 
     {
 	// Use a lock_guard to ensure the mutex gets released even if an
@@ -477,6 +491,25 @@ build_info::module_build()
 	lock_guard<mutex> lock(res_mutex);
 	for (auto it = cmd_args.begin(); it != cmd_args.end(); it++) {
 	    argv.push_back(*it);
+	}
+    }
+
+    // If we've got a base_dir, we need to do a chdir() to that
+    // directory. However, all threads in a process share the same
+    // root directory and working directory. If we just do a chdir()
+    // here and then call spawn, it is possible that a different
+    // thread is also here and does a chdir() right after ours but
+    // before the spawn. So, instead we'll call unshare() first to
+    // "unshare" the thread's working directory. Then when we do a
+    // chdir(), it won't affect the other threads working directory.
+    if (!base_dir.empty()) {
+	if (unshare(CLONE_FS) < 0) {
+	    clog << "Error in unshare: " << strerror(errno) << endl;
+	    return NULL;
+	}
+	if (chdir(base_dir.c_str()) < 0) {
+	    clog << "Error in chdir: " << strerror(errno) << endl;
+	    return NULL;
 	}
     }
 

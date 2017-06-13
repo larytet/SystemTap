@@ -43,6 +43,8 @@ extern response get_404_response();
 struct request
 {
     map<string, vector<string>> params;
+    string base_dir;
+    map<string, vector<string>> files;
     vector<string> matches;
 #if 0
     request_headers headers;
