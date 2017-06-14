@@ -84,6 +84,14 @@
     %)
 %)
 
+@define __syscall_gate_noncompat_simple
+%(
+    %( CONFIG_COMPAT == "y" %?
+        if (! @__compat_task) next
+    %:
+	next
+    %)
+%)
 @define __pointer(val)
 %(
     %( CONFIG_64BIT == "y" %?

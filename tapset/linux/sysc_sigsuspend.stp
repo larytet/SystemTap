@@ -19,13 +19,22 @@
 	argstr = sprintf("%s", mask_str)
 %)
 
+@define _SYSCALL_GATE
+%(
+%( arch == "s390" && kernel_v >= "3.15" %?
+	# s390 switched from assembly compat wrappers to C-based
+	# wrappers in kernel 3.15.
+	@__syscall_gate_compat_simple
+%)
+%)
+
 probe syscall.sigsuspend = dw_syscall.sigsuspend !, nd_syscall.sigsuspend ? {}
 probe syscall.sigsuspend.return = dw_syscall.sigsuspend.return !,
                                   nd_syscall.sigsuspend.return ? {}
 
 # dw_sigsuspend _____________________________________________________
 
-probe dw_syscall.sigsuspend = kernel.function("sys_sigsuspend").call ?,
+probe dw_syscall.sigsuspend = __syscall.sigsuspend ?,
 	kernel.function("sys32_sigsuspend").call ?,
 	kernel.function("compat_sys_sigsuspend").call ?
 {
@@ -38,46 +47,62 @@ probe dw_syscall.sigsuspend = kernel.function("sys_sigsuspend").call ?,
 	mask_str = _stp_sigmask_str(mask)
 	@_SYSCALL_SIGSUSPEND_ARGSTR
 }
-probe dw_syscall.sigsuspend.return = kernel.function("sys_sigsuspend").return ?,
+probe __syscall.sigsuspend = kernel.function("sys_sigsuspend").call ?
+{
+	@_SYSCALL_GATE
+}
+probe dw_syscall.sigsuspend.return = __syscall.sigsuspend.return ?,
 	kernel.function("sys32_sigsuspend").return ?,
 	kernel.function("compat_sys_sigsuspend").return ?
 {
 	@_SYSCALL_SIGSUSPEND_NAME
 	retstr = return_str(1, $return)
 }
+probe __syscall.sigsuspend.return = kernel.function("sys_sigsuspend").return ?
+{
+	@_SYSCALL_GATE
+}
 
 # nd_sigsuspend _____________________________________________________
 
-probe nd_syscall.sigsuspend = __nd_syscall.sisguspend ?,
-	__nd_syscall.compat_sys_sigsuspsend ?
+probe nd_syscall.sigsuspend = __nd_syscall.sigsuspend ?,
+	__nd_syscall.sys32_sigsuspend ?
 {
 	@_SYSCALL_SIGSUSPEND_NAME
 	mask_str = _stp_sigmask_str(mask)
 	@_SYSCALL_SIGSUSPEND_ARGSTR
 }
-probe __nd_syscall.sisguspend = kprobe.function("sys_sigsuspend") ?,
-	kprobe.function("sys32_sigsuspend") ?
+probe __nd_syscall.sigsuspend = __nd_syscall.sys_sigsuspend ?,
+	kprobe.function("compat_sys_sigsuspend") ?
 {
 	asmlinkage()
 %( CONFIG_OLD_SIGSUSPEND == "y" %?
 	mask = ulong_arg(1)
 %:
-	# Both CONFIG_OLD_SIGSUSPEND3 and sys32_sigsuspend have mask
-	# as the 3rd argument.
+	# CONFIG_OLD_SIGSUSPEND3 has mask as the 3rd argument.
 	mask = ulong_arg(3)
 %)
 }
-probe __nd_syscall.compat_sys_sigsuspsend =
-	kprobe.function("compat_sys_sigsuspend") ?
+probe __nd_syscall.sys_sigsuspend = kprobe.function("sys_sigsuspend") ?
 {
 	asmlinkage()
-	mask = ulong_arg(1)
+	@_SYSCALL_GATE
+}
+probe __nd_syscall.sys32_sigsuspend = kprobe.function("sys32_sigsuspend") ?
+{
+	asmlinkage()
+	mask = ulong_arg(3)
 }
 probe nd_syscall.sigsuspend.return =
-	kprobe.function("sys_sigsuspend").return ?,
+	__nd_syscall.sigsuspend.return ?,
 	kprobe.function("sys32_sigsuspend").return ?,
 	kprobe.function("compat_sys_sigsuspend").return ?
 {
 	@_SYSCALL_SIGSUSPEND_NAME
 	retstr = returnstr(1)
+}
+probe __nd_syscall.sigsuspend.return =
+	kprobe.function("sys_sigsuspend").return ?
+{
+	@_SYSCALL_GATE
 }

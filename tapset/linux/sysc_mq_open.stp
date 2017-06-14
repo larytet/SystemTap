@@ -13,7 +13,7 @@
 	name = "mq_open"
 %)
 
-@define _SYSCALL_MQ_OPEN_ARGSTR_64
+@define _SYSCALL_MQ_OPEN_ARGSTR_2
 %(
 	argstr = sprintf("%s, %s, %#o, %p", filename, oflag_str, mode, u_attr_uaddr)
 %)
@@ -38,8 +38,8 @@ probe dw_syscall.mq_open = __syscall.mq_open,
 	oflag = __int32($oflag)
 	oflag_str = _sys_open_flag_str(oflag)
 	mode = (@__compat_task ? __ushort($mode) : __uint32($mode))
-	if (oflag & 64)
-		@_SYSCALL_MQ_OPEN_ARGSTR_64
+	if (oflag & @const("O_CREAT"))
+		@_SYSCALL_MQ_OPEN_ARGSTR_2
 	else
 		@_SYSCALL_MQ_OPEN_ARGSTR
 }
@@ -72,8 +72,8 @@ probe nd_syscall.mq_open = __nd_syscall.mq_open,
 	u_attr_uaddr = pointer_arg(4)
 	oflag = int_arg(2)
 	oflag_str = _sys_open_flag_str(oflag)
-	if (oflag & 64)
-		@_SYSCALL_MQ_OPEN_ARGSTR_64
+	if (oflag & @const("O_CREAT"))
+		@_SYSCALL_MQ_OPEN_ARGSTR_2
 	else
 		@_SYSCALL_MQ_OPEN_ARGSTR
 }

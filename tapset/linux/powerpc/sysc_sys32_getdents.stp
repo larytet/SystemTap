@@ -52,6 +52,3 @@ probe nd_syscall.sys32_getdents.return = kprobe.function("sys32_getdents").retur
 	@_SYSCALL_SYS32_GETDENTS_NAME
 	retstr = returnstr(1)
 }
-
-# compat_sys_sysctl ________________________________________
-#

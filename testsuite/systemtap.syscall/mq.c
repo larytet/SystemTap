@@ -17,7 +17,27 @@
 #define MSG         "message"
 
 static void sighandler(int signum) {
+    // It appears that sometimes this printf output can confuse the
+    // testsuite, so let's avoid it.
+#if 0
     printf("Received: NOTIFICATION\n");
+#endif
+}
+
+static inline int stp_mq_getsetattr(mqd_t mqdes, struct mq_attr *newattr,
+				    struct mq_attr *oldattr)
+{
+    return syscall(__NR_mq_getsetattr, mqdes, newattr, oldattr);
+}
+
+static inline int stp_mq_notify(mqd_t mqdes, const struct sigevent *sevp)
+{
+    return syscall(__NR_mq_notify, mqdes, sevp);
+}
+
+static inline int stp_mq_unlink(const char *name)
+{
+    return syscall(__NR_mq_unlink, name);
 }
 
 int main() {
@@ -40,9 +60,12 @@ int main() {
     // ------- test normal operation
 
     mq_server = mq_open(QUEUE_NAME, O_CREAT | O_RDONLY, 0644, &attr);
-    //staptest// mq_open ("test_queue", O_RDONLY|O_CREAT, 0644, XXXX) = NNNN
+    // Occasionally QUEUE_NAME isn't paged in yet here, so accept a
+    // string or an address. By the time of the next mq_open, it has
+    // been paged in.
+    //staptest// mq_open ([[[["test_queue"!!!!XXXX]]]], O_RDONLY|O_CREAT, 0644, XXXX) = NNNN
 
-    syscall(__NR_mq_getsetattr, mq_server, &attr, &attr);
+    stp_mq_getsetattr(mq_server, &attr, &attr);
     //staptest// mq_getsetattr (NNNN, XXXX, XXXX) = 0
 
     signal(SIGUSR1, sighandler);
@@ -92,20 +115,20 @@ int main() {
     //staptest// mq_open ("test_queue", O_RDONLY|O_CREAT, 0644, 0x[f]+) = NNNN
 #endif
 
-    syscall(__NR_mq_getsetattr, mq_server, &attr, &attr);
+    stp_mq_getsetattr(mq_server, &attr, &attr);
     //staptest// mq_getsetattr (NNNN, XXXX, XXXX) = NNNN
 
-    syscall(__NR_mq_getsetattr, -1, &attr, &attr);
+    stp_mq_getsetattr(-1, &attr, &attr);
     //staptest// mq_getsetattr (-1, XXXX, XXXX) = NNNN
 
-    syscall(__NR_mq_getsetattr, mq_server, -1, &attr);
+    stp_mq_getsetattr(mq_server, (struct mq_attr *)-1, &attr);
 #ifdef __s390__
     //staptest// mq_getsetattr (NNNN, 0x[7]?[f]+, XXXX) = NNNN
 #else
     //staptest// mq_getsetattr (NNNN, 0x[f]+, XXXX) = NNNN
 #endif
 
-    syscall(__NR_mq_getsetattr, mq_server, &attr, -1);
+    stp_mq_getsetattr(mq_server, &attr, (struct mq_attr *)-1);
 #ifdef __s390__
     //staptest// mq_getsetattr (NNNN, XXXX, 0x[7]?[f]+) = NNNN
 #else
@@ -115,7 +138,7 @@ int main() {
     mq_notify(-1, &sev);
     //staptest// mq_notify (-1, XXXX) = NNNN
 
-    syscall(__NR_mq_notify, mq_server, (const struct sigevent *)-1);
+    stp_mq_notify(mq_server, (const struct sigevent *)-1);
 #ifdef __s390__
     //staptest// mq_notify (NNNN, 0x[7]?[f]+) = NNNN (EFAULT)
 #else
@@ -256,7 +279,7 @@ int main() {
 
     // glibc wrapper would cause SEGV in case of bad file descriptor,
     // so we use syscall():
-    syscall(__NR_mq_unlink, (const char *)-1);
+    stp_mq_unlink((const char *)-1);
 #ifdef __s390__
     //staptest// mq_unlink (0x[7]?[f]+) = NNNN
 #else
@@ -275,9 +298,5 @@ int main() {
     mq_unlink(QUEUE_NAME);
     //staptest// mq_unlink ("test_queue") = 0
 
-
-
     return 0;
-
-
 }

@@ -8,29 +8,29 @@
 #include <string.h>
 #include <inttypes.h>
 
-inline int __io_setup(unsigned nr_events, aio_context_t *ctx_idp)
+static inline int __io_setup(unsigned nr_events, aio_context_t *ctx_idp)
 {
 	return syscall(__NR_io_setup, nr_events, ctx_idp);
 }
 
-inline int __io_submit(aio_context_t ctx_id, long nr, struct iocb **iocbpp)
+static inline int __io_submit(aio_context_t ctx_id, long nr, struct iocb **iocbpp)
 {
 	return syscall(__NR_io_submit, ctx_id, nr, iocbpp);
 }
 
-inline int __io_getevents(aio_context_t ctx_id, long min_nr, long nr,
+static inline int __io_getevents(aio_context_t ctx_id, long min_nr, long nr,
 			 struct io_event *events, struct timespec *timeout)
 {
 	return syscall(__NR_io_getevents, ctx_id, min_nr, nr, events, timeout);
 }
 
-inline int __io_cancel(aio_context_t ctx_id, struct iocb *iocb,
+static inline int __io_cancel(aio_context_t ctx_id, struct iocb *iocb,
                      struct io_event *result)
 {
 	return syscall(__NR_io_cancel, ctx_id, iocb, result);
 }
 
-inline int __io_destroy(aio_context_t ctx_id)
+static inline int __io_destroy(aio_context_t ctx_id)
 {
 	return syscall(__NR_io_destroy, ctx_id);
 }

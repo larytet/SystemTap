@@ -13,6 +13,19 @@
 	argstr = sprintf("%d, %d", fd, length)
 %)
 
+@define _SYSCALL_GATE
+%(
+    %( arch == "x86_64" || arch == "s390" %?
+	// On x86_64 and s390x RHL6 kernels, the 32-bit compat
+	// ftruncate syscall is hooked up directly to sys_ftruncate(),
+	// instead of going through compat_sys_ftruncate().
+	@__syscall_compat_gate(@const("__NR_ftruncate"),
+			       @const("__NR_compat_ftruncate"))
+    %:
+	@__syscall_gate_compat_simple
+    %)
+%)
+
 probe syscall.ftruncate = dw_syscall.ftruncate !, nd_syscall.ftruncate ? {}
 probe syscall.ftruncate.return = dw_syscall.ftruncate.return !, nd_syscall.ftruncate.return ? {}
 
@@ -28,8 +41,7 @@ probe dw_syscall.ftruncate = __syscall.ftruncate,
 }
 probe __syscall.ftruncate = kernel.function("sys_ftruncate").call
 {
-	@__syscall_compat_gate(@const("__NR_ftruncate"),
-			       @const("__NR_compat_ftruncate"))
+	@_SYSCALL_GATE
 }
 probe dw_syscall.ftruncate.return = __syscall.ftruncate.return,
 	kernel.function("compat_sys_ftruncate").return ?
@@ -39,8 +51,7 @@ probe dw_syscall.ftruncate.return = __syscall.ftruncate.return,
 }
 probe __syscall.ftruncate.return = kernel.function("sys_ftruncate").return
 {
-	@__syscall_compat_gate(@const("__NR_ftruncate"),
-			       @const("__NR_compat_ftruncate"))
+	@_SYSCALL_GATE
 }
 
 # nd_ftruncate _____________________________________________________
@@ -56,8 +67,7 @@ probe nd_syscall.ftruncate = __nd_syscall.ftruncate,
 }
 probe __nd_syscall.ftruncate = kprobe.function("sys_ftruncate").call
 {
-	@__syscall_compat_gate(@const("__NR_ftruncate"),
-	                       @const("__NR_compat_ftruncate"))
+	@_SYSCALL_GATE
 }
 
 probe nd_syscall.ftruncate.return = __nd_syscall.ftruncate.return,
@@ -68,8 +78,7 @@ probe nd_syscall.ftruncate.return = __nd_syscall.ftruncate.return,
 }
 probe __nd_syscall.ftruncate.return = kprobe.function("sys_ftruncate").return
 {
-	@__syscall_compat_gate(@const("__NR_ftruncate"),
-	                       @const("__NR_compat_ftruncate"))
+	@_SYSCALL_GATE
 }
 
 # ftruncate64 ________________________________________________

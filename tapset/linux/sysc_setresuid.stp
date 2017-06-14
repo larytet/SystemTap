@@ -13,6 +13,32 @@
 	argstr = sprintf("%d, %d, %d", ruid, euid, suid)
 %)
 
+@define _SYSCALL_GATE
+%(
+    %( arch == "x86_64" %?
+	// There are actually 3 x86_64 setresuid syscalls numbers (which
+	// get mapped to 2 syscall functions:
+	//   - __NR_setresuid which gets mapped to sys_setresuid()
+	//   - __NR_ia32_setresuid32 which also gets mapped to
+	//     sys_setresuid() 
+	//   - __NR_ia32_setresuid which gets mapped to sys_setresuid16()
+	//     (which is a wrapper around sys_setresuid())
+	// So, we need to avoid sys_setresuid() calls that come from
+	// sys_setresuid16().
+	@__syscall_compat_gate(@const("__NR_setresuid"),
+			       @const("__NR_ia32_setresuid32"))
+    %:
+	%( arch == "i386" %?
+	    // On i386, there are 2 setresuid syscall numbers:
+	    //   - __NR_setresuid which gets mapped to sys_setresuid16
+	    //   - __NR_setresuid32 which gets mapped to sys_setresuid
+	    // Since this gets called from a probe on sys_setresuid, we'll
+	    // make sure this is really __NR_setresuid32.
+	    @__syscall_nr_gate(@const("__NR_setresuid32"))
+	%)
+    %)
+%)
+
 probe syscall.setresuid = dw_syscall.setresuid !, nd_syscall.setresuid ? {}
 probe syscall.setresuid.return = dw_syscall.setresuid.return !,
                                  nd_syscall.setresuid.return ? {}
@@ -21,6 +47,7 @@ probe syscall.setresuid.return = dw_syscall.setresuid.return !,
 
 probe dw_syscall.setresuid = kernel.function("sys_setresuid").call
 {
+	@_SYSCALL_GATE
 	@_SYSCALL_SETRESUID_NAME
 	ruid = __int32($ruid)
 	euid = __int32($euid)
@@ -29,6 +56,7 @@ probe dw_syscall.setresuid = kernel.function("sys_setresuid").call
 }
 probe dw_syscall.setresuid.return = kernel.function("sys_setresuid").return
 {
+	@_SYSCALL_GATE
 	@_SYSCALL_SETRESUID_NAME
 	retstr = return_str(1, $return)
 }
@@ -37,6 +65,7 @@ probe dw_syscall.setresuid.return = kernel.function("sys_setresuid").return
 
 probe nd_syscall.setresuid = kprobe.function("sys_setresuid") ?
 {
+	@_SYSCALL_GATE
 	@_SYSCALL_SETRESUID_NAME
 	asmlinkage()
 	ruid = __int32(uint_arg(1))
@@ -46,6 +75,7 @@ probe nd_syscall.setresuid = kprobe.function("sys_setresuid") ?
 }
 probe nd_syscall.setresuid.return = kprobe.function("sys_setresuid").return ?
 {
+	@_SYSCALL_GATE
 	@_SYSCALL_SETRESUID_NAME
 	retstr = returnstr(1)
 }

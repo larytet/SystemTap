@@ -16,6 +16,19 @@
 	argstr = sprintf("%s, %d", path, length)
 %)
 
+@define _SYSCALL_GATE
+%(
+    %( arch == "x86_64" || arch == "s390" %?
+	// On x86_64 and s390x RHL6 kernels, the 32-bit compat
+	// truncate syscall is hooked up directly to sys_truncate(),
+	// instead of going through compat_sys_truncate().
+	@__syscall_compat_gate(@const("__NR_truncate"),
+			       @const("__NR_compat_truncate"))
+    %:
+	@__syscall_gate_compat_simple
+    %)
+%)
+
 probe syscall.truncate = dw_syscall.truncate !, nd_syscall.truncate ? {}
 probe syscall.truncate.return = dw_syscall.truncate.return !,
                                 nd_syscall.truncate.return ? {}
@@ -32,7 +45,7 @@ probe dw_syscall.truncate = __syscall.truncate ?, __syscall.truncate64 ?,
 }
 probe __syscall.truncate = kernel.function("sys_truncate").call ?
 {
-	@__syscall_compat_gate(@const("__NR_truncate"), @const("__NR_compat_truncate"))
+	@_SYSCALL_GATE
 	length = @__compat_long($length)
 }
 probe __syscall.truncate64 = kernel.function("sys_truncate64").call ?
@@ -52,7 +65,7 @@ probe dw_syscall.truncate.return = __syscall.truncate.return ?,
 }
 probe __syscall.truncate.return = kernel.function("sys_truncate").return ?
 {
-	@__syscall_compat_gate(@const("__NR_truncate"), @const("__NR_compat_truncate"))
+	@_SYSCALL_GATE
 }
 
 # nd_truncate _____________________________________________________
@@ -69,8 +82,7 @@ probe nd_syscall.truncate = __nd_syscall.truncate ?,
 }
 probe __nd_syscall.truncate = kprobe.function("sys_truncate") ?
 {
-	@__syscall_compat_gate(@const("__NR_truncate"),
-			       @const("__NR_compat_truncate"))
+	@_SYSCALL_GATE
 	asmlinkage()
 	length = long_arg(2)
 }
@@ -93,6 +105,5 @@ probe nd_syscall.truncate.return = __nd_syscall.truncate.return ?,
 }
 probe __nd_syscall.truncate.return = kprobe.function("sys_truncate").return ?
 {
-	@__syscall_compat_gate(@const("__NR_truncate"),
-			       @const("__NR_compat_truncate"))
+	@_SYSCALL_GATE
 }

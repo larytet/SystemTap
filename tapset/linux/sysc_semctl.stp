@@ -84,7 +84,7 @@ probe dw_syscall.compat_sys_semctl = __syscall.compat_semctl ?,
 }
 probe __syscall.compat_semctl = kernel.function("compat_sys_semctl").call ?
 {
-	@__compat_syscall_gate_negative(@const("__NR_ipc"))
+	@__compat_syscall_gate_negative(@const("__NR_compat_ipc"))
 	semid = __int32(@choose_defined($semid, $first))
 	semnum = __int32(@choose_defined($semnum, $second))
 	cmd = __int32(@choose_defined($cmd, $third))
@@ -108,7 +108,7 @@ probe dw_syscall.compat_sys_semctl.return = __syscall.compat_semctl.return ?,
 probe __syscall.compat_semctl.return =
 	kernel.function("compat_sys_semctl").return ?
 {
-	@__compat_syscall_gate_negative(@const("__NR_ipc"))
+	@__compat_syscall_gate_negative(@const("__NR_compat_ipc"))
 }
 probe __syscall.compat_ipc.semctl.return =
 	kernel.function("compat_sys_ipc").return ?,
@@ -128,7 +128,7 @@ probe nd_syscall.compat_sys_semctl = __nd_syscall.compat_semctl ?,
 }
 probe __nd_syscall.compat_semctl = kprobe.function("compat_sys_semctl") ?
 {
-	@__compat_syscall_gate_negative(@const("__NR_ipc"))
+	@__compat_syscall_gate_negative(@const("__NR_compat_ipc"))
 	semid = int_arg(1)
 	semnum = int_arg(2)
 	cmd =  int_arg(3)
@@ -153,7 +153,7 @@ probe nd_syscall.compat_sys_semctl.return =
 probe __nd_syscall.compat_semctl.return =
 	kprobe.function("compat_sys_semctl").return ?
 {
-	@__compat_syscall_gate_negative(@const("__NR_ipc"))
+	@__compat_syscall_gate_negative(@const("__NR_compat_ipc"))
 }
 probe __nd_syscall.compat_ipc.semctl.return =
 	kprobe.function("compat_sys_ipc").return ?,

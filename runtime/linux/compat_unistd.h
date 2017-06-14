@@ -64,6 +64,9 @@
 #ifndef __NR_msgctl
 #define __NR_msgctl (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_nfsservctl
+#define __NR_nfsservctl (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_open
 #define __NR_open (__NR_syscall_max + 1)
 #endif
@@ -96,6 +99,9 @@
 #endif
 #ifndef __NR_renameat2
 #define __NR_renameat2 (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_semtimedop
+#define __NR_semtimedop (__NR_syscall_max + 1)
 #endif
 #ifndef __NR_setsockopt
 #define __NR_setsockopt (__NR_syscall_max + 1)
@@ -168,6 +174,9 @@
 #ifndef __NR_ia32_inotify_init1
 #define __NR_ia32_inotify_init1 332
 #endif
+#ifndef __NR_ia32_ipc
+#define __NR_ia32_ipc 117
+#endif
 #ifndef __NR_ia32_linkat
 #define __NR_ia32_linkat 303
 #endif
@@ -182,6 +191,12 @@
 #endif
 #ifndef __NR_ia32_mmap2
 #define __NR_ia32_mmap2 192
+#endif
+#ifndef __NR_ia32_msgctl
+#define __NR_ia32_msgctl 192
+#endif
+#ifndef __NR_ia32_nfsservctl
+#define __NR_ia32_nfsservctl 169
 #endif
 #ifndef __NR_ia32_open
 #define __NR_ia32_open 5
@@ -208,6 +223,30 @@
 #endif
 #ifndef __NR_ia32_sendmmsg
 #define __NR_ia32_sendmmsg 345
+#endif
+#ifndef __NR_ia32_setfsgid32
+#define __NR_ia32_setfsgid32 216
+#endif
+#ifndef __NR_ia32_setfsuid32
+#define __NR_ia32_setfsuid32 215
+#endif
+#ifndef __NR_ia32_setgid32
+#define __NR_ia32_setgid32 214
+#endif
+#ifndef __NR_ia32_setresgid32
+#define __NR_ia32_setresgid32 210
+#endif
+#ifndef __NR_ia32_setresuid32
+#define __NR_ia32_setresuid32 208
+#endif
+#ifndef __NR_ia32_setregid32
+#define __NR_ia32_setregid32 204
+#endif
+#ifndef __NR_ia32_setreuid32
+#define __NR_ia32_setreuid32 203
+#endif
+#ifndef __NR_ia32_setuid32
+#define __NR_ia32_setuid32 213
 #endif
 // Since a kernel that had a 32-biy shmctl syscall can't be found
 // (they all used __NR_ipc), just use __NR_syscall_max.
@@ -239,9 +278,12 @@
 #define __NR_compat_futimesat		__NR_ia32_futimesat
 #define __NR_compat_getpgid		__NR_ia32_getpgid
 #define __NR_compat_inotify_init1	__NR_ia32_inotify_init1
+#define __NR_compat_ipc			__NR_ia32_ipc
 #define __NR_compat_linkat		__NR_ia32_linkat
 #define __NR_compat_mkdirat		__NR_ia32_mkdirat
 #define __NR_compat_mknodat		__NR_ia32_mknodat
+#define __NR_compat_msgctl		__NR_ia32_msgctl
+#define __NR_compat_nfsservctl		__NR_ia32_nfsservctl
 #define __NR_compat_open		__NR_ia32_open
 #define __NR_compat_pipe2		__NR_ia32_pipe2
 #define __NR_compat_pselect7		__NR_ia32_pselect7
@@ -279,9 +321,12 @@
 #define __NR_compat_futimesat		__NR_futimesat
 #define __NR_compat_getpgid		__NR_getpgid
 #define __NR_compat_inotify_init1	__NR_inotify_init1
+#define __NR_compat_ipc			__NR_ipc
 #define __NR_compat_linkat		__NR_linkat
 #define __NR_compat_mkdirat		__NR_mkdirat
 #define __NR_compat_mknodat		__NR_mknodat
+#define __NR_compat_msgctl		__NR_msgctl
+#define __NR_compat_nfsservctl		__NR_nfsservctl
 #define __NR_compat_open		__NR_open
 #define __NR_compat_pipe2		__NR_pipe2
 #define __NR_compat_pselect7		__NR_pselect7

@@ -24,7 +24,10 @@ probe syscall.semtimedop.return = dw_syscall.semtimedop.return !,
 
 probe dw_syscall.semtimedop = kernel.function("sys_semtimedop").call ?
 {
-	@__syscall_gate_compat_simple
+	# Since semop() can be implemented via semtimedop(), we need
+	# to make sure this is a real semtimedop syscall (or a
+	# multiplexed one via ipc()).
+	@__syscall_gate2(@const("__NR_semtimedop"), @const("__NR_ipc"))
 	@_SYSCALL_SEMTIMEDOP_NAME
 	semid = __int32($semid)
 	sops_uaddr = $tsops
@@ -35,7 +38,7 @@ probe dw_syscall.semtimedop = kernel.function("sys_semtimedop").call ?
 }
 probe dw_syscall.semtimedop.return = kernel.function("sys_semtimedop").return ?
 {
-	@__syscall_gate_compat_simple
+	@__syscall_gate2(@const("__NR_semtimedop"), @const("__NR_ipc"))
 	@_SYSCALL_SEMTIMEDOP_NAME
 	retstr = return_str(1, $return)
 }
@@ -44,7 +47,7 @@ probe dw_syscall.semtimedop.return = kernel.function("sys_semtimedop").return ?
 
 probe nd_syscall.semtimedop = kprobe.function("sys_semtimedop") ?
 {
-	@__syscall_gate_compat_simple
+	@__syscall_gate2(@const("__NR_semtimedop"), @const("__NR_ipc"))
 	@_SYSCALL_SEMTIMEDOP_NAME
 	asmlinkage()
 	semid = int_arg(1)
@@ -56,7 +59,7 @@ probe nd_syscall.semtimedop = kprobe.function("sys_semtimedop") ?
 }
 probe nd_syscall.semtimedop.return = kprobe.function("sys_semtimedop").return ?
 {
-	@__syscall_gate_compat_simple
+	@__syscall_gate2(@const("__NR_semtimedop"), @const("__NR_ipc"))
 	@_SYSCALL_SEMTIMEDOP_NAME
 	retstr = returnstr(1)
 }
@@ -84,7 +87,7 @@ probe dw_syscall.compat_sys_semtimedop = __syscall.compat_semtimedop ?,
 probe __syscall.compat_semtimedop =
 	kernel.function("compat_sys_semtimedop").call ?
 {
-	@__compat_syscall_gate_negative(@const("__NR_ipc"))
+	@__compat_syscall_gate_negative(@const("__NR_compat_ipc"))
 	semid = __int32($semid)
 	sops_uaddr = $tsems
 	nsops = __uint32($nsops)
@@ -110,7 +113,7 @@ probe dw_syscall.compat_sys_semtimedop.return =
 probe __syscall.compat_sys_semtimedop.return =
 	kernel.function("compat_sys_semtimedop").return ?
 {
-	@__compat_syscall_gate_negative(@const("__NR_ipc"))
+	@__compat_syscall_gate_negative(@const("__NR_compat_ipc"))
 }
 probe __syscall.compat_ipc.semtimedop.return =
 	kernel.function("compat_sys_ipc").return ?,
@@ -131,7 +134,7 @@ probe nd_syscall.compat_sys_semtimedop = __nd_syscall.compat_semtimedop ?,
 probe __nd_syscall.compat_semtimedop =
 	kprobe.function("compat_sys_semtimedop") ?
 {
-	@__compat_syscall_gate_negative(@const("__NR_ipc"))
+	@__compat_syscall_gate_negative(@const("__NR_compat_ipc"))
 	semid = int_arg(1)
 	sops_uaddr = pointer_arg(2)
 	nsops = uint_arg(3)
@@ -154,7 +157,11 @@ probe __nd_syscall.compat_ipc.semtimedop.sys_ipc =
 probe __nd_syscall.compat_ipc.semtimedop.sys32_ipc =
         kprobe.function("sys32_ipc") ?
 {
+%( arch == "s390" %?
 	timeout_uaddr = pointer_arg(4)
+%:
+	timeout_uaddr = pointer_arg(6)
+%)
 }
 probe nd_syscall.compat_sys_semtimedop.return =
 	__nd_syscall.compat_sys_semtimedop.return ?,
@@ -166,7 +173,7 @@ probe nd_syscall.compat_sys_semtimedop.return =
 probe __nd_syscall.compat_sys_semtimedop.return =
 	kprobe.function("compat_sys_semtimedop").return ?
 {
-	@__compat_syscall_gate_negative(@const("__NR_ipc"))
+	@__compat_syscall_gate_negative(@const("__NR_compat_ipc"))
 }
 probe __nd_syscall.compat_ipc.semtimedop.return =
 	kprobe.function("compat_sys_ipc").return ?,

@@ -74,7 +74,7 @@ proc run_one_test {filename flags bits suite} {
     set ind 0
     foreach line [split $output "\n"] {
 	if {[regsub {//staptest//} $line {} line]} {
-	    set line "$re_testname: [string trimleft $line]"
+	    set line "^$re_testname: [string trimleft $line]"
 
 	    # We need to quote all these metacharacters
 	    regsub -all {\(} $line {\\(} line
