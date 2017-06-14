@@ -136,12 +136,17 @@ Here's an example run:
     HTTP/1.1 200 OK
     Body: {
       "uuid": "39ff",
-      "module": "stap_148a63cdf6aa94d33cf66abb47be7194_1073.ko"
+      "rc": 0,
+      "stdout_location": "/results/39ff/stdout",
+      "stderr_location": "/results/39ff/stderr",
+      "files": [
+        { "location": "/results/39ff/stap_91e5911967e16d8c350000d9f1d7de71_1105.ko", "mode": 436 }
+      ]
     }
 
 - The client can then to a GET on the module itself:
 
-    GET /results/39ff/stap_148a63cdf6aa94d33cf66abb47be7194_1073.ko
+    GET /results/39ff/stap_91e5911967e16d8c350000d9f1d7de71_1105.ko
 
   The server responds (along with the module data):
   
