@@ -3376,11 +3376,15 @@ dwflpp::translate_components(location_context *ctx,
         case DW_TAG_array_type:
           if (c.type == target_symbol::comp_literal_array_index)
             {
-	      /* No type cast needed for staptree intermediate code.  */
+	      if (c.num_index != 0 && !ctx->locations.empty())
+	        ctx->translate_array(typedie, ctx->locations.back(),
+				     new literal_number(c.num_index));
             }
           else if (c.type == target_symbol::comp_expression_array_index)
             {
-	      /* No type cast needed for staptree intermediate code.  */
+	      if (!ctx->locations.empty())
+	        ctx->translate_array(typedie, ctx->locations.back(),
+				     c.expr_index);
             }
           else
             throw SEMANTIC_ERROR (_F("invalid access '%s' for array type",
