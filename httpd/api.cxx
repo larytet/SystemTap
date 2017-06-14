@@ -15,6 +15,9 @@
 
 extern "C" {
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -75,19 +78,37 @@ protected:
 class result_info : public resource
 {
 public:
-    result_info(string mp) : resource("/results/") {
-	module_path = mp;
-
-	size_t found = module_path.find_last_of("/");
-	module_file = module_path.substr(found + 1);
+    result_info(int rc, string &out_path, string &err_path, string &mp,
+		mode_t mm)
+	: resource("/results/"), rc(rc), stdout_path(out_path),
+	  stderr_path(err_path), module_path(mp), module_mode(mm)
+    {
+	size_t found = stdout_path.find_last_of("/");
+	if (found != string::npos) {
+	    stdout_file = stdout_path.substr(found + 1);
+	}
+	found = stderr_path.find_last_of("/");
+	if (found != string::npos) {
+	    stderr_file = stderr_path.substr(found + 1);
+	}
+	found = module_path.find_last_of("/");
+	if (found != string::npos) {
+	    module_file = module_path.substr(found + 1);
+	}
     }
 
     void generate_response(response &r);
     void generate_file_response(response &r, string &f);
 
 protected:
+    int rc;
+    string stdout_path;
+    string stdout_file;
+    string stderr_path;
+    string stderr_file;
     string module_path;
     string module_file;
+    mode_t module_mode;
 };
 
 class build_info : public resource
@@ -152,8 +173,27 @@ void result_info::generate_response(response &r)
 	lock_guard<mutex> lock(res_mutex);
 
 	os << "  \"uuid\": \"" << uuid_str << "\"";
+	os << "," << endl << "  \"rc\": " << rc;
+
+	// Always output stdout and stderr.
+	if (!stdout_path.empty()) {
+	    os << "," << endl << "  \"stdout_location\": \""
+	       << uri + '/' + stdout_file << "\"";
+	}
+	if (!stderr_path.empty()) {
+	    os << "," << endl << "  \"stderr_location\": \""
+	       << uri + '/' + stderr_file << "\"";
+	}
+
+	// Here we output any extra files, like a module. For each
+	// file print the location and mode (in decimal, since JSON
+	// doesn't do octal).
 	if (!module_file.empty()) {
-	    os << "," << endl << "  \"module\": \"" << module_file << "\"";
+	    os << "," << endl << "  \"files\": [";
+	    os << endl << "    { \"location\": \""
+	       << uri + '/' + module_file
+	       << "\", \"mode\": " << module_mode << " }";
+	    os << endl << "  ]";
 	}
     }
     os << endl << "}" << endl;
@@ -172,7 +212,13 @@ void result_info::generate_file_response(response &r, string &file)
 	// exception is thrown.
 	lock_guard<mutex> lock(res_mutex);
 
-	if (!module_file.empty() && file == module_file) {
+	if (!stdout_path.empty() && file == stdout_file) {
+	    path = stdout_path;
+	}
+	else if (!stderr_path.empty() && file == stderr_file) {
+	    path = stderr_path;
+	}
+	else if (!module_file.empty() && file == module_file) {
 	    path = module_path;
 	}
     }
@@ -477,8 +523,8 @@ build_info::module_build()
 	clog << "mkdtemp failed: " << strerror(errno) << endl;
 	return NULL;
     }
-    string tmpdir_opt = "--tmpdir=";
-    argv.push_back(tmpdir_opt + tmp_dir);
+    string tmpdir_opt = string("--tmpdir=") + tmp_dir;
+    argv.push_back(tmpdir_opt);
 
     // Add the "client options" argument, which tells stap to do some
     // extra command line validation and to stop at pass 4.
@@ -492,6 +538,32 @@ build_info::module_build()
 	for (auto it = cmd_args.begin(); it != cmd_args.end(); it++) {
 	    argv.push_back(*it);
 	}
+    }
+
+    // Handle capturing stdout and stderr (along with using /dev/null
+    // for stdin).
+    posix_spawn_file_actions_t actions;
+    string stdout_path = string(tmp_dir) + "/stdout";
+    string stderr_path = string(tmp_dir) + "/stderr";
+    int rc = posix_spawn_file_actions_init(&actions);
+    if (rc == 0) {
+	rc = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null",
+					      O_RDONLY, S_IRWXU);
+    }
+    if (rc == 0) {
+	rc = posix_spawn_file_actions_addopen(&actions, 1, stdout_path.c_str(),
+					      O_WRONLY|O_CREAT|O_EXCL,
+					      S_IRWXU);
+    }
+    if (rc == 0) {
+	rc = posix_spawn_file_actions_addopen(&actions, 2, stderr_path.c_str(),
+					      O_WRONLY|O_CREAT|O_EXCL,
+					      S_IRWXU);
+    }
+    if (rc != 0) {
+	clog << "posix_spawn_file_actions failed: " << strerror(errno)
+	     << endl;
+	return NULL;
     }
 
     // If we've got a base_dir, we need to do a chdir() to that
@@ -515,7 +587,7 @@ build_info::module_build()
 
     // Kick off stap.
     pid_t pid;
-    pid = stap_spawn(2, argv, NULL);
+    pid = stap_spawn(2, argv, &actions);
     clog << "spawn returned " << pid << endl;
 
     // If stap_spawn() failed, no need to wait.
@@ -525,40 +597,56 @@ build_info::module_build()
     }
 
     // Wait on the spawned process to finish.
-    int rc = stap_waitpid(0, pid);
-    if (rc < 0) {				// stap_waitpid() failed
+    int staprc = stap_waitpid(0, pid);
+    if (staprc < 0) {				// stap_waitpid() failed
 	return NULL;
     }
 
     // Update build_info.
-    clog << "Spawned process returned " << rc << endl;
+    clog << "Spawned process returned " << staprc << endl;
+    (void)posix_spawn_file_actions_destroy(&actions);
 
     // See if we built a module.
-    if (rc == 0) {
+    string module_path;
+    mode_t module_mode = 0;
+    if (staprc == 0) {
 	glob_t globber;
-	string pattern = tmp_dir;
-	pattern += "/*.ko";
+	string pattern = string(tmp_dir) + "/*.ko";
 	int rc = glob(pattern.c_str(), GLOB_ERR, NULL, &globber);
-	if (rc)
+	if (rc) {
 	    clog << "Unable to find a module in " << tmp_dir << endl;
-	else if (globber.gl_pathc != 1)
+	}
+	else if (globber.gl_pathc != 1) {
 	    clog << "Too many modules (" << globber.gl_pathc << ") in "
 		 << tmp_dir << endl;
+	}
 	else {
-	    result_info *ri = new result_info(globber.gl_pathv[0]);
-	    {
-		// Use a lock_guard to ensure the mutex gets released
-		// even if an exception is thrown.
-		lock_guard<mutex> lock(res_mutex);
-		result = ri;
+	    module_path = globber.gl_pathv[0];
+	    // We've got a path. Also figure out the file mode by
+	    // calling stat().
+	    struct stat stbuf;
+	    if (stat(module_path.c_str(), &stbuf) == 0) {
+		module_mode = stbuf.st_mode & 07777;
 	    }
-	    {
-		// Use a lock_guard to ensure the mutex gets released
-		// even if an exception is thrown.
-		lock_guard<mutex> lock(results_mutex);
-		result_infos.push_back(ri);
+	    else {
+		module_path.clear();
 	    }
 	}
+    }
+
+    result_info *ri = new result_info(staprc, stdout_path, stderr_path,
+				      module_path, module_mode);
+    {
+	// Use a lock_guard to ensure the mutex gets released
+	// even if an exception is thrown.
+	lock_guard<mutex> lock(res_mutex);
+	result = ri;
+    }
+    {
+	// Use a lock_guard to ensure the mutex gets released
+	// even if an exception is thrown.
+	lock_guard<mutex> lock(results_mutex);
+	result_infos.push_back(ri);
     }
 
     return NULL;
