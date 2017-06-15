@@ -26,6 +26,7 @@ struct option stap_long_options[] = {
   { "list-servers",                optional_argument, NULL, LONG_OPT_LIST_SERVERS },
   { "trust-servers",               optional_argument, NULL, LONG_OPT_TRUST_SERVERS },
   { "use-server-on-error",         optional_argument, NULL, LONG_OPT_USE_SERVER_ON_ERROR },
+  { "use-http-server",             required_argument, NULL, LONG_OPT_USE_HTTP_SERVER },
   { "all-modules",                 no_argument,       NULL, LONG_OPT_ALL_MODULES },
   { "remote",                      required_argument, NULL, LONG_OPT_REMOTE },
   { "remote-prefix",               no_argument,       NULL, LONG_OPT_REMOTE_PREFIX },

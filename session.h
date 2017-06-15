@@ -297,6 +297,11 @@ public:
   void set_try_server (int t = do_try_server);
   bool try_server () const { return try_server_status == do_try_server; }
 
+#ifdef HAVE_HTTP_SUPPORT
+  // HTTP client/server
+  std::vector<std::string> http_servers;
+#endif
+
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
 

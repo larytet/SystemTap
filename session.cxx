@@ -396,6 +396,11 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   server_args = other.server_args;
   mok_fingerprints = other.mok_fingerprints;
 
+#ifdef HAVE_HTTP_SUPPORT
+  // HTTP client/server
+  http_servers = other.http_servers;
+#endif
+
   unwindsym_modules = other.unwindsym_modules;
   auto_privilege_level_msg = other.auto_privilege_level_msg;
   auto_server_msgs = other.auto_server_msgs;
@@ -653,6 +658,10 @@ systemtap_session::usage (int exitcode)
     "              ssl,signer,all-users,revoke,no-prompt\n"
     "   --use-server-on-error[=yes/no]\n"
     "              retry compilation using a compile server upon compilation error\n"
+#endif
+#ifdef HAVE_HTTP_SUPPORT
+    "   --use-http-server=SERVER-SPEC\n"
+    "              specify systemtap http compile server\n"
 #endif
     "   --remote=HOSTNAME\n"
     "              run pass 5 on the specified ssh host.\n"
@@ -1190,6 +1199,17 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  else
 	    server_trust_spec = "ssl";
 	  break;
+
+
+#ifdef HAVE_HTTP_SUPPORT
+	case LONG_OPT_USE_HTTP_SERVER:
+	  if (client_options) {
+	    cerr << _F("ERROR: %s is invalid with %s", "--use-http-server", "--client-options") << endl;
+	    return 1;
+	  }
+	  http_servers.push_back (optarg);
+	  break;
+#endif
 
 	case LONG_OPT_HELP:
 	  usage (0);

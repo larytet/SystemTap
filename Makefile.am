@@ -148,6 +148,10 @@ install-scripts: install-binSCRIPTS install-pkglibexecSCRIPTS
 	done
 endif
 
+if HAVE_HTTP_SUPPORT
+stap_SOURCES += http_client.cxx
+endif
+
 if BUILD_ELFUTILS
 stap_CPPFLAGS += -Iinclude-elfutils
 stap_LDFLAGS += -Llib-elfutils -Wl,-rpath-link,lib-elfutils \
