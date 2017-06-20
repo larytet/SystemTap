@@ -1,18 +1,8 @@
 # Server Concurrency Tests
 
-# Save the old log file, create a new one
-# and make sure it's world writable. We need to
-# use a clean server log since we are crawling the
-# output to find the port and to verify concurrency.
-# We restore the old log at the end, appending the log
-# output from this test.
-set logfile "[exec pwd]/server.log"
-set oldlogfile "[exec pwd]/old_server.log"
-if {[file exists $logfile]} then {
-    exec mv $logfile $oldlogfile
-}
-exec touch $logfile
-exec chmod 666 $logfile
+# The setup_server procedure always uses a "fresh" server log file, so
+# we don't need to do the save and restore this test used to do.
+global server_logfile
 
 # Start our own server and make sure we can work with it.
 if {! [setup_server --max-threads 6]} {
@@ -24,7 +14,7 @@ if {! [setup_server --max-threads 6]} {
 # should always be unique (as opposed to specifying a
 # a static port).
 set server_port 0
-set f [open $logfile]
+set f [open $server_logfile]
 set matched 0
 verbose -log "Server output: "
 while {1} {
@@ -128,7 +118,7 @@ catch {close -i $fifthid}; catch {wait -i $fifthid}
 catch {close -i $sixthid}; catch {wait -i $sixthid}
 
 # Check the log output file for cuncurrency
-set f [open $logfile]
+set f [open $server_logfile]
 verbose -log "Server ouput: "
 while {1} {
     set line [gets $f]
@@ -151,11 +141,4 @@ if { $failed == 0 } {
 }
 
 # Cleanup and shutdown the server we started.
-# Restore the old log file, appending the new
-# one to the end.
-if {[file exists $logfile]} then {
-    exec cat $logfile >> $oldlogfile
-    exec rm -f $logfile
-    exec mv $oldlogfile $logfile
-}
 shutdown_server
