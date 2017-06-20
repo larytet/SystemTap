@@ -3173,7 +3173,7 @@ dwarf_pretty_print::expand ()
   fdecl->type = pe_string;
 
   functioncall* fcall = new functioncall;
-  fcall->referents.push_back(fdecl);
+  // fcall->referents.push_back(fdecl);
   fcall->tok = ts->tok;
   fcall->function = fdecl->name;
   fcall->type = pe_string;
@@ -3656,11 +3656,10 @@ synthetic_embedded_deref_call(dwflpp& dw, location_context &ctx,
   fdecl->type = pe_long;
   fdecl->type_details = make_shared<exp_type_dwarf>(&dw, function_type,
                                                     userspace_p, e->addressof);
-
   // Synthesize a functioncall.
   functioncall* fcall = new functioncall;
   fcall->tok = tok;
-  fcall->referents.push_back(fdecl);
+  // fcall->referents.push_back(fdecl);
   fcall->function = fdecl->name;
   fcall->type = fdecl->type;
   fcall->type_details = fdecl->type_details;
@@ -3710,7 +3709,7 @@ synthetic_embedded_deref_call(dwflpp& dw, location_context &ctx,
       sym->name = rvalue->name;
       sym->tok = rvalue->tok;
       sym->type = pe_long;
-      sym->referent = rvalue;
+      // sym->referent = rvalue;
 
       assignment *a = new assignment;
       a->tok = tok;

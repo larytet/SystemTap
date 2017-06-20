@@ -2601,12 +2601,16 @@ symresolution_info::visit_symbol (symbol* e)
   if (e->referent)
     return;
 
+  if (session.verbose > 3)
+    clog << _F("Resolving symbol symbol %p (%s) ...", (void*) e, ((string)e->name).c_str());
   vardecl* d = find_var (e->name, 0, e->tok);
+  if (session.verbose > 3)
+    clog << endl;
   if (d)
-  {
-    e->referent = d;
-    e->name = d->name;
-  }
+    {
+      e->referent = d;
+      e->name = d->name;
+    }
   else
     {
       // new local
@@ -2741,6 +2745,10 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
       for (unsigned i=0; i<locals.size(); i++)
         if (locals[i]->name == name)
           {
+	    if (session.verbose > 3)
+	      clog << _F("to local (%p/%p) vardecl %p",
+			 (void*) current_function, (void*) current_probe, (void*) locals[i]);
+
             locals[i]->set_arity (arity, tok);
             return locals[i];
           }
@@ -2752,6 +2760,9 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
       if (current_function->formal_args[i]->name == name)
 	{
 	  // NB: no need to check arity here: formal args always scalar
+	  if (session.verbose > 3)
+	    clog << _F("to %p param vardecl %p", (void*) current_function, (void*) current_function->formal_args[i]);
+
 	  current_function->formal_args[i]->set_arity (0, tok);
 	  return current_function->formal_args[i];
 	}
@@ -2773,6 +2784,9 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
         (session.globals[i]->name == gname) ||
         (session.globals[i]->name == pname))
       {
+	if (session.verbose > 3)
+	  clog << _F("to global vardecl %p", (void*) session.globals[i]);
+
         if (! session.suppress_warnings)
           {
             vardecl* v = session.globals[i];
@@ -2799,6 +2813,9 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
           if ((g->name == gname) ||
               (g->name == pname)) // private global within tapset probe alias
             {
+	      if (session.verbose > 3)
+		clog << _F("to tapset global vardecl %p", (void*) g);
+
 	      g->set_arity (arity, tok);
 
               // put library into the queue if not already there
