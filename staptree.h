@@ -1259,22 +1259,21 @@ struct update_visitor: public visitor
         T* new_src = require(src, clearok);
         if (old_src != new_src)
           {
-            #if 0 /* XXX: this should be parametrized from session.verbose, and
-                     could take place of all of those 'elided ...' messages
-                     in elaborate.cxx optimization visitors. */
-            std::cout << "replaced ";
-            old_src->print(std::cout);
-            std::cout << " with ";
-            new_src->print(std::cout);
-            std::cout << std::endl;
-            #endif
+	    if (this->verbose > 3)
+	      {
+		std::clog << _("replaced ");
+		old_src->print(std::clog);
+		std::clog << _(" with ");
+		new_src->print(std::clog);
+		std::clog << std::endl;
+	      }
             relaxed_p = false;
           }
         src = new_src;
       }
   }
 
-  update_visitor(): aborted_p(false), relaxed_p(true) {}
+  update_visitor(unsigned v = 0): verbose(v), aborted_p(false), relaxed_p(true) {}
   virtual ~update_visitor() { assert(values.empty()); }
 
   // Permit reuse of the visitor object. 
@@ -1329,6 +1328,7 @@ struct update_visitor: public visitor
 private:
   std::stack<visitable *> values;
 protected:
+  unsigned verbose;
   bool aborted_p;
   bool relaxed_p;
 };

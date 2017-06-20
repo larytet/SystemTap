@@ -434,6 +434,7 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
 	      val->addr = addr;
 	      val->size = sp;
 	      val->userspace_p = this->userspace_p;
+	      val->tok = e->tok;
 	      PUSH(val);
 	    }
 	    break;
@@ -468,7 +469,11 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
 	  case DW_OP_consts:
 	    value = expr[i].number;
 	  op_const:
-	    PUSH(new literal_number(value));
+	    {
+	      literal_number *ln = new literal_number(value);
+	      ln->tok = e->tok;
+	      PUSH(ln);
+	    }
 	    break;
 
 	    /* Arithmetic operations.  */
@@ -477,6 +482,7 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
 	      {							\
 		POP(arg);					\
 		unary_expression *val = new unary_expression;	\
+		val->tok = e->tok;                              \
 		val->op = #stap_op;				\
 		val->operand = arg;				\
 		PUSH(val);					\
@@ -497,6 +503,7 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
 		val->op = #stap_op;		\
 		val->left = a;			\
 		val->right = b;			\
+		val->tok = e->tok;              \
 		PUSH(val);			\
 	      }					\
 	      break
@@ -1469,10 +1476,13 @@ location_context::translate_array_1(Dwarf_Die *anydie, Dwarf_Word stride,
 	  m->op = "*";
 	  m->left = index;
 	  m->right = new literal_number(stride);
+	  m->right->tok = index->tok;
+	  m->tok = index->tok;
 	  binary_expression *a = new binary_expression;
 	  a->op = "+";
 	  a->left = loc->program;
 	  a->right = m;
+	  a->tok = index->tok;
 	  nloc->program = a;
 	}
       else

@@ -3868,4 +3868,19 @@ deep_copy_visitor::visit_hist_op (hist_op* e)
   update_visitor::visit_hist_op(new hist_op(*e));
 }
 
+
+/* for invocation from gdb */
+void
+debug_print(const expression* x)
+{
+  x->print(cout);
+  cout << endl;
+}
+void
+debug_print(const statement* x)
+{
+  x->print(cout);
+  cout << endl;
+}
+
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

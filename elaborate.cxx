@@ -3150,7 +3150,7 @@ struct dead_assignment_remover: public update_visitor
 
   dead_assignment_remover(systemtap_session& s, bool& r,
                           const varuse_collecting_visitor& v):
-    session(s), relaxed_p(r), vut(v) {}
+    update_visitor(s.verbose), session(s), relaxed_p(r), vut(v) {}
 
   void visit_assignment (assignment* e);
   void visit_try_block (try_block *s);
@@ -3325,7 +3325,7 @@ struct dead_stmtexpr_remover: public update_visitor
   set<vardecl*> focal_vars; // vars considered subject to side-effects
 
   dead_stmtexpr_remover(systemtap_session& s, bool& r):
-    session(s), relaxed_p(r) {}
+    update_visitor(s.verbose), session(s), relaxed_p(r) {}
 
   void visit_block (block *s);
   void visit_try_block (try_block *s);
@@ -3630,7 +3630,7 @@ struct void_statement_reducer: public update_visitor
   set<vardecl*> focal_vars; // vars considered subject to side-effects
 
   void_statement_reducer(systemtap_session& s, bool& r):
-    session(s), relaxed_p(r) {}
+    update_visitor(s.verbose), session(s), relaxed_p(r) {}
 
   void visit_expr_statement (expr_statement* s);
 
@@ -5043,6 +5043,7 @@ struct stable_functioncall_visitor: public update_visitor
   block* top_scope;
   block* curr_scope;
   stable_functioncall_visitor(systemtap_session& s, set<string>& sfc):
+    update_visitor(s.verbose),
     session(s), current_function(0), current_probe(0), stable_fcs(sfc),
     loop_depth(0), top_scope(0), curr_scope(0) {};
 

@@ -2866,7 +2866,7 @@ unsigned var_expanding_visitor::tick = 0;
 
 
 var_expanding_visitor::var_expanding_visitor (systemtap_session& s):
-  sess(s), op()
+  update_visitor(s.verbose), sess(s), op()
 {
   // FIXME: for the time being, by default we only support plain '$foo
   // = bar', not '+=' or any other op= variant. This is fixable, but a
