@@ -462,7 +462,7 @@ struct const_folder: public update_visitor
   bool collapse_defines_p;
   
   const_folder(systemtap_session& s, bool& r, bool collapse_defines = false):
-    session(s), relaxed_p(r), collapse_defines_p(collapse_defines),
+    update_visitor(s.verbose), session(s), relaxed_p(r), collapse_defines_p(collapse_defines),
     last_number(0), last_string(0), last_target_symbol(0) {}
 
   literal_number* last_number;
