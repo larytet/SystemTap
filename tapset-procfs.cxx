@@ -27,7 +27,6 @@ static const string TOK_WRITE("write");
 static const string TOK_MAXSIZE("maxsize");
 static const string TOK_UMASK("umask");
 
-
 // ------------------------------------------------------------------------
 // procfs file derived probes
 // ------------------------------------------------------------------------
@@ -105,6 +104,7 @@ procfs_derived_probe::procfs_derived_probe (systemtap_session &s, probe* p,
   procfs_var_expanding_visitor v (s, path, write);
   var_expand_const_fold_loop (s, this->body, v);
   target_symbol_seen = v.target_symbol_seen;
+  if (path.compare("__stdin") == 0) s.read_stdin = true;
 }
 
 

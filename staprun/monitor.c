@@ -7,6 +7,7 @@
 #include <curses.h>
 #include <time.h>
 #include <string.h>
+#include <termios.h>
 
 #define COMP_FNS 7
 #define MAX_INDEX_LEN 5
@@ -662,4 +663,79 @@ void monitor_exited(void) {}
 void monitor_remember_output_line(const char* buf, const size_t bytes) { (void)buf; (void) bytes; }
 
 #endif
+
+void *redirect_stdin(void *arg)
+{
+        char ch, path[PATH_MAX];
+        int fd;
+
+        snprintf(path, PATH_MAX - 25, "/proc/systemtap/%s/__stdin", modname);
+        /* destination file may not exist yet */
+        while ((fd = open(path, O_WRONLY)) == -1) {
+                if (errno != ENOENT) {
+                        _perr("Unexpected failure during file open.\n");
+                        exit(1);
+                }
+                usleep(2000);
+        }
+        while ((ch = getchar()) != EOF) {
+                if (! write(fd, &ch , (size_t)1) && errno != ENOENT) {
+                        _perr("Unexpected failure during write.\n");
+                        exit(1);
+                }
+        }
+        read_stdin_cleanup();
+        return arg;
+}
+
+void read_stdin_setup(void)
+{
+        pthread_t t;
+
+        if (isatty(STDIN_FILENO)) {
+                /* enter non-canonical mode */
+                struct termios oldterm, newterm;
+                if (tcgetattr(STDIN_FILENO, &oldterm) != 0) {
+                        _perr("Failed to reconfigure terminal.\n");
+                        exit(1);
+                }
+                newterm = oldterm;
+                newterm.c_lflag &= ~ICANON & ~ECHO;
+                if (tcsetattr(STDIN_FILENO, TCSANOW, &newterm) != 0) {
+                        _perr("Failed to reconfigure terminal.\n");
+                        exit(1);
+                }
+        }
+        if (setvbuf(stdin, NULL, _IONBF, 0) != 0) {
+                _perr("Failed to reconfigure input stream.\n");
+                exit(1);
+        }
+        if (pthread_create(&t, NULL, redirect_stdin, NULL) != 0) {
+                _perr("Failed to create thread.\n");
+                exit(1);
+        }
+        if (pthread_detach(t) != 0) {
+                _perr("Failed to detach thread.\n");
+                exit(1);
+        }
+        return;
+}
+
+void read_stdin_cleanup(void)
+{
+        if (isatty(STDIN_FILENO)) {
+            struct termios newterm;
+
+            if (tcgetattr(STDIN_FILENO, &newterm) != 0) {
+                    _perr("Failed to reconfigure terminal.\n");
+                    return;
+            }
+            newterm.c_lflag |= ICANON | ECHO;
+            if (tcsetattr(STDIN_FILENO, TCSANOW, &newterm) != 0) {
+                   _perr("Failed to reconfigure terminal.\n");
+            }
+        }
+        return;
+}
+
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

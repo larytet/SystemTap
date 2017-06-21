@@ -1094,7 +1094,10 @@ If no
 .I PATH
 is specified (as in the last two variants above),
 .I PATH
-defaults to "command".
+defaults to "command". The file name "__stdin" is used internally by systemtap
+for input probes and should not be used as a
+.I PATH
+for procfs probes; see the input probe section below.
 .PP
 When a user reads /proc/systemtap/MODNAME/PATH, the corresponding
 procfs
@@ -1145,6 +1148,24 @@ procfs.read.maxsize(1024) {
     $value .= "another long string..."
 }
 .ESAMPLE
+
+.SS INPUT
+
+These probe points make input from stdin available to the script during runtime.
+.BR input.char
+is the only variant of this family that is currently supported.
+This probe is triggered each time a character is read from stdin. The current
+character is available in the string variable named
+.IR $value .
+There is no newline buffering, the next character is read from stdin as soon
+as it becomes available.
+
+.PP
+Input probes are aliases for
+.BR procfs("__stdin").write .
+Systemtap reconfigures stdin if the precence of this procfs probe is detected,
+therefore "__stdin" should not be used as an argument for procfs probes.
+Additionally, input probes will not work with the -F and --remote options.
 
 .SS NETFILTER HOOKS
 

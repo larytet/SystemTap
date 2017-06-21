@@ -1,0 +1,1 @@
+probe input.char = procfs("__stdin").write {}

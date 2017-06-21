@@ -1,0 +1,11 @@
+set test "input.char"
+
+spawn stap $srcdir/$subdir/$test.stp
+
+send "abcde"
+expect "abcde"
+
+expect  {
+     "a\r\nb\r\nc\r\nzze\r\n" { pass "ok" }
+     timeout { fail "(timeout)" }
+}

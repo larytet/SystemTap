@@ -788,6 +788,9 @@ make_run_command (systemtap_session& s, const string& remotedir,
   if (s.buffer_size)
     cmd.insert(cmd.end(), { "-b", lex_cast(s.buffer_size) });
 
+  if (s.read_stdin)
+    cmd.insert(cmd.end(), "-i");
+
   if (s.need_uprobes && !kernel_built_uprobes(s))
     {
       string opt_u = "-u";

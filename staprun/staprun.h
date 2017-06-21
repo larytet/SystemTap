@@ -173,6 +173,8 @@ int make_outfile_name(char *buf, int max, int fnum, int cpu,
 int init_backlog(int cpu);
 void write_backlog(int cpu, int fnum, time_t t);
 time_t read_backlog(int cpu, int fnum);
+void read_stdin_setup(void);
+void read_stdin_cleanup(void);
 /* staprun_funcs.c */
 void setup_staprun_signals(void);
 const char *moderror(int err);
@@ -259,6 +261,7 @@ extern int target_pid;
 extern char *target_cmd;
 extern int target_namespaces_pid;
 extern char *outfile_name;
+extern int read_stdin;
 extern int rename_mod;
 extern int attach_mod;
 extern int delete_mod;

@@ -230,6 +230,7 @@ public:
   bool privilege_set;
   bool systemtap_v_check;
   bool tmpdir_opt_set;
+  bool read_stdin;
   bool monitor;
   int monitor_interval;
   int timeout; // in ms

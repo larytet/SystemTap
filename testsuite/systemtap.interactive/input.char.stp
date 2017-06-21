@@ -1,0 +1,7 @@
+probe input.char {
+        if ($value == "d") {
+	        print("zz")	
+	} else {
+		println($value)
+	}
+}

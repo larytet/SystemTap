@@ -139,6 +139,7 @@ systemtap_session::systemtap_session ():
   tmpdir_opt_set = false;
   monitor = false;
   monitor_interval = 1;
+  read_stdin = false;
   save_module = false;
   save_uprobes = false;
   modname_given = false;

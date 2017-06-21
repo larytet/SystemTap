@@ -47,6 +47,7 @@ off_t fsize_max;
 int fnum_max;
 int remote_id;
 const char *remote_uri;
+int read_stdin;
 int relay_basedir_fd;
 int color_errors;
 color_modes color_mode;
@@ -124,6 +125,7 @@ void parse_args(int argc, char **argv)
 	rename_mod = 0;
 	attach_mod = 0;
 	delete_mod = 0;
+        read_stdin = 0;
 	load_only = 0;
 	need_uprobes = 0;
 	daemon_mode = 0;
@@ -138,7 +140,7 @@ void parse_args(int argc, char **argv)
         color_errors = isatty(STDERR_FILENO)
                 && strcmp(getenv("TERM") ?: "notdumb", "dumb");
 
-	while ((c = getopt(argc, argv, "ALu::vhb:t:dc:o:x:N:S:DwRr:VT:C:M:"
+	while ((c = getopt(argc, argv, "ALu::vihb:t:dc:o:x:N:S:DwRr:VT:C:M:"
 #ifdef HAVE_OPENAT
                            "F:"
 #endif
@@ -184,6 +186,9 @@ void parse_args(int argc, char **argv)
 		case 'o':
 			outfile_name = optarg;
 			break;
+                case 'i':
+                        read_stdin = 1;
+                        break;
 		case 'R':
 			rename_mod = 1;
 			break;

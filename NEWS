@@ -3,6 +3,9 @@
 - The task_exe_file() Function has been deprecated and replaced by the
   current_exe_file() function.
 
+- A new probe alias input.char allows scripts to access input from stdin
+  during runtime.
+
 * What's new in version 3.1, 2017-02-17
 
 - Systemtap now needs C++11 to build.

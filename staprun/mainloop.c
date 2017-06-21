@@ -238,6 +238,19 @@ void start_cmd(void)
         sh_c_argv[1] = "-c";
         sh_c_argv[2] = target_cmd;
         sh_c_argv[3] = NULL;
+
+        if (read_stdin)
+          {
+            /* close target_cmd's stdin to prevent a data race */
+            char *buf = malloc(sizeof(char) * (strlen(target_cmd) + 13));
+            if (buf == NULL)
+              {
+                 _err (_("Failed to allocate memory.\n"));
+                 _exit(1);
+              }
+            sprintf(buf, "%s < /dev/null", target_cmd);
+            target_cmd = buf;
+          }
       }
     else
       {
@@ -501,6 +514,9 @@ void cleanup_and_exit(int detach, int rc)
   if (monitor)
     monitor_cleanup();
 
+  if (read_stdin)
+    read_stdin_cleanup();
+
   if (exiting)
     return;
   exiting = 1;
@@ -658,6 +674,9 @@ int stp_main_loop(void)
 
   if (monitor)
       monitor_setup();
+
+  if (read_stdin)
+      read_stdin_setup();
 
   /* In monitor mode, we must timeout pselect to poll the monitor
      interface. In non-monitor mode, we must timeout pselect so that
