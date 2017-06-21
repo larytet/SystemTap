@@ -242,7 +242,12 @@ probe vm.oom_kill = kernel.function("oom_kill_process") !,
 		    kernel.function("__oom_kill_task")
 {
     name = "oom_kill"
-    task = $p
+    if (@defined($p)) {
+        task = $p
+    }
+    else {
+        task = $oc->chosen
+    }
 }
 
 @__private30 function GFP_KERNEL:long()
