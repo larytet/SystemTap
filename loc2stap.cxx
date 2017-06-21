@@ -26,7 +26,8 @@
 
 
 location_context::location_context(target_symbol *ee, expression *pp)
-  : e(ee), attr(0), dwbias(0), pc(0), fb_attr(0), cfa_ops(0),
+  : e(deep_copy_visitor::deep_copy(ee)),
+    attr(0), dwbias(0), pc(0), fb_attr(0), cfa_ops(0),
     dw(0), frame_base(0)
 {
   // If this code snippet uses a precomputed pointer, create an
