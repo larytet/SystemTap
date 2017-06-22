@@ -68,6 +68,17 @@ keywords: _best statistics thread process
   # stap eventcount.stp syscall.* -c 'sleep 1'
 
 
+general/eventcount_interactive.stp - Interactive Count Specified Events
+keywords: interactive statistics thread process
+
+  The script periodically prints a count of specified events and their
+  related tid's over the course of execution. Numerous configuration
+  options exist to control filtering / reporting, some of which can be
+  modified at runtime. See the script source for more information.
+
+  # stap eventcount_interactive.stp 'syscall.*' -c 'sleep 3'
+
+
 general/func_time_stats.stp - Function Time Statistics
 keywords: function statistics
 
@@ -635,6 +646,66 @@ keywords: memory process
   implementation, as used by a process restricted by stap -x/-c
 
   # stap glibc-malloc.stp -c 'stap --dump-functions'
+
+
+memory/hugepage_clear_delays.stp - Summarize the time each process spends clearing huge pages
+keywords: memory
+
+  When a huge page is initially used by a process it must be cleared of
+  its original contents to avoid leaking information between processes.
+   On x86_64 machines the huge pages are 2MB in size, 512 times larger
+  than a normal 4KB page.  Thus, clearing a huge page can delay program
+  execution by a hundred or more microseconds and maybe noticeable to
+  latency sensitive programs.  This script will tally the number of
+  times that each process triggers a huge page clear, the total time in
+  microseconds spent clearing the pages, and the average time in
+  microseconds of the huge page clear.
+
+  # stap hugepage_clear_delays.stp -T 1
+
+
+memory/hugepage_collapse.stp - Log the kernel collapsing normal pages into a huge page
+keywords: memory
+
+  The kernel may attempt to group many normal sized pages into a single
+  huge page to improve TLB performance.  This operation may take a
+  significant amount of time and affect program performance.  You can
+  identify if huge page collapse operations are occurring with the
+  systemtap hugepage_collapse.stp script.
+
+  # stap hugepage_collapse.stp -T 1
+
+
+memory/hugepage_cow_delays.stp - Summarize the time each process spends doing copy on write for huge pages
+keywords: memory
+
+  The system may attempt to reduce memory use by having two or more
+  difference processes share the same writeable page in memory. 
+  However, when one of the processes write to shared page that is
+  marked copy on write (COW) the page must be duplicated and then
+  modified.  On x86_64 machines the huge pages are 2MB in size, 512
+  times larger than a normal 4KB page.	Thus, copy on write operation
+  on a huge page can delay program execution by a hundred or more
+  microseconds and maybe noticeable to latency sensitive programs. 
+  This script will tally the number of times that each process triggers
+  a huge page copy on write, the total time in microseconds spent
+  copying the pages, and the average time in microseconds of the huge
+  page copy.
+
+  # stap hugepage_cow_delays.stp -T 1
+
+
+memory/hugepage_split.stp - Log the kernel splitting huge pages into normal sized pages
+keywords: memory
+
+  Because some portions of the kernel code only work with normal-sized
+  pages the kernel may convert a huge page into a set of normal-sized
+  pages using a split operation. This operation may be relatively
+  expensive and noticeable to latency sensitive programs. You can
+  identify if split operations are occurring with the systemtap
+  hugepage_split.stp script.
+
+  # stap hugepage_split.stp -T 1
 
 
 memory/hw_watch_addr.stp - Watch a Kernel Address Using Breakpoint Hardware
