@@ -561,6 +561,20 @@ proc test_restricted_probes { privilege } {
 	}
 	set use_alias [lindex $no_yes $selector]
 
+	# python2 support is optional
+	if {[regexp "^python2" $probe_type] && ! [python2_p]} {
+	    untested "$test: $option $probe_type"
+	    set tested($probe_type) 1
+	    continue
+	}
+
+	# python3 support is optional
+	if {[regexp "^python3" $probe_type] && ! [python3_p]} {
+	    untested "$test: $option $probe_type"
+	    set tested($probe_type) 1
+	    continue
+	}
+
 	# Test the probe type. Each should fail with the expected message.
 	set probe [add_args $probe_type $our_pid]
 	if { $use_alias } {
