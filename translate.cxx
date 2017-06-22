@@ -3794,8 +3794,8 @@ c_unparser::visit_embeddedcode (embeddedcode *s)
     o->newline() << "assert_is_myproc();";
   o->newline() << "{";
 
-  if (1 || s->code.find ("CATCH_DEREF_FAULT") != string::npos)
-    o->newline() << "__label__ deref_fault;";
+  //  if (1 || s->code.find ("CATCH_DEREF_FAULT") != string::npos)
+  //    o->newline() << "__label__ deref_fault;";
 
   vector<vardecl*> read_defs;
   vector<vardecl*> write_defs;
@@ -3823,8 +3823,8 @@ c_unparser::visit_embeddedcode (embeddedcode *s)
   for (vector<vardecl*>::const_iterator it = write_defs.begin(); it != write_defs.end(); ++it)
     c_global_write_undef(*it);
 
-  if (1 || s->code.find ("CATCH_DEREF_FAULT") != string::npos)
-    o->newline() << ";";
+  //  if (1 || s->code.find ("CATCH_DEREF_FAULT") != string::npos)
+  //    o->newline() << ";";
 
   o->newline() << "}";
 }

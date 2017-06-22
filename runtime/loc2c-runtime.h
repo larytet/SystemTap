@@ -241,10 +241,7 @@
     goto deref_fault;							    \
     })
 
-#define CATCH_DEREF_FAULT()				\
-  if (0) {						\
-deref_fault: ;						\
-  }
+#define CATCH_DEREF_FAULT()	({0; }) /* always emitted by translator.cxx for functions & probes */
 #endif
 
 #endif /* _LOC2C_RUNTIME_H_ */
