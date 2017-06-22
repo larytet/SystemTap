@@ -1896,6 +1896,13 @@ semantic_pass_symbols (systemtap_session& s)
               s.probes.push_back (dp);
               dp->join_group (s);
 
+	      if (s.verbose > 2)
+		{
+		  clog << _("symbol resolution for derived-probe ");
+		  dp->printsig(clog);
+		  clog << endl;
+		}
+
               try
                 {
                   update_visitor_loop (s, s.code_filters, dp->body);
@@ -1917,12 +1924,15 @@ semantic_pass_symbols (systemtap_session& s)
             }
         }
 
-      // Pass 3: process functions
+      // Pass 3: process functions - incl. the synthetic ones, 
+      // so s.functions[] rather than dome->functions[]
 
-      for (unsigned i=0; i<dome->functions.size(); i++)
+      for (auto it = s.functions.begin(); it != s.functions.end(); it++)
         {
           assert_no_interrupts();
-          functiondecl* fd = dome->functions[i];
+          functiondecl* fd = it->second;
+	  if (s.verbose > 2)
+	    clog << _("symbol resolution for function ") << fd->name << endl;
 
           try
             {
