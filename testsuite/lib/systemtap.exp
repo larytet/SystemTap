@@ -564,7 +564,7 @@ proc environment_sanity_test {} {
     # it is allowed have bad var location descriptors (which will cause
     # some tests to fail of course). Just test -p2, kernel-devel smoke
     # test above does a full module build, we don't need another one.
-    if {[catch {exec stap --skip-badvars -w -p2 -e {probe syscall.open {println (argstr)}} 2>@ stdout} result]} {
+    if {[catch {exec stap --skip-badvars -w -p2 -e {probe dw_syscall.open {println (argstr)}} 2>@ stdout} result]} {
         puts "\n\n\n**** failed systemtap kernel-debuginfo smoke test:\n"
         puts $result
     #    puts "****\n"
