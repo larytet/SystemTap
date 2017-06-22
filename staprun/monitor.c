@@ -667,7 +667,8 @@ void monitor_remember_output_line(const char* buf, const size_t bytes) { (void)b
 
 void *redirect_stdin(void *arg)
 {
-        char ch, path[PATH_MAX];
+        char path[PATH_MAX];
+        int c;
         int fd;
 
         snprintf(path, PATH_MAX - 25, "/proc/systemtap/%s/__stdin", modname);
@@ -679,8 +680,9 @@ void *redirect_stdin(void *arg)
                 }
                 usleep(2000);
         }
-        while ((ch = getchar()) != EOF) {
-                if (! write(fd, &ch , (size_t)1) && errno != ENOENT) {
+        while ((c = getchar()) != EOF) {
+	        char ch = (char)c;
+                if (! write(fd, &ch, sizeof(ch)) && errno != ENOENT) {
                         _perr("Unexpected failure during write.\n");
                         exit(1);
                 }
