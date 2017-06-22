@@ -1,4 +1,6 @@
 #include "staprun.h"
+#include <termios.h>
+#include <unistd.h>
 
 #ifdef HAVE_MONITOR_LIBS
 
@@ -7,7 +9,6 @@
 #include <curses.h>
 #include <time.h>
 #include <string.h>
-#include <termios.h>
 
 #define COMP_FNS 7
 #define MAX_INDEX_LEN 5
