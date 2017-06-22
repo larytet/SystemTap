@@ -11037,7 +11037,21 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
   }
 
   if (header.find("timer") != string::npos)
-    they_live.push_back ("#include <asm/cputime.h>");
+    {
+      // Before including asm/cputime.h, we need to make sure it
+      // exists, which is tricky since we need the arch specific
+      // include directory.
+      string karch = s.architecture;
+      if (karch == "i386" || karch == "x86_64")
+	karch = "x86";
+      if (file_exists(s.kernel_build_tree + "/arch/" + karch
+		      + "/include/asm/cputime.h"))
+	they_live.push_back ("#include <asm/cputime.h>");
+      else if (!s.kernel_source_tree.empty()
+	       && file_exists(s.kernel_source_tree + "/arch/" + karch
+			      + "/include/asm/cputime.h"))
+	they_live.push_back ("#include <asm/cputime.h>");
+    }
 
   // linux 3.0
   they_live.push_back ("struct cpu_workqueue_struct;");
@@ -11183,6 +11197,19 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
 
   if (header.find("wbt") != string::npos)
     {
+      // blk-wbt.h gets included as "../../../block/blk-wbt.h", so we
+      // need an include path that is 3 levels deep. Note we can't use
+      // "include/linux/events", since its headers conflict with ours.
+      if (file_exists(s.kernel_build_tree + "/block/blk-wbt.h")
+	  && file_exists(s.kernel_build_tree + "/fs/xfs/libxfs"))
+	s.kernel_extra_cflags.push_back ("-I" + s.kernel_build_tree
+					 + "/fs/xfs/libxfs");
+      else if (!s.kernel_source_tree.empty()
+	       && file_exists(s.kernel_source_tree + "/block/blk-wbt.h")
+	       && file_exists(s.kernel_source_tree + "/fs/xfs/libxfs"))
+	s.kernel_extra_cflags.push_back ("-I" + s.kernel_source_tree
+					 + "/fs/xfs/libxfs");
+
       if (header_exists(s, "/include/linux/blk_types.h"))
 	they_live.push_back ("#include <linux/blk_types.h>");
       if (header_exists(s, "/include/linux/blkdev.h"))
@@ -11193,6 +11220,14 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
     {
       if (header_exists(s, "/include/linux/swiotlb.h"))
 	they_live.push_back ("#include <linux/swiotlb.h>");
+    }
+
+  if (header.find("afs") != string::npos)
+    {
+      they_live.push_back ("struct rxrpc_call;");
+      they_live.push_back ("struct rxrpc_connection;");
+      they_live.push_back ("struct rxrpc_seq_t;");
+      they_live.push_back ("struct rxrpc_serial_t;");
     }
 
   return they_live;
