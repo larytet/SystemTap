@@ -3,6 +3,9 @@
 #define MARK(name) STAP_PROBE(implicitptr, name)
 
 int z;
+int **j2;
+int ***k2;
+int ****l2;
 
 static int
 foo (int i)
@@ -10,6 +13,7 @@ foo (int i)
   int *j = &i;
   int **k = &j;
   int ***l = &k;
+  j2 = &j; k2 = &k; l2 = &l;
  l1: MARK (foo_l1);
   z++;		      /* side effect helps the probe placement hit right */
   i++;
