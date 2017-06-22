@@ -348,27 +348,28 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
  * that the kernel doesn't pagefault while reading.
  */
 
-#define __stp_deref_nocheck(value, size, addr)				      \
-  ({									      \
-    int _err = -EFAULT;							      \
-    switch (size)							      \
-      {									      \
-      case 1: { u8 _b; _err = __stp_get_user(_b, ((u8 *)(uintptr_t)(addr)));  \
-		(value) = _b; }						      \
-	break;								      \
-      case 2: { u16 _w; _err = __stp_get_user(_w, ((u16 *)(uintptr_t)(addr))); \
-		(value) = _w; }						      \
-	break;								      \
-      case 4: { u32 _l; _err = __stp_get_user(_l, ((u32 *)(uintptr_t)(addr))); \
-		(value) = _l; }						      \
-	break;								      \
-      case 8: { u64 _q; _err = __stp_get_user(_q, ((u64 *)(uintptr_t)(addr))); \
-		(value) = _q; }						      \
-	break;								      \
-      default:								      \
- 	__stp_get_user_bad();					      	      \
-      }									      \
-    _err;								      \
+#define __stp_deref_nocheck(value, size, addr)                                \
+  ({                                                                          \
+    int _err = -EFAULT;                                                       \
+    uintptr_t _a = (uintptr_t)(addr);                                         \
+    switch (size)                                                             \
+      {                                                                       \
+      case 1: { u8 _b; _err = __stp_get_user(_b, ((u8 *)_a));  \
+                (value) = _b; }                                               \
+        break;                                                                \
+      case 2: { u16 _w; _err = __stp_get_user(_w, ((u16 *)_a)); \
+                (value) = _w; }                                               \
+        break;                                                                \
+      case 4: { u32 _l; _err = __stp_get_user(_l, ((u32 *)_a)); \
+                (value) = _l; }                                               \
+        break;                                                                \
+      case 8: { u64 _q; _err = __stp_get_user(_q, ((u64 *)_a)); \
+                (value) = _q; }                                               \
+        break;                                                                \
+      default:                                                                \
+        __stp_get_user_bad();                                                 \
+      }                                                                       \
+    _err;                                                                     \
   })
 
 
@@ -386,21 +387,22 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
  */
 
 #define _stp_deref(size, addr, seg)                                           \
-  ({									      \
-    int _bad = 0;							      \
-    intptr_t _v = 0;							      \
+  ({                                                                          \
+    int _bad = 0;                                                             \
+    intptr_t _v = 0;                                                          \
+    uintptr_t _a = (uintptr_t)(addr);                                         \
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_READ, (const unsigned long)(addr), (size)))    \
+    if (lookup_bad_addr(VERIFY_READ, (const unsigned long)(_a), (size)))      \
       _bad = -EFAULT;                                                         \
     else                                                                      \
-      _bad = __stp_deref_nocheck(_v, (size), (addr));			      \
+      _bad = __stp_deref_nocheck(_v, (size), (_a));                           \
     pagefault_enable();                                                       \
     set_fs(_oldfs);                                                           \
     if (_bad)                                                                 \
-      DEREF_FAULT(addr);						      \
-    _v;									      \
+      DEREF_FAULT(_a);                                                        \
+    _v;                                                                       \
   })
 
 
@@ -419,20 +421,21 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
  * pagefault when trying to read the memory.
  */
 
-#define _stp_deref_nofault(value, size, addr, seg)			      \
-  ({									      \
-    int _bad = 0;							      \
-    intptr_t _v = 0;							      \
+#define _stp_deref_nofault(value, size, addr, seg)                            \
+  ({                                                                          \
+    int _bad = 0;                                                             \
+    intptr_t _v = 0;                                                          \
+    uintptr_t _a = (uintptr_t)(addr);                                         \
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_READ, (const unsigned long)(addr), (size)))    \
-      _bad = -EFAULT;							      \
+    if (lookup_bad_addr(VERIFY_READ, (const unsigned long)(_a), (size)))      \
+      _bad = -EFAULT;                                                         \
     else                                                                      \
-      _bad = __stp_deref_nocheck((value), (size), (addr));		      \
+      _bad = __stp_deref_nocheck((value), (size), (_a));                      \
     pagefault_enable();                                                       \
     set_fs(_oldfs);                                                           \
-    _bad;								      \
+    _bad;                                                                     \
   })
 
 
@@ -451,23 +454,24 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
  * that the kernel doesn't pagefault while writing.
  */
 
-#define __stp_store_deref_nocheck(size, addr, value)			      \
-  ({									      \
-    int _err = -EFAULT;							      \
-    switch (size)							      \
-      {									      \
-      case 1: _err = __stp_put_user(((u8)(value)), ((u8 *)(uintptr_t)(addr)));\
-        break;								      \
-      case 2: _err = __stp_put_user(((u16)(value)), ((u16 *)(uintptr_t)(addr)));\
-        break;								      \
-      case 4: _err = __stp_put_user(((u32)(value)), ((u32 *)(uintptr_t)(addr)));\
-        break;								      \
-      case 8: _err = __stp_put_user(((u64)(value)), ((u64 *)(uintptr_t)(addr)));\
-        break;								      \
-      default:								      \
-	__stp_put_user_bad();						      \
-      }									      \
-    _err;								      \
+#define __stp_store_deref_nocheck(size, addr, value)                          \
+  ({                                                                          \
+    int _err = -EFAULT;                                                       \
+    uintptr_t _a = (uintptr_t)(addr);                                         \
+    switch (size)                                                             \
+      {                                                                       \
+      case 1: _err = __stp_put_user(((u8)(value)), ((u8 *)_a));               \
+        break;                                                                \
+      case 2: _err = __stp_put_user(((u16)(value)), ((u16 *)_a));             \
+        break;                                                                \
+      case 4: _err = __stp_put_user(((u32)(value)), ((u32 *)_a));             \
+        break;                                                                \
+      case 8: _err = __stp_put_user(((u64)(value)), ((u64 *)_a));             \
+        break;                                                                \
+      default:                                                                \
+        __stp_put_user_bad();                                                 \
+      }                                                                       \
+    _err;                                                                     \
   })
 
 
@@ -486,19 +490,20 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
  */
 
 #define _stp_store_deref(size, addr, value, seg)                              \
-  ({									      \
-    int _bad = 0;							      \
+  ({                                                                          \
+    int _bad = 0;                                                             \
     mm_segment_t _oldfs = get_fs();                                           \
+    uintptr_t _a = (uintptr_t)(addr);                                         \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
-    if (lookup_bad_addr(VERIFY_WRITE, (const unsigned long)(addr), (size)))   \
+    if (lookup_bad_addr(VERIFY_WRITE, (const unsigned long)(_a), (size)))     \
       _bad = -EFAULT;                                                         \
     else                                                                      \
-      _bad = __stp_store_deref_nocheck((size), (addr), (value));	      \
+      _bad = __stp_store_deref_nocheck((size), (_a), (value));                \
     pagefault_enable();                                                       \
     set_fs(_oldfs);                                                           \
-    if (_bad)								      \
-      STORE_DEREF_FAULT(addr);						      \
+    if (_bad)                                                                 \
+      STORE_DEREF_FAULT(_a);                                                  \
   })
 
 
@@ -524,21 +529,21 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 
 /* x86 and arm can't do 8-byte put/get_user_asm, so we have to split it */
 
-#define __Xread(ptr, Xderef)				\
-  ((sizeof(*(ptr)) == 8) ?				\
-       *(typeof(ptr))&(u32[2]) {			\
-	 (u32) Xderef(4, &((u32 *)(ptr))[0]),		\
-	 (u32) Xderef(4, &((u32 *)(ptr))[1]) }		\
+#define __Xread(ptr, Xderef)                            \
+  ((sizeof(*(ptr)) == 8) ?                              \
+       *(typeof(ptr))&(u32[2]) {                        \
+         (u32) Xderef(4, &((u32 *)(ptr))[0]),           \
+         (u32) Xderef(4, &((u32 *)(ptr))[1]) }          \
      : (typeof(*(ptr))) Xderef(sizeof(*(ptr)), (ptr)))
 
-#define __Xwrite(ptr, value, store_Xderef)				     \
-  ({									     \
-    if (sizeof(*(ptr)) == 8) {						     \
-      union { typeof(*(ptr)) v; u32 l[2]; } _kw;			     \
-      _kw.v = (typeof(*(ptr)))(value);					     \
-      store_Xderef(4, &((u32 *)(ptr))[0], _kw.l[0]);			     \
-      store_Xderef(4, &((u32 *)(ptr))[1], _kw.l[1]);			     \
-    } else								     \
+#define __Xwrite(ptr, value, store_Xderef)                                   \
+  ({                                                                         \
+    if (sizeof(*(ptr)) == 8) {                                               \
+      union { typeof(*(ptr)) v; u32 l[2]; } _kw;                             \
+      _kw.v = (typeof(*(ptr)))(value);                                       \
+      store_Xderef(4, &((u32 *)(ptr))[0], _kw.l[0]);                         \
+      store_Xderef(4, &((u32 *)(ptr))[1], _kw.l[1]);                         \
+    } else                                                                   \
       store_Xderef(sizeof(*(ptr)), (ptr), (long)(typeof(*(ptr)))(value));    \
   })
 
@@ -567,70 +572,70 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
  * '\0' byte or append a '\0' byte.
  */
 
-#define kderef_buffer(dst, addr, maxbytes)				      \
-  ({									      \
-    uintptr_t _addr;							      \
-    size_t _len;							      \
-    unsigned char _c;							      \
-    char *_d = (dst);							      \
-    int _bad = 0;							      \
+#define kderef_buffer(dst, addr, maxbytes)                                    \
+  ({                                                                          \
+    uintptr_t _addr;                                                          \
+    size_t _len;                                                              \
+    unsigned char _c;                                                         \
+    char *_d = (dst);                                                         \
+    int _bad = 0;                                                             \
     mm_segment_t _oldfs = get_fs();                                           \
-    set_fs(KERNEL_DS);							      \
+    set_fs(KERNEL_DS);                                                        \
     pagefault_disable();                                                      \
     if (lookup_bad_addr(VERIFY_READ, (const unsigned long)(addr), (maxbytes))) \
       _bad = 1;                                                               \
     else                                                                      \
-      for (_len = (maxbytes), _addr = (uintptr_t)(addr);		      \
-	   _len > 1; --_len, ++_addr)					      \
-        {								      \
-	  _bad = __stp_deref_nocheck(_c, 1, _addr);			      \
-	  if (_bad)							      \
-	    break;							      \
-	  else if (_d)							      \
-	    *_d++ = _c;							      \
-	}								      \
+      for (_len = (maxbytes), _addr = (uintptr_t)(addr);                      \
+           _len > 1; --_len, ++_addr)                                         \
+        {                                                                     \
+          _bad = __stp_deref_nocheck(_c, 1, _addr);                           \
+          if (_bad)                                                           \
+            break;                                                            \
+          else if (_d)                                                        \
+            *_d++ = _c;                                                       \
+        }                                                                     \
     pagefault_enable();                                                       \
     set_fs(_oldfs);                                                           \
     if (_bad)                                                                 \
-      DEREF_FAULT(addr);						      \
-    (dst);								      \
+      DEREF_FAULT(addr);                                                      \
+    (dst);                                                                    \
   })
 
 /* The following is for kernel strings, see the uconversions.stp
    tapset for user_string functions. */
 
 
-#define kderef_string(dst, addr, maxbytes)				      \
-  ({									      \
-    uintptr_t _addr;							      \
-    size_t _len;							      \
-    unsigned char _c;							      \
-    char *_d = (dst);							      \
-    int _bad = 0;							      \
+#define kderef_string(dst, addr, maxbytes)                                    \
+  ({                                                                          \
+    uintptr_t _addr;                                                          \
+    size_t _len;                                                              \
+    unsigned char _c;                                                         \
+    char *_d = (dst);                                                         \
+    int _bad = 0;                                                             \
     mm_segment_t _oldfs = get_fs();                                           \
-    set_fs(KERNEL_DS);							      \
+    set_fs(KERNEL_DS);                                                        \
     pagefault_disable();                                                      \
     if (lookup_bad_addr(VERIFY_READ, (const unsigned long)(addr), (maxbytes))) \
       _bad = 1;                                                               \
     else                                                                      \
-      {									      \
-	for (_len = (maxbytes), _addr = (uintptr_t)(addr);		      \
-	     _len > 1; --_len, ++_addr)					      \
-	  {								      \
-	    _bad = __stp_deref_nocheck(_c, 1, _addr);			      \
-	    if (_bad || _c == '\0')					      \
-	      break;							      \
-	    else if (_d)						      \
-	      *_d++ = _c;						      \
-	  }								      \
-	if (!_bad && _d)						      \
-	  *_d = '\0';							      \
-      }									      \
+      {                                                                       \
+        for (_len = (maxbytes), _addr = (uintptr_t)(addr);                    \
+             _len > 1; --_len, ++_addr)                                       \
+          {                                                                   \
+            _bad = __stp_deref_nocheck(_c, 1, _addr);                         \
+            if (_bad || _c == '\0')                                           \
+              break;                                                          \
+            else if (_d)                                                      \
+              *_d++ = _c;                                                     \
+          }                                                                   \
+        if (!_bad && _d)                                                      \
+          *_d = '\0';                                                         \
+      }                                                                       \
     pagefault_enable();                                                       \
     set_fs(_oldfs);                                                           \
     if (_bad)                                                                 \
-      DEREF_FAULT(addr);						      \
-    (dst);								      \
+      DEREF_FAULT(addr);                                                      \
+    (dst);                                                                    \
   })
 
 
@@ -648,33 +653,33 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
  * kernel will not pagefault when trying to write the memory.
  */
 
-#define _stp_store_deref_string(src, addr, maxbytes, seg)		      \
-  ({									      \
-    uintptr_t _addr;							      \
-    size_t _len;							      \
-    char *_s = (src);							      \
-    int _bad = 0;							      \
+#define _stp_store_deref_string(src, addr, maxbytes, seg)                     \
+  ({                                                                          \
+    uintptr_t _addr;                                                          \
+    size_t _len;                                                              \
+    char *_s = (src);                                                         \
+    int _bad = 0;                                                             \
     mm_segment_t _oldfs = get_fs();                                           \
     set_fs(seg);                                                              \
     pagefault_disable();                                                      \
     if (lookup_bad_addr(VERIFY_WRITE, (const unsigned long)(addr), (maxbytes))) \
       _bad = 1;                                                               \
     else                                                                      \
-      {									      \
-	for (_len = (maxbytes), _addr = (uintptr_t)(addr);		      \
-	     _len > 1 && _s && *_s != '\0'; --_len, ++_addr)		      \
-	  {								      \
-	    _bad = __stp_store_deref_nocheck(1, _addr, *_s++);		      \
-	    if (_bad)					      		      \
-	      break;							      \
-	  }								      \
-	if (!_bad)							      \
-	  __stp_store_deref_nocheck(1, _addr, '\0');			      \
-      }									      \
+      {                                                                       \
+        for (_len = (maxbytes), _addr = (uintptr_t)(addr);                    \
+             _len > 1 && _s && *_s != '\0'; --_len, ++_addr)                  \
+          {                                                                   \
+            _bad = __stp_store_deref_nocheck(1, _addr, *_s++);                \
+            if (_bad)                                                         \
+              break;                                                          \
+          }                                                                   \
+        if (!_bad)                                                            \
+          __stp_store_deref_nocheck(1, _addr, '\0');                          \
+      }                                                                       \
     pagefault_enable();                                                       \
     set_fs(_oldfs);                                                           \
-    if (_bad)								      \
-      STORE_DEREF_FAULT(addr);						      \
+    if (_bad)                                                                 \
+      STORE_DEREF_FAULT(addr);                                                \
   })
 
 
@@ -690,7 +695,7 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
  * kernel will not pagefault when trying to write the memory.
  */
 
-#define store_kderef_string(src, addr, maxbytes)			      \
+#define store_kderef_string(src, addr, maxbytes)                              \
   _stp_store_deref_string((src), (addr), (maxbytes), KERNEL_DS)
 
 
@@ -706,7 +711,7 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
  * kernel will not pagefault when trying to write the memory.
  */
 
-#define store_uderef_string(src, addr, maxbytes)			      \
+#define store_uderef_string(src, addr, maxbytes)                              \
   _stp_store_deref_string((src), (addr), (maxbytes), USER_DS)
 
 #endif /* _LINUX_LOC2C_RUNTIME_H_ */
