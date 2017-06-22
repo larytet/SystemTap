@@ -1,5 +1,7 @@
 probe process.function("main")
 {
+  print_regs()
+
   printf("$argc: %d\n", $argc);
   printf("@var(\"argc\"): %d\n", @var("argc"));
 

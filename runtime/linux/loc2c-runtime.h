@@ -400,8 +400,10 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
       _bad = __stp_deref_nocheck(_v, (size), (_a));                           \
     pagefault_enable();                                                       \
     set_fs(_oldfs);                                                           \
-    if (_bad)                                                                 \
+    if (_bad) {                                                               \
+      printk(KERN_WARNING "_stp_deref bad %d ptr 0x%lx size %ld", _bad, _a, (long)size); \
       DEREF_FAULT(_a);                                                        \
+    }  \
     _v;                                                                       \
   })
 
