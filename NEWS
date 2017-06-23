@@ -1,5 +1,7 @@
 * What's new in version 3.2, PRERELEASE
 
+- Runtime/tapsets were ported to include up to kernel version PRERELEASE.
+
 - The syscall.execve probes now provide a decoded env_str string vector,
   just like the argument vector.
 
