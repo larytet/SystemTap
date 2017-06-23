@@ -197,10 +197,15 @@ probe ioscheduler_trace.elv_completed_request
 			= kernel.trace("block_rq_complete") ?
 {
 	name = "elv_completed_request"
-	elevator_name = kernel_string(
-		@choose_defined($q->elevator->type->elevator_name,
-			@choose_defined($q->elevator->elevator_type->elevator_name,
-                                        $q->elevator->elevator_name)), "")
+	if (@defined($q)) {
+		elevator_name = kernel_string(
+			@choose_defined($q->elevator->type->elevator_name,
+				@choose_defined($q->elevator->elevator_type->elevator_name,
+                                                $q->elevator->elevator_name)), "")
+	}
+	else {
+		elevator_name = kernel_string($rq->q->elevator->type->elevator_name)
+	}
 	rq = $rq
 
 	if ($rq == 0 || $rq->rq_disk ==0) {
