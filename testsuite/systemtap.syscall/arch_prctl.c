@@ -16,7 +16,7 @@ int main()
 {
     unsigned long fs;
     arch_prctl(ARCH_GET_FS, &fs);
-    //staptest// arch_prctl (ARCH_GET_FS, XXXX) = 0
+    //staptest// arch_prctl (ARCH_GET_FS, XXXX) = NNNN
 
     arch_prctl(-1, &fs);
     //staptest// arch_prctl (-1, XXXX) = NNNN (EINVAL)
@@ -25,13 +25,19 @@ int main()
     // int arch_prctl(int code, unsigned long addr);
     // int arch_prctl(int code, unsigned long *addr);
 
-    // Also the syscall is x86_64 specific, so __WORDSIZE == 64.
-
     arch_prctl(0, (unsigned long *)-1);
+#if __WORDSIZE == 64
     //staptest// arch_prctl (0, 18446744073709551615) = NNNN (EINVAL)
+#else
+    //staptest// arch_prctl (0, 4294967295) = NNNN (EINVAL)
+#endif
 
     arch_prctl(0, (unsigned long)-1);
+#if __WORDSIZE == 64
     //staptest// arch_prctl (0, 18446744073709551615) = NNNN (EINVAL)
+#else
+    //staptest// arch_prctl (0, 4294967295) = NNNN (EINVAL)
+#endif
 
     return 0;
 }
