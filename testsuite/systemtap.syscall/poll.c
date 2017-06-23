@@ -64,41 +64,24 @@ int main()
 #endif
 
   epoll_wait(fd, events, 17, 0);
-#if defined(__aarch64__)
-  //staptest// epoll_pwait (NNNN, XXXX, 17, 0, XXXX, NNNN) = 0
-#else
-  //staptest// epoll_wait (NNNN, XXXX, 17, 0) = 0
-#endif
+  // epoll_wait() can be implemented in terms of epoll_pwait()
+  //staptest// [[[[epoll_wait (NNNN, XXXX, 17, 0)!!!!epoll_pwait (NNNN, XXXX, 17, 0, XXXX, NNNN)]]]] = 0
 
   epoll_wait(-1, events, 17, 0);
-#if defined(__aarch64__)
-  //staptest// epoll_pwait (-1, XXXX, 17, 0, XXXX, NNNN) = -NNNN (EBADF)
-#else
-  //staptest// epoll_wait (-1, XXXX, 17, 0) = -NNNN (EBADF)
-#endif
+  //staptest// [[[[epoll_wait (-1, XXXX, 17, 0)!!!!epoll_pwait (-1, XXXX, 17, 0, XXXX, NNNN)]]]] = -NNNN (EBADF)
 
   epoll_wait(fd, (struct epoll_event *)-1, 17, 0);
 #ifdef __s390__
-  //staptest// epoll_wait (NNNN, 0x[7]?[f]+, 17, 0) =
-#elif defined(__aarch64__)
-  //staptest// epoll_pwait (NNNN, 0x[f]+, 17, 0, XXXX, NNNN) = NNNN
+  //staptest// [[[[epoll_wait (NNNN, 0x[7]?[f]+, 17, 0)!!!!epoll_pwait (NNNN, 0x[7]?[f]+, 17, 0, XXXX, NNNN)]]]] = NNNN
 #else
-  //staptest// epoll_wait (NNNN, 0x[f]+, 17, 0) =
+  //staptest// [[[[epoll_wait (NNNN, 0x[f]+, 17, 0)!!!!epoll_pwait (NNNN, 0x[f]+, 17, 0, XXXX, NNNN)]]]] = NNNN
 #endif
 
   epoll_wait(fd, events, -1, 0);
-#if defined(__aarch64__)
-  //staptest// epoll_pwait (NNNN, XXXX, -1, 0, XXXX, NNNN) = NNNN (EINVAL)
-#else
-  //staptest// epoll_wait (NNNN, XXXX, -1, 0) = -NNNN (EINVAL)
-#endif
+  //staptest// [[[[epoll_wait (NNNN, XXXX, -1, 0)!!!!epoll_pwait (NNNN, XXXX, -1, 0, XXXX, NNNN)]]]] = NNNN (EINVAL)
 
   epoll_wait(-1, events, 17, -1);
-#if defined(__aarch64__)
-  //staptest// epoll_pwait (-1, XXXX, 17, -1, XXXX, NNNN) = NNNN (EBADF)
-#else
-  //staptest// epoll_wait (-1, XXXX, 17, -1) = -NNNN (EBADF)
-#endif
+  //staptest// [[[[epoll_wait (-1, XXXX, 17, -1)!!!!epoll_pwait (-1, XXXX, 17, -1, XXXX, NNNN)]]]] = NNNN (EBADF)
 
 // RHEL5 x86_64 defines SYS_epoll_pwait, but doesn't have epoll_pwait()
 #ifdef SYS_epoll_pwait
