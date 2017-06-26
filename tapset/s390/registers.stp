@@ -47,6 +47,7 @@ _stp_regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
  */
 function _stp_get_kernel_stack_param:long(n:long)
 %{
+	__label__ deref_fault;
         unsigned long addr;
 	struct pt_regs *regs;
 
@@ -66,13 +67,11 @@ function _stp_get_kernel_stack_param:long(n:long)
         STAP_RETVALUE = kread((unsigned long *)addr);
 	return;
 
-	if (0) {
 deref_fault: /* branched to from kread() */
-		snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        		"kernel fault at %#lx accessing stack param(%d)",
-			addr, (int)STAP_ARG_n);
-    		CONTEXT->last_error = CONTEXT->error_buffer;
-	}
+	snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+		  "kernel fault at %#lx accessing stack param(%d)",
+		  addr, (int)STAP_ARG_n);
+	CONTEXT->last_error = CONTEXT->error_buffer;
 %}
 
 probe init {

@@ -115,7 +115,7 @@ function _stp_arg:long (argnum:long, sign_extend:long, truncate:long)
 function _stp_arg2:long (argnum:long, sign_extend:long, truncate:long,
 			 force64:long)
 %{ /* pure */
-
+	__label__ deref_fault;
 	long val;
 	struct pt_regs *regs;
 	int result, n, nr_regargs;
@@ -186,13 +186,11 @@ bad_argnum:
 	CONTEXT->last_error = CONTEXT->error_buffer;
 	return;
 
-	if (0) {
 deref_fault: /* branched to from kread() */
-		snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        		"kernel fault at %#lx accessing arg(%lld)", val,
-			STAP_ARG_argnum);
-    		CONTEXT->last_error = CONTEXT->error_buffer;
-	}
+	snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+		  "kernel fault at %#lx accessing arg(%lld)", val,
+		  STAP_ARG_argnum);
+	CONTEXT->last_error = CONTEXT->error_buffer;
 %}
 
 function probing_32bit_app:long() %{ /* pure */

@@ -8,6 +8,7 @@
  * Requires the use of guru mode (-g).
  */
 function set_user_string (addr:long, val:string) %{ /* guru */
+  __label__ deref_fault;
   store_uderef_string (STAP_ARG_val, STAP_ARG_addr, MAXSTRINGLEN);
   if (0) {
 deref_fault: /* branched to from store_deref_string() */
@@ -28,6 +29,7 @@ deref_fault: /* branched to from store_deref_string() */
  * Requires the use of guru mode (-g).
  */
 function set_user_string_n (addr:long, n:long, val:string) %{ /* guru */
+  __label__ deref_fault;
   int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
   store_uderef_string (STAP_ARG_val, STAP_ARG_addr, len);
   if (0) {
@@ -48,6 +50,7 @@ deref_fault: /* branched to from store_deref_string() */
  * Requires the use of guru mode (-g).
  */
 function set_user_long (addr:long, val:long) %{ /* guru */
+  __label__ deref_fault;
   uwrite((long *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from uwrite() */
@@ -67,6 +70,7 @@ deref_fault: /* branched to from uwrite() */
  * Requires the use of guru mode (-g).
  */
 function set_user_int (addr:long, val:long) %{ /* guru */
+  __label__ deref_fault;
   uwrite((int *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from uwrite() */
@@ -86,6 +90,7 @@ deref_fault: /* branched to from uwrite() */
  * Requires the use of guru mode (-g).
  */
 function set_user_short (addr:long, val:long) %{ /* guru */
+  __label__ deref_fault;
   uwrite((short *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from uwrite() */
@@ -105,6 +110,7 @@ deref_fault: /* branched to from uwrite() */
  * Requires the use of guru mode (-g).
  */
 function set_user_char (addr:long, val:long) %{ /* guru */
+  __label__ deref_fault;
   uwrite((char *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from uwrite() */
@@ -124,6 +130,7 @@ deref_fault: /* branched to from uwrite() */
  * Requires the use of guru mode (-g).
  */
 function set_user_pointer (addr:long, val:long) %{ /* guru */
+  __label__ deref_fault;
   uwrite((void **) (uintptr_t) STAP_ARG_addr, (uintptr_t)STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from uwrite() */

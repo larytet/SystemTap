@@ -16,6 +16,7 @@
  * copy fault.
  */
 function kernel_string:string (addr:long) %{ /* pure */
+  __label__ deref_fault;
   char *destination = STAP_RETVALUE;
   kderef_string (destination, STAP_ARG_addr, MAXSTRINGLEN);
   if (0) {
@@ -78,6 +79,7 @@ function kernel_string_quoted:string (addr:long)
  * given kernel memory address. Reports an error on string copy fault.
  */
 function kernel_string_n:string (addr:long, n:long) %{ /* pure */
+  __label__ deref_fault;
   char *destination = STAP_RETVALUE;
   int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
   kderef_string (destination, STAP_ARG_addr, len);
@@ -98,6 +100,7 @@ deref_fault: /* branched to from deref_string() */
  * string copy fault or conversion error.
  */
 function kernel_string_utf32:string (addr:long) %{ /* pure */
+  __label__ deref_fault;
   int rc = 0, len = MAXSTRINGLEN;
   uint32_t c32, *source = (uint32_t*)(intptr_t)STAP_ARG_addr;
   char *destination = STAP_RETVALUE;
@@ -162,6 +165,7 @@ function kernel_string_quoted_utf32:string (addr:long) {
  * string copy fault or conversion error.
  */
 function kernel_string_utf16:string (addr:long) %{ /* pure */
+  __label__ deref_fault;
   int rc = 0, len = MAXSTRINGLEN;
   uint32_t c32;
   uint16_t c16low, *source = (uint16_t*)(intptr_t)STAP_ARG_addr;
@@ -240,6 +244,7 @@ function kernel_string_quoted_utf16:string (addr:long) {
  * Reports an error when reading from the given address fails.
  */
 function kernel_long:long (addr:long) %{ /* pure */
+  __label__ deref_fault;
   STAP_RETVALUE = kread((long *) (intptr_t) STAP_ARG_addr);
   if (0) {
 deref_fault: /* branched to from kread() */
@@ -257,6 +262,7 @@ deref_fault: /* branched to from kread() */
  * Reports an error when reading from the given address fails.
  */
 function kernel_int:long (addr:long) %{ /* pure */
+  __label__ deref_fault;
   STAP_RETVALUE = kread((int *) (intptr_t) STAP_ARG_addr);
   if (0) {
 deref_fault: /* branched to from kread() */
@@ -274,6 +280,7 @@ deref_fault: /* branched to from kread() */
  * Reports an error when reading from the given address fails.
  */
 function kernel_short:long (addr:long) %{ /* pure */
+  __label__ deref_fault;
   STAP_RETVALUE = kread((short *) (intptr_t) STAP_ARG_addr);
   if (0) {
 deref_fault: /* branched to from kread() */
@@ -291,6 +298,7 @@ deref_fault: /* branched to from kread() */
  * Reports an error when reading from the given address fails.
  */
 function kernel_char:long (addr:long) %{ /* pure */
+  __label__ deref_fault;
   STAP_RETVALUE = kread((char *) (intptr_t) STAP_ARG_addr);
   if (0) {
 deref_fault: /* branched to from kread() */
@@ -309,6 +317,7 @@ deref_fault: /* branched to from kread() */
  * fails.
  */
 function kernel_pointer:long (addr:long) %{ /* pure */
+  __label__ deref_fault;
   STAP_RETVALUE = (uintptr_t) kread((void **) (uintptr_t) STAP_ARG_addr);
   if (0) {
 deref_fault: /* branched to from kread() */

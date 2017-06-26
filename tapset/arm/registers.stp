@@ -122,6 +122,7 @@ function u_register:long (name:string) {
 
 function _stp_get_stack_nth:long (n:long)
 %{ /* pure */
+	__label__ deref_fault;
 	unsigned int n = (unsigned int)STAP_ARG_n;
 	struct pt_regs *regs;
 	long *addr;
@@ -153,13 +154,11 @@ function _stp_get_stack_nth:long (n:long)
 	STAP_RETVALUE = kread(addr);
 	return;
 
-	if (0) {
 deref_fault: /* branched to from kread() */
-		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        		 "kernel fault at %#lx accessing stack arg(%d)",
-			 (unsigned long)addr, n);
-    		CONTEXT->last_error = CONTEXT->error_buffer;
-	}
+	snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+		 "kernel fault at %#lx accessing stack arg(%d)",
+		 (unsigned long)addr, n);
+	CONTEXT->last_error = CONTEXT->error_buffer;
 %}
 
 
