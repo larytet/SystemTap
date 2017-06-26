@@ -397,10 +397,8 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   server_args = other.server_args;
   mok_fingerprints = other.mok_fingerprints;
 
-#ifdef HAVE_HTTP_SUPPORT
   // HTTP client/server
   http_servers = other.http_servers;
-#endif
 
   unwindsym_modules = other.unwindsym_modules;
   auto_privilege_level_msg = other.auto_privilege_level_msg;

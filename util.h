@@ -408,6 +408,11 @@ int ppoll(struct pollfd *fds, nfds_t nfds,
 #endif
 
 
+int read_from_file (const std::string &fname, int &data);
+template <class T>
+int write_to_file (const std::string &fname, const T &data);
+int flush_to_stream (const std::string &fname, std::ostream &o);
+
 #endif // UTIL_H
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

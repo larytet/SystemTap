@@ -629,6 +629,8 @@ LTLIBOBJS
 LIBOBJS
 subdirs
 STAP_PREFIX
+NEED_BASE_CLIENT_CODE_FALSE
+NEED_BASE_CLIENT_CODE_TRUE
 HAVE_HTTP_SUPPORT_FALSE
 HAVE_HTTP_SUPPORT_TRUE
 uuid_LIBS
@@ -12767,6 +12769,22 @@ else
 fi
 
 
+ if test "x$have_http_support" = "xyes" -o "x$have_nss" = "xyes"; then
+  NEED_BASE_CLIENT_CODE_TRUE=
+  NEED_BASE_CLIENT_CODE_FALSE='#'
+else
+  NEED_BASE_CLIENT_CODE_TRUE='#'
+  NEED_BASE_CLIENT_CODE_FALSE=
+fi
+
+if test "x$have_http_support" = "xyes" -o "x$have_nss" = "xyes"; then :
+
+
+$as_echo "#define NEED_BASE_CLIENT_CODE 1" >>confdefs.h
+
+
+fi
+
 
 stap_prefix=$prefix
 test "$stap_prefix" = NONE && stap_prefix=$ac_default_prefix
@@ -13063,6 +13081,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_HTTP_SUPPORT_TRUE}" && test -z "${HAVE_HTTP_SUPPORT_FALSE}"; then
   as_fn_error $? "conditional \"HAVE_HTTP_SUPPORT\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${NEED_BASE_CLIENT_CODE_TRUE}" && test -z "${NEED_BASE_CLIENT_CODE_FALSE}"; then
+  as_fn_error $? "conditional \"NEED_BASE_CLIENT_CODE\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 

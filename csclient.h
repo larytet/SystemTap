@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2010-2014 Red Hat Inc.
+// Copyright (C) 2010-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -8,57 +8,62 @@
 #ifndef CSCLIENT_H
 #define CSCLIENT_H
 
-#if HAVE_NSS
 #include "cscommon.h"
+#include "string"
 
-struct compile_server_info;
+class client_backend
+{
+public:
+  client_backend (systemtap_session &s) : s(s) {}
+  ~client_backend () {}
+
+  void set_tmpdir (std::string &tmpdir) { client_tmpdir = tmpdir; }
+  virtual int initialize () = 0;
+  virtual int package_request () = 0;
+  virtual int find_and_connect_to_server () = 0;
+  virtual int unpack_response () = 0;
+  virtual int process_response () = 0;
+
+  virtual int add_protocol_version (const std::string &version) = 0;
+  virtual int add_sysinfo () = 0;
+  virtual int include_file_or_directory (const std::string &subdir,
+					 const std::string &path) = 0;
+  virtual int add_tmpdir_file (const std::string &path) = 0;
+  virtual int add_cmd_arg (const std::string &arg) = 0;
+
+  virtual void add_localization_variable(const std::string &var,
+					 const std::string &value) = 0;
+  virtual int finalize_localization_variables() = 0;
+
+  virtual void add_mok_fingerprint(const std::string &fingerprint) = 0;
+  virtual int finalize_mok_fingerprints() = 0;
+
+protected:
+  systemtap_session &s;
+  std::string client_tmpdir;
+};
 
 class compile_server_client
 {
 public:
-  compile_server_client (systemtap_session &s) : s(s), argc(0), server_version() {}
+  compile_server_client (systemtap_session &s) : s(s), backend(NULL) {}
   int passes_0_4 ();
 
 private:
   // Client/server session methods.
   int initialize ();
   int create_request ();
-  int package_request ();
-  int find_and_connect_to_server ();
-  int unpack_response ();
-  int process_response ();
 
   // Client/server utility methods.
-  int include_file_or_directory (
-    const std::string &subdir,
-    const std::string &path
-  );
-  int add_package_args ();
-  int add_package_arg (const std::string &arg);
-  int compile_using_server (std::vector<compile_server_info> &servers);
+  int add_cmd_args ();
   int add_localization_variables();
-
-  int read_from_file (const std::string &fname, int &data);
-  template <class T>
-  int write_to_file (const std::string &fname, const T &data);
-  int flush_to_stream (const std::string &fname, std::ostream &o);
 
   void show_server_compatibility () const;
 
   systemtap_session &s;
-  std::vector<std::string> private_ssl_dbs;
-  std::vector<std::string> public_ssl_dbs;
-  std::string client_tmpdir;
-  std::string client_zipfile;
-  std::string server_tmpdir;
-  std::string server_zipfile;
-  unsigned argc;
-  cs_protocol_version server_version;
-};
+  client_backend *backend;
 
-// Utility functions
-void query_server_status (systemtap_session &s);
-void manage_server_trust (systemtap_session &s);
-#endif // HAVE_NSS
+  std::string client_tmpdir;
+};
 
 #endif // CSCLIENT_H

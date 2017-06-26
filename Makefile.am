@@ -128,8 +128,12 @@ stap_CPPFLAGS += $(avahi_CFLAGS)
 stap_LDADD += $(avahi_LIBS)
 endif
 
+if NEED_BASE_CLIENT_CODE
+stap_SOURCES += csclient.cxx
+endif
+
 if HAVE_NSS
-stap_SOURCES += nsscommon.cxx csclient.cxx cscommon.cxx 
+stap_SOURCES += nsscommon.cxx client-nss.cxx cscommon.cxx
 stap_CFLAGS += $(nss_CFLAGS) -DSTAP
 stap_CXXFLAGS += $(nss_CFLAGS)
 stap_CPPFLAGS += $(nss_CFLAGS)
@@ -149,7 +153,7 @@ install-scripts: install-binSCRIPTS install-pkglibexecSCRIPTS
 endif
 
 if HAVE_HTTP_SUPPORT
-stap_SOURCES += http_client.cxx
+stap_SOURCES += client-http.cxx
 endif
 
 if BUILD_ELFUTILS

@@ -13,6 +13,7 @@
 #include "staptree.h"
 #include "parse.h"
 #include "csclient.h"
+#include "client-nss.h"
 
 #include "stap-probe.h"
 
@@ -1873,11 +1874,11 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
 #if HAVE_NSS
   // If requested, query server status. This is independent
   // of other tasks.
-  query_server_status (s);
+  nss_client_query_server_status (s);
 
   // If requested, manage trust of servers. This is
   // independent of other tasks.
-  manage_server_trust (s);
+  nss_client_manage_server_trust (s);
 #endif
   s.init_try_server ();
 

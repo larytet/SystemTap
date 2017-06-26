@@ -920,6 +920,15 @@ AS_IF([test "x$have_http_support" = "xyes"],
 ])
 AM_CONDITIONAL([HAVE_HTTP_SUPPORT], [test "x$have_http_support" = "xyes"])
 
+dnl NEED_BASE_CLIENT_CODE is defined when we have either HAVE_NSS
+dnl or HAVE_HTTP_SUPPORT.
+AM_CONDITIONAL([NEED_BASE_CLIENT_CODE],
+  [test "x$have_http_support" = "xyes" -o "x$have_nss" = "xyes"])
+AS_IF([test "x$have_http_support" = "xyes" -o "x$have_nss" = "xyes"], [
+  AC_DEFINE([NEED_BASE_CLIENT_CODE], [1],
+	    [Define to 1 if the base client code is needed.])
+])
+
 dnl This is here mainly to make sure that configure --prefix=... changes
 dnl the config.h files so files depending on it are recompiled
 dnl prefix is passed through indirectly in the Makefile.am AM_CPPFLAGS.

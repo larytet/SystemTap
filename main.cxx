@@ -22,9 +22,7 @@
 #include "rpm_finder.h"
 #include "task_finder.h"
 #include "csclient.h"
-#ifdef HAVE_HTTP_SUPPORT
-#include "http_client.h"
-#endif
+#include "client-nss.h"
 #include "remote.h"
 #include "tapsets.h"
 #include "setupdwfl.h"
@@ -421,13 +419,13 @@ passes_0_4 (systemtap_session &s)
     }
 
   // Perform passes 0 through 4 using a compile server?
-  if (! s.specified_servers.empty ())
+  if (! s.specified_servers.empty () || ! s.http_servers.empty ())
     {
-#if HAVE_NSS
+#if NEED_BASE_CLIENT_CODE
       compile_server_client client (s);
       return client.passes_0_4 ();
 #else
-      s.print_warning(_("Without NSS, using a compile-server is not supported by this version of systemtap"));
+      s.print_warning(_("Without NSS or HTTP client support, using a compile-server is not supported by this version of systemtap"));
 
       // This cannot be an attempt to use a server after a local compile failed
       // since --use-server-on-error is locked to 'no' if we don't have
@@ -436,15 +434,6 @@ passes_0_4 (systemtap_session &s)
       s.print_warning(_("Ignoring --use-server"));
 #endif
     }
-
-#ifdef HAVE_HTTP_SUPPORT
-  // Perform passes 0 through 4 using a http server?
-  if (! s.http_servers.empty ())
-    {
-      http_client client (s);
-      return client.passes_0_4 ();
-    }
-#endif
 
   // PASS 0: setting up
   s.verbose = s.perpass_verbose[0];
@@ -1326,11 +1315,11 @@ main (int argc, char * const argv [])
 #if HAVE_NSS
 	    // If requested, query server status. This is independent
 	    // of other tasks.
-	    query_server_status (ss);
+	    nss_client_query_server_status (ss);
 
 	    // If requested, manage trust of servers. This is
 	    // independent of other tasks.
-	    manage_server_trust (ss);
+	    nss_client_manage_server_trust (ss);
 #endif
 
 	    // Run the passes only if a script has been specified or

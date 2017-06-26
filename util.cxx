@@ -1384,4 +1384,115 @@ ppoll(struct pollfd *fds, nfds_t nfds,
 #endif
 
 
+int
+read_from_file (const string &fname, int &data)
+{
+  // C++ streams may not set errno in the even of a failure. However if we
+  // set it to 0 before each operation and it gets set during the operation,
+  // then we can use its value in order to determine what happened.
+  errno = 0;
+  ifstream f (fname.c_str ());
+  if (! f.good ())
+    {
+      clog << _F("Unable to open file '%s' for reading: ", fname.c_str());
+      goto error;
+    }
+
+  // Read the data;
+  errno = 0;
+  f >> data;
+  if (f.fail ())
+    {
+      clog << _F("Unable to read from file '%s': ", fname.c_str());
+      goto error;
+    }
+
+  // NB: not necessary to f.close ();
+  return 0; // Success
+
+ error:
+  if (errno)
+    clog << strerror (errno) << endl;
+  else
+    clog << _("unknown error") << endl;
+  return 1; // Failure
+}
+
+template <class T>
+int
+write_to_file (const string &fname, const T &data)
+{
+  // C++ streams may not set errno in the even of a failure. However if we
+  // set it to 0 before each operation and it gets set during the operation,
+  // then we can use its value in order to determine what happened.
+  errno = 0;
+  ofstream f (fname.c_str ());
+  if (! f.good ())
+    {
+      clog << _F("Unable to open file '%s' for writing: ", fname.c_str());
+      goto error;
+    }
+
+  // Write the data;
+  f << data;
+  errno = 0;
+  if (f.fail ())
+    {
+      clog << _F("Unable to write to file '%s': ", fname.c_str());
+      goto error;
+    }
+
+  // NB: not necessary to f.close ();
+  return 0; // Success
+
+ error:
+  if (errno)
+    clog << strerror (errno) << endl;
+  else
+    clog << _("unknown error") << endl;
+  return 1; // Failure
+}
+
+// Let's go ahead an instantiate a few variants of the write_to_file()
+// templated function.
+template int write_to_file (const string &fname, const string &data);
+
+int
+flush_to_stream (const string &fname, ostream &o)
+{
+  // C++ streams may not set errno in the even of a failure. However if we
+  // set it to 0 before each operation and it gets set during the operation,
+  // then we can use its value in order to determine what happened.
+  errno = 0;
+  ifstream f (fname.c_str ());
+  if (! f.good ())
+    {
+      clog << _F("Unable to open file '%s' for reading: ", fname.c_str());
+      goto error;
+    }
+
+  // Stream the data
+
+  // NB: o << f.rdbuf() misbehaves for some reason, appearing to close o,
+  // which is unfortunate if o == clog or cout.
+  while (1)
+    {
+      errno = 0;
+      int c = f.get();
+      if (f.eof ()) return 0; // normal exit
+      if (! f.good()) break;
+      o.put(c);
+      if (! o.good()) break;
+    }
+
+  // NB: not necessary to f.close ();
+
+ error:
+  if (errno)
+    clog << strerror (errno) << endl;
+  else
+    clog << _("unknown error") << endl;
+  return 1; // Failure
+}
+
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */
