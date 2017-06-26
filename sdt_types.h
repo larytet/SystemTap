@@ -1,6 +1,6 @@
-/* Copyright (C) 2005-2011 Red Hat Inc.
-
-   This file is part of systemtap, and is free software in the public domain.
+/*
+   This file is dedicated to the public domain, pursuant to CC0
+   (https://creativecommons.org/publicdomain/zero/1.0/)
 */
 
 #ifndef _SDT_TYPES_H

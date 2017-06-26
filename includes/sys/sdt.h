@@ -1,7 +1,7 @@
 /* <sys/sdt.h> - Systemtap static probe definition macros.
-   Copyright (C) 2010-2011 Red Hat Inc.
 
-   This file is part of systemtap, and is free software in the public domain.
+   This file is dedicated to the public domain, pursuant to CC0
+   (https://creativecommons.org/publicdomain/zero/1.0/)
 */
 
 #ifndef _SYS_SDT_H
