@@ -1,5 +1,8 @@
 * What's new in version 3.2, PRERELEASE
 
+- "stap -k" build trees in $TMPDIR now also include a preprocessed .i form
+  of the generated module .c code, for problem diagnostics purposes.
+
 - The task_exe_file() Function has been deprecated and replaced by the
   current_exe_file() function.
 
