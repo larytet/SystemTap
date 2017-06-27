@@ -1,5 +1,8 @@
 * What's new in version 3.2, PRERELEASE
 
+- "stap -k" build trees in $TMPDIR now also include a preprocessed .i form
+  of the generated module .c code, for problem diagnostics purposes.
+
 - Runtime/tapsets were ported to include up to kernel version PRERELEASE.
 
 - The syscall.execve probes now provide a decoded env_str string vector,
