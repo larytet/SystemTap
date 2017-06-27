@@ -10272,7 +10272,7 @@ fi
 	if test "x$enable_sqlite" != xcheck; then
       { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "--enable-sqlite was given, but test for sqlite failed
+as_fn_error $? "--enable-sqlite was given, but test for sqlite > 3.7 failed
 See \`config.log' for more details" "$LINENO" 5; }
      fi
 elif test $pkg_failed = untried; then
@@ -10281,7 +10281,7 @@ $as_echo "no" >&6; }
 	if test "x$enable_sqlite" != xcheck; then
       { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "--enable-sqlite was given, but test for sqlite failed
+as_fn_error $? "--enable-sqlite was given, but test for sqlite > 3.7 failed
 See \`config.log' for more details" "$LINENO" 5; }
      fi
 else

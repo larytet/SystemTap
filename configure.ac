@@ -251,7 +251,7 @@ AS_IF([test "x$enable_sqlite" != xno],
   [PKG_CHECK_MODULES([sqlite3], [sqlite3 > 3.7],
     [AC_DEFINE([HAVE_LIBSQLITE3], [1], [Define to 1 if you have the 'sqlite3' library (-lsqlite3).])],
     [if test "x$enable_sqlite" != xcheck; then
-      AC_MSG_FAILURE([--enable-sqlite was given, but test for sqlite failed])
+      AC_MSG_FAILURE([--enable-sqlite was given, but test for sqlite > 3.7 failed])
      fi])])
 
 dnl Handle the option to only build runtime

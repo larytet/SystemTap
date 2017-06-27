@@ -121,7 +121,7 @@ BuildRequires: dyninst-devel >= 8.0
 BuildRequires: pkgconfig(libselinux)
 %endif
 %if %{with_sqlite}
-BuildRequires: sqlite-devel
+BuildRequires: sqlite-devel > 3.7
 %endif
 %if %{with_monitor}
 BuildRequires: pkgconfig(json-c)
