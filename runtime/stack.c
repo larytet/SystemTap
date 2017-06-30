@@ -67,7 +67,9 @@ static int _stp_valid_pc_addr(unsigned long addr, struct task_struct *tsk)
 	int ok;
 	mm_segment_t oldfs = get_fs();
 	set_fs(USER_DS);
+        pagefault_disable();
 	ok = access_ok(VERIFY_READ, (long *) (intptr_t) addr, sizeof(long));
+        pagefault_enable();
 	set_fs(oldfs);
 	return addr != 0L && tsk != NULL ? ok : ! ok;
 #endif
