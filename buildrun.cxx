@@ -132,7 +132,14 @@ make_any_make_cmd(systemtap_session& s, const string& dir, const string& target)
 static vector<string>
 make_make_cmd(systemtap_session& s, const string& dir)
 {
-  return make_any_make_cmd(s, dir, "modules");
+  vector<string> mc = make_any_make_cmd(s, dir, "modules");
+  if (s.keep_tmpdir)
+    {
+      string E_source = s.translated_source.substr(s.translated_source.find_last_of("/")+1);
+      E_source.back() = 'i'; // overwrite the last character
+      mc.push_back(E_source);
+    }
+  return mc;
 }
 
 static vector<string>
@@ -545,7 +552,6 @@ compile_pass (systemtap_session& s)
   o << s.translated_source << ": $(STAPCONF_HEADER)" << endl;
   for (unsigned i=0; i<s.auxiliary_outputs.size(); i++)
     o << s.auxiliary_outputs[i]->filename << ": $(STAPCONF_HEADER)" << endl;  
-
 
   o.close ();
 
