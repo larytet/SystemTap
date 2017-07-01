@@ -4358,13 +4358,10 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
         }
 
       // Everything else (pretty-printed vars, and context vars) require a
-      // scope_die in which to search for them. If we don't have that, just
-      // leave it unresolved; we'll produce an error later on.
+      // scope_die in which to search for them. If produce an error.
       if (null_die(scope_die))
-        {
-          provide(e);
-          return;
-        }
+        throw SEMANTIC_ERROR(_F("debuginfo scope not found for module '%s', cannot resolve context variable [man error::dwarf]",
+                                q.dw.module_name.c_str()), e->tok);
 
       if (e->check_pretty_print (lvalue))
         {

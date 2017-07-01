@@ -1,5 +1,8 @@
 * What's new in version 3.2, PRERELEASE
 
+- The translator produces better diagnostics for common/annoying case
+  of missing debuginfo that blocks use of context $variables. 
+
 - "stap -k" build trees in $TMPDIR now also include a preprocessed .i form
   of the generated module .c code, for problem diagnostics purposes.
 
