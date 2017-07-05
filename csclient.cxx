@@ -18,6 +18,7 @@
 #include "util.h"
 #include "stap-probe.h"
 
+#include <unistd.h>
 #include <iostream>
 
 extern "C" {
