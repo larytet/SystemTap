@@ -327,9 +327,6 @@ parse_args(int argc, char* const argv[])
       case 'l':
         listening_port = optarg;
         break;
-      case 'd':
-	++dyninst;
-	break;
       case '?':
       default:
         usage (argv[0], 2);
@@ -430,9 +427,15 @@ do_file()
   if (!name)
     return reply ("ERROR: Missing file name\n");
   for (arg = name; *arg; ++arg)
-    if (!isalnum(*arg) &&
-        !(arg > name && (*arg == '.' || *arg == '_')))
-      return reply ("ERROR: Bad character '%c' in file name\n", *arg);
+    {
+      if (dyninst && *arg != 's')
+        dyninst--;
+      if (*arg == '.')
+        dyninst +=2;
+      if (!isalnum(*arg) &&
+          !(arg > name && (*arg == '.' || *arg == '_')))
+        return reply ("ERROR: Bad character '%c' in file name\n", *arg);
+    }
 
   FILE* f = fopen(name, "w");
   if (!f)
