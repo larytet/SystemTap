@@ -3488,8 +3488,8 @@ dwflpp::resolve_unqualified_inner_typedie (Dwarf_Die *typedie,
 }
 
 static void
-get_bitfield (const target_symbol *e,
-              Dwarf_Die *die, Dwarf_Word *bit_offset, Dwarf_Word *bit_size)
+get_bitfield (const target_symbol *e, Dwarf_Die *die, Dwarf_Word byte_size,
+              Dwarf_Word *bit_offset, Dwarf_Word *bit_size)
 {
   Dwarf_Attribute attr_mem;
   if (dwarf_attr_integrate (die, DW_AT_bit_offset, &attr_mem) == NULL
@@ -3498,6 +3498,10 @@ get_bitfield (const target_symbol *e,
       || dwarf_formudata (&attr_mem, bit_size) != 0)
     throw SEMANTIC_ERROR (_F("cannot get bit field parameters: %s",
 			  dwarf_errmsg(-1)), e->tok);
+
+  /* Convert the big-bit-endian numbers from Dwarf to little-endian.
+     This means we can avoid having to propagate byte_size further.  */
+  *bit_offset = byte_size * 8 - *bit_offset - *bit_size;
 }
 
 void
@@ -3731,7 +3735,7 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
 	  {
 	    Dwarf_Word bit_offset = 0;
 	    Dwarf_Word bit_size = 0;
-	    get_bitfield (e, vardie, &bit_offset, &bit_size);
+	    get_bitfield (e, vardie, byte_size, &bit_offset, &bit_size);
 	    translate_bitfield (ctx, byte_size, bit_offset,
 			        bit_size, signed_p);
 	  }
