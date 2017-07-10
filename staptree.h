@@ -328,6 +328,16 @@ struct target_deref: public expression
   void visit (visitor* u);
 };
 
+struct target_bitfield: public expression
+{
+  expression* base;
+  unsigned offset;
+  unsigned size;
+  bool signed_p;
+  void print (std::ostream& o) const;
+  void visit (visitor* u);
+};
+
 struct target_symbol: public expression
 {
   enum component_type
@@ -934,6 +944,7 @@ struct visitor
   virtual void visit_symbol (symbol* e) = 0;
   virtual void visit_target_register (target_register* e) = 0;
   virtual void visit_target_deref (target_deref* e) = 0;
+  virtual void visit_target_bitfield (target_bitfield* e) = 0;
   virtual void visit_target_symbol (target_symbol* e) = 0;
   virtual void visit_arrayindex (arrayindex* e) = 0;
   virtual void visit_functioncall (functioncall* e) = 0;
@@ -986,6 +997,7 @@ struct nop_visitor: public visitor
   virtual void visit_symbol (symbol*) {};
   virtual void visit_target_register (target_register*) {};
   virtual void visit_target_deref (target_deref*) {};
+  virtual void visit_target_bitfield (target_bitfield*) {};
   virtual void visit_target_symbol (target_symbol*) {};
   virtual void visit_arrayindex (arrayindex*) {};
   virtual void visit_functioncall (functioncall*) {};
@@ -1038,6 +1050,7 @@ struct traversing_visitor: public visitor
   void visit_symbol (symbol* e);
   void visit_target_register (target_register* e);
   void visit_target_deref (target_deref* e);
+  void visit_target_bitfield (target_bitfield* e);
   void visit_target_symbol (target_symbol* e);
   void visit_arrayindex (arrayindex* e);
   void visit_functioncall (functioncall* e);
@@ -1077,6 +1090,7 @@ struct expression_visitor: public traversing_visitor
   void visit_symbol (symbol* e);
   void visit_target_register (target_register* e);
   void visit_target_deref (target_deref* e);
+  void visit_target_bitfield (target_bitfield* e);
   void visit_target_symbol (target_symbol* e);
   void visit_arrayindex (arrayindex* e);
   void visit_functioncall (functioncall* e);
@@ -1199,6 +1213,7 @@ struct throwing_visitor: public visitor
   void visit_symbol (symbol* e);
   void visit_target_register (target_register* e);
   void visit_target_deref (target_deref* e);
+  void visit_target_bitfield (target_bitfield* e);
   void visit_target_symbol (target_symbol* e);
   void visit_arrayindex (arrayindex* e);
   void visit_functioncall (functioncall* e);
@@ -1312,6 +1327,7 @@ struct update_visitor: public visitor
   virtual void visit_symbol (symbol* e);
   virtual void visit_target_register (target_register* e);
   virtual void visit_target_deref (target_deref* e);
+  virtual void visit_target_bitfield (target_bitfield* e);
   virtual void visit_target_symbol (target_symbol* e);
   virtual void visit_arrayindex (arrayindex* e);
   virtual void visit_functioncall (functioncall* e);
@@ -1379,6 +1395,7 @@ struct deep_copy_visitor: public update_visitor
   virtual void visit_symbol (symbol* e);
   virtual void visit_target_register (target_register* e);
   virtual void visit_target_deref (target_deref* e);
+  virtual void visit_target_bitfield (target_bitfield* e);
   virtual void visit_target_symbol (target_symbol* e);
   virtual void visit_arrayindex (arrayindex* e);
   virtual void visit_functioncall (functioncall* e);

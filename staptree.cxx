@@ -475,6 +475,12 @@ void target_deref::print (ostream &o) const
   o << (userspace_p ? "u" : "k") << "deref(" << size << ", " << *addr << ")";
 }
 
+void target_bitfield::print (ostream &o) const
+{
+  o << (signed_p ? "s" : "u") << "bitfield(" << *base
+    << ", " << offset << ", " << size << ")";
+}
+
 void target_symbol::component::print (ostream& o) const
 {
   switch (type)
@@ -1700,6 +1706,12 @@ target_deref::visit (visitor* u)
 }
 
 void
+target_bitfield::visit (visitor* u)
+{
+  u->visit_target_bitfield(this);
+}
+
+void
 target_symbol::visit (visitor* u)
 {
   u->visit_target_symbol(this);
@@ -2091,6 +2103,12 @@ traversing_visitor::visit_target_deref (target_deref* e)
 }
 
 void
+traversing_visitor::visit_target_bitfield (target_bitfield* e)
+{
+  e->base->visit (this);
+}
+
+void
 traversing_visitor::visit_target_symbol (target_symbol* e)
 {
   e->visit_components (this);
@@ -2305,6 +2323,13 @@ void
 expression_visitor::visit_target_deref (target_deref* e)
 {
   traversing_visitor::visit_target_deref (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_target_bitfield (target_bitfield* e)
+{
+  traversing_visitor::visit_target_bitfield (e);
   visit_expression (e);
 }
 
@@ -3186,6 +3211,12 @@ throwing_visitor::visit_target_deref (target_deref* e)
 }
 
 void
+throwing_visitor::visit_target_bitfield (target_bitfield* e)
+{
+  throwone (e->tok);
+}
+
+void
 throwing_visitor::visit_target_symbol (target_symbol* e)
 {
   throwone (e->tok);
@@ -3502,6 +3533,13 @@ update_visitor::visit_target_deref (target_deref* e)
 }
 
 void
+update_visitor::visit_target_bitfield (target_bitfield* e)
+{
+  replace (e->base);
+  provide (e);
+}
+
+void
 update_visitor::visit_target_symbol (target_symbol* e)
 {
   e->visit_components (this);
@@ -3791,6 +3829,13 @@ deep_copy_visitor::visit_target_deref (target_deref* e)
 {
   target_deref* n = new target_deref(*e);
   update_visitor::visit_target_deref(n);
+}
+
+void
+deep_copy_visitor::visit_target_bitfield (target_bitfield* e)
+{
+  target_bitfield* n = new target_bitfield(*e);
+  update_visitor::visit_target_bitfield(n);
 }
 
 void

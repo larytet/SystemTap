@@ -227,6 +227,7 @@ struct c_unparser: public unparser, public visitor
   void visit_symbol (symbol* e);
   void visit_target_register (target_register* e);
   void visit_target_deref (target_deref* e);
+  void visit_target_bitfield (target_bitfield* e);
   void visit_target_symbol (target_symbol* e);
   void visit_arrayindex (arrayindex* e);
   void visit_functioncall (functioncall* e);
@@ -5161,6 +5162,12 @@ c_unparser::visit_target_deref (target_deref* e)
   o->line() << "))";
 }
 
+void
+c_unparser::visit_target_bitfield (target_bitfield*)
+{
+  // These are all expanded much earlier.
+  abort();
+}
 
 // Assignment expansion is tricky.
 //
@@ -5254,7 +5261,7 @@ c_unparser_assignment::visit_target_deref (target_deref* e)
 
   prepare_rvalue (op, rval, e->tok);
 
-  // Given how target_registers are created in loc2stap.cxx,
+  // Given how target_deref are created in loc2stap.cxx,
   // we should never see anything other than simple assignment.
   assert(op == "=");
 

@@ -265,7 +265,7 @@ location_context::save_expression(expression *val)
   if (dynamic_cast<literal_number *>(val) || dynamic_cast<symbol *>(val))
     return val;
 
-  symbol *sym = new_local(".tmp.");
+  symbol *sym = new_local("_tmp_");
 
   assignment *set = new assignment;
   set->tok = e->tok;
@@ -660,7 +660,7 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
 	    break;
 
 	  default:
-	    DIE ("unrecognized operation");
+	    DIE ("unhandled DW_OP operation");
 	    break;
 	  }
       }

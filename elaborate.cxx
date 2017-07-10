@@ -6227,6 +6227,13 @@ typeresolution_info::visit_target_deref (target_deref* e)
 }
 
 void
+typeresolution_info::visit_target_bitfield (target_bitfield*)
+{
+  // These are all expanded much earlier.
+  abort();
+}
+
+void
 typeresolution_info::visit_target_symbol (target_symbol* e)
 {
   // This occurs only if a target symbol was not resolved over in

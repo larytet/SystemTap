@@ -153,6 +153,7 @@ struct typeresolution_info: public visitor
   void visit_symbol (symbol* e);
   void visit_target_register (target_register* e);
   void visit_target_deref (target_deref* e);
+  void visit_target_bitfield (target_bitfield* e);
   void visit_target_symbol (target_symbol* e);
   void visit_arrayindex (arrayindex* e);
   void visit_functioncall (functioncall* e);

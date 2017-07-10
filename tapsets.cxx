@@ -3614,6 +3614,52 @@ dwarf_pretty_print::print_chars (Dwarf_Die* start_type, target_symbol* e,
   return true;
 }
 
+struct target_bitfield_remover: public update_visitor
+{
+  void visit_target_bitfield(target_bitfield *);
+};
+
+void target_bitfield_remover::visit_target_bitfield(target_bitfield *e)
+{
+  replace (e->base);
+
+  expression *ret;
+  if (e->signed_p)
+    {
+      binary_expression *ls = new binary_expression;
+      ls->tok = e->tok;
+      ls->op = "<<";
+      ls->left = e->base;
+      ls->right = new literal_number(64 - e->offset - e->size);
+
+      binary_expression *rs = new binary_expression;
+      rs->tok = e->tok;
+      rs->op = ">>";
+      rs->left = ls;
+      rs->right = new literal_number(64 - e->size);
+
+      ret = rs;
+    }
+  else
+    {
+      binary_expression *rs = new binary_expression;
+      rs->tok = e->tok;
+      rs->op = ">>";
+      rs->left = e->base;
+      rs->right = new literal_number(e->offset);
+
+      uint64_t field = ((uint64_t)2 << (e->size - 1)) - 1;
+      binary_expression *msk = new binary_expression;
+      msk->tok = e->tok;
+      msk->op = "&";
+      msk->left = rs;
+      msk->right = new literal_number(field);
+
+      ret = msk;
+    }
+  provide (ret);
+}
+
 // PR10601: adapt to kernel-vs-userspace loc2c-runtime
 static const string EMBEDDED_FETCH_DEREF_KERNEL = string("\n")
   + "#define fetch_register k_fetch_register\n"
@@ -3710,15 +3756,60 @@ synthetic_embedded_deref_call(dwflpp& dw, location_context &ctx,
       sym->tok = rvalue->tok;
       sym->type = pe_long;
       // sym->referent = rvalue;
+      expression *rhs = sym;
+
+      // Expand bitfield writes.
+      if (target_bitfield *bf = dynamic_cast<target_bitfield *>(ref_exp))
+	{
+          uint64_t field = ((uint64_t)2 << (bf->size - 1)) - 1;
+
+	  ref_exp = bf->base;
+	  if (target_deref *dr = dynamic_cast<target_deref *>(ref_exp))
+	    {
+	      // Compute the address for a deref only once.  This is
+	      // particularly important when the address itself is a deref.
+	      expression *addr = ctx.save_expression (dr->addr);
+	      dr->addr = addr;
+	    }
+
+	  binary_expression *msk = new binary_expression;
+	  msk->tok = tok;
+	  msk->op = "&";
+	  msk->left = sym;
+	  msk->right = new literal_number(field);
+
+	  binary_expression *sft = new binary_expression;
+	  sft->tok = tok;
+	  sft->op = "<<";
+	  sft->left = msk;
+	  sft->right = new literal_number(bf->offset);
+
+	  binary_expression *clr = new binary_expression;
+	  clr->tok = tok;
+	  clr->op = "&";
+	  clr->left = deep_copy_visitor::deep_copy(ref_exp);
+	  clr->right = new literal_number(~(field << bf->offset));
+
+	  binary_expression *ior = new binary_expression;
+	  ior->tok = tok;
+	  ior->op = "|";
+	  ior->left = clr;
+	  ior->right = sft;
+
+	  rhs = ior;
+	}
 
       assignment *a = new assignment;
       a->tok = tok;
       a->op = "=";
       a->left = ref_exp;
-      a->right = sym;
+      a->right = rhs;
 
       ref_exp = a;
     }
+
+  // Expand bitfield reads.
+  target_bitfield_remover().replace(ref_exp);
 
   fdecl->locals = ctx.locals;
 

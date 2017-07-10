@@ -3487,7 +3487,6 @@ dwflpp::resolve_unqualified_inner_typedie (Dwarf_Die *typedie,
     }
 }
 
-#if 0
 static void
 get_bitfield (const target_symbol *e,
               Dwarf_Die *die, Dwarf_Word *bit_offset, Dwarf_Word *bit_size)
@@ -3500,7 +3499,6 @@ get_bitfield (const target_symbol *e,
     throw SEMANTIC_ERROR (_F("cannot get bit field parameters: %s",
 			  dwarf_errmsg(-1)), e->tok);
 }
-#endif
 
 void
 dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool signed_p)
@@ -3584,6 +3582,26 @@ dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool si
     default:
       abort();
     }
+}
+
+void
+dwflpp::translate_bitfield(location_context &ctx, Dwarf_Word byte_size,
+			   Dwarf_Word bit_offset, Dwarf_Word bit_size,
+			   bool signed_p)
+{
+  location *loc = ctx.locations.back ();
+
+  target_bitfield *bf = new target_bitfield;
+  bf->tok = ctx.e->tok;
+  bf->base = loc->program;
+  bf->offset = bit_offset;
+  bf->size = bit_size;
+  bf->signed_p = signed_p;
+
+  loc = ctx.new_location(loc_value);
+  loc->program = bf;
+  loc->byte_size = byte_size;
+  ctx.locations.push_back(loc); 
 }
 
 // As usual, leave the result as the last location in ctx.
@@ -3708,6 +3726,15 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
 	  }
 
         translate_base_ref (ctx, byte_size, signed_p);
+
+	if (dwarf_hasattr_integrate (vardie, DW_AT_bit_offset))
+	  {
+	    Dwarf_Word bit_offset = 0;
+	    Dwarf_Word bit_size = 0;
+	    get_bitfield (e, vardie, &bit_offset, &bit_size);
+	    translate_bitfield (ctx, byte_size, bit_offset,
+			        bit_size, signed_p);
+	  }
       }
       break;
 
