@@ -4748,11 +4748,11 @@ c_unparser::visit_binary_expression (binary_expression* e)
   else if (e->op == ">>" ||
            e->op == "<<")
     {
-      o->line() << "((";
+      o->line() << "(";
       e->left->visit (this);
-      o->line() << ") " << e->op << "max(min(";
+      o->line() << ") " << e->op << " ((";
       e->right->visit (this);
-      o->line() << ", (int64_t)64LL), (int64_t)0LL))"; // between 0 and 64
+      o->line() << ") & 63)";
     }
   else if (e->op == "/" ||
            e->op == "%")
