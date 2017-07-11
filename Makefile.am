@@ -154,6 +154,7 @@ endif
 
 if HAVE_HTTP_SUPPORT
 stap_SOURCES += client-http.cxx
+stap_LDADD += $(libcurl_LIBS) $(jsonc_LIBS)
 endif
 
 if BUILD_ELFUTILS

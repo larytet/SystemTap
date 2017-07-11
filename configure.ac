@@ -896,7 +896,7 @@ AS_IF([test "x$with_extra_version" != "xno"], [
 AC_DEFINE_UNQUOTED(STAP_EXTRA_VERSION, "$stap_extra_version", [extra stap version code])
 AC_SUBST(STAP_EXTRA_VERSION, "$stap_extra_version")
 
-dnl Handle the option to build httpd web compiliation service
+dnl Handle the option to build httpd web compilation service
 AC_ARG_ENABLE([http],
   AS_HELP_STRING([--disable-http],
     [Disable building http web compilation service, even if we could]))
@@ -908,9 +908,12 @@ AS_IF([test "x$enable_http" != "xno"],
    dnl Do we have the uuid library?
    PKG_CHECK_MODULES([uuid], [uuid >= 2.17.0], [have_libuuid=true], [have_libuuid=false])
 
-   dnl If we have both libraries (and the json-c library), we could
-   dnl build the httpd web complilation service.
-   AS_IF([test "x$have_libmicrohttpd" == "xtrue" -a "x$have_libuuid" == "xtrue" -a "x$have_jsonc" == "xyes"], [have_http_support=yes])])
+   dnl Do we have the curl library?
+   PKG_CHECK_MODULES([libcurl], [libcurl >= 7.19.7-52], [have_libcurl=true], [have_libcurl=false])
+
+   dnl If we have all of the libraries (and the json-c library), we could
+   dnl build the httpd web compilation service.
+   AS_IF([test "x$have_libmicrohttpd" == "xtrue" -a "x$have_libuuid" == "xtrue" -a "x$have_libcurl" == "xtrue" -a "x$have_jsonc" == "xyes"], [have_http_support=yes])])
 
 AS_IF([test "x$have_http_support" = "xyes"],
   [AC_DEFINE([HAVE_HTTP_SUPPORT], [1],

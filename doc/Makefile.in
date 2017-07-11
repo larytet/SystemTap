@@ -307,6 +307,8 @@ infodir = @infodir@
 install_sh = @install_sh@
 jsonc_CFLAGS = @jsonc_CFLAGS@
 jsonc_LIBS = @jsonc_LIBS@
+libcurl_CFLAGS = @libcurl_CFLAGS@
+libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
 libexecdir = @libexecdir@
 libmicrohttpd_CFLAGS = @libmicrohttpd_CFLAGS@
@@ -531,8 +533,8 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@BUILD_DOCS_FALSE@clean-local:
 @BUILD_DOCS_FALSE@uninstall-local:
+@BUILD_DOCS_FALSE@clean-local:
 @BUILD_DOCS_FALSE@install-data-hook:
 clean: clean-recursive
 

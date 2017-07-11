@@ -13,11 +13,15 @@
 
 #include "session.h"
 #include "csclient.h"
+#include <json-c/json.h>
 
+class http_client;
 class http_client_backend : public client_backend
 {
 public:
   http_client_backend (systemtap_session &s) : client_backend(s) {}
+
+  friend class http_client;
 
   int initialize ();
   int package_request ();
@@ -39,7 +43,7 @@ public:
   void add_mok_fingerprint(const std::string &fingerprint);
   int finalize_mok_fingerprints() { return 0; };
 
-private:
+
   // FIXME: The 'request_parameters' data item isn't right. This means
   // we can only add string parameters, not numeric parameters. We
   // could have 'request_string_parameters' and

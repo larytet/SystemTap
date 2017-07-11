@@ -633,6 +633,8 @@ NEED_BASE_CLIENT_CODE_FALSE
 NEED_BASE_CLIENT_CODE_TRUE
 HAVE_HTTP_SUPPORT_FALSE
 HAVE_HTTP_SUPPORT_TRUE
+libcurl_LIBS
+libcurl_CFLAGS
 uuid_LIBS
 uuid_CFLAGS
 libmicrohttpd_LIBS
@@ -952,7 +954,9 @@ selinux_LIBS
 libmicrohttpd_CFLAGS
 libmicrohttpd_LIBS
 uuid_CFLAGS
-uuid_LIBS'
+uuid_LIBS
+libcurl_CFLAGS
+libcurl_LIBS'
 ac_subdirs_all='testsuite'
 
 # Initialize some variables set by options.
@@ -1689,6 +1693,10 @@ Some influential environment variables:
               linker flags for libmicrohttpd, overriding pkg-config
   uuid_CFLAGS C compiler flags for uuid, overriding pkg-config
   uuid_LIBS   linker flags for uuid, overriding pkg-config
+  libcurl_CFLAGS
+              C compiler flags for libcurl, overriding pkg-config
+  libcurl_LIBS
+              linker flags for libcurl, overriding pkg-config
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -12745,7 +12753,79 @@ $as_echo "yes" >&6; }
 	have_libuuid=true
 fi
 
-         if test "x$have_libmicrohttpd" == "xtrue" -a "x$have_libuuid" == "xtrue" -a "x$have_jsonc" == "xyes"; then :
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libcurl" >&5
+$as_echo_n "checking for libcurl... " >&6; }
+
+if test -n "$libcurl_CFLAGS"; then
+    pkg_cv_libcurl_CFLAGS="$libcurl_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libcurl >= 7.19.7-52\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libcurl >= 7.19.7-52") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libcurl_CFLAGS=`$PKG_CONFIG --cflags "libcurl >= 7.19.7-52" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libcurl_LIBS"; then
+    pkg_cv_libcurl_LIBS="$libcurl_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libcurl >= 7.19.7-52\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libcurl >= 7.19.7-52") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libcurl_LIBS=`$PKG_CONFIG --libs "libcurl >= 7.19.7-52" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libcurl_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libcurl >= 7.19.7-52" 2>&1`
+        else
+	        libcurl_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libcurl >= 7.19.7-52" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libcurl_PKG_ERRORS" >&5
+
+	have_libcurl=false
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	have_libcurl=false
+else
+	libcurl_CFLAGS=$pkg_cv_libcurl_CFLAGS
+	libcurl_LIBS=$pkg_cv_libcurl_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	have_libcurl=true
+fi
+
+         if test "x$have_libmicrohttpd" == "xtrue" -a "x$have_libuuid" == "xtrue" -a "x$have_libcurl" == "xtrue" -a "x$have_jsonc" == "xyes"; then :
   have_http_support=yes
 fi
 fi
