@@ -1776,6 +1776,10 @@ c_unparser::emit_module_init ()
   o->newline() << "#include \"linux/stp_tracepoint.c\"";
   o->newline() << "#endif";
 
+  o->newline() << "#ifdef STAP_NEED_USER_INIT";
+  o->newline() << "static int stp_user_init(void);";
+  o->newline() << "#endif";
+
   o->newline();
   o->newline() << "static int systemtap_module_init (void) {";
   o->newline(1) << "int rc = 0;";
@@ -1923,6 +1927,15 @@ c_unparser::emit_module_init ()
   o->newline() << "if (rc != 0)";
   o->newline(1) << "goto out;";
   o->indent(-1);
+
+  // user init hook
+  o->newline() << "#ifdef STAP_NEED_USER_INIT";
+  o->newline() << "rc = stp_user_init();";
+  o->newline() << "if (rc) {";
+  o->newline(1) << "_stp_error (\"couldn't initialize user init\");";
+  o->newline() << "goto out;";
+  o->newline(-1) << "}";
+  o->newline() << "#endif";
 
   for (unsigned i=0; i<session->globals.size(); i++)
     {
@@ -2253,7 +2266,7 @@ c_unparser::emit_module_exit ()
   else
     {
       o->newline() << "struct context* __restrict__ c;";
-      o->newline() << "c = _stp_runtime_entryfn_get_context();";
+      o->newline() << "c = _stp_runtime_entryfn_get_context(__LINE__);";
     }
 
   // teardown tracepoints (if needed)
@@ -2375,7 +2388,7 @@ c_unparser::emit_module_exit ()
   // In dyninst mode, now we're done with the contexts, transport, everything!
   if (session->runtime_usermode_p())
     {
-      o->newline() << "_stp_runtime_entryfn_put_context(c);";
+      o->newline() << "_stp_runtime_entryfn_put_context(c, __LINE__);";
       o->newline() << "_stp_dyninst_transport_shutdown();";
       o->newline() << "_stp_runtime_contexts_free();";
     }
