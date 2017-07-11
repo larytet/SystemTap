@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <sstream>
 #include "../util.h"
+#include "backends.h"
 
 extern "C" {
 #include <unistd.h>
@@ -114,18 +115,12 @@ protected:
 class build_info : public resource
 {
 public:
-    build_info(string &k, string &a, vector<string> &args, string &bd)
-	: resource("/builds/")
-    {
-	builder_thread_running = false;
-	kver = k;
-	arch = a;
-	cmd_args = args;
-	base_dir = bd;
-	result = NULL;
-    }
+    build_info(struct client_request_data *crd)
+	: resource("/builds/"), crd(crd), builder_thread_running(false),
+	  result(NULL) { }
 
-    ~build_info() {
+    ~build_info()
+    {
 	if (builder_thread_running) {
 	    pthread_join(builder_tid, NULL);
 	    builder_thread_running = false;
@@ -134,12 +129,17 @@ public:
 	    delete result;
 	    result = NULL;
 	}
+	if (crd) {
+	    delete crd;
+	    crd = (struct client_request_data *)(void *)0xdeadbeef;
+	}
     }
 
     void generate_response(response &r);
     void start_module_build();
 
-    bool is_build_finished() {
+    bool is_build_finished()
+    {
 	// Use a lock_guard to ensure the mutex gets released even if an
 	// exception is thrown.
 	lock_guard<mutex> lock(res_mutex);
@@ -147,10 +147,7 @@ public:
     }
 
 private:
-    string kver;
-    string arch;
-    vector<string> cmd_args;
-    string base_dir;
+    struct client_request_data *crd;
 
     bool builder_thread_running;
     pthread_t builder_tid;
@@ -254,12 +251,13 @@ void build_info::generate_response(response &r)
 	}
 
 	os << "  \"uuid\": \"" << uuid_str << "\"," << endl;
-	os << "  \"kver\": \"" << kver << "\"," << endl;
-	os << "  \"arch\": \"" << arch << "\"," << endl;
+	os << "  \"kver\": \"" << crd->kver << "\"," << endl;
+	os << "  \"arch\": \"" << crd->arch << "\"," << endl;
 
 	os << "  \"cmd_args\": [" << endl;
 	bool first = true;
-	for (auto it = cmd_args.begin(); it != cmd_args.end(); it++) {
+	for (auto it = crd->cmd_args.begin(); it != crd->cmd_args.end();
+	     it++) {
 	    struct json_object *j = json_object_new_string((*it).c_str());
 	    if (j) {
 		if (!first)
@@ -316,24 +314,31 @@ public:
 
 response build_collection_rh::POST(const request &req)
 {
+    struct client_request_data *crd = new struct client_request_data;
+    if (crd == NULL) {
+	// Return an error.
+	clog << "500 - internal server error" << endl;
+	response error500(500);
+	error500.content = "<h1>Internal server error, memor allocation failed.</h1>";
+	return error500;
+	
+    }
+
     // Gather up the info we need.
-    string kver, arch, base_dir;
-    vector<string> cmd_args;
-    vector<string> files;
     for (auto it = req.params.begin(); it != req.params.end(); it++) {
 	if (it->first == "kver") {
-	    kver = it->second[0];
+	    crd->kver = it->second[0];
 	}
 	else if (it->first == "arch") {
-	    arch = it->second[0];
+	    crd->arch = it->second[0];
 	}
 	else if (it->first == "cmd_args") {
-	    cmd_args = it->second;
+	    crd->cmd_args = it->second;
 	}
     }
     if (! req.files.empty()) {
 	clog << "Files received:" << endl;
-	base_dir = req.base_dir;
+	crd->base_dir = req.base_dir;
 	for (auto i = req.files.begin(); i != req.files.end(); i++) {
 	    for (auto j = i->second.begin(); j != i->second.end();
 		 j++) {
@@ -343,7 +348,7 @@ response build_collection_rh::POST(const request &req)
     }
 
     // Make sure we've got everything we need.
-    if (kver.empty() || arch.empty() || cmd_args.empty()) {
+    if (crd->kver.empty() || crd->arch.empty() || crd->cmd_args.empty()) {
 	// Return an error.
 	clog << "400 - bad request" << endl;
 	response error400(400);
@@ -352,8 +357,7 @@ response build_collection_rh::POST(const request &req)
     }
 
     // Create a build with the information we've gathered.
-    build_info *b = new build_info(kver, arch, cmd_args, base_dir);
-
+    build_info *b = new build_info(crd);
     {
 	// Use a lock_guard to ensure the mutex gets released even if an
 	// exception is thrown.
@@ -375,9 +379,9 @@ response build_collection_rh::POST(const request &req)
 class individual_build_rh : public request_handler
 {
 public:
-    response GET(const request &req);
-
     individual_build_rh(string n) : request_handler(n) {}
+
+    response GET(const request &req);
 };
 
 response individual_build_rh::GET(const request &req)
@@ -531,39 +535,8 @@ build_info::module_build()
     argv.push_back("--client-options");
 
     // Add the rest of the client's arguments.
-    {
-	// Use a lock_guard to ensure the mutex gets released even if an
-	// exception is thrown.
-	lock_guard<mutex> lock(res_mutex);
-	for (auto it = cmd_args.begin(); it != cmd_args.end(); it++) {
-	    argv.push_back(*it);
-	}
-    }
-
-    // Handle capturing stdout and stderr (along with using /dev/null
-    // for stdin).
-    posix_spawn_file_actions_t actions;
-    string stdout_path = string(tmp_dir) + "/stdout";
-    string stderr_path = string(tmp_dir) + "/stderr";
-    int rc = posix_spawn_file_actions_init(&actions);
-    if (rc == 0) {
-	rc = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null",
-					      O_RDONLY, S_IRWXU);
-    }
-    if (rc == 0) {
-	rc = posix_spawn_file_actions_addopen(&actions, 1, stdout_path.c_str(),
-					      O_WRONLY|O_CREAT|O_EXCL,
-					      S_IRWXU);
-    }
-    if (rc == 0) {
-	rc = posix_spawn_file_actions_addopen(&actions, 2, stderr_path.c_str(),
-					      O_WRONLY|O_CREAT|O_EXCL,
-					      S_IRWXU);
-    }
-    if (rc != 0) {
-	clog << "posix_spawn_file_actions failed: " << strerror(errno)
-	     << endl;
-	return NULL;
+    for (auto it = crd->cmd_args.begin(); it != crd->cmd_args.end(); it++) {
+	argv.push_back(*it);
     }
 
     // If we've got a base_dir, we need to do a chdir() to that
@@ -574,37 +547,30 @@ build_info::module_build()
     // before the spawn. So, instead we'll call unshare() first to
     // "unshare" the thread's working directory. Then when we do a
     // chdir(), it won't affect the other threads working directory.
-    if (!base_dir.empty()) {
+    if (!crd->base_dir.empty()) {
 	if (unshare(CLONE_FS) < 0) {
 	    clog << "Error in unshare: " << strerror(errno) << endl;
 	    return NULL;
 	}
-	if (chdir(base_dir.c_str()) < 0) {
+	if (chdir(crd->base_dir.c_str()) < 0) {
 	    clog << "Error in chdir: " << strerror(errno) << endl;
 	    return NULL;
 	}
     }
 
-    // Kick off stap.
-    pid_t pid;
-    pid = stap_spawn(2, argv, &actions);
-    clog << "spawn returned " << pid << endl;
-
-    // If stap_spawn() failed, no need to wait.
-    if (pid == -1) {
-	clog << "Error in spawn: " << strerror(errno) << endl;
-	return NULL;
+    string stdout_path = string(tmp_dir) + "/stdout";
+    string stderr_path = string(tmp_dir) + "/stderr";
+    int staprc = -1;
+    vector<backend_base *> backends;
+    get_backends(backends);
+    for (auto it = backends.begin(); it != backends.end(); it++) {
+	if ((*it)->can_generate_module(crd)) {
+	    staprc = (*it)->generate_module(crd, argv, tmp_dir, stdout_path, stderr_path);
+	    break;
+	}
     }
 
-    // Wait on the spawned process to finish.
-    int staprc = stap_waitpid(0, pid);
-    if (staprc < 0) {				// stap_waitpid() failed
-	return NULL;
-    }
-
-    // Update build_info.
-    clog << "Spawned process returned " << staprc << endl;
-    (void)posix_spawn_file_actions_destroy(&actions);
+    // FIXME: What do we do if none of the backends can handle the request?
 
     // See if we built a module.
     string module_path;

@@ -10,6 +10,17 @@
 #define __API_H__
 
 #include "server.h"
+#include <string>
+#include <vector>
+
+struct client_request_data
+{
+    std::string kver;
+    std::string arch;
+    std::string base_dir;
+    std::vector<std::string> cmd_args;
+    std::vector<std::string> files;
+};
 
 //extern bool
 //api_handler(const char *url, const map<string, string> &url_args,
