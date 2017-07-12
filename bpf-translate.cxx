@@ -1170,6 +1170,13 @@ bpf_unparser::visit_target_deref (target_deref* e)
       throw SEMANTIC_ERROR(_("unhandled deref size"), e->tok);
     }
   this_prog.mk_ld (this_ins, opc, d, frame, -e->size);
+
+  if (e->signed_p && e->size < 8)
+    {
+      value *sh = this_prog.new_imm ((8 - e->size) * 8);
+      this_prog.mk (this_ins, BPF_LSH, d, d, sh);
+      this_prog.mk (this_ins, BPF_ARSH, d, d, sh);
+    }
 }
 
 void

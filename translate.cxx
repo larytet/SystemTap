@@ -5156,6 +5156,25 @@ c_unparser::visit_target_register (target_register* e)
 void
 c_unparser::visit_target_deref (target_deref* e)
 {
+  if (e->signed_p)
+    {
+      switch (e->size)
+	{
+	case 1:
+	  o->line() << "(int8_t)";
+	  break;
+	case 2:
+	  o->line() << "(int16_t)";
+	  break;
+	case 4:
+	  o->line() << "(int32_t)";
+	  break;
+	case 8:
+	  break;
+	default:
+	  abort();
+	}
+    }
   o->line() << (e->userspace_p ? "uderef(" : "kderef(")
 	    << e->size << ", (";
   e->addr->visit (this);
