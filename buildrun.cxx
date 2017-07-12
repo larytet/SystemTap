@@ -136,7 +136,7 @@ make_make_cmd(systemtap_session& s, const string& dir)
   if (s.keep_tmpdir)
     {
       string E_source = s.translated_source.substr(s.translated_source.find_last_of("/")+1);
-      E_source.back() = 'i'; // overwrite the last character
+      E_source.at(E_source.length() - 1) = 'i'; // overwrite the last character
       mc.push_back(E_source);
     }
   return mc;
