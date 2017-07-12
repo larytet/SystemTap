@@ -1,0 +1,198 @@
+#! stap -p5
+
+global n
+global pass, fail
+
+function print_groups() {
+  for (i = 0; i < ngroups(); i++) printf("'%s' ", matched(i))
+}
+
+@define test(code, regexp, str) %(
+  passed = 1; match_fail = 0
+  result = (@str =~ @regexp)
+  if (result != !@code) { passed = 0; match_fail = 1 }
+%)
+
+@define check_equal(n, str1, str2) %(
+  // intercept 'group does not exist' error
+  if (@n >= ngroups()) { passed = 0 }
+  else if (@str1 != @str2) { passed = 0 }
+%)
+
+@define tally_result(code, regexp, str) %(
+  // TODOXXX: may also want to print *expected* group values
+  n++
+  if (passed) {
+    printf("regex PASS: #%d: %s %s %s", n, @str, (@code ? "!~" : "=~"), @regexp)
+    if (@code == 0) {
+      printf(" with %d groups ", ngroups())
+      print_groups()
+    }
+    pass++
+  } else if (match_fail) {
+    printf("regex FAIL: #%d: %s %s %s\n", n, @str, (@code ? "!~" : "=~"), @regexp)
+    fail++
+  } else {
+    printf("regex FAIL (grouping): #%d: %s %s %s with %d groups ", n, @str, (@code ? "!~" : "=~"), @regexp, ngroups())
+	print_groups()
+	fail++
+  }
+  printf("\n")
+%)
+
+@define check(code, regex, str) %(
+  @test(@code, @regex, @str)
+  @tally_result(@code, @regex, @str)
+%)
+
+@define test0 (regex, str, grp0) %(
+  @test(0, @regex, @str)
+  @check_equal(0, matched(0), @grp0)
+%)
+
+@define check0 (regex, str, grp0) %(
+  @test0(@regex, @str, @grp0)
+  @tally_result(0, @regex, @str)
+%)
+
+@define test1 (regex, str, grp0, grp1) %(
+  @test0(@regex, @str, @grp0)
+  @check_equal(1, matched(1), @grp1)
+%)
+
+@define check1 (regex, str, grp0, grp1) %(
+  @test1(@regex, @str, @grp0, @grp1)
+  @tally_result(0, @regex, @str)
+%)
+
+@define check2 (regex, str, grp0, grp1, grp2) %(
+  @test1(@regex, @str, @grp0, @grp1)
+  @check_equal(2, matched(2), @grp2)
+  @tally_result(0, @regex, @str)
+%)
+
+probe begin {
+# tests for longest-match behaviour / TODO: need to clarify POSIX/PCRE rules
+# TODOXXX: check against different regex implementations
+  @check0("a*", "aaa", "aaa")
+  @check0("a?", "aaa", "a")
+  @check1("(ab)*", "abab", "abab", "ab")
+  @check1("(ab)?", "ab", "ab", "ab")
+  @check1("(ab)?", "abab", "ab", "ab")
+  @check1("c(ab)*", "cabab", "cabab", "ab")
+  @check1("c(ab)?", "cab", "cab", "ab")
+  @check1("c(ab)?", "cabab", "cab", "ab")
+  @check1("(a*)a*a", "aaa", "aaa", "aa")
+  @check1("re(gex)", "regex", "regex", "gex")
+  @check0("(long|longer)", "longer", "longer")
+  @check(1, "regex", "unrelated")
+  @check0("a|b", "ab", "a")
+  @check0("a+|b", "baaab", "b")
+  @check0("a*|b", "aaab", "aaa")
+
+  # XXX: different engines show subtle differences in behaviour
+  #@check0("a*|b", "baaab", "") # <- PCRE behaviour
+  @check0("a*|b", "baaab", "b") # <- glibc behaviour
+  @check0("b|a*", "baaab", "b")
+  @check1("(.*).*", "abcdef", "abcdef", "abcdef")
+
+# a subset of the tests from regex.stp
+  @check0("\\\\", "\\", "\\")
+  @check0("abc", "xabcy", "abc")
+  @check0("ab*bc", "abbbbc", "abbbbc")
+  @check0("ab?bc", "abbc", "abbc")
+  @check(1, "^abc$", "abcc")
+  @check(1, "a[b-d]e", "abd")
+  @check0("a[b-d]e", "ace", "ace")
+  @check0("a\\(*b", "ab", "ab")
+  @check0("a\\(*b", "a((b", "a((b")
+  @check1("(a+|b)*", "ab", "ab", "b")
+  @check1("(a+|b)+", "ab", "ab", "b")
+  @check1("([abc])*d", "abbbcd", "abbbcd", "c")
+
+  @check(1, "^(ab|cd)e", "abcde")
+  @check1("(ab|cd)e", "abcde", "cde", "cd")  # variant..
+  @check1("(ab|cd)e$", "abcde", "cde", "cd") # variant..
+
+  @check0("[A-Za-z_][A-Za-z0-9_]*", "alpha", "alpha")
+
+  @check2("(bc+d$|ef*g.|h?i(j|k))", "ij", "ij", "ij", "j")
+  @check(1, "(bc+d$|ef*g.|h?i(j|k))", "effg")
+  @check2("(bc+d$|ef*g.|h?i(j|k))", "00effg12", "effg1", "effg1", "")
+  @check2("(bc+d$|ef*g.|h?i(j|k))", "bcccd", "bcccd", "bcccd", "") # variant..
+
+  @check(0, "(((((((((a)))))))))", "a") # TODO: check all the groups?
+  @check(1, "\\((.*),", "(.*)\\)")
+  @check(1, "[k]", "ab")
+  @check0("abcd", "abcd", "abcd")
+  @check1("a(bc)d", "abcd", "abcd", "bc")
+
+# selected tests from glibc's grouping testsuite (subfolder posix/bug-regex*.c)
+  @check0("ab[cde]", "xyabez", "abe")
+  @check(0, "^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?", "http://www.regex.com/pattern/matching.html#intro") # TODO: check 9 groups
+  @check(0, "^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?", "http://www.regex.com/pattern/matching.html?query#intro") # TODO: check 9 groups
+  @check(1, "xy$", "xyz")
+  # TODO -- @check("xy\\>", "xy  ")
+  # TODO -- @check("xy \\<", "xy z")
+  @check1("^#! */.*/(k|ba||pdk|z)sh", "#! /bin/sh", "#! /bin/sh", "")
+  @check0("[abc]*d", "foacabdxy", "acabd")
+  @check1("a(.*)b", "a b", "a b", " ")
+  @check1("(^|foo)bar", "bar", "bar", "")
+  @check1("(foo|^)bar", "bar", "bar", "")
+  @check(1, "(foo|^)bar", "bazbar") # variant..
+  @check1("(foo|^)bar", "bazfoobar", "foobar", "foo") # variant..
+  @check(1, "a^b", "a^b")
+  @check0("a t.st", "This is a test.", "a test")
+  # TODO -- @check("^6?3?[25]?5?[14]*[25]*[69]*+[58]*87?4?$", ??)
+
+# glibc posix/bug-regex13.c
+  @check0("ab{0}c", "ac", "ac")
+  @check(1, "ab{0}c", "abc")
+  @check(1, "ab{0}c", "abbc")
+  @check(1, "ab{1}{1}c", "ac")
+  @check0("ab{1}{1}c", "abc", "abc")
+  @check(1, "ab{1}{1}c", "abbc")
+  @check(1, "ab{2}{2}c", "ac")
+  @check(1, "ab{2}{2}c", "abbc")
+  @check0("ab{2}{2}c", "abbbbc", "abbbbc")
+  @check(1, "ab{2}{2}c", "abbbbbc")
+  @check0("ab{0}{1}c", "ac", "ac")
+  @check(1, "ab{0}{1}c", "abc")
+  @check(1, "ab{0}{1}c", "abbc")
+  @check0("ab{1}{0}c", "ac", "ac")
+  @check(1, "ab{1}{0}c", "abc")
+  @check(1, "ab{1}{0}c", "abbc")
+  @check0("ab{0}*c", "ac", "ac")
+  @check(1, "ab{0}*c", "abc")
+  @check(1, "ab{0}*c", "abbc")
+  @check0("ab{0}?c", "ac", "ac")
+  @check(1, "ab{0}?c", "abc")
+  @check(1, "ab{0}?c", "abbc")
+  @check0("ab{0}+c", "ac", "ac")
+  @check(1, "ab{0}+c", "abc")
+  @check(1, "ab{0}+c", "abbc")
+
+# glibc posix/bug-regex20.c - just one case for sanitycheck
+  @check0("foo", "b\xc3\xa4rfoob\xc3\xa4z", "foo")
+  #@check(2, "\xa4rfoo", "b\xc3\xa4rfoob\xc3\xa4z") # variant..
+  @check0("b.*foo", "b\xc3\xa4rfoob\xc3\xa4z", "b\xc3\xa4rfoo")
+  #@check0("b.", "b\xc3\xa4rfoob\xc3\xa4z", "b\xc3\xa4") # -> doesn't work yet
+  # XXX: . can match non-ASCII chars, but in general proper multibyte/UTF support is still in the future...
+
+# extra check -- what happens if the same regex is used twice?
+  @check0("foo", "barfoom", "foo")
+  @check(1, "foo", "barsoom")
+
+# extra check -- missing groups should be empty
+  @check1("a|(b)", "a", "a", "")
+
+# TODO: extra check: be sure using ngroups() with failed / nonexistent match throws an error properly
+# TODO: further tests here...
+
+  exit()
+}
+
+probe end {
+  printf ("\nregex total PASS: %d, FAIL: %d\n", pass, fail)
+  if (fail > 0) error ("Oops")
+}

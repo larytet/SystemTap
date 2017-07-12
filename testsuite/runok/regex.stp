@@ -192,7 +192,7 @@ probe begin {
 # @check(2,"$*","-")
 # @check(2,"(*)b","-")
   @check(1,"$b","b")
-# @check(2,"a\","-")
+# @check(2,"a\"","-")
   @check(0,"a\\(b","a(b")
   @check(0,"a\\(*b","ab")
   @check(0,"a\\(*b","a((b")
