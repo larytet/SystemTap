@@ -2331,9 +2331,7 @@ c_unparser::emit_module_exit ()
       o->newline() << "#endif"; // STP_TIMING
     }
 
-  o->newline() << "#ifndef STP_PRINT_OFF";
   o->newline() << "_stp_print_flush();";
-  o->newline() << "#endif";
   o->newline() << "#endif";
 
   //print lock contentions if non-zero
@@ -2349,9 +2347,7 @@ c_unparser::emit_module_exit ()
 	           << lex_cast_qstring(orig_vn) << ", ctr);";
     }
   o->newline(-1) << "}";
-  o->newline() << "#ifndef STP_PRINT_OFF";
   o->newline() << "_stp_print_flush();";
-  o->newline() << "#endif";
   o->newline () << "#endif";
 
   // print final error/skipped counts if non-zero
@@ -2383,9 +2379,7 @@ c_unparser::emit_module_exit ()
   o->newline() << "if (ctr) _stp_warn (\"Skipped due to uprobe unregister failure: %d\\n\", ctr);";
   o->newline(-1) << "}";
   o->newline () << "#endif";
-  o->newline() << "#ifndef STP_PRINT_OFF";
   o->newline() << "_stp_print_flush();";
-  o->newline() << "#endif";
   o->newline(-1) << "}";
 
   // NB: PR13386 needs to restore preemption-blocking counts
@@ -2907,9 +2901,7 @@ c_unparser::emit_probe (derived_probe* v)
 
       // XXX: do this flush only if the body included a
       // print/printf/etc. routine!
-      o->newline() << "#ifndef STP_PRINT_OFF";
       o->newline() << "_stp_print_flush();";
-      o->newline() << "#endif";
       o->newline(-1) << "}\n";
     }
 
