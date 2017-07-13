@@ -1174,8 +1174,8 @@ bpf_unparser::visit_target_deref (target_deref* e)
   if (e->signed_p && e->size < 8)
     {
       value *sh = this_prog.new_imm ((8 - e->size) * 8);
-      this_prog.mk (this_ins, BPF_LSH, d, d, sh);
-      this_prog.mk (this_ins, BPF_ARSH, d, d, sh);
+      this_prog.mk_binary (this_ins, BPF_LSH, d, d, sh);
+      this_prog.mk_binary (this_ins, BPF_ARSH, d, d, sh);
     }
 }
 
