@@ -1776,7 +1776,7 @@ c_unparser::emit_module_init ()
   o->newline() << "#include \"linux/stp_tracepoint.c\"";
   o->newline() << "#endif";
 
-  o->newline() << "#ifdef STAP_NEED_USER_INIT";
+  o->newline() << "#ifdef STAP_USER_HOOKS";
   o->newline() << "static int stp_user_init(void);";
   o->newline() << "#endif";
 
@@ -1929,10 +1929,10 @@ c_unparser::emit_module_init ()
   o->indent(-1);
 
   // user init hook
-  o->newline() << "#ifdef STAP_NEED_USER_INIT";
+  o->newline() << "#ifdef STAP_USER_HOOKS";
   o->newline() << "rc = stp_user_init();";
   o->newline() << "if (rc) {";
-  o->newline(1) << "_stp_error (\"couldn't initialize user init\");";
+  o->newline(1) << "_stp_error (\"user init failed\");";
   o->newline() << "goto out;";
   o->newline(-1) << "}";
   o->newline() << "#endif";
@@ -2182,6 +2182,10 @@ c_unparser::emit_module_refresh ()
 void
 c_unparser::emit_module_exit ()
 {
+  o->newline() << "#ifdef STAP_USER_HOOKS";
+  o->newline() << "static int stp_user_close(void);";
+  o->newline() << "#endif";
+
   o->newline() << "static void systemtap_module_exit (void) {";
   // rc?
   o->newline(1) << "int i=0, j=0;"; // for derived_probe_group use
@@ -2255,6 +2259,16 @@ c_unparser::emit_module_exit ()
       else
 	o->newline() << getvar (v).fini();
     }
+
+  // user close hook
+  o->newline() << "#ifdef STAP_USER_HOOKS";
+  o->newline() << "rc = stp_user_close();";
+  o->newline() << "if (rc) {";
+  o->newline(1) << "_stp_error (\"user close failed\");";
+  o->newline() << "goto out;";
+  o->newline(-1) << "}";
+  o->newline() << "#endif";
+
 
   // We're finished with the contexts if we're not in dyninst
   // mode. The dyninst mode needs the contexts, since print buffers
