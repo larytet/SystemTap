@@ -175,3 +175,8 @@ struct unwind_context uwcontext_kernel;
 #ifdef _HAVE_PERF_
 long *perf_read_values;
 #endif
+
+unsigned line_put;
+unsigned line_get;
+int busy_get;
+int busy_put;

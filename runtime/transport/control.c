@@ -560,7 +560,7 @@ static int _stp_ctl_send(int type, void *data, unsigned len)
 	   We ensure this by grabbing the context here and everywhere else that
 	   uses those locks, so such a probe will appear reentrant and be
 	   skipped rather than deadlock.  */
-	c = _stp_runtime_entryfn_get_context();
+	c = _stp_runtime_entryfn_get_context(__LINE__);
 
 	/* get a buffer from the free pool */
 	bptr = _stp_ctl_get_buffer(type, data, len);
@@ -568,7 +568,7 @@ static int _stp_ctl_send(int type, void *data, unsigned len)
 		/* Nothing else we can do... but let's not spam the kernel
                    with these reports. */
                 /* printk(KERN_ERR "ctl_write_msg type=%d len=%d ENOMEM\n", type, len); */
-		_stp_runtime_entryfn_put_context(c);
+		_stp_runtime_entryfn_put_context(c, __LINE__);
 		return -ENOMEM;
 	}
 
@@ -579,7 +579,7 @@ static int _stp_ctl_send(int type, void *data, unsigned len)
 	list_add_tail(&bptr->list, &_stp_ctl_ready_q);
 	spin_unlock_irqrestore(&_stp_ctl_ready_lock, flags);
 
-	_stp_runtime_entryfn_put_context(c);
+	_stp_runtime_entryfn_put_context(c, __LINE__);
 
 	/* It would be nice if we could speed up the notification
 	   timer at this point, but calling mod_timer() at this
@@ -618,18 +618,18 @@ static ssize_t _stp_ctl_read_cmd(struct file *file, char __user *buf,
 	unsigned long flags;
 
 	/* Prevent probe reentrancy while grabbing probe-used locks.  */
-	c = _stp_runtime_entryfn_get_context();
+	c = _stp_runtime_entryfn_get_context(__LINE__);
 
 	/* wait for nonempty ready queue */
 	spin_lock_irqsave(&_stp_ctl_ready_lock, flags);
 	while (list_empty(&_stp_ctl_ready_q)) {
 		spin_unlock_irqrestore(&_stp_ctl_ready_lock, flags);
-		_stp_runtime_entryfn_put_context(c);
+		_stp_runtime_entryfn_put_context(c, __LINE__);
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 		if (wait_event_interruptible(_stp_ctl_wq, !list_empty(&_stp_ctl_ready_q)))
 			return -ERESTARTSYS;
-		c = _stp_runtime_entryfn_get_context();
+		c = _stp_runtime_entryfn_get_context(__LINE__);
 		spin_lock_irqsave(&_stp_ctl_ready_lock, flags);
 	}
 
@@ -639,7 +639,7 @@ static ssize_t _stp_ctl_read_cmd(struct file *file, char __user *buf,
 	spin_unlock_irqrestore(&_stp_ctl_ready_lock, flags);
 
 	/* NB: we can't hold the context across copy_to_user, as it might fault.  */
-	_stp_runtime_entryfn_put_context(c);
+	_stp_runtime_entryfn_put_context(c, __LINE__);
 
 	/* write it out */
 	len = bptr->len + 4;
@@ -655,9 +655,9 @@ static ssize_t _stp_ctl_read_cmd(struct file *file, char __user *buf,
 	}
 
 	/* put it on the pool of free buffers */
-	c = _stp_runtime_entryfn_get_context();
+	c = _stp_runtime_entryfn_get_context(__LINE__);
 	_stp_ctl_free_buffer(bptr);
-	_stp_runtime_entryfn_put_context(c);
+	_stp_runtime_entryfn_put_context(c, __LINE__);
 
 	return len;
 }

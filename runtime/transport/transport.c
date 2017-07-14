@@ -348,14 +348,14 @@ static void _stp_ctl_work_callback(unsigned long val)
 	struct context* __restrict__ c = NULL;
 
 	/* Prevent probe reentrancy while grabbing probe-used locks.  */
-	c = _stp_runtime_entryfn_get_context();
+	c = _stp_runtime_entryfn_get_context(__LINE__);
 
 	spin_lock_irqsave(&_stp_ctl_ready_lock, flags);
 	if (!list_empty(&_stp_ctl_ready_q))
 		do_io = 1;
 	spin_unlock_irqrestore(&_stp_ctl_ready_lock, flags);
 
-	_stp_runtime_entryfn_put_context(c);
+	_stp_runtime_entryfn_put_context(c, __LINE__);
 
 	if (do_io)
 		wake_up_interruptible(&_stp_ctl_wq);

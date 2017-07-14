@@ -78,7 +78,9 @@ static void _stp_print_cleanup (void)
 
 static inline void _stp_print_flush(void)
 {
+#ifndef STP_PRINT_OFF
 	stp_print_flush(per_cpu_ptr(Stp_pbuf, smp_processor_id()));
+#endif
 }
 #ifndef STP_MAXBINARYARGS
 #define STP_MAXBINARYARGS 127
