@@ -169,7 +169,7 @@ common_probe_entryfn_prologue (systemtap_session& s,
       pre_context_callback(s, callback_data);
       s.op->newline() << "#endif";
     }
-  s.op->newline() << "c = _stp_runtime_entryfn_get_context();";
+  s.op->newline() << "c = _stp_runtime_entryfn_get_context(__LINE__);";
   s.op->newline() << "if (!c) {";
   s.op->newline(1) << "#if !INTERRUPTIBLE";
   s.op->newline() << "atomic_inc (skipped_count());";
@@ -353,7 +353,7 @@ common_probe_entryfn_epilogue (systemtap_session& s,
 
   // We mustn't release the context until after all _stp_error(), so dyninst
   // mode can still access the log buffers stored therein.
-  s.op->newline() << "_stp_runtime_entryfn_put_context(c);";
+  s.op->newline() << "_stp_runtime_entryfn_put_context(c, __LINE__);";
 
   s.op->newline() << "#if !INTERRUPTIBLE";
   s.op->newline() << "local_irq_restore (flags);";

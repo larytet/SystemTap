@@ -76,13 +76,14 @@ static inline struct context * _stp_runtime_get_context(void)
 	return rcu_dereference_sched(contexts[smp_processor_id()]);
 }
 
-static struct context * _stp_runtime_entryfn_get_context(void)
+static struct context * _stp_runtime_entryfn_get_context(int line)
 {
 	struct context* __restrict__ c = NULL;
 	preempt_disable ();
 	c = _stp_runtime_get_context();
 	if (c != NULL) {
 		if (atomic_inc_return(&c->busy) == 1) {
+			c->line_get = line;
 			// NB: Notice we're not re-enabling preemption
 			// here. We exepect the calling code to call
 			// _stp_runtime_entryfn_get_context() and
@@ -91,18 +92,30 @@ static struct context * _stp_runtime_entryfn_get_context(void)
 			return c;
 		}
 		atomic_dec(&c->busy);
+		//printk(KERN_ALERT "secdo: %s: c->busy=%d last_stmt=%s\n", __func__, atomic_read(&c->busy), c->last_stmt);
+	}
+	else {
+		//printk(KERN_ALERT "secdo: %s: context is null\n", __func__);
 	}
 	preempt_enable_no_resched();
 	return NULL;
 }
 
-static inline void _stp_runtime_entryfn_put_context(struct context *c)
+static inline void _stp_runtime_entryfn_put_context(struct context *c, int line)
 {
 	if (c) {
-		if (c == _stp_runtime_get_context())
+		if (c == _stp_runtime_get_context()) {
 			atomic_dec(&c->busy);
-		/* else, warn about bad state? */
+			c->line_put = line;
+		}
+		else {
+			/* else, warn about bad state? */
+			//printk(KERN_ALERT "secdo: %s: wrong context c->busy=%d last_stmt=%s\n", __func__,  atomic_read(&c->busy), c->last_stmt);
+		}
 		preempt_enable_no_resched();
+	}
+	else {
+		//printk(KERN_ALERT "secdo: %s: context is null\n", __func__);
 	}
 	return;
 }
@@ -131,7 +144,8 @@ static void _stp_runtime_context_wait(void)
 				if (time_after(jiffies, hold_start + HZ)  // > 1 second
 				    && (i > hold_index)) { // not already printed
 					hold_index = i;
-					printk(KERN_ERR "%s context[%d] stuck: %s\n", THIS_MODULE->name, i, c->probe_point);
+					printk(KERN_ERR "%s context[%d] stuck: %s, line_get=%d, line_put=%d last_err=%s last_stmt=%s\n", THIS_MODULE->name, i,
+							c->probe_point, c->line_get, c->line_put, c->last_error, c->last_stmt);
 				}
 			}
 		}

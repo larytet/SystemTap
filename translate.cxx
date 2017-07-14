@@ -1782,6 +1782,10 @@ c_unparser::emit_module_init ()
   o->newline() << "#include \"linux/stp_tracepoint.c\"";
   o->newline() << "#endif";
 
+  o->newline() << "#ifdef STAP_USER_HOOKS";
+  o->newline() << "static int stp_user_init(void);";
+  o->newline() << "#endif";
+
   o->newline();
   o->newline() << "static int systemtap_module_init (void) {";
   o->newline(1) << "int rc = 0;";
@@ -1929,6 +1933,15 @@ c_unparser::emit_module_init ()
   o->newline() << "if (rc != 0)";
   o->newline(1) << "goto out;";
   o->indent(-1);
+
+  // user init hook
+  o->newline() << "#ifdef STAP_USER_HOOKS";
+  o->newline() << "rc = stp_user_init();";
+  o->newline() << "if (rc) {";
+  o->newline(1) << "_stp_error (\"user init failed\");";
+  o->newline() << "goto out;";
+  o->newline(-1) << "}";
+  o->newline() << "#endif";
 
   for (unsigned i=0; i<session->globals.size(); i++)
     {
@@ -2176,6 +2189,10 @@ c_unparser::emit_module_refresh ()
 void
 c_unparser::emit_module_exit ()
 {
+  o->newline() << "#ifdef STAP_USER_HOOKS";
+  o->newline() << "static void stp_user_close(void);";
+  o->newline() << "#endif";
+
   o->newline() << "static void systemtap_module_exit (void) {";
   // rc?
   o->newline(1) << "int i=0, j=0;"; // for derived_probe_group use
@@ -2250,6 +2267,12 @@ c_unparser::emit_module_exit ()
 	o->newline() << getvar (v).fini();
     }
 
+  // user close hook
+  o->newline() << "#ifdef STAP_USER_HOOKS";
+  o->newline() << "stp_user_close();";
+  o->newline() << "#endif";
+
+
   // We're finished with the contexts if we're not in dyninst
   // mode. The dyninst mode needs the contexts, since print buffers
   // are stored there.
@@ -2260,7 +2283,7 @@ c_unparser::emit_module_exit ()
   else
     {
       o->newline() << "struct context* __restrict__ c;";
-      o->newline() << "c = _stp_runtime_entryfn_get_context();";
+      o->newline() << "c = _stp_runtime_entryfn_get_context(__LINE__);";
     }
 
   // teardown tracepoints (if needed)
@@ -2325,7 +2348,9 @@ c_unparser::emit_module_exit ()
       o->newline() << "#endif"; // STP_TIMING
     }
 
+  o->newline() << "#ifndef STP_PRINT_OFF";
   o->newline() << "_stp_print_flush();";
+  o->newline() << "#endif";
   o->newline() << "#endif";
 
   //print lock contentions if non-zero
@@ -2341,7 +2366,9 @@ c_unparser::emit_module_exit ()
 	           << lex_cast_qstring(orig_vn) << ", ctr);";
     }
   o->newline(-1) << "}";
+  o->newline() << "#ifndef STP_PRINT_OFF";
   o->newline() << "_stp_print_flush();";
+  o->newline() << "#endif";
   o->newline () << "#endif";
 
   // print final error/skipped counts if non-zero
@@ -2373,7 +2400,9 @@ c_unparser::emit_module_exit ()
   o->newline() << "if (ctr) _stp_warn (\"Skipped due to uprobe unregister failure: %d\\n\", ctr);";
   o->newline(-1) << "}";
   o->newline () << "#endif";
+  o->newline() << "#ifndef STP_PRINT_OFF";
   o->newline() << "_stp_print_flush();";
+  o->newline() << "#endif";
   o->newline(-1) << "}";
 
   // NB: PR13386 needs to restore preemption-blocking counts
@@ -2382,7 +2411,7 @@ c_unparser::emit_module_exit ()
   // In dyninst mode, now we're done with the contexts, transport, everything!
   if (session->runtime_usermode_p())
     {
-      o->newline() << "_stp_runtime_entryfn_put_context(c);";
+      o->newline() << "_stp_runtime_entryfn_put_context(c, __LINE__);";
       o->newline() << "_stp_dyninst_transport_shutdown();";
       o->newline() << "_stp_runtime_contexts_free();";
     }
@@ -2898,7 +2927,9 @@ c_unparser::emit_probe (derived_probe* v)
 
       // XXX: do this flush only if the body included a
       // print/printf/etc. routine!
+      o->newline() << "#ifndef STP_PRINT_OFF";
       o->newline() << "_stp_print_flush();";
+      o->newline() << "#endif";
       o->newline(-1) << "}\n";
     }
 

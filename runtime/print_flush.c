@@ -127,7 +127,7 @@ void stp_print_flush(_stp_pbuf *pb)
                  * concurrency-control-laden effort with a lockless
                  * algorithm.
 		 */
-		c = _stp_runtime_entryfn_get_context();
+		c = _stp_runtime_entryfn_get_context(__LINE__);
 
 		dbug_trans(1, "calling _stp_data_write...\n");
 		stp_spin_lock_irqsave(&_stp_print_lock, flags);
@@ -148,7 +148,7 @@ void stp_print_flush(_stp_pbuf *pb)
 			}
 		}
 		stp_spin_unlock_irqrestore(&_stp_print_lock, flags);
-		_stp_runtime_entryfn_put_context(c);
+		_stp_runtime_entryfn_put_context(c, __LINE__);
 	}
 #endif /* STP_TRANSPORT_VERSION != 1 */
 #endif /* !STP_BULKMODE */
