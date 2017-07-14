@@ -2183,7 +2183,7 @@ void
 c_unparser::emit_module_exit ()
 {
   o->newline() << "#ifdef STAP_USER_HOOKS";
-  o->newline() << "static int stp_user_close(void);";
+  o->newline() << "static void stp_user_close(void);";
   o->newline() << "#endif";
 
   o->newline() << "static void systemtap_module_exit (void) {";
@@ -2262,11 +2262,7 @@ c_unparser::emit_module_exit ()
 
   // user close hook
   o->newline() << "#ifdef STAP_USER_HOOKS";
-  o->newline() << "rc = stp_user_close();";
-  o->newline() << "if (rc) {";
-  o->newline(1) << "_stp_error (\"user close failed\");";
-  o->newline() << "goto out;";
-  o->newline(-1) << "}";
+  o->newline() << "stp_user_close();";
   o->newline() << "#endif";
 
 
