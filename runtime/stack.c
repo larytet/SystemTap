@@ -64,14 +64,20 @@ static int _stp_valid_pc_addr(unsigned long addr, struct task_struct *tsk)
 #if defined (__s390__) || defined (__s390x__)
        return addr != 0L;
 #else
-	int ok;
-	mm_segment_t oldfs = get_fs();
-	set_fs(USER_DS);
-        pagefault_disable();
-	ok = access_ok(VERIFY_READ, (long *) (intptr_t) addr, sizeof(long));
-        pagefault_enable();
-	set_fs(oldfs);
-	return addr != 0L && tsk != NULL ? ok : ! ok;
+	// Temporary PR21726 workaround: If we're in hard IRQ context
+	// (like in a timer probe), access_ok() shouldn't be called.
+	if (! in_irq()) {
+		int ok;
+		mm_segment_t oldfs = get_fs();
+		set_fs(USER_DS);
+		pagefault_disable();
+		ok = access_ok(VERIFY_READ, (long *) (intptr_t) addr,
+			       sizeof(long));
+		pagefault_enable();
+		set_fs(oldfs);
+		return addr != 0L && tsk != NULL ? ok : ! ok;
+	}
+	return addr != 0L;
 #endif
 }
 #endif
