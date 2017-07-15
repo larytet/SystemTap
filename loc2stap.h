@@ -45,8 +45,9 @@ class dwflpp;
 class location_context
 {
 public:
-  target_symbol *e;
-
+  const target_symbol *e_orig; // unmodified original
+  target_symbol *e; // deep-copied + rewritten, for use within synthetic _dwarf_tvar* function body
+  
   // These three form the argument list to the function, in sequence.
   // They will be referenced by the expression(s) computing the location.
   vardecl *pointer;

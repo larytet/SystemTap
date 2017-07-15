@@ -3690,7 +3690,11 @@ synthetic_embedded_deref_call(dwflpp& dw, location_context &ctx,
                               expression *pointer = NULL)
 {
   target_symbol *e = ctx.e;
+  const target_symbol *e_orig = ctx.e_orig;
   const token *tok = e->tok;
+
+  assert (e != NULL);
+  assert (e_orig != NULL);
 
   // Synthesize a functiondecl to contain an expression.
   string fhash = detox_path(string(tok->location.file->name));
@@ -3729,16 +3733,17 @@ synthetic_embedded_deref_call(dwflpp& dw, location_context &ctx,
     {
       fdecl->formal_args.insert(fdecl->formal_args.end(),
                                 ctx.indicies.begin(),
-                                ctx.indicies.end());
+                                ctx.indicies.end()); // indexN..M
 
+      assert (e->components.size() == e_orig->components.size());
       for (unsigned i = 0; i < e->components.size(); ++i)
         if (e->components[i].type == target_symbol::comp_expression_array_index)
-          fcall->args.push_back(e->components[i].expr_index);
+          fcall->args.push_back(e_orig->components[i].expr_index); // the original index expression
     }
 
   // If this code snippet is assigning to an lvalue,
   // add a final argument for the rvalue.
-  expression *ref_exp = ctx.locations.back()->program;
+  expression *ref_exp = ctx.locations.back()->program; // contains rewritten 
   if (lvalue_p)
     {
       // NB: We don't know the value for fcall argument yet.
@@ -3855,11 +3860,11 @@ dwarf_pretty_print::deref (target_symbol* e)
 
   Dwarf_Die endtype;
   if (pointer)
-    dw.literal_stmt_for_pointer (ctx, &pointer_type, e, lvalue_p, &endtype);
+    dw.literal_stmt_for_pointer (ctx, &pointer_type, ctx.e, lvalue_p, &endtype);
   else if (!local.empty())
-    dw.literal_stmt_for_local (ctx, scopes, local, e, lvalue_p, &endtype);
+    dw.literal_stmt_for_local (ctx, scopes, local, ctx.e, lvalue_p, &endtype);
   else
-    dw.literal_stmt_for_return (ctx, &scopes[0], e, lvalue_p, &endtype);
+    dw.literal_stmt_for_return (ctx, &scopes[0], ctx.e, lvalue_p, &endtype);
 
   string name = "_dwarf_pretty_print_deref_" + lex_cast(tick++);
   return synthetic_embedded_deref_call(dw, ctx, name, &endtype, userspace_p,
@@ -4504,12 +4509,14 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
       ctx.pc = addr;
       ctx.userspace_p = userspace_p;
 
+      // NB: pass the ctx.e (copied/rewritten veraion e, not orig_e),
+      // so [x] index expressions have their intra-synthetic-function names
       Dwarf_Die endtype;
       if (q.has_return && (e->name == "$return"))
-	q.dw.literal_stmt_for_return (ctx, scope_die, e, lvalue, &endtype);
+	q.dw.literal_stmt_for_return (ctx, scope_die, ctx.e, lvalue, &endtype);
       else
 	q.dw.literal_stmt_for_local (ctx, getscopes(e), e->sym_name(),
-				     e, lvalue, &endtype);
+				     ctx.e, lvalue, &endtype);
 
       string fname = (string(lvalue ? "_dwarf_tvar_set" : "_dwarf_tvar_get")
                       + "_" + escaped_indentifier_string (e->sym_name())
@@ -4741,7 +4748,7 @@ dwarf_cast_query::handle_query_module()
           return;
         }
 
-      ok = dw.literal_stmt_for_pointer (ctx, type_die, &e, lvalue, &endtype);
+      ok = dw.literal_stmt_for_pointer (ctx, type_die, ctx.e, lvalue, &endtype);
     }
   catch (const semantic_error& er)
     {
@@ -5010,7 +5017,7 @@ dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, dwarf_atvar_query *q)
       Dwarf_Die endtype;
 
       bool ok = q->dw.literal_stmt_for_local (ctx, scopes, q->e.sym_name(),
-					      &q->e, q->lvalue, &endtype);
+					      ctx.e, q->lvalue, &endtype);
 
       if (!ok)
         return DWARF_CB_OK;
@@ -10729,7 +10736,7 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
       ctx.userspace_p = userspace_p;
 
       Dwarf_Die endtype;
-      dw.literal_stmt_for_pointer (ctx, &arg->type_die, e, lvalue, &endtype);
+      dw.literal_stmt_for_pointer (ctx, &arg->type_die, ctx.e, lvalue, &endtype);
 
       string fname = (string(lvalue ? "_tracepoint_tvar_set"
 			     : "_tracepoint_tvar_get")

@@ -570,7 +570,7 @@ void perf_op::print (ostream& o) const
 
 void vardecl::print (ostream& o) const
 {
-  o << unmangled_name;
+  o << ((unmangled_name != "") ? unmangled_name : name); // unmangled_name empty for some synthesized vardecls
   if(wrap)
     o << "%";
   if (maxsize > 0)

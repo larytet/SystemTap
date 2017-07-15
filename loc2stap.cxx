@@ -26,8 +26,8 @@
 
 
 location_context::location_context(target_symbol *ee, expression *pp)
-  : e(deep_copy_visitor::deep_copy(ee)),
-    attr(0), dwbias(0), pc(0), fb_attr(0), cfa_ops(0),
+  : e_orig(ee), e(deep_copy_visitor::deep_copy(ee)), pointer(0), value(0),
+    attr(0), dwbias(0), pc(0), fb_attr(0), cfa_ops(0), 
     dw(0), frame_base(0)
 {
   // If this code snippet uses a precomputed pointer, create an
@@ -50,6 +50,14 @@ location_context::location_context(target_symbol *ee, expression *pp)
         v->name = "index" + lex_cast(i);
         v->tok = e->tok;
         this->indicies.push_back(v);
+
+        // substitute the [$exprN]->indexN in the target_symbol* copy,
+        // which will be used for expansion to kderef() etc.
+        symbol *s = new symbol;
+        s->type = pe_long;
+        s->name = v->name;
+        s->tok = v->tok;
+        e->components[i].expr_index = s;
       }
 }
 
