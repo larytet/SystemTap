@@ -4529,8 +4529,7 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
       if (lvalue)
 	provide_lvalue_call (n);
 
-      // Revisit the functioncall so arguments can be expanded.
-      n->visit (this);
+      provide(n); // allow recursion to $var1[$var2] subexpressions
     }
   catch (const semantic_error& er)
     {
@@ -10749,8 +10748,7 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
       if (lvalue)
 	provide_lvalue_call (n);
 
-      // Revisit the functioncall so arguments can be expanded.
-      n->visit (this);
+      provide(n); // allow recursion to $var1[$var2] subexpressions
     }
 }
 
