@@ -3509,6 +3509,7 @@ dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool si
 {
   location *loc = ctx.locations.back ();
 
+ restart:
   switch (loc->type)
     {
     case loc_value:
@@ -3578,7 +3579,15 @@ dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool si
       }
 
     case loc_noncontiguous:
-      throw SEMANTIC_ERROR (_("noncontiguous location for base fetch"), ctx.e->tok);
+      loc = loc->pieces;
+      if (loc && loc->byte_size >= byte_size)
+	{
+	  ctx.locations.push_back(loc);
+	  goto restart;
+	}
+      throw SEMANTIC_ERROR (_("noncontiguous location for base fetch"),
+			    ctx.e->tok);
+
     case loc_implicit_pointer:
       throw SEMANTIC_ERROR (_("pointer optimized out"), ctx.e->tok);
     case loc_unavailable:
