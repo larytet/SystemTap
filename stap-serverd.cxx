@@ -1888,7 +1888,10 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
       if (rc)
         server_error (_F("Unable to find a module in %s", new_staptmpdir.c_str()));
       else if (globber.gl_pathc != 1)
-        server_error (_F("Too many modules (%zu) in %s", globber.gl_pathc, new_staptmpdir.c_str()));
+        {
+	  server_error (_F("Too many modules (%zu) in %s", globber.gl_pathc, new_staptmpdir.c_str()));
+	  globfree(&globber);
+	}
       else
         {
 	  if (pr_contains (privilege, pr_stapusr)
@@ -1952,6 +1955,7 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 	      // resulting module, which wouldn't work.
 	      staprc = 1;
 	  }
+	  globfree(&globber);
         }
     }
 

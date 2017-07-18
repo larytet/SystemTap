@@ -1257,6 +1257,7 @@ nss_client_backend::unpack_response ()
       filespec = dirname + "/*";
       if (s.verbose >= 3)
        clog << _F("Searching \"%s\"\n", filespec.c_str());
+      globfree(&globbuf);
       int r = glob(filespec.c_str (), GLOB_PERIOD, NULL, & globbuf);
       if (r != GLOB_NOSPACE && r != GLOB_ABORTED && r != GLOB_NOMATCH)
 	{
@@ -1559,6 +1560,7 @@ add_server_trust (
 	      perror ("");
 	    }
 	}
+      globfree(& globbuf);
     }
 }
 

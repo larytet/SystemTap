@@ -349,6 +349,7 @@ clean_cert_db (const string &db_path)
 	  if (remove_file_or_dir (globbuf.gl_pathv[i]) != 0)
 	    nsscommon_error (_F("Could not remove %s", globbuf.gl_pathv[i]));
 	}
+      globfree(& globbuf);
     }
 
   // Now remove the directory itself.
@@ -910,6 +911,7 @@ add_client_cert (const string &inFileName, const string &db_path)
 	  if (chmod (globbuf.gl_pathv[i], mode) != 0)
 	    nsscommon_error (_F("Could set file permissions for %s", globbuf.gl_pathv[i]));
 	}
+      globfree(&globbuf);
     }
   
   return secStatus;
