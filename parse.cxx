@@ -170,6 +170,7 @@ private:
 
 private: // nonterminals
   void parse_probe (vector<probe*>&, vector<probe_alias*>&);
+  void parse_cprobe (vector<probe*>&, vector<probe_alias*>&);
   void parse_private (vector<vardecl*>&, vector<probe*>&,
                       string const&, vector<functiondecl*>&);
   void parse_global (vector<vardecl*>&, vector<probe*>&,
@@ -187,6 +188,7 @@ private: // nonterminals
   literal_string* parse_literal_string ();
   literal* parse_literal ();
   block* parse_stmt_block ();
+  block* parse_cprobe_block ();
   try_block* parse_try_block ();
   statement* parse_statement ();
   if_statement* parse_if_statement ();
@@ -1424,6 +1426,7 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s, bool cc):
       keywords.insert("long");
       keywords.insert("try");
       keywords.insert("catch");
+      keywords.insert("cprobe");
     }
 
   if (atwords.empty())
@@ -1913,6 +1916,11 @@ parser::parse ()
 	      context = con_probe;
 	      parse_probe (f->probes, f->aliases);
 	    }
+	  else if (t->type == tok_keyword && t->content == "cprobe")
+	    {
+	      context = con_cprobe;
+	      parse_cprobe (f->probes, f->aliases);
+	    }
 	  else if (t->type == tok_keyword && t->content == "private")
 	    {
 	      context = con_unknown;
@@ -2022,7 +2030,6 @@ parser::parse_synthetic_probe (const token* chain)
   return p;
 }
 
-
 void
 parser::parse_probe (vector<probe *> & probe_ret,
 		     vector<probe_alias *> & alias_ret)
@@ -2095,6 +2102,77 @@ parser::parse_probe (vector<probe *> & probe_ret,
     }
 }
 
+void
+parser::parse_cprobe (vector<probe *> & probe_ret,
+		     vector<probe_alias *> & alias_ret)
+{
+  const token* t0 = next ();
+  if (! (t0->type == tok_keyword && t0->content == "cprobe"))
+    throw PARSE_ERROR (_("expected 'cprobe'"));
+
+  vector<probe_point *> aliases;
+  vector<probe_point *> locations;
+
+  int epilogue_alias = 0;
+
+  while (1)
+    {
+      vector<probe_point*> pps = parse_probe_points();
+
+      const token* t = peek ();
+      if (pps.size() == 1 && t
+          && t->type == tok_operator && t->content == "=")
+        {
+          if (pps[0]->optional || pps[0]->sufficient)
+            throw PARSE_ERROR (_("probe point alias name cannot be optional nor sufficient"), pps[0]->components.front()->tok);
+          aliases.push_back(pps[0]);
+          swallow ();
+          continue;
+        }
+      else if (pps.size() == 1 && t
+          && t->type == tok_operator && t->content == "+=")
+        {
+          if (pps[0]->optional || pps[0]->sufficient)
+            throw PARSE_ERROR (_("probe point alias name cannot be optional nor sufficient"), pps[0]->components.front()->tok);
+          aliases.push_back(pps[0]);
+          epilogue_alias = 1;
+          swallow ();
+          continue;
+        }
+      else if (t && t->type == tok_operator && t->content == "{")
+        {
+          locations.insert(locations.end(), pps.begin(), pps.end());
+          break;
+        }
+      else
+	throw PARSE_ERROR (_("expected probe point specifier"));
+    }
+
+  if (aliases.empty())
+    {
+      probe* p = new probe;
+      p->tok = t0;
+      p->locations = locations;
+      p->body = parse_cprobe_block ();
+      p->privileged = privileged;
+      p->systemtap_v_conditional = systemtap_v_seen;
+      probe_ret.push_back (p);
+    }
+  else
+    {
+      probe_alias* p = new probe_alias (aliases);
+      if(epilogue_alias)
+	p->epilogue_style = true;
+      else
+	p->epilogue_style = false;
+      p->tok = t0;
+      p->locations = locations;
+      p->body = parse_stmt_block ();
+      p->privileged = privileged;
+      p->systemtap_v_conditional = systemtap_v_seen;
+      alias_ret.push_back (p);
+    }
+}
 
 embeddedcode*
 parser::parse_embeddedcode ()
@@ -2129,6 +2207,31 @@ parser::parse_stmt_block ()
     {
       t = peek ();
       if (t && t->type == tok_operator && t->content == "}")
+        {
+          swallow ();
+          break;
+        }
+      pb->statements.push_back (parse_statement ());
+    }
+
+  return pb;
+}
+
+block*
+parser::parse_cprobe_block ()
+{
+  block* pb = new block;
+
+  const token* t = next ();
+  if (! (t->type == tok_operator && t->content == "%{"))
+    throw PARSE_ERROR (_("expected '%{'"));
+
+  pb->tok = t;
+
+  while (1)
+    {
+      t = peek ();
+      if (t && t->type == tok_operator && t->content == "%}")
         {
           swallow ();
           break;

@@ -35,7 +35,7 @@ std::ostream& operator << (std::ostream& o, const source_loc& loc);
 
 enum parse_context
   {
-    con_unknown, con_probe, con_global, con_function, con_embedded
+    con_unknown, con_probe, con_global, con_function, con_embedded, con_cprobe
   };
 
 
