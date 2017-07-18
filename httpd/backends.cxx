@@ -16,6 +16,7 @@ extern "C" {
 #include <fcntl.h>
 #include <spawn.h>
 #include <string.h>
+#include <glob.h>
 }
 
 using namespace std;
@@ -24,31 +25,53 @@ using namespace std;
 class local_backend : public backend_base
 {
 public:
+    local_backend();
+
     bool can_generate_module(const struct client_request_data *crd);
     int generate_module(const struct client_request_data *crd,
 			const vector<string> &argv,
 			const string &tmp_dir,
 			const string &stdout_path,
 			const string &stderr_path);
+
+private:
+    // <kernel version, build tree path>
+    map<string, string> supported_kernels;
 };
 
-#if 0
-class docker_backend : public backend_base
+
+local_backend::local_backend()
 {
-public:
-    docker_backend(string &tmp_dir) : backend_base(tmp_dir) { }
+    glob_t globber;
+    string pattern = "/lib/modules/*/build";
+    int rc = glob(pattern.c_str(), GLOB_ERR, NULL, &globber);
 
-    bool can_generate_module(const string &kver, const string &arch);
-    int generate_module(vector<string> &argv);
-};
-#endif
+    if (rc) {
+	// We weren't able to find any kernel build trees. This isn't
+	// a fatal error, since one of the other backends might be
+	// able to satisfy requests.
+	return;
+    }
+    for (unsigned int i = 0; i < globber.gl_pathc; i++) {
+	string path = globber.gl_pathv[i];
+
+	supported_kernels.insert({kernel_release_from_build_tree(path), path});
+    }
+    globfree(&globber);
+}
 
 bool
-local_backend::can_generate_module(const struct client_request_data *)
+local_backend::can_generate_module(const struct client_request_data *crd)
 {
-    // FIXME: We'll need to check to see if this system has the right
-    // kernel development environment and the arches match.
-    return true;
+    // Search our list of supported kernels for a match.
+    for (auto it = supported_kernels.begin(); it != supported_kernels.end();
+	 it++) {
+	if (it->first == crd->kver) {
+	    return true;
+	}
+    }
+
+    return false;
 }
 
 int
@@ -107,6 +130,40 @@ local_backend:: generate_module(const struct client_request_data *,
     return rc;
 }
 
+
+class docker_backend : public backend_base
+{
+public:
+    bool can_generate_module(const struct client_request_data *crd);
+    int generate_module(const struct client_request_data *crd,
+			const vector<string> &argv,
+			const string &tmp_dir,
+			const string &stdout_path,
+			const string &stderr_path);
+};
+
+bool
+docker_backend::can_generate_module(const struct client_request_data *)
+{
+    // FIXME: We'll have to see if we have a docker file for that
+    // distro and the arches match.
+    return false;
+}
+
+int
+docker_backend:: generate_module(const struct client_request_data *,
+				const vector<string> &,
+				const string &,
+				const string &,
+				const string &)
+{
+    // FIXME: Here we'll need to generate a docker file, run docker to
+    // create the container (and get all the right requirements
+    // installed), copy any files over, then finally run "docker exec"
+    // to actually run stap.
+    return -1;
+}
+
 void
 get_backends(vector<backend_base *> &backends)
 {
@@ -114,6 +171,7 @@ get_backends(vector<backend_base *> &backends)
 
     if (saved_backends.empty()) {
 	saved_backends.push_back(new local_backend());
+	saved_backends.push_back(new docker_backend());
     }
     backends.clear();
     backends = saved_backends;

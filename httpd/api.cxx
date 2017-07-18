@@ -82,7 +82,8 @@ public:
     result_info(int rc, string &out_path, string &err_path, string &mp,
 		mode_t mm)
 	: resource("/results/"), rc(rc), stdout_path(out_path),
-	  stderr_path(err_path), module_path(mp), module_mode(mm)
+	  stderr_path(err_path), module_path(mp), module_mode(mm),
+	  status_code(0)
     {
 	size_t found = stdout_path.find_last_of("/");
 	if (found != string::npos) {
@@ -97,6 +98,11 @@ public:
 	    module_file = module_path.substr(found + 1);
 	}
     }
+    result_info(unsigned int status_code, string content)
+	: resource("/results/"), rc(0), status_code(status_code),
+	  content(content)
+    {
+    }
 
     void generate_response(response &r);
     void generate_file_response(response &r, string &f);
@@ -110,6 +116,9 @@ protected:
     string module_path;
     string module_file;
     mode_t module_mode;
+
+    unsigned int status_code;
+    string content;
 };
 
 class build_info : public resource
@@ -155,11 +164,19 @@ private:
     static void *module_build_shim(void *arg);
     void *module_build();
     result_info *result;
+
+    void set_result(result_info *ri);
 };
 
 void result_info::generate_response(response &r)
 {
     ostringstream os;
+
+    if (status_code != 0) {
+	r.status_code = status_code;
+	r.content = content;
+	return;
+    }
 
     r.status_code = 200;
     r.content_type = "application/json";
@@ -319,9 +336,8 @@ response build_collection_rh::POST(const request &req)
 	// Return an error.
 	clog << "500 - internal server error" << endl;
 	response error500(500);
-	error500.content = "<h1>Internal server error, memor allocation failed.</h1>";
+	error500.content = "<h1>Internal server error, memory allocation failed.</h1>";
 	return error500;
-	
     }
 
     // Gather up the info we need.
@@ -497,6 +513,23 @@ individual_build_rh build_rh("individual build");
 individual_result_rh result_rh("individual result");
 result_file_rh result_file_rh("result file");
 
+void
+build_info::set_result(result_info *ri)
+{
+    {
+	// Use a lock_guard to ensure the mutex gets released
+	// even if an exception is thrown.
+	lock_guard<mutex> lock(res_mutex);
+	result = ri;
+    }
+    {
+	// Use a lock_guard to ensure the mutex gets released
+	// even if an exception is thrown.
+	lock_guard<mutex> lock(results_mutex);
+	result_infos.push_back(ri);
+    }
+}
+
 void *
 build_info::module_build_shim(void *arg)
 {
@@ -515,16 +548,18 @@ build_info::module_build()
     // Process the command arguments.
     argv.push_back("stap");
 
-#if 0
-//FIXME: more thinking needed here.
+    // Specify the right kernel version.
     argv.push_back("-r");
-    argv.push_back(kver);
-#endif
+    argv.push_back(crd->kver);
 
     // Create a temporary directory for stap to use.
     tmp_dir = mkdtemp(tmp_dir_template);
     if (tmp_dir == NULL) {
+	// Return an error.
 	clog << "mkdtemp failed: " << strerror(errno) << endl;
+	result_info *ri = new result_info(500,
+					  "<h1>Internal server error, mkdtemp failed.</h1>");
+	set_result(ri);
 	return NULL;
     }
     string tmpdir_opt = string("--tmpdir=") + tmp_dir;
@@ -549,11 +584,19 @@ build_info::module_build()
     // chdir(), it won't affect the other threads working directory.
     if (!crd->base_dir.empty()) {
 	if (unshare(CLONE_FS) < 0) {
+	    // Return an error.
 	    clog << "Error in unshare: " << strerror(errno) << endl;
+	    result_info *ri = new result_info(500,
+					      "<h1>Internal server error, unshare failed.</h1>");
+	    set_result(ri);
 	    return NULL;
 	}
 	if (chdir(crd->base_dir.c_str()) < 0) {
+	    // Return an error.
 	    clog << "Error in chdir: " << strerror(errno) << endl;
+	    result_info *ri = new result_info(500,
+					      "<h1>Internal server error, chdir failed.</h1>");
+	    set_result(ri);
 	    return NULL;
 	}
     }
@@ -563,14 +606,23 @@ build_info::module_build()
     int staprc = -1;
     vector<backend_base *> backends;
     get_backends(backends);
+    bool backend_found = false;
     for (auto it = backends.begin(); it != backends.end(); it++) {
 	if ((*it)->can_generate_module(crd)) {
+	    backend_found = true;
 	    staprc = (*it)->generate_module(crd, argv, tmp_dir, stdout_path, stderr_path);
 	    break;
 	}
     }
 
-    // FIXME: What do we do if none of the backends can handle the request?
+    // If none of the backends can handle the request, send an error.
+    if (!backend_found) {
+	// Return an error.
+	clog << "No backends can satisfy this request " << endl;
+	result_info *ri = new result_info(501, "<h1>Not implemented.</h1>");
+	set_result(ri);
+	return NULL;
+    }
 
     // See if we built a module.
     string module_path;
@@ -582,39 +634,30 @@ build_info::module_build()
 	if (rc) {
 	    clog << "Unable to find a module in " << tmp_dir << endl;
 	}
-	else if (globber.gl_pathc != 1) {
-	    clog << "Too many modules (" << globber.gl_pathc << ") in "
-		 << tmp_dir << endl;
-	}
 	else {
-	    module_path = globber.gl_pathv[0];
-	    // We've got a path. Also figure out the file mode by
-	    // calling stat().
-	    struct stat stbuf;
-	    if (stat(module_path.c_str(), &stbuf) == 0) {
-		module_mode = stbuf.st_mode & 07777;
+	    if (globber.gl_pathc != 1) {
+		clog << "Too many modules (" << globber.gl_pathc << ") in "
+		     << tmp_dir << endl;
 	    }
 	    else {
-		module_path.clear();
+		module_path = globber.gl_pathv[0];
+		// We've got a path. Also figure out the file mode by
+		// calling stat().
+		struct stat stbuf;
+		if (stat(module_path.c_str(), &stbuf) == 0) {
+		    module_mode = stbuf.st_mode & 07777;
+		}
+		else {
+		    module_path.clear();
+		}
 	    }
+	    globfree(&globber);
 	}
     }
 
     result_info *ri = new result_info(staprc, stdout_path, stderr_path,
 				      module_path, module_mode);
-    {
-	// Use a lock_guard to ensure the mutex gets released
-	// even if an exception is thrown.
-	lock_guard<mutex> lock(res_mutex);
-	result = ri;
-    }
-    {
-	// Use a lock_guard to ensure the mutex gets released
-	// even if an exception is thrown.
-	lock_guard<mutex> lock(results_mutex);
-	result_infos.push_back(ri);
-    }
-
+    set_result(ri);
     return NULL;
 }
 
