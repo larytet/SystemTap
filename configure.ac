@@ -909,7 +909,7 @@ AS_IF([test "x$enable_http" != "xno"],
    PKG_CHECK_MODULES([uuid], [uuid >= 2.17.0], [have_libuuid=true], [have_libuuid=false])
 
    dnl Do we have the curl library?
-   PKG_CHECK_MODULES([libcurl], [libcurl >= 7.19.7-52], [have_libcurl=true], [have_libcurl=false])
+   PKG_CHECK_MODULES([libcurl], [libcurl >= 7.19.7], [have_libcurl=true], [have_libcurl=false])
 
    dnl If we have all of the libraries (and the json-c library), we could
    dnl build the httpd web compilation service.
