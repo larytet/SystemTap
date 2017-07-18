@@ -85,7 +85,12 @@ class direct : public remote {
       {
         args = make_run_command(*s);
         if (! staprun_r_arg.empty()) // PR13354
-          args.insert(args.end(), { "-r", staprun_r_arg });
+          {
+            if (s->runtime_mode == systemtap_session::dyninst_runtime)
+              args.insert(args.end(), {"_stp_dyninst_remote=" + staprun_r_arg});
+            else
+              args.insert(args.end(), { "-r", staprun_r_arg });
+          }
         pid_t pid = stap_spawn (s->verbose, args);
         if (pid <= 0)
           return 1;
@@ -479,7 +484,12 @@ class stapsh : public remote {
         // PR13354: identify our remote index/url
         if (strverscmp("1.7", remote_version.c_str()) <= 0 && // -r supported?
             ! staprun_r_arg.empty())
-          cmd.insert(cmd.end(), { "-r", staprun_r_arg });
+          {
+             if (s->runtime_mode == systemtap_session::dyninst_runtime)
+	       cmd.insert(cmd.end(), { "_stp_dyninst_remote=" +  staprun_r_arg});
+             else
+               cmd.insert(cmd.end(), { "-r", staprun_r_arg });
+          }
 
         for (unsigned i = 1; i < cmd.size(); ++i)
           run << ' ' << qpencode(cmd[i]);
@@ -1210,7 +1220,7 @@ remote::create(systemtap_session& s, const string& uri, int idx)
       it = 0;
     }
 
-  if (it && idx >= 0 && false) // PR13354: remote metadata for staprun -r IDX:URI
+  if (it && idx >= 0) // PR13354: remote metadata for staprun -r IDX:URI
     {
       stringstream r_arg;
       r_arg << idx << ":" << uri;

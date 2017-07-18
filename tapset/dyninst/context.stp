@@ -16,6 +16,8 @@
 #include <unistd.h>
 %}
 
+global _stp_dyninst_remote = ""
+
 function execname:string ()
 %{
 	/* Need a 16-byte buffer, which will be 0-terminated only if shorter.
@@ -116,9 +118,15 @@ function stp_pid:long ()
 	STAP_RETVALUE = stp_session_attributes()->stp_pid;
 %}
 
-// TODO function remote_id:long ()
+function remote_id:long ()
+{
+	return strtol(substr(_stp_dyninst_remote,0,1), 10)
+}
 
-// TODO function remote_uri:string ()
+function remote_uri:string ()
+{
+        return substr(_stp_dyninst_remote, 2, %{ STP_REMOTE_URI_LEN %})
+}
 
 // TODO function stack_size:long ()
 
