@@ -1529,7 +1529,7 @@ location_context::translate_array_1(Dwarf_Die *anydie, Dwarf_Word stride,
       break;
 
     default:
-      abort();
+      throw SEMANTIC_ERROR(_F("cannot handle location type %d\n", (int)loc->type));
     }
 
   return nloc;

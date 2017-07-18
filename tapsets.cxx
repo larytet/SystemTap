@@ -3744,6 +3744,8 @@ synthetic_embedded_deref_call(dwflpp& dw, location_context &ctx,
   // If this code snippet is assigning to an lvalue,
   // add a final argument for the rvalue.
   expression *ref_exp = ctx.locations.back()->program; // contains rewritten 
+  if (ref_exp == 0) // e.g. if saw ->type == loc_noncontinguous
+    throw SEMANTIC_ERROR(_("no usable location for symbol [error::dwarf]"), e->tok);
   if (lvalue_p)
     {
       // NB: We don't know the value for fcall argument yet.
