@@ -4935,7 +4935,7 @@ exp_type_dwarf::expand(autocast_op* e, bool lvalue)
       ctx.userspace_p = userspace_p;
       Dwarf_Die endtype;
 
-      dw->literal_stmt_for_pointer (ctx, &die, e, lvalue, &endtype);
+      dw->literal_stmt_for_pointer (ctx, &die, ctx.e, lvalue, &endtype);
 
       string fname = (string(lvalue ? "_dwarf_autocast_set"
 			     : "_dwarf_autocast_get")
