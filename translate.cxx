@@ -5161,13 +5161,13 @@ c_unparser::visit_target_deref (target_deref* e)
       switch (e->size)
 	{
 	case 1:
-	  o->line() << "(int8_t)";
+	  o->line() << "(int64_t)(int8_t)";
 	  break;
 	case 2:
-	  o->line() << "(int16_t)";
+	  o->line() << "(int64_t)(int16_t)";
 	  break;
 	case 4:
-	  o->line() << "(int32_t)";
+	  o->line() << "(int64_t)(int32_t)";
 	  break;
 	case 8:
 	  break;
