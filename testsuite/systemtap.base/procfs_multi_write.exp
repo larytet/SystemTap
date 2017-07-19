@@ -12,7 +12,7 @@ proc proc_read_value { test path} {
         set value [read -nonewline $channel]
         close $channel
         pass "$test read $value"
-    }   
+    }
     return $value
 }
 
@@ -23,7 +23,7 @@ proc proc_write_value { test path value} {
         puts -nonewline $channel $value
         close $channel
         pass "$test wrote $value"
-    }   
+    }
 }
 
 proc proc_read_write {} {
@@ -67,7 +67,7 @@ set systemtap_script {
     }
 
     probe procfs.read {
-        $value = val 
+        $value = val
     }
 
     probe procfs.write {
@@ -75,7 +75,7 @@ set systemtap_script {
     }
 
     probe procfs("test").write {
-        val .= $value . "1" 
+        val .= $value . "1"
     }
 
     probe procfs("test").write {
