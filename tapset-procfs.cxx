@@ -54,9 +54,9 @@ struct procfs_derived_probe: public derived_probe
 struct procfs_probe_set
 {
   procfs_derived_probe* read_probe;
-  procfs_derived_probe* write_probe;
+  vector<procfs_derived_probe*> write_probes;
 
-  procfs_probe_set () : read_probe (NULL), write_probe (NULL) {} 
+  procfs_probe_set () : read_probe (NULL) {}
 };
 
 
@@ -149,18 +149,14 @@ procfs_derived_probe_group::enroll (procfs_derived_probe* p)
     {
       pset = probes_by_path[p->path];
 
-      // You can only specify 1 read and 1 write probe.
-      if (p->write && pset->write_probe != NULL)
-        throw SEMANTIC_ERROR(_("only one write procfs probe can exist for procfs path \"") + p->path + "\"");
-      else if (! p->write && pset->read_probe != NULL)
+      // You can only specify 1 read probe.
+      if (! p->write && pset->read_probe != NULL)
         throw SEMANTIC_ERROR(_("only one read procfs probe can exist for procfs path \"") + p->path + "\"");
-
-      // XXX: multiple writes should be acceptable
     }
 
   if (p->write)
     {
-      pset->write_probe = p;
+      pset->write_probes.push_back(p);
       has_write_probes = true;
     }
   else
@@ -226,11 +222,44 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
     }
   s.op->newline(-1) << "} stap_procfs_probe_buffers;";
 
+  // Emit the procfs write probe structure. Write probes are grouped by path.
+  s.op->newline() << "static struct stap_procfs_write_probe {";
+  s.op->indent(1);
+  int write_index = 0;
+  for (p_b_p_iterator it = probes_by_path.begin(); it != probes_by_path.end();
+       it++)
+    {
+      procfs_probe_set *pset = it->second;
+      if (pset->write_probes.size() > 0)
+        s.op->newline() << "struct stap_probe *path_"
+                        << write_index++
+                        <<"[" << pset->write_probes.size() << "];";
+    }
+
+   s.op->newline(-1) << "} stap_procfs_write_probes = {";
+   s.op->indent(1);
+   write_index = 0;
+   for (p_b_p_iterator it = probes_by_path.begin(); it != probes_by_path.end();
+        it++)
+     {
+       vector<procfs_derived_probe*> write_probes = it->second->write_probes;
+       if (write_probes.size() == 0)
+         continue;
+
+       s.op->newline() << ".path_" << write_index++ << "={ ";
+       for (size_t i = 0; i < write_probes.size(); i++)
+         s.op->line() << common_probe_init(write_probes[i]) << ", ";
+
+       s.op->line() << "},";
+     }
+   s.op->newline(-1) << "};";
+
   // Emit the procfs probe data list
   s.op->newline() << "static struct stap_procfs_probe stap_procfs_probes[] = {";
   s.op->indent(1);
 
   buf_index = 0;
+  write_index = 0;
   for (p_b_p_iterator it = probes_by_path.begin(); it != probes_by_path.end();
        it++)
     {
@@ -255,9 +284,12 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
 	    s.op->line() << " .read_probe="
 			 << common_probe_init (pset->read_probe) << ",";
 
-	  if (pset->write_probe != NULL)
-	    s.op->line() << " .write_probe=" 
-			 << common_probe_init (pset->write_probe) << ",";
+          if (pset->write_probes.size() > 0)
+            s.op->line() << " .write_probes=stap_procfs_write_probes.path_"
+                         << write_index++ << ",";
+
+          s.op->line() << " .num_write_probes="
+                       << pset->write_probes.size() << ",";
 
 	  s.op->line() << " .buffer=stap_procfs_probe_buffers.buf_"
 		       << buf_index++ << ",";
@@ -274,9 +306,9 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
 
 	  s.op->line() << " .permissions="
 		       << (((pset->read_probe ? 0444 : 0) 
-			    | (pset->write_probe ? 0222 : 0)) &~ 
+			    | (pset->write_probes.size() > 0 ? 0222 : 0)) &~
 			   ((pset->read_probe ? pset->read_probe->umask : 0) 
-			    | (pset->write_probe ? pset->write_probe->umask : 0))) 
+			    | (pset->write_probes.size() > 0 ? pset->write_probes[0]->umask : 0)))
 		       << ",";
 	}
       s.op->line() << " },";
@@ -341,7 +373,7 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline() << "struct _stp_procfs_data pdata;";
 
       common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING",
-				     "spp->write_probe",
+				     "spp->write_probes[0]",
 				     "stp_probe_type_procfs");
 
       // We've got 2 problems here.  The data count could be greater
@@ -370,7 +402,7 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline(-1) << "}";
 
       // call probe function
-      s.op->newline() << "(*spp->write_probe->ph) (c);";
+      s.op->newline() << "(*spp->write_probes[0]->ph) (c);";
 
       s.op->newline() << "c->ips.procfs_data = NULL;";
       s.op->newline() << "if (c->last_error == 0) {";
@@ -396,8 +428,8 @@ procfs_derived_probe_group::emit_module_init (systemtap_session& s)
 
   s.op->newline() << "if (spp->read_probe)";
   s.op->newline(1) << "probe_point = spp->read_probe->pp;";
-  s.op->newline(-1) << "else if (spp->write_probe)";
-  s.op->newline(1) << "probe_point = spp->write_probe->pp;";
+  s.op->newline(-1) << "else if (spp->num_write_probes > 0)";
+  s.op->newline(1) << "probe_point = spp->write_probes[0]->pp;";
   s.op->newline(-1) << "else";
   s.op->newline(1) << "probe_point = \"internal buffer\";";
   s.op->indent(-1);

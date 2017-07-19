@@ -1,0 +1,101 @@
+# Test cases for multiple procfs.write probes to a file
+
+set test "procfs_multi_write"
+
+if {![installtest_p]} { untested $test; return }
+
+proc proc_read_value { test path} {
+    set value "<unknown>"
+    if [catch {open $path RDONLY} channel] {
+        fail "$test $channel"
+    } else {
+        set value [read -nonewline $channel]
+        close $channel
+        pass "$test read $value"
+    }   
+    return $value
+}
+
+proc proc_write_value { test path value} {
+    if [catch {open $path WRONLY} channel] {
+        fail "$test $channel"
+    } else {
+        puts -nonewline $channel $value
+        close $channel
+        pass "$test wrote $value"
+    }   
+}
+
+proc proc_read_write {} {
+    global test
+    set path1 "/proc/systemtap/$test/command"
+    set path2 "/proc/systemtap/$test/test"
+
+    proc_write_value $test $path1 "x"
+    set value [proc_read_value $test $path1 ]
+    if { $value == "xaxb" } {
+        pass "$test received correct value: $value"
+    } else {
+        fail "$test received incorrect value: $value"
+    }
+
+    proc_write_value $test $path2 "y"
+    set value [proc_read_value $test $path1]
+    if { $value == "xaxby1y2y3" } {
+        pass "$test recieved correct value: $value"
+    } else {
+        fail "$test received incorrect value: $value"
+    }
+
+    proc_write_value $test $path1 "zzz"
+    # make sure it got set to 'goodbye'
+    set value [proc_read_value $test $path1]
+    if { $value == "zzzazzzb" } {
+        pass "$test received correct value: $value"
+    } else {
+        fail "$test received incorrect value: $value"
+    }
+
+    return 0;
+}
+
+set systemtap_script {
+    global val
+
+    probe procfs.write {
+        val = $value . "a"
+    }
+
+    probe procfs.read {
+        $value = val 
+    }
+
+    probe procfs.write {
+        val .= $value . "b"
+    }
+
+    probe procfs("test").write {
+        val .= $value . "1" 
+    }
+
+    probe procfs("test").write {
+        val .= $value . "2"
+    }
+
+    probe procfs("test").write {
+        val .= $value . "3"
+    }
+
+    probe begin {
+        val = ""
+        printf("systemtap starting probe\n")
+    }
+
+    probe end {
+        printf("systemtap ending probe\n")
+    }
+}
+
+stap_run $test proc_read_write "" -e $systemtap_script -m $test
+
+exec /bin/rm -f ${test}.ko

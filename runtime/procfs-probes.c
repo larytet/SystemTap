@@ -21,8 +21,9 @@
 struct stap_procfs_probe {
 	const char *path;
 	const struct stap_probe * const read_probe;
-	const struct stap_probe * const write_probe;
+        struct stap_probe **write_probes;
 
+        int num_write_probes;
 	char *buffer;
 	const size_t bufsize;
 	size_t count;
@@ -155,18 +156,22 @@ static ssize_t
 _stp_proc_write_file(struct file *file, const char __user *buf, size_t count,
 		     loff_t *ppos) 
 {
-	struct stap_procfs_probe *spp = file->private_data;
+        int i;
+        struct stap_procfs_probe *spp = file->private_data;
 	struct _stp_procfs_data pdata;
-	ssize_t len;
+	ssize_t len = -1;
 
-	/* If we don't have a write probe, return EIO. */
-	if (spp->write_probe == NULL) {
-		len = -EIO;
-		goto out;
+        /* If we don't have a write probe, return EIO. */
+        if (spp->num_write_probes == 0) {
+                len = -EIO;
+                goto out;
 	}
 
-	/* Handle the input buffer. */
-	len = _stp_process_write_buffer(spp, buf, count);
+	/* Handle the input buffer once for each write probe. */
+        for (i = 0; i < spp->num_write_probes; i++, spp->write_probes++)
+	        len = _stp_process_write_buffer(spp, buf, count);
+
+        spp->write_probes -= spp->num_write_probes;
 	if (len > 0) {
 		*ppos += len;
 	}

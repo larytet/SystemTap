@@ -1152,19 +1152,33 @@ procfs.read.maxsize(1024) {
 .SS INPUT
 
 These probe points make input from stdin available to the script during runtime.
+The translator currently supports two variants of this family:
+.SAMPLE
+input.char
+input.line
+.ESAMPLE
+
 .BR input.char
-is the only variant of this family that is currently supported.
-This probe is triggered each time a character is read from stdin. The current
+is triggered each time a character is read from stdin. The current
 character is available in the string variable named
-.IR $value .
-There is no newline buffering, the next character is read from stdin as soon
+.IR char .
+There is no newline buffering; the next character is read from stdin as soon
 as it becomes available.
+
+.BR input.line
+causes all characters read from stdin to be buffered until a newline is read,
+at which point the probe will be triggered. The current line of characters
+(including the newline) is made available in a string variable named
+.IR line .
+Note that no more than MAXSTRINGLEN characters will be buffered. Any additional
+characters will not be included in
+.IR line .
 
 .PP
 Input probes are aliases for
 .BR procfs("__stdin").write .
-Systemtap reconfigures stdin if the precence of this procfs probe is detected,
-therefore "__stdin" should not be used as an argument for procfs probes.
+Systemtap reconfigures stdin if the presence of this procfs probe is detected,
+therefore "__stdin" should not be used as a path argument for procfs probes.
 Additionally, input probes will not work with the -F and --remote options.
 
 .SS NETFILTER HOOKS

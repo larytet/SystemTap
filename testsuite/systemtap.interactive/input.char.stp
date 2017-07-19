@@ -1,7 +1,7 @@
 probe input.char {
-        if ($value == "d") {
+        if (char == "d") {
 	        print("zz")	
 	} else {
-		println($value)
+		println(char)
 	}
 }

@@ -1,0 +1,3 @@
+probe input.line {
+       print(line)
+}

@@ -1,11 +1,19 @@
 set test "input.char"
+set send_human { .1 .3 1 .05 2 }
 
 spawn stap $srcdir/$subdir/$test.stp
+expect
 
-send "abcde"
-expect "abcde"
+send -raw "abcde"
 
 expect  {
      "a\r\nb\r\nc\r\nzze\r\n" { pass "ok" }
+     timeout { fail "(timeout)" }
+}
+
+send -h -raw "12345\n"
+
+expect {
+     "1\r\n2\r\n3\r\n4\r\n5\r\n\r\n" { pass "ok" }
      timeout { fail "(timeout)" }
 }

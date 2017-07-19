@@ -240,11 +240,8 @@ static int _stp_create_procfs(const char *path,
 		goto too_many;
 	
 	de = proc_create_data(p, perm, last_dir, fops, data);
-	if (de == NULL) {
-		_stp_error("Could not create file \"%s\" in path \"%s\"\n",
-			   p, path);
-		goto err;
-	}
+	if (de == NULL)
+                return 0; // already created
 #ifdef STAPCONF_PROCFS_OWNER
 	de->owner = THIS_MODULE;
 #endif
