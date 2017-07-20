@@ -54,32 +54,6 @@ static void _stp_stack_print_fallback(unsigned long, int, int, int);
 #include <linux/types.h>
 #define intptr_t long
 #define uintptr_t unsigned long
-
-static int _stp_valid_pc_addr(unsigned long addr, struct task_struct *tsk)
-{
-	/* Just a simple check of whether the the address can be accessed
-	   as a user space address. Zero is always bad. */
-
-/* FIXME for s390x PR13350. */
-#if defined (__s390__) || defined (__s390x__)
-       return addr != 0L;
-#else
-	// Temporary PR21726 workaround: If we're in hard IRQ context
-	// (like in a timer probe), access_ok() shouldn't be called.
-	if (! in_irq()) {
-		int ok;
-		mm_segment_t oldfs = get_fs();
-		set_fs(USER_DS);
-		pagefault_disable();
-		ok = access_ok(VERIFY_READ, (long *) (intptr_t) addr,
-			       sizeof(long));
-		pagefault_enable();
-		set_fs(oldfs);
-		return addr != 0L && tsk != NULL ? ok : ! ok;
-	}
-	return addr != 0L;
-#endif
-}
 #endif
 
 #if defined (__ia64__)
@@ -272,7 +246,8 @@ static struct pt_regs *_stp_get_uregs(struct context *c)
 }
 
 
-static unsigned long _stp_stack_unwind_one_kernel(struct context *c, unsigned depth)
+static unsigned long
+_stp_stack_unwind_one_kernel(struct context *c, unsigned depth)
 {
 	struct pt_regs *regs = NULL;
 	struct unwind_frame_info *info = NULL;
@@ -335,7 +310,8 @@ static unsigned long _stp_stack_unwind_one_kernel(struct context *c, unsigned de
 		    (unsigned long long) UNW_SP(info));
 
 	/* check if unwind hit an error */
-	if (ret || ! _stp_valid_pc_addr(UNW_PC(info), NULL)) {
+	if (ret || _stp_lookup_bad_addr(VERIFY_READ, sizeof(long),
+					UNW_PC(info), KERNEL_DS)) {
 		return 0;
 	}
 
@@ -449,7 +425,8 @@ static void _stp_stack_kernel_print(struct context *c, int sym_flags)
 #endif
 }
 
-static unsigned long _stp_stack_unwind_one_user(struct context *c, unsigned depth)
+static unsigned long
+_stp_stack_unwind_one_user(struct context *c, unsigned depth)
 {
 	struct pt_regs *regs = NULL;
 	int uregs_valid = 0;
@@ -520,7 +497,8 @@ static unsigned long _stp_stack_unwind_one_user(struct context *c, unsigned dept
 		    (unsigned long long) UNW_PC(info), (unsigned long long) UNW_SP(info));
 
 	/* check if unwind hit an error */
-	if (ret || ! _stp_valid_pc_addr(UNW_PC(info), current)) {
+	if (ret || _stp_lookup_bad_addr(VERIFY_READ, sizeof(long),
+					UNW_PC(info), USER_DS)) {
 		return 0;
 	}
 

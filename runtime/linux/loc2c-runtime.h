@@ -373,6 +373,35 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 
 
 /* 
+ * _stp_lookup_bad_addr(): safely verify an address
+ *
+ * type: memory access type (either VERIFY_READ or VERIFY_WRITE)
+ * size: number of bytes to verify
+ * addr: address to verify
+ * seg: memory segment to use, either kernel (KERN_DS) or user
+ * (USER_DS)
+ * 
+ * The macro returns 0 if the address is valid, non-zero otherwise.
+ * Note that the kernel will not pagefault when trying to verify the
+ * memory. Also note that no DEREF_FAULT will occur when verifying the
+ * memory.
+ */
+
+#define _stp_lookup_bad_addr(type, size, addr, seg)			      \
+  ({									      \
+    int _bad = 0;							      \
+    mm_segment_t _oldfs = get_fs();                                           \
+    set_fs((seg));							      \
+    pagefault_disable();                                                      \
+    if (lookup_bad_addr((int)(type), (unsigned long)(addr), (size_t)(size)))  \
+      _bad = 1;								      \
+    pagefault_enable();                                                       \
+    set_fs(_oldfs);                                                           \
+    _bad;								      \
+  })
+
+
+/* 
  * _stp_deref(): safely read a simple type from memory
  *
  * size: number of bytes to read
