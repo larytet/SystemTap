@@ -3528,7 +3528,11 @@ dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool si
 	loc = ctx.new_location(loc_value);
 	loc->program = d;
 	loc->byte_size = byte_size;
-	break;
+
+	// ??? There is code in *translate.cxx to handle the sign-
+	// (or implicit zero-) extension during the load.  We might
+	// be better off falling through to the shared code below.
+	return;
       }
 
     case loc_register:
@@ -3575,7 +3579,7 @@ dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool si
 	loc = ctx.new_location(loc_value);
 	loc->program = new literal_number(val);
 	loc->byte_size = byte_size;
-	break;
+	return;
       }
 
     case loc_noncontiguous:
@@ -3594,6 +3598,37 @@ dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool si
       throw SEMANTIC_ERROR (_("location not available"), ctx.e->tok);
     default:
       abort();
+    }
+
+  // Normalize LOC from the sign and width of the type to int64_t.
+  if (byte_size < 8)
+    {
+      binary_expression *out = new binary_expression;
+      out->tok = ctx.e->tok;
+
+      if (signed_p)
+	{
+	  int shift = 64 - 8 * byte_size;
+	  binary_expression *shl = new binary_expression;
+	  shl->tok = ctx.e->tok;
+	  shl->op = "<<";
+	  shl->left = loc->program;
+          shl->right = new literal_number(shift);
+
+	  out->op = ">>";
+	  out->left = shl;
+	  out->right = new literal_number(shift);
+	}
+      else
+	{
+	  out->op = "&";
+	  out->left = loc->program;
+	  out->right = new literal_number((1ull << (byte_size * 8)) - 1);
+	}
+
+      loc = ctx.new_location(loc_value);
+      loc->program = out;
+      loc->byte_size = byte_size;
     }
 }
 
