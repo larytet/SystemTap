@@ -4755,6 +4755,14 @@ c_unparser::visit_binary_expression (binary_expression* e)
       e->right->visit (this);
       o->line() << ") & 63)";
     }
+  else if (e->op == ">>>")
+    {
+      o->line() << "(int64_t)((uint64_t)(";
+      e->left->visit (this);
+      o->line() << ") >> ((";
+      e->right->visit (this);
+      o->line() << ") & 63))";
+    }
   else if (e->op == "/" ||
            e->op == "%")
     {
@@ -4781,7 +4789,7 @@ c_unparser::visit_binary_expression (binary_expression* e)
       o->newline(-1) << "})";
     }
   else
-    throw SEMANTIC_ERROR (_("operator not yet implemented"), e->tok);
+    throw SEMANTIC_ERROR (_F("operator %s not yet implemented", string(e->op).c_str()), e->tok);
 }
 
 

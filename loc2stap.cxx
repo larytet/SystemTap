@@ -523,7 +523,7 @@ location_context::translate (const Dwarf_Op *expr, const size_t len,
 	    BINOP (or, binary_expression, |);
 	    BINOP (plus, binary_expression, +);
 	    BINOP (shl, binary_expression, <<);
-	    BINOP (shr, binary_expression, u>>);
+	    BINOP (shr, binary_expression, >>>);
 	    BINOP (shra, binary_expression, >>);
 	    BINOP (xor, binary_expression, ^);
 	    BINOP (div, binary_expression, /);

@@ -1798,6 +1798,7 @@ skip:
 
       // match all valid operators, in decreasing size order
       if ((c == '<' && c2 == '<' && c3 == '<') ||
+          (c == '>' && c2 == '>' && c3 == '>') ||
           (c == '<' && c2 == '<' && c3 == '=') ||
           (c == '>' && c2 == '>' && c3 == '='))
         {
@@ -3501,7 +3502,7 @@ parser::parse_shift ()
 
   const token* t = peek ();
   while (t && t->type == tok_operator &&
-         (t->content == "<<" || t->content == ">>"))
+         (t->content == "<<" || t->content == ">>" || t->content == ">>>"))
     {
       binary_expression* e = new binary_expression;
       e->left = op1;

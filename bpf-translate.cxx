@@ -840,6 +840,8 @@ bpf_unparser::visit_binary_expression (binary_expression* e)
     code = BPF_LSH;
   else if (e->op == ">>")
     code = BPF_ARSH;
+  else if (e->op == ">>>")
+    code = BPF_RSH;
   else if (e->op == "/")
     code = BPF_DIV;
   else if (e->op == "%")
