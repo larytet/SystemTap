@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/compiler.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * The purpose of this module is to provide a memory location that
