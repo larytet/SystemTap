@@ -28,11 +28,21 @@
 #
 # Optionally, specify a limit for sorted event count reports
 # stap eventcount.stp -G lines=100 [...probe points...]
+#
+# Runtime controls:
+#   'j': cycles forwards through the sort options
+#   'k': cycles backwards through the sort options
+#   'l': toggles cumulative mode
+#
+#   Pressing enter pauses the reporting and allows a new value for 'comm'
+#   to be inputted. Doing so resets all counts. To return to analyzing
+#   all processes leave 'comm' blank.
 
 global period=10
 global cumulative=0
 global comm=""
 global sort="count"
+global sort_options
 global lines=20
 
 probe %($# == 0 || $# > 32 %? begin %: never %)
@@ -103,6 +113,11 @@ probe begin {
       else
         printf("One-time cumulative reporting (%s) at script termination (^C)\n",
                format)
+
+      sort_options[0] = "count"
+      sort_options[1] = "tid"
+      sort_options[2] = "event"
+      sort_options[3] = "unsorted"
 }
 global start_ms
 
@@ -118,6 +133,8 @@ function reportline2(tid, name, count, elapsed_ms) {
                      (count * 100000 / elapsed_ms)/100,
                      (count * 100000 / elapsed_ms)%100))
 }
+
+global input_mode = "char"
 
 function report () {
   elapsed_ms = gettimeofday_ms() - start_ms
@@ -150,7 +167,8 @@ probe end {
 probe timer.s(1) {
       if (period <= 0) next
       if ((gettimeofday_s() % period) == 0) {
-         report()
+         if (input_mode == "char")
+		 report()
          if (! cumulative) {
              delete c
              delete filteredc
@@ -158,4 +176,50 @@ probe timer.s(1) {
              start_ms = gettimeofday_ms()
          }
       }
+}
+
+probe input.line {
+    if (input_mode != "line")
+            next
+    // remove newline character
+    comm = substr(line, 0, strlen(line) - 1)
+    if (comm == "") {
+        print("\nNow analyzing all processes")
+    } else {
+        print("\nNow analyzing process \"" . comm . "\"")
+    }
+    delete c
+    delete filteredc
+    delete totalc
+}
+
+global idx = 0 // index into sort_options
+
+probe input.char {
+     if (input_mode == "line") {
+	     print(char)
+	     if (char == "\n")
+	         input_mode = "char"
+     }
+     else if (char == "j") {
+	     idx = (idx + 1) % 4
+	     sort = sort_options[idx]
+	     println("Sorting by " . sort)
+     }
+     else if (char == "k") {
+	     idx = idx ? (idx - 1) % 4 : 3
+             sort = sort_options[idx]
+	     println("Sorting by " . sort)
+     }
+     else if (char == "l") {
+	     cumulative = 1 - cumulative
+	     if (cumulative)
+		     println("Cumulative mode enabled")
+             else
+		     println("Cumulative mode disabled")
+     }
+     else if (char == "\n") {
+	     input_mode = "line"
+	     println("Please enter a process name:")
+     }
 }
