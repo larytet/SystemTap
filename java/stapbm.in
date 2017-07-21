@@ -54,24 +54,28 @@ SYSTEMTAP_VERBOSE=${SYSTEMTAP_VERBOSE-0}
 if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
     BYTEMAN_INSTALL_OPTS="$BYTEMAN_INSTALL_OPTS -Dorg.jboss.byteman.verbose"
 else
-    exec >/dev/null 2>&1
+    exec >/dev/null
+    # NB: preserve stderr
 fi
 
 # the byteman and byteman-submit jars should be in ${BYTEMAN_HOME}/lib
 BYTEMAN_JAR=${BYTEMAN_HOME}/byteman.jar
 if [ ! -r ${BYTEMAN_JAR} ]; then
+    exec 1>&2
     echo "Missing $BYTEMAN_JAR"
     exit 1
 fi
 
 BYTEMAN_SUBMIT_JAR=${BYTEMAN_HOME}/byteman-submit.jar
 if [ ! -r ${BYTEMAN_SUBMIT_JAR} ]; then
+    exec 1>&2
     echo "Missing $BYTEMAN_SUBMIT_JAR"
     exit 1
 fi
 
 BYTEMAN_INSTALL_JAR=${BYTEMAN_HOME}/byteman-install.jar
 if [ ! -r ${BYTEMAN_INSTALL_JAR} ]; then
+    exec 1>&2
     echo "Missing $BYTEMAN_INSTALL_JAR"
     exit 1
 fi
@@ -79,6 +83,7 @@ fi
 
 TOOLS_JAR=${JAVA_HOME}/lib/tools.jar
 if [ ! -f ${TOOLS_JAR} ]; then
+    exec 1>&2
     echo "Missing $TOOLS_JAR"
     exit 1
 fi
@@ -92,6 +97,7 @@ pkglibexecdir=`eval echo $pkglibexecdir`
 
 HELPERSDT_JAR=${pkglibexecdir}/HelperSDT.jar
 if [ ! -f ${HELPERSDT_JAR} ]; then
+    exec 1>&2
     echo "Missing $HELPERSDT_JAR"
     exit 1
 fi
@@ -104,6 +110,7 @@ fi
 
 num=`ls -1 ${JAVA_HOME}/jre/lib/ext/HelperSDT.jar ${JAVA_HOME}/jre/lib/*/libHelperSDT_*.so 2>/dev/null | wc -l`
 if [ $num -lt 2 ]; then
+    exec 1>&2
     echo "Missing HelperSDT JNI class/shared library"
     echo "Install them like this, as root:"
     echo ""
