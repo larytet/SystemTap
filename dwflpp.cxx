@@ -3505,7 +3505,8 @@ get_bitfield (const target_symbol *e, Dwarf_Die *die, Dwarf_Word byte_size,
 }
 
 void
-dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool signed_p)
+dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size,
+                            bool signed_p, bool lvalue_p)
 {
   location *loc = ctx.locations.back ();
 
@@ -3601,7 +3602,9 @@ dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool si
     }
 
   // Normalize LOC from the sign and width of the type to int64_t.
-  if (byte_size < 8)
+  // ??? We might require extending when assigning to a target_register.
+  // Give this a try first...
+  if (byte_size < 8 && !lvalue_p)
     {
       binary_expression *out = new binary_expression;
       out->tok = ctx.e->tok;
@@ -3773,7 +3776,7 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
 		       dwarf_errmsg (-1)), e->tok));
 	  }
 
-        translate_base_ref (ctx, byte_size, signed_p);
+        translate_base_ref (ctx, byte_size, signed_p, lvalue);
 
 	if (dwarf_hasattr_integrate (vardie, DW_AT_bit_offset))
 	  {
@@ -3825,7 +3828,7 @@ dwflpp::translate_pointer(location_context &ctx, Dwarf_Die *typedie)
 				 dwarf_errmsg (-1)), ctx.e->tok);
 
       /* We know this is a pointer, therefore the signedness is irrelevant.  */
-      translate_base_ref (ctx, byte_size, false);
+      translate_base_ref (ctx, byte_size, false, false);
       /* We're going to want to dereference this pointer.  Therefore note
 	 that this is an address.  */
       loc = ctx.locations.back ();

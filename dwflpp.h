@@ -634,7 +634,8 @@ private:
                             Dwarf_Die *typedie,
                             unsigned first=0);
 
-  void translate_base_ref (location_context &ctx, Dwarf_Word byte_size, bool signed_p);
+  void translate_base_ref (location_context &ctx, Dwarf_Word byte_size,
+			   bool signed_p, bool lvalue_p);
   void translate_bitfield(location_context &ctx, Dwarf_Word byte_size,
 			  Dwarf_Word bit_offset, Dwarf_Word bit_size,
 			  bool signed_p);
