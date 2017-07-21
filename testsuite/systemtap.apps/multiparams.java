@@ -19,6 +19,8 @@ class multiparams
         final String r = "hello";
         final Object s = new multiparams();
 	printMessage10(s, r, q, p, o, n, l, k, j, i);
+ 	final Object nothing = null;
+	printMessage10(nothing, r, q, p, o, n, l, k, j, i);
         System.out.println("multiparams test function completed");
     }
 }

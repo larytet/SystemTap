@@ -20,11 +20,12 @@ set okb 0
 expect {
     -timeout 80
     -re {java[^\r\n]*just a multiparams hello 14 a true 10 2.71828 3.14159265359 254775806 42\r\n} { incr okb; exp_continue }
+    -re {java[^\r\n]*.null. hello 14 a true 10 2.71828 3.14159265359 254775806 42\r\n} { incr okb; exp_continue }
     -re {java.lang.Throwable[^\r\n]*\r\n} { incr okb; exp_continue }
     -re {multiparams.main[^\r\n]*\r\n} { incr okb; exp_continue }
     timeout { fail "$test unexpected timeout" }
 }
-if {$okb} then {
+if {$okb > 3} then {
     pass "$test ($okb)"
     catch {exec rm ./multiparams.class}
 } else {

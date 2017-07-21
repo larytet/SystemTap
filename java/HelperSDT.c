@@ -30,6 +30,8 @@ static /*const*/ char* get_java_string(JNIEnv *env, jobject _string)
  */
 static /*const*/ char* get_java_tostring(JNIEnv *env, jobject _obj)
 {
+  if ((*env)->IsSameObject(env, _obj, NULL))
+    return strdup("(null)"); /* need a real string to avoid user_string_warn getting upset */
   jclass class_arg = (*env)->GetObjectClass(env, _obj);
   jmethodID getMsgMeth = (*env)->GetMethodID(env, class_arg, "toString", "()Ljava/lang/String;");
   jstring obj = (jstring)(*env)->CallObjectMethod(env, _obj, getMsgMeth);
@@ -43,6 +45,11 @@ static /*const*/ char* get_java_tostring(JNIEnv *env, jobject _obj)
 
 static int64_t determine_java_type(JNIEnv *env, jobject _arg, _Bool *need_free)
 {
+  if ((*env)->IsSameObject(env, _arg, NULL)) {
+    *need_free = 1;
+    return (int64_t) strdup("(null)"); /* need a real string to avoid user_string_warn getting upset */
+  }
+
   jclass class_arg = (*env)->GetObjectClass(env, _arg);
   jfieldID fidNumber = 0;
   *need_free = false;
