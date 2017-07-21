@@ -311,7 +311,7 @@ _stp_stack_unwind_one_kernel(struct context *c, unsigned depth)
 
 	/* check if unwind hit an error */
 	if (ret || _stp_lookup_bad_addr(VERIFY_READ, sizeof(long),
-					UNW_PC(info), KERNEL_DS)) {
+					(void*)UNW_PC(info), KERNEL_DS)) {
 		return 0;
 	}
 
@@ -498,7 +498,7 @@ _stp_stack_unwind_one_user(struct context *c, unsigned depth)
 
 	/* check if unwind hit an error */
 	if (ret || _stp_lookup_bad_addr(VERIFY_READ, sizeof(long),
-					UNW_PC(info), USER_DS)) {
+					(void*)UNW_PC(info), USER_DS)) {
 		return 0;
 	}
 
