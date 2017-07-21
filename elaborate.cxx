@@ -1657,56 +1657,59 @@ struct embeddedcode_info: public functioncall_traversing_visitor
 {
 protected:
   systemtap_session& session;
+  void examine (const interned_string &, const token *tok);
 
 public:
   embeddedcode_info (systemtap_session& s): session(s) { }
 
-  void visit_embeddedcode (embeddedcode* c)
-  {
-    if (! vma_tracker_enabled(session)
-	&& c->code.find("/* pragma:vma */") != string::npos)
-      {
-	if (session.verbose > 2)
-          clog << _F("Turning on task_finder vma_tracker, pragma:vma found in %s",
-                     current_function->unmangled_name.to_string().c_str()) << endl;
-
-	// PR15052: stapdyn doesn't have VMA-tracking yet.
-	if (session.runtime_usermode_p())
-	  throw SEMANTIC_ERROR(_("VMA-tracking is only supported by the kernel runtime (PR15052)"), c->tok);
-
-	enable_vma_tracker(session);
-      }
-
-    if (! session.need_unwind
-	&& c->code.find("/* pragma:unwind */") != string::npos)
-      {
-	if (session.verbose > 2)
-	  clog << _F("Turning on unwind support, pragma:unwind found in %s",
-		    current_function->unmangled_name.to_string().c_str()) << endl;
-	session.need_unwind = true;
-      }
-
-    if (! session.need_symbols
-	&& c->code.find("/* pragma:symbols */") != string::npos)
-      {
-	if (session.verbose > 2)
-	  clog << _F("Turning on symbol data collecting, pragma:symbols found in %s",
-		    current_function->unmangled_name.to_string().c_str())
-	       << endl;
-	session.need_symbols = true;
-      }
-
-    if (! session.need_lines
-        && c->code.find("/* pragma:lines */") != string::npos)
-      {
-        if (session.verbose > 2)
-	  clog << _F("Turning on debug line data collecting, pragma:lines found in %s",
-		    current_function->unmangled_name.to_string().c_str())
-	       << endl;
-	session.need_lines = true;
-      }
-  }
+  void visit_embeddedcode (embeddedcode* c) { examine (c->code, c->tok); }
+  void visit_embedded_expr (embedded_expr* e) { examine (e->code, e->tok); }
 };
+
+void
+embeddedcode_info::examine (const interned_string &code, const token *tok)
+{
+  if (! vma_tracker_enabled(session)
+      && code.find("/* pragma:vma */") != string::npos)
+    {
+      if (session.verbose > 2)
+        clog << _F("Turning on task_finder vma_tracker, pragma:vma found in %s",
+		   current_function->unmangled_name.to_string().c_str()) << endl;
+
+      // PR15052: stapdyn doesn't have VMA-tracking yet.
+      if (session.runtime_usermode_p())
+	throw SEMANTIC_ERROR(_("VMA-tracking is only supported by the kernel runtime (PR15052)"), tok);
+
+      enable_vma_tracker(session);
+    }
+
+  if (! session.need_unwind
+      && code.find("/* pragma:unwind */") != string::npos)
+    {
+      if (session.verbose > 2)
+	clog << _F("Turning on unwind support, pragma:unwind found in %s",
+		   current_function->unmangled_name.to_string().c_str()) << endl;
+      session.need_unwind = true;
+    }
+
+  if (! session.need_symbols
+      && code.find("/* pragma:symbols */") != string::npos)
+    {
+      if (session.verbose > 2)
+	clog << _F("Turning on symbol data collecting, pragma:symbols found in %s",
+		   current_function->unmangled_name.to_string().c_str()) << endl;
+      session.need_symbols = true;
+    }
+
+  if (! session.need_lines
+      && code.find("/* pragma:lines */") != string::npos)
+    {
+      if (session.verbose > 2)
+	clog << _F("Turning on debug line data collecting, pragma:lines found in %s",
+		   current_function->unmangled_name.to_string().c_str()) << endl;
+      session.need_lines = true;
+    }
+}
 
 void embeddedcode_info_pass (systemtap_session& s)
 {
@@ -1893,6 +1896,13 @@ semantic_pass_symbols (systemtap_session& s)
               s.probes.push_back (dp);
               dp->join_group (s);
 
+	      if (s.verbose > 2)
+		{
+		  clog << _("symbol resolution for derived-probe ");
+		  dp->printsig(clog);
+		  clog << endl;
+		}
+
               try
                 {
                   update_visitor_loop (s, s.code_filters, dp->body);
@@ -1914,12 +1924,15 @@ semantic_pass_symbols (systemtap_session& s)
             }
         }
 
-      // Pass 3: process functions
+      // Pass 3: process functions - incl. the synthetic ones, 
+      // so s.functions[] rather than dome->functions[]
 
-      for (unsigned i=0; i<dome->functions.size(); i++)
+      for (auto it = s.functions.begin(); it != s.functions.end(); it++)
         {
           assert_no_interrupts();
-          functiondecl* fd = dome->functions[i];
+          functiondecl* fd = it->second;
+	  if (s.verbose > 2)
+	    clog << _("symbol resolution for function ") << fd->name << endl;
 
           try
             {
@@ -2598,12 +2611,16 @@ symresolution_info::visit_symbol (symbol* e)
   if (e->referent)
     return;
 
+  if (session.verbose > 3)
+    clog << _F("Resolving symbol symbol %p (%s) ...", (void*) e, ((string)e->name).c_str());
   vardecl* d = find_var (e->name, 0, e->tok);
+  if (session.verbose > 3)
+    clog << endl;
   if (d)
-  {
-    e->referent = d;
-    e->name = d->name;
-  }
+    {
+      e->referent = d;
+      e->name = d->name;
+    }
   else
     {
       // new local
@@ -2738,6 +2755,10 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
       for (unsigned i=0; i<locals.size(); i++)
         if (locals[i]->name == name)
           {
+	    if (session.verbose > 3)
+	      clog << _F("to local (%p/%p) vardecl %p",
+			 (void*) current_function, (void*) current_probe, (void*) locals[i]);
+
             locals[i]->set_arity (arity, tok);
             return locals[i];
           }
@@ -2749,6 +2770,9 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
       if (current_function->formal_args[i]->name == name)
 	{
 	  // NB: no need to check arity here: formal args always scalar
+	  if (session.verbose > 3)
+	    clog << _F("to %p param vardecl %p", (void*) current_function, (void*) current_function->formal_args[i]);
+
 	  current_function->formal_args[i]->set_arity (0, tok);
 	  return current_function->formal_args[i];
 	}
@@ -2770,6 +2794,9 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
         (session.globals[i]->name == gname) ||
         (session.globals[i]->name == pname))
       {
+	if (session.verbose > 3)
+	  clog << _F("to global vardecl %p", (void*) session.globals[i]);
+
         if (! session.suppress_warnings)
           {
             vardecl* v = session.globals[i];
@@ -2796,6 +2823,9 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
           if ((g->name == gname) ||
               (g->name == pname)) // private global within tapset probe alias
             {
+	      if (session.verbose > 3)
+		clog << _F("to tapset global vardecl %p", (void*) g);
+
 	      g->set_arity (arity, tok);
 
               // put library into the queue if not already there
@@ -3147,7 +3177,7 @@ struct dead_assignment_remover: public update_visitor
 
   dead_assignment_remover(systemtap_session& s, bool& r,
                           const varuse_collecting_visitor& v):
-    session(s), relaxed_p(r), vut(v) {}
+    update_visitor(s.verbose), session(s), relaxed_p(r), vut(v) {}
 
   void visit_assignment (assignment* e);
   void visit_try_block (try_block *s);
@@ -3177,6 +3207,16 @@ struct assignment_symbol_fetcher
   }
 
   void visit_autocast_op (autocast_op*)
+  {
+    sym = NULL;
+  }
+
+  void visit_target_deref (target_deref*)
+  {
+    sym = NULL;
+  }
+
+  void visit_target_register (target_register*)
   {
     sym = NULL;
   }
@@ -3312,7 +3352,7 @@ struct dead_stmtexpr_remover: public update_visitor
   set<vardecl*> focal_vars; // vars considered subject to side-effects
 
   dead_stmtexpr_remover(systemtap_session& s, bool& r):
-    session(s), relaxed_p(r) {}
+    update_visitor(s.verbose), session(s), relaxed_p(r) {}
 
   void visit_block (block *s);
   void visit_try_block (try_block *s);
@@ -3617,7 +3657,7 @@ struct void_statement_reducer: public update_visitor
   set<vardecl*> focal_vars; // vars considered subject to side-effects
 
   void_statement_reducer(systemtap_session& s, bool& r):
-    session(s), relaxed_p(r) {}
+    update_visitor(s.verbose), session(s), relaxed_p(r) {}
 
   void visit_expr_statement (expr_statement* s);
 
@@ -4411,6 +4451,31 @@ const_folder::visit_logical_and_expr (logical_and_expr* e)
 }
 
 void
+const_folder::visit_compound_expression (compound_expression* e)
+{
+  replace(e->left, true);
+  replace(e->right, false);
+
+  // If the LHS is pure, we can eliminate it.
+  // ??? This is unlikely, given how these are created in loc2stap.cxx.
+  if (e->left)
+    {
+      varuse_collecting_visitor vu(session);
+      e->left->visit(&vu);
+      if (!vu.side_effect_free())
+        {
+	  provide(e);
+          return;
+        }
+    }
+
+  if (session.verbose > 2)
+    clog << _("Collapsing compound expression") << *e->tok << endl;
+
+  provide(e->right);
+}
+
+void
 const_folder::visit_comparison (comparison* e)
 {
   int comp;
@@ -5005,6 +5070,7 @@ struct stable_functioncall_visitor: public update_visitor
   block* top_scope;
   block* curr_scope;
   stable_functioncall_visitor(systemtap_session& s, set<string>& sfc):
+    update_visitor(s.verbose),
     session(s), current_function(0), current_probe(0), stable_fcs(sfc),
     loop_depth(0), top_scope(0), curr_scope(0) {};
 
@@ -5777,6 +5843,17 @@ typeresolution_info::visit_regex_query (regex_query *e)
     }
 }
 
+void
+typeresolution_info::visit_compound_expression (compound_expression* e)
+{
+  // Incoming type inference applies to the RHS.
+  e->right->visit(this);
+
+  // No incoming data for the LHS.
+  t = pe_unknown;
+  e->left->visit(this);
+}
+
 
 void
 typeresolution_info::visit_comparison (comparison *e)
@@ -6122,6 +6199,39 @@ typeresolution_info::visit_symbol (symbol* e)
     }
 }
 
+void
+typeresolution_info::visit_target_register (target_register* e)
+{
+  if (t != pe_long)
+    invalid (e->tok, t);
+  if (e->type == pe_unknown)
+    {
+      e->type = pe_long;
+      resolved (e->tok, e->type);
+    }
+}
+
+void
+typeresolution_info::visit_target_deref (target_deref* e)
+{
+  // Both the target_deref result as well as the address must both be longs.
+  if (t != pe_long)
+    invalid (e->tok, t);
+  e->addr->visit (this);
+
+  if (e->type == pe_unknown)
+    {
+      e->type = pe_long;
+      resolved (e->tok, e->type);
+    }
+}
+
+void
+typeresolution_info::visit_target_bitfield (target_bitfield*)
+{
+  // These are all expanded much earlier.
+  abort();
+}
 
 void
 typeresolution_info::visit_target_symbol (target_symbol* e)

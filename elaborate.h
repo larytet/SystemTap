@@ -145,11 +145,15 @@ struct typeresolution_info: public visitor
   void visit_logical_and_expr (logical_and_expr* e);
   void visit_array_in (array_in* e);
   void visit_regex_query (regex_query* e);
+  void visit_compound_expression (compound_expression* e);
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
   void visit_assignment (assignment* e);
   void visit_symbol (symbol* e);
+  void visit_target_register (target_register* e);
+  void visit_target_deref (target_deref* e);
+  void visit_target_bitfield (target_bitfield* e);
   void visit_target_symbol (target_symbol* e);
   void visit_arrayindex (arrayindex* e);
   void visit_functioncall (functioncall* e);
@@ -459,7 +463,7 @@ struct const_folder: public update_visitor
   bool collapse_defines_p;
   
   const_folder(systemtap_session& s, bool& r, bool collapse_defines = false):
-    session(s), relaxed_p(r), collapse_defines_p(collapse_defines),
+    update_visitor(s.verbose), session(s), relaxed_p(r), collapse_defines_p(collapse_defines),
     last_number(0), last_string(0), last_target_symbol(0) {}
 
   literal_number* last_number;
@@ -479,6 +483,7 @@ struct const_folder: public update_visitor
   void visit_unary_expression (unary_expression* e);
   void visit_logical_or_expr (logical_or_expr* e);
   void visit_logical_and_expr (logical_and_expr* e);
+  void visit_compound_expression (compound_expression* e);
   // void visit_regex_query (regex_query* e); // XXX: would require executing dfa at compile-time
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);

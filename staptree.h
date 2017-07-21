@@ -252,11 +252,16 @@ struct regex_query: public expression
   void print (std::ostream& o) const;
 };
 
+struct compound_expression: public binary_expression
+{
+  compound_expression() { op = ","; }
+  void visit (visitor* u);
+};
+
 struct comparison: public binary_expression
 {
   void visit (visitor* u);
 };
-
 
 struct concatenation: public binary_expression
 {
@@ -310,6 +315,33 @@ struct symbol: public indexable
   bool is_symbol(symbol *& sym_out);
 };
 
+struct target_register: public expression
+{
+  unsigned regno;
+  bool userspace_p;
+  void print (std::ostream& o) const;
+  void visit (visitor* u);
+};
+
+struct target_deref: public expression
+{
+  expression* addr;
+  unsigned size;
+  bool signed_p;
+  bool userspace_p;
+  void print (std::ostream& o) const;
+  void visit (visitor* u);
+};
+
+struct target_bitfield: public expression
+{
+  expression* base;
+  unsigned offset;
+  unsigned size;
+  bool signed_p;
+  void print (std::ostream& o) const;
+  void visit (visitor* u);
+};
 
 struct target_symbol: public expression
 {
@@ -909,11 +941,15 @@ struct visitor
   virtual void visit_logical_and_expr (logical_and_expr* e) = 0;
   virtual void visit_array_in (array_in* e) = 0;
   virtual void visit_regex_query (regex_query* e) = 0;
+  virtual void visit_compound_expression (compound_expression * e) = 0;
   virtual void visit_comparison (comparison* e) = 0;
   virtual void visit_concatenation (concatenation* e) = 0;
   virtual void visit_ternary_expression (ternary_expression* e) = 0;
   virtual void visit_assignment (assignment* e) = 0;
   virtual void visit_symbol (symbol* e) = 0;
+  virtual void visit_target_register (target_register* e) = 0;
+  virtual void visit_target_deref (target_deref* e) = 0;
+  virtual void visit_target_bitfield (target_bitfield* e) = 0;
   virtual void visit_target_symbol (target_symbol* e) = 0;
   virtual void visit_arrayindex (arrayindex* e) = 0;
   virtual void visit_functioncall (functioncall* e) = 0;
@@ -958,11 +994,15 @@ struct nop_visitor: public visitor
   virtual void visit_logical_and_expr (logical_and_expr*) {};
   virtual void visit_array_in (array_in*) {};
   virtual void visit_regex_query (regex_query*) {};
+  virtual void visit_compound_expression (compound_expression *) {};
   virtual void visit_comparison (comparison*) {};
   virtual void visit_concatenation (concatenation*) {};
   virtual void visit_ternary_expression (ternary_expression*) {};
   virtual void visit_assignment (assignment*) {};
   virtual void visit_symbol (symbol*) {};
+  virtual void visit_target_register (target_register*) {};
+  virtual void visit_target_deref (target_deref*) {};
+  virtual void visit_target_bitfield (target_bitfield*) {};
   virtual void visit_target_symbol (target_symbol*) {};
   virtual void visit_arrayindex (arrayindex*) {};
   virtual void visit_functioncall (functioncall*) {};
@@ -1007,11 +1047,15 @@ struct traversing_visitor: public visitor
   void visit_logical_and_expr (logical_and_expr* e);
   void visit_array_in (array_in* e);
   void visit_regex_query (regex_query* e);
+  void visit_compound_expression(compound_expression* e);
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
   void visit_assignment (assignment* e);
   void visit_symbol (symbol* e);
+  void visit_target_register (target_register* e);
+  void visit_target_deref (target_deref* e);
+  void visit_target_bitfield (target_bitfield* e);
   void visit_target_symbol (target_symbol* e);
   void visit_arrayindex (arrayindex* e);
   void visit_functioncall (functioncall* e);
@@ -1043,11 +1087,15 @@ struct expression_visitor: public traversing_visitor
   void visit_logical_and_expr (logical_and_expr* e);
   void visit_array_in (array_in* e);
   void visit_regex_query (regex_query* e);
+  void visit_compound_expression (compound_expression* e);
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
   void visit_assignment (assignment* e);
   void visit_symbol (symbol* e);
+  void visit_target_register (target_register* e);
+  void visit_target_deref (target_deref* e);
+  void visit_target_bitfield (target_bitfield* e);
   void visit_target_symbol (target_symbol* e);
   void visit_arrayindex (arrayindex* e);
   void visit_functioncall (functioncall* e);
@@ -1109,6 +1157,8 @@ struct varuse_collecting_visitor: public functioncall_traversing_visitor
   void visit_assignment (assignment *e);
   void visit_ternary_expression (ternary_expression* e);
   void visit_arrayindex (arrayindex *e);
+  void visit_target_register (target_register* e);
+  void visit_target_deref (target_deref* e);
   void visit_target_symbol (target_symbol *e);
   void visit_symbol (symbol *e);
   void visit_pre_crement (pre_crement *e);
@@ -1160,11 +1210,15 @@ struct throwing_visitor: public visitor
   void visit_logical_and_expr (logical_and_expr* e);
   void visit_array_in (array_in* e);
   void visit_regex_query (regex_query* e);
+  void visit_compound_expression (compound_expression* e);
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
   void visit_assignment (assignment* e);
   void visit_symbol (symbol* e);
+  void visit_target_register (target_register* e);
+  void visit_target_deref (target_deref* e);
+  void visit_target_bitfield (target_bitfield* e);
   void visit_target_symbol (target_symbol* e);
   void visit_arrayindex (arrayindex* e);
   void visit_functioncall (functioncall* e);
@@ -1225,22 +1279,21 @@ struct update_visitor: public visitor
         T* new_src = require(src, clearok);
         if (old_src != new_src)
           {
-            #if 0 /* XXX: this should be parametrized from session.verbose, and
-                     could take place of all of those 'elided ...' messages
-                     in elaborate.cxx optimization visitors. */
-            std::cout << "replaced ";
-            old_src->print(std::cout);
-            std::cout << " with ";
-            new_src->print(std::cout);
-            std::cout << std::endl;
-            #endif
+	    if (this->verbose > 3)
+	      {
+		std::clog << _("replaced ");
+		old_src->print(std::clog);
+		std::clog << _(" with ");
+		new_src->print(std::clog);
+		std::clog << std::endl;
+	      }
             relaxed_p = false;
           }
         src = new_src;
       }
   }
 
-  update_visitor(): aborted_p(false), relaxed_p(true) {}
+  update_visitor(unsigned v = 0): verbose(v), aborted_p(false), relaxed_p(true) {}
   virtual ~update_visitor() { assert(values.empty()); }
 
   // Permit reuse of the visitor object. 
@@ -1271,11 +1324,15 @@ struct update_visitor: public visitor
   virtual void visit_logical_and_expr (logical_and_expr* e);
   virtual void visit_array_in (array_in* e);
   virtual void visit_regex_query (regex_query* e);
+  virtual void visit_compound_expression (compound_expression* e);
   virtual void visit_comparison (comparison* e);
   virtual void visit_concatenation (concatenation* e);
   virtual void visit_ternary_expression (ternary_expression* e);
   virtual void visit_assignment (assignment* e);
   virtual void visit_symbol (symbol* e);
+  virtual void visit_target_register (target_register* e);
+  virtual void visit_target_deref (target_deref* e);
+  virtual void visit_target_bitfield (target_bitfield* e);
   virtual void visit_target_symbol (target_symbol* e);
   virtual void visit_arrayindex (arrayindex* e);
   virtual void visit_functioncall (functioncall* e);
@@ -1292,6 +1349,7 @@ struct update_visitor: public visitor
 private:
   std::stack<visitable *> values;
 protected:
+  unsigned verbose;
   bool aborted_p;
   bool relaxed_p;
 };
@@ -1334,11 +1392,15 @@ struct deep_copy_visitor: public update_visitor
   virtual void visit_logical_and_expr (logical_and_expr* e);
   virtual void visit_array_in (array_in* e);
   virtual void visit_regex_query (regex_query* e);
+  virtual void visit_compound_expression(compound_expression* e);
   virtual void visit_comparison (comparison* e);
   virtual void visit_concatenation (concatenation* e);
   virtual void visit_ternary_expression (ternary_expression* e);
   virtual void visit_assignment (assignment* e);
   virtual void visit_symbol (symbol* e);
+  virtual void visit_target_register (target_register* e);
+  virtual void visit_target_deref (target_deref* e);
+  virtual void visit_target_bitfield (target_bitfield* e);
   virtual void visit_target_symbol (target_symbol* e);
   virtual void visit_arrayindex (arrayindex* e);
   virtual void visit_functioncall (functioncall* e);

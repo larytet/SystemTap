@@ -219,11 +219,15 @@ struct c_unparser: public unparser, public visitor
   void visit_logical_and_expr (logical_and_expr* e);
   void visit_array_in (array_in* e);
   void visit_regex_query (regex_query* e);
+  void visit_compound_expression(compound_expression* e);
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
   void visit_assignment (assignment* e);
   void visit_symbol (symbol* e);
+  void visit_target_register (target_register* e);
+  void visit_target_deref (target_deref* e);
+  void visit_target_bitfield (target_bitfield* e);
   void visit_target_symbol (target_symbol* e);
   void visit_arrayindex (arrayindex* e);
   void visit_functioncall (functioncall* e);
@@ -303,8 +307,10 @@ struct c_unparser_assignment:
 		  tmpvar const & tmp,
 		  token const*  tok);
 
-  // only symbols and arrayindex nodes are possible lvalues
+  // The set of valid lvalues are limited.
   void visit_symbol (symbol* e);
+  void visit_target_register (target_register* e);
+  void visit_target_deref (target_deref* e);
   void visit_arrayindex (arrayindex* e);
 };
 
@@ -2061,7 +2067,8 @@ c_unparser::emit_module_init ()
 
   // Error handling path; by now all partially registered probe groups
   // have been unregistered.
-  o->newline(-1) << "out:";
+  o->newline(-1) << "deref_fault: __attribute__((unused));";
+  o->newline(0) << "out:";
   o->indent(1);
 
   // If any registrations failed, we will need to deregister the globals,
@@ -2549,6 +2556,7 @@ c_unparser::emit_function (functiondecl* v)
             << " (struct context* __restrict__ c) {";
   o->indent(1);
 
+  o->newline() << "__label__ deref_fault;";
   o->newline() << "__label__ out;";
   o->newline()
     << "struct " << c_funcname (v->name) << "_locals * "
@@ -2650,12 +2658,12 @@ c_unparser::emit_function (functiondecl* v)
 
   record_actions(0, v->body->tok, true);
 
-  o->newline(-1) << "out:";
-  o->newline(1) << "if (0) goto out;"; // make sure out: is marked used
+  o->newline(-1) << "deref_fault: __attribute__((unused));";
+  o->newline(0) << "out: __attribute__((unused));";
 
   // Function prologue: this is why we redirect the "return" above.
   // Decrement nesting level.
-  o->newline() << "c->nesting --;";
+  o->newline(1) << "c->nesting --;";
 
   o->newline() << "#undef CONTEXT";
   o->newline() << "#undef THIS";
@@ -2785,6 +2793,7 @@ c_unparser::emit_probe (derived_probe* v)
       o->line () << "{";
       o->indent (1);
 
+      o->newline() << "__label__ deref_fault;";
       o->newline() << "__label__ out;";
 
       // emit static read/write lock decls for global variables
@@ -2869,7 +2878,8 @@ c_unparser::emit_probe (derived_probe* v)
 
       record_actions(0, v->body->tok, true);
 
-      o->newline(-1) << "out:";
+      o->newline(-1) << "deref_fault: __attribute__((unused));";
+      o->newline(0) << "out:";
       // NB: no need to uninitialize locals, except if arrays/stats can
       // someday be local
 
@@ -3730,6 +3740,7 @@ void c_unparser::visit_try_block (try_block *s)
   o->newline() << "{";
   o->newline(1) << "__label__ normal_fallthrough;";
   o->newline(1) << "{";
+  o->newline() << "__label__ deref_fault;";
   o->newline() << "__label__ out;";
 
   assert (!session->unoptimized || s->try_block); // dead_stmtexpr_remover would zap it
@@ -3740,9 +3751,8 @@ void c_unparser::visit_try_block (try_block *s)
     }
   o->newline() << "goto normal_fallthrough;";
 
-  o->newline() << "if (0) goto out;"; // to prevent 'unused label' warnings
-  o->newline() << "out:";
-  o->newline() << ";"; // to have _some_ statement
+  o->newline() << "deref_fault: __attribute__((unused));";
+  o->newline() << "out: __attribute__((unused));";
 
   // Close the scope of the above nested 'out' label, to make sure
   // that the catch block, should it encounter errors, does not resolve
@@ -3785,6 +3795,9 @@ c_unparser::visit_embeddedcode (embeddedcode *s)
     o->newline() << "assert_is_myproc();";
   o->newline() << "{";
 
+  //  if (1 || s->code.find ("CATCH_DEREF_FAULT") != string::npos)
+  //    o->newline() << "__label__ deref_fault;";
+
   vector<vardecl*> read_defs;
   vector<vardecl*> write_defs;
   for (unsigned i = 0; i < session->globals.size(); i++)
@@ -3810,6 +3823,9 @@ c_unparser::visit_embeddedcode (embeddedcode *s)
     c_global_read_undef(*it);
   for (vector<vardecl*>::const_iterator it = write_defs.begin(); it != write_defs.end(); ++it)
     c_global_write_undef(*it);
+
+  //  if (1 || s->code.find ("CATCH_DEREF_FAULT") != string::npos)
+  //    o->newline() << ";";
 
   o->newline() << "}";
 }
@@ -4733,11 +4749,19 @@ c_unparser::visit_binary_expression (binary_expression* e)
   else if (e->op == ">>" ||
            e->op == "<<")
     {
-      o->line() << "((";
+      o->line() << "(";
       e->left->visit (this);
-      o->line() << ") " << e->op << "max(min(";
+      o->line() << ") " << e->op << " ((";
       e->right->visit (this);
-      o->line() << ", (int64_t)64LL), (int64_t)0LL))"; // between 0 and 64
+      o->line() << ") & 63)";
+    }
+  else if (e->op == ">>>")
+    {
+      o->line() << "(int64_t)((uint64_t)(";
+      e->left->visit (this);
+      o->line() << ") >> ((";
+      e->right->visit (this);
+      o->line() << ") & 63))";
     }
   else if (e->op == "/" ||
            e->op == "%")
@@ -4765,7 +4789,7 @@ c_unparser::visit_binary_expression (binary_expression* e)
       o->newline(-1) << "})";
     }
   else
-    throw SEMANTIC_ERROR (_("operator not yet implemented"), e->tok);
+    throw SEMANTIC_ERROR (_F("operator %s not yet implemented", string(e->op).c_str()), e->tok);
 }
 
 
@@ -4971,6 +4995,16 @@ c_unparser::visit_regex_query (regex_query* e)
 }
 
 void
+c_unparser::visit_compound_expression(compound_expression* e)
+{
+  o->line() << "(";
+  e->left->visit (this);
+  o->line() << ", ";
+  e->right->visit (this);
+  o->line() << ")";
+}
+
+void
 c_unparser::visit_comparison (comparison* e)
 {
   o->line() << "(";
@@ -5119,6 +5153,48 @@ c_unparser::visit_symbol (symbol* e)
   o->line() << v;
 }
 
+void
+c_unparser::visit_target_register (target_register* e)
+{
+  o->line() << (e->userspace_p ? "u_fetch_register(" : "k_fetch_register(")
+	    << e->regno
+	    << ")";
+}
+
+void
+c_unparser::visit_target_deref (target_deref* e)
+{
+  if (e->signed_p)
+    {
+      switch (e->size)
+	{
+	case 1:
+	  o->line() << "(int64_t)(int8_t)";
+	  break;
+	case 2:
+	  o->line() << "(int64_t)(int16_t)";
+	  break;
+	case 4:
+	  o->line() << "(int64_t)(int32_t)";
+	  break;
+	case 8:
+	  break;
+	default:
+	  abort();
+	}
+    }
+  o->line() << (e->userspace_p ? "uderef(" : "kderef(")
+	    << e->size << ", (";
+  e->addr->visit (this);
+  o->line() << "))";
+}
+
+void
+c_unparser::visit_target_bitfield (target_bitfield*)
+{
+  // These are all expanded much earlier.
+  abort();
+}
 
 // Assignment expansion is tricky.
 //
@@ -5184,6 +5260,44 @@ c_unparser_assignment::visit_symbol (symbol *e)
   o->newline() << res << ";";
 }
 
+void
+c_unparser_assignment::visit_target_register (target_register* e)
+{
+  exp_type ty = rvalue ? rvalue->type : e->type;
+  assert(ty == pe_long);
+
+  tmpvar rval = parent->gensym (pe_long);
+  prepare_rvalue (op, rval, e->tok);
+
+  // Given how target_registers are created in loc2stap.cxx,
+  // we should never see anything other than simple assignment.
+  assert(op == "=");
+
+  translator_output* o = parent->o;
+  o->newline() << (e->userspace_p ? "u_store_register(" : "k_store_register(")
+	       << e->regno << ", " << rval << ")";
+}
+
+void
+c_unparser_assignment::visit_target_deref (target_deref* e)
+{
+  exp_type ty = rvalue ? rvalue->type : e->type;
+  assert(ty == pe_long);
+
+  tmpvar rval = parent->gensym (pe_long);
+
+  prepare_rvalue (op, rval, e->tok);
+
+  // Given how target_deref are created in loc2stap.cxx,
+  // we should never see anything other than simple assignment.
+  assert(op == "=");
+
+  translator_output* o = parent->o;
+  o->newline() << (e->userspace_p ? "store_uderef(" : "store_kderef(")
+	       << e->size << ", (";
+  e->addr->visit (parent);
+  o->line() << "), " << rval << ")";
+}
 
 void
 c_unparser::visit_target_symbol (target_symbol* e)
@@ -7695,9 +7809,9 @@ void translate_runtime(systemtap_session& s)
                                         "without is_myproc checking for pid %d (euid %d)"));
 
   s.op->newline() << "#define STAP_MSG_LOC2C_01 "
-                  << lex_cast_qstring(_("read fault [man error::fault] at 0x%p (%s)"));
+                  << lex_cast_qstring(_("read fault [man error::fault] at 0x%lx"));
   s.op->newline() << "#define STAP_MSG_LOC2C_02 "
-                  << lex_cast_qstring(_("write fault [man error::fault] at 0x%p (%s)"));
+                  << lex_cast_qstring(_("write fault [man error::fault] at 0x%lx"));
   s.op->newline() << "#define STAP_MSG_LOC2C_03 "
                   << lex_cast_qstring(_("divide by zero in DWARF operand (%s)"));
 }
