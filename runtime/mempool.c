@@ -16,7 +16,7 @@ typedef struct {
 	struct list_head free_list;
 	unsigned num;
 	unsigned size;
-	spinlock_t lock;
+	stp_spinlock_t lock;
 } _stp_mempool_t;
 
 /* for internal use only */
@@ -52,7 +52,7 @@ static _stp_mempool_t *_stp_mempool_init(size_t size, size_t num)
 	}
 
 	INIT_LIST_HEAD(&pool->free_list);
-	spin_lock_init(&pool->lock);
+	stp_spin_lock_init(&pool->lock);
 
 	alloc_size = size + sizeof(struct _stp_mem_buffer) - sizeof(void *);
 
@@ -81,14 +81,14 @@ static void *_stp_mempool_alloc(_stp_mempool_t *pool)
          actually initialized. */
         if (pool == NULL)
                 return NULL;
-	spin_lock_irqsave(&pool->lock, flags);
+	stp_spin_lock_irqsave(&pool->lock, flags);
 	if (likely(!list_empty(&pool->free_list))) {
 		ptr = (struct _stp_mem_buffer *)pool->free_list.next;
 		list_del_init(&ptr->list);
-		spin_unlock_irqrestore(&pool->lock, flags);
+		stp_spin_unlock_irqrestore(&pool->lock, flags);
 		return &ptr->buf;
 	}
-	spin_unlock_irqrestore(&pool->lock, flags);
+	stp_spin_unlock_irqrestore(&pool->lock, flags);
 	return NULL;
 }
 
@@ -97,8 +97,8 @@ static void _stp_mempool_free(void *buf)
 {
 	unsigned long flags;
 	struct _stp_mem_buffer *m = container_of(buf, struct _stp_mem_buffer, buf);
-	spin_lock_irqsave(&m->pool->lock, flags);
+	stp_spin_lock_irqsave(&m->pool->lock, flags);
 	list_add(&m->list, &m->pool->free_list);
-	spin_unlock_irqrestore(&m->pool->lock, flags);
+	stp_spin_unlock_irqrestore(&m->pool->lock, flags);
 }
 #endif /* _STP_MEMPOOL_C_ */
