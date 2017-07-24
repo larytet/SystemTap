@@ -5426,10 +5426,12 @@ struct autocast_expanding_visitor: public var_expanding_visitor
 
   void resolve_functioncall (functioncall* fc)
     {
-      // This is a very limited version of semantic_pass_symbols, but we're
-      // late in the game at this point.  We won't get a chance to optimize,
-      // but for now the only functions we expect are kernel/user_string from
-      // pretty-printing, which don't need optimization.
+      // This is a very limited version of semantic_pass_symbols, but
+      // we're late in the game at this point (after basic symbol
+      // resolution already took place).  We won't get a chance to
+      // optimize, but for now the only functions we expect are
+      // kernel/user_string from pretty-printing, which don't need
+      // optimization.
 
       systemtap_session& s = ti.session;
       size_t nfiles = s.files.size();
@@ -5490,6 +5492,13 @@ struct autocast_expanding_visitor: public var_expanding_visitor
               ti.num_newly_resolved++;
 
               resolve_functioncall (fc);
+	      // NB: at this stage, the functioncall object has one
+	      // argument too few if we're in lvalue context.  It will
+	      // be filled in only later (as the
+	      // var_expanding_visitor::visit_assignment bit rolls
+	      // back up).  But nevertheless we must resolve the fc,
+	      // otherwise, symresolution_info::visit_functioncall will
+	      // throw a mismatched-arity error.  (semok/autocast08.stp)
 
               if (lvalue)
                 provide_lvalue_call (fc);

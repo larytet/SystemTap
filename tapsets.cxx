@@ -3173,7 +3173,7 @@ dwarf_pretty_print::expand ()
   fdecl->type = pe_string;
 
   functioncall* fcall = new functioncall;
-  // fcall->referents.push_back(fdecl);
+  fcall->referents.push_back(fdecl); // may be needed for post-pass2a sym resolution; autocast08.stp
   fcall->tok = ts->tok;
   fcall->function = fdecl->name;
   fcall->type = pe_string;
@@ -3709,7 +3709,7 @@ synthetic_embedded_deref_call(dwflpp& dw, location_context &ctx,
   // Synthesize a functioncall.
   functioncall* fcall = new functioncall;
   fcall->tok = tok;
-  // fcall->referents.push_back(fdecl);
+  fcall->referents.push_back(fdecl); // may be needed for post-pass2a sym resolution; autocast08.stp
   fcall->function = fdecl->name;
   fcall->type = fdecl->type;
   fcall->type_details = fdecl->type_details;
