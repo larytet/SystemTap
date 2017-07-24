@@ -202,7 +202,7 @@ function __iov_length:long (iov:long, nr_segs:long, check_flag:long, access_flag
 		}
 
 		if (!_stp_lookup_bad_addr((int)STAP_ARG_access_flags,
-					  iov_len, (void*)kread(&(iov[seg].iov_base)),
+					  iov_len, kread(&(iov[seg].iov_base)),
 					  KERNEL_DS))
                         continue;
                 if (seg == 0) {
