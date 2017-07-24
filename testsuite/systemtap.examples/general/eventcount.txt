@@ -1,4 +1,4 @@
-# stap eventcount_interactive.stp 'syscall.write'
+# stap eventcount.stp 'syscall.write'
 
 Starting event counting at Fri Jun 16 16:22:37 2017 EDT, unfiltered
 Incremental reporting (max 20 lines, sorted by count) every 10 s
