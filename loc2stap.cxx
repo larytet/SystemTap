@@ -1454,6 +1454,7 @@ location_context::translate_array_1(Dwarf_Die *anydie, Dwarf_Word stride,
       index = NULL;
     }
 
+ restart:
   while (loc->type == loc_noncontiguous)
     {
       if (index)
@@ -1528,8 +1529,19 @@ location_context::translate_array_1(Dwarf_Die *anydie, Dwarf_Word stride,
 	throw SEMANTIC_ERROR("cannot index into computed value");
       break;
 
+    case loc_implicit_pointer:
+      if (loc->offset)
+	throw SEMANTIC_ERROR ("cannot handle offset into implicit pointer");
+      loc = loc->target;
+      delete nloc;
+      locations.pop_back();
+      if (loc)
+	goto restart;
+      throw SEMANTIC_ERROR ("pointer optimized out");
+
     default:
-      throw SEMANTIC_ERROR(_F("cannot handle location type %d\n", (int)loc->type));
+      throw SEMANTIC_ERROR(_F("cannot handle location type %d\n",
+			   (int)loc->type));
     }
 
   return nloc;
