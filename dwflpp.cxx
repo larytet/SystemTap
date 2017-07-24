@@ -3594,7 +3594,17 @@ dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size,
 			    ctx.e->tok);
 
     case loc_implicit_pointer:
+      if (loc->offset != 0)
+	throw SEMANTIC_ERROR (_("cannot handle offset into implicit pointer"),
+			      ctx.e->tok);
+      loc = loc->target;
+      if (loc)
+	{
+	  ctx.locations.push_back(loc);
+	  goto restart;
+	}
       throw SEMANTIC_ERROR (_("pointer optimized out"), ctx.e->tok);
+
     case loc_unavailable:
       throw SEMANTIC_ERROR (_("location not available"), ctx.e->tok);
     default:
