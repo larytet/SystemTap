@@ -5,7 +5,19 @@
 set -e
 
 fn="do_readv_writev@fs/read_write.c"
-var="file"
+if stap -l 'kernel.function("'$fn'")' > /dev/null; then
+    var="file"
+    echo "Function '$fn' found."
+else
+    fn="do_iter_readv_writev@fs/read_write.c"
+    if stap -l 'kernel.function("'$fn'")' > /dev/null; then
+	var="filp"
+	echo "Function '$fn' found."
+    else
+	echo "Unexpected error: Can't find any function to test."
+	exit 1
+    fi
+fi
 
 fullfn=`stap $@ -wp2 -e 'probe kernel.statement("'$fn'") {}' | grep kernel | cut -f2 -d'"'`
 lineno=`echo $fullfn | cut -f2 -d:`
