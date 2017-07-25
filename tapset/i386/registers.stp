@@ -128,6 +128,7 @@ function u_register:long (name:string) {
 
 /* Return the value of function arg #argnum (1=first arg) as a signed value. */
 function _stp_arg:long (argnum:long) %{ /* pure */
+	__label__ deref_fault;
 	long val;
 	int n, nr_regargs, result;
 	struct pt_regs *regs;
@@ -184,13 +185,11 @@ bad_argnum:
 	CONTEXT->last_error = CONTEXT->error_buffer;
 	return;
 
-	if (0) {
 deref_fault: /* branched to from kread() */
-		snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        		"kernel fault at %#lx accessing arg(%lld)", val,
-			STAP_ARG_argnum);
-    		CONTEXT->last_error = CONTEXT->error_buffer;
-	}
+	snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+		  "kernel fault at %#lx accessing arg(%lld)", val,
+		  STAP_ARG_argnum);
+	CONTEXT->last_error = CONTEXT->error_buffer;
 %}
 
 /* Return the value of function arg #argnum as a signed int. */

@@ -307,6 +307,7 @@ function user_string_n2_quoted:string (addr:long, inlen:long, outlen:long) {
  * string copy fault or conversion error.
  */
 function user_string_utf32:string (addr:long) %{ /* pure */ /* myproc-unprivileged */
+  __label__ deref_fault;
   int rc = 0, len = MAXSTRINGLEN;
   uint32_t c32, *source = (uint32_t*)(intptr_t)STAP_ARG_addr;
   char *destination = STAP_RETVALUE;
@@ -373,6 +374,7 @@ function user_string_quoted_utf32:string (addr:long) {
  * string copy fault or conversion error.
  */
 function user_string_utf16:string (addr:long) %{ /* pure */ /* myproc-unprivileged */
+  __label__ deref_fault;
   int rc = 0, len = MAXSTRINGLEN;
   uint32_t c32;
   uint16_t c16low, *source = (uint16_t*)(intptr_t)STAP_ARG_addr;

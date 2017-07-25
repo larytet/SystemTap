@@ -1,0 +1,21 @@
+#! stap -gp4
+
+global x
+function f(x) { return x }
+
+probe kernel.function("do_execve")
+{
+  if (@defined($__argv)) {
+    x = $__argv[$__argv[f(0)][f(1)]][$__argv[f(2)][f(3)]]
+    $__argv[$__argv[f(4)][f(5)]][2] = x
+  } else if (@defined($argv)) {
+    x = $argv[$argv[f(0)][f(1)]][$argv[f(2)][f(3)]]
+    $argv[$argv[f(4)][f(5)]][2] = x
+  }
+}
+
+probe kernel.trace("printk:console") ?
+{
+  x = $text[$text[1]]
+  $text[$text[0]] = x
+}

@@ -229,22 +229,19 @@
 #else
 #define DEREF_FAULT(addr) ({						    \
     snprintf(c->error_buffer, sizeof(c->error_buffer),			    \
-      STAP_MSG_LOC2C_01, (void *)(intptr_t)(addr), #addr);   \
+      STAP_MSG_LOC2C_01, (intptr_t)(addr));   \
     c->last_error = c->error_buffer;					    \
     goto deref_fault;							    \
     })
 
 #define STORE_DEREF_FAULT(addr) ({					    \
     snprintf(c->error_buffer, sizeof(c->error_buffer),			    \
-      STAP_MSG_LOC2C_02, (void *)(intptr_t)(addr), #addr);  \
+      STAP_MSG_LOC2C_02, (intptr_t)(addr));  \
     c->last_error = c->error_buffer;					    \
     goto deref_fault;							    \
     })
 
-#define CATCH_DEREF_FAULT()				\
-  if (0) {						\
-deref_fault: ;						\
-  }
+#define CATCH_DEREF_FAULT()	({0; }) /* always emitted by translator.cxx for functions & probes */
 #endif
 
 #endif /* _LOC2C_RUNTIME_H_ */

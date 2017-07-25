@@ -465,6 +465,21 @@ void symbol::print (ostream& o) const
   o << name;
 }
 
+void target_register::print (ostream &o) const
+{
+  o << (userspace_p ? "u" : "k") << "fetch_register(" << regno << ")";
+}
+
+void target_deref::print (ostream &o) const
+{
+  o << (userspace_p ? "u" : "k") << "deref(" << size << ", " << *addr << ")";
+}
+
+void target_bitfield::print (ostream &o) const
+{
+  o << (signed_p ? "s" : "u") << "bitfield(" << *base
+    << ", " << offset << ", " << size << ")";
+}
 
 void target_symbol::component::print (ostream& o) const
 {
@@ -555,7 +570,7 @@ void perf_op::print (ostream& o) const
 
 void vardecl::print (ostream& o) const
 {
-  o << unmangled_name;
+  o << ((unmangled_name != "") ? unmangled_name : name); // unmangled_name empty for some synthesized vardecls
   if(wrap)
     o << "%";
   if (maxsize > 0)
@@ -615,6 +630,7 @@ void functiondecl::printsig (ostream& o) const
 embedded_tags_visitor::embedded_tags_visitor(bool all_tags)
 {
   // populate the set of tags that could appear in embedded code/expressions
+  available_tags.insert("/* bpf */");
   available_tags.insert("/* guru */");
   available_tags.insert("/* unprivileged */");
   available_tags.insert("/* myproc-unprivileged */");
@@ -1476,7 +1492,11 @@ ostream& operator << (ostream& o, const symboldecl& k)
   return o;
 }
 
-
+void
+debug(expression *e)
+{
+  cout << *e << endl;
+}
 
 // ------------------------------------------------------------------------
 // visitors
@@ -1636,6 +1656,12 @@ regex_query::visit (visitor* u)
 }
 
 void
+compound_expression::visit (visitor* u)
+{
+  u->visit_compound_expression (this);
+}
+
+void
 comparison::visit (visitor* u)
 {
   u->visit_comparison (this);
@@ -1665,6 +1691,24 @@ void
 symbol::visit (visitor* u)
 {
   u->visit_symbol (this);
+}
+
+void
+target_register::visit (visitor* u)
+{
+  u->visit_target_register(this);
+}
+
+void
+target_deref::visit (visitor* u)
+{
+  u->visit_target_deref(this);
+}
+
+void
+target_bitfield::visit (visitor* u)
+{
+  u->visit_target_bitfield(this);
 }
 
 void
@@ -2007,6 +2051,13 @@ traversing_visitor::visit_regex_query (regex_query* e)
 }
 
 void
+traversing_visitor::visit_compound_expression (compound_expression* e)
+{
+  e->left->visit (this);
+  e->right->visit (this);
+}
+
+void
 traversing_visitor::visit_comparison (comparison* e)
 {
   e->left->visit (this);
@@ -2038,6 +2089,23 @@ traversing_visitor::visit_assignment (assignment* e)
 void
 traversing_visitor::visit_symbol (symbol*)
 {
+}
+
+void
+traversing_visitor::visit_target_register (target_register*)
+{
+}
+
+void
+traversing_visitor::visit_target_deref (target_deref* e)
+{
+  e->addr->visit (this);
+}
+
+void
+traversing_visitor::visit_target_bitfield (target_bitfield* e)
+{
+  e->base->visit (this);
 }
 
 void
@@ -2203,6 +2271,13 @@ expression_visitor::visit_regex_query (regex_query* e)
 }
 
 void
+expression_visitor::visit_compound_expression (compound_expression* e)
+{
+  traversing_visitor::visit_compound_expression (e);
+  visit_expression (e);
+}
+
+void
 expression_visitor::visit_comparison (comparison* e)
 {
   traversing_visitor::visit_comparison (e);
@@ -2234,6 +2309,27 @@ void
 expression_visitor::visit_symbol (symbol* e)
 {
   traversing_visitor::visit_symbol (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_target_register (target_register* e)
+{
+  traversing_visitor::visit_target_register (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_target_deref (target_deref* e)
+{
+  traversing_visitor::visit_target_deref (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_target_bitfield (target_bitfield* e)
+{
+  traversing_visitor::visit_target_bitfield (e);
   visit_expression (e);
 }
 
@@ -2465,6 +2561,18 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
 			     pr_name (session.privilege)),
 			  current_function->tok);
 
+  // Allow only /* bpf */ functions in bpf mode.
+  if ((session.runtime_mode == systemtap_session::bpf_runtime)
+      != (s->code.find ("/* bpf */") != string::npos))
+    {
+      if (session.runtime_mode == systemtap_session::bpf_runtime)
+	throw SEMANTIC_ERROR (_("function may not be used with bpf runtime"),
+                              current_function->tok);
+      else
+	throw SEMANTIC_ERROR (_("function requires bpf runtime"),
+                              current_function->tok);
+    }
+
   // Don't allow /* guru */ functions unless -g is active.
   if (!session.guru_mode && s->code.find ("/* guru */") != string::npos)
     throw SEMANTIC_ERROR (_("function may not be used unless -g is specified"),
@@ -2547,7 +2655,6 @@ varuse_collecting_visitor::visit_embedded_expr (embedded_expr *e)
   embedded_seen = true;
 }
 
-
 void
 varuse_collecting_visitor::visit_target_symbol (target_symbol *e)
 {
@@ -2562,6 +2669,26 @@ varuse_collecting_visitor::visit_target_symbol (target_symbol *e)
   functioncall_traversing_visitor::visit_target_symbol (e);
 }
 
+
+void
+varuse_collecting_visitor::visit_target_register (target_register *e)
+{
+  // Similar to visit_target_symbol.
+  if (is_active_lvalue (e))
+    embedded_seen = true;
+
+  // No need to call the base op, we've done everything here.
+}
+
+void
+varuse_collecting_visitor::visit_target_deref (target_deref *e)
+{
+  // Similar to visit_target_symbol.
+  if (is_active_lvalue (e))
+    embedded_seen = true;
+
+  functioncall_traversing_visitor::visit_target_deref (e);
+}
 
 void
 varuse_collecting_visitor::visit_atvar_op (atvar_op *e)
@@ -3036,6 +3163,12 @@ throwing_visitor::visit_regex_query (regex_query* e)
 }
 
 void
+throwing_visitor::visit_compound_expression (compound_expression* e)
+{
+  throwone (e->tok);
+}
+
+void
 throwing_visitor::visit_comparison (comparison* e)
 {
   throwone (e->tok);
@@ -3061,6 +3194,24 @@ throwing_visitor::visit_assignment (assignment* e)
 
 void
 throwing_visitor::visit_symbol (symbol* e)
+{
+  throwone (e->tok);
+}
+
+void
+throwing_visitor::visit_target_register (target_register* e)
+{
+  throwone (e->tok);
+}
+
+void
+throwing_visitor::visit_target_deref (target_deref* e)
+{
+  throwone (e->tok);
+}
+
+void
+throwing_visitor::visit_target_bitfield (target_bitfield* e)
 {
   throwone (e->tok);
 }
@@ -3322,6 +3473,14 @@ update_visitor::visit_regex_query (regex_query* e)
 }
 
 void
+update_visitor::visit_compound_expression (compound_expression* e)
+{
+  replace (e->left);
+  replace (e->right);
+  provide (e);
+}
+
+void
 update_visitor::visit_comparison (comparison* e)
 {
   replace (e->left);
@@ -3357,6 +3516,26 @@ update_visitor::visit_assignment (assignment* e)
 void
 update_visitor::visit_symbol (symbol* e)
 {
+  provide (e);
+}
+
+void
+update_visitor::visit_target_register (target_register* e)
+{
+  provide (e);
+}
+
+void
+update_visitor::visit_target_deref (target_deref* e)
+{
+  replace (e->addr);
+  provide (e);
+}
+
+void
+update_visitor::visit_target_bitfield (target_bitfield* e)
+{
+  replace (e->base);
   provide (e);
 }
 
@@ -3601,6 +3780,12 @@ deep_copy_visitor::visit_regex_query (regex_query* e)
 }
 
 void
+deep_copy_visitor::visit_compound_expression(compound_expression* e)
+{
+  update_visitor::visit_compound_expression(new compound_expression(*e));
+}
+
+void
 deep_copy_visitor::visit_comparison (comparison* e)
 {
   update_visitor::visit_comparison(new comparison(*e));
@@ -3630,6 +3815,27 @@ deep_copy_visitor::visit_symbol (symbol* e)
   symbol* n = new symbol(*e);
   n->referent = NULL; // don't copy!
   update_visitor::visit_symbol(n);
+}
+
+void
+deep_copy_visitor::visit_target_register (target_register* e)
+{
+  target_register* n = new target_register(*e);
+  update_visitor::visit_target_register(n);
+}
+
+void
+deep_copy_visitor::visit_target_deref (target_deref* e)
+{
+  target_deref* n = new target_deref(*e);
+  update_visitor::visit_target_deref(n);
+}
+
+void
+deep_copy_visitor::visit_target_bitfield (target_bitfield* e)
+{
+  target_bitfield* n = new target_bitfield(*e);
+  update_visitor::visit_target_bitfield(n);
 }
 
 void
@@ -3705,6 +3911,21 @@ void
 deep_copy_visitor::visit_hist_op (hist_op* e)
 {
   update_visitor::visit_hist_op(new hist_op(*e));
+}
+
+
+/* for invocation from gdb */
+void
+debug_print(const expression* x)
+{
+  x->print(cout);
+  cout << endl;
+}
+void
+debug_print(const statement* x)
+{
+  x->print(cout);
+  cout << endl;
 }
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */
