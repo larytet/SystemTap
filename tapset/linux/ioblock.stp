@@ -189,7 +189,8 @@ probe ioblock.end = kernel.function("bio_endio")
         bytes_done = @choose_defined($bytes_done,
 				     @choose_defined($bio->bi_iter->bi_size,
 						     $bio->bi_size))
-        error = @choose_defined($error,$bio->bi_error)
+        error = @choose_defined($error, @choose_defined($bio->bi_error,
+							$bio->bi_status))
 
         sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
         flags = $bio->bi_flags
