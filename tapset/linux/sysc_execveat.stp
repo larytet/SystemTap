@@ -46,7 +46,7 @@ probe dw_syscall.execveat = kernel.function("sys_execveat").call ?
         __argv = @choose_defined($__argv, $argv)
         args = __get_argv(__argv, 0)
 	__envp = @choose_defined($__envp, $envp)
-	env_str = __count_envp(__envp)
+	env_str = __get_argv(__envp, 0)
         @_SYSCALL_EXECVEAT_ARGSTR
 }
 probe dw_syscall.execveat.return = kernel.function("sys_execveat").return ?
@@ -73,7 +73,7 @@ probe dw_syscall.compat_execveat = kernel.function("compat_sys_execveat").call ?
         __argv = @__pointer(@choose_defined($__argv, $argv))
         args = __get_compat_argv(__argv, 0)
 	__envp = @__pointer(@choose_defined($__envp, $envp))
-	env_str = __count_compat_envp(__envp)
+	env_str = __get_compat_argv(__envp, 0)
         @_SYSCALL_EXECVEAT_ARGSTR
 }
 probe dw_syscall.compat_execveat.return =
@@ -100,7 +100,7 @@ probe nd_syscall.execveat = kprobe.function("sys_execveat").call ?
 %)
 	filename = user_string_quoted(pointer_arg(2))
 	args = __get_argv(pointer_arg(3), 0)
-	env_str = __count_envp(pointer_arg(4))
+	env_str = __get_argv(pointer_arg(4), 0)
 	flags = int_arg(5)
 	flags_str = _at_flag_str(flags)
 	@_SYSCALL_EXECVEAT_ARGSTR
@@ -125,7 +125,7 @@ probe nd_syscall.compat_execveat = kprobe.function("compat_sys_execveat").call ?
 %)
 	filename = user_string_quoted(pointer_arg(2))
 	args = __get_compat_argv(pointer_arg(3), 0)
-	env_str = __count_compat_envp(pointer_arg(4))
+	env_str = __get_compat_argv(pointer_arg(4), 0)
 	flags = int_arg(5)
 	flags_str = _at_flag_str(flags)
 	@_SYSCALL_EXECVEAT_ARGSTR

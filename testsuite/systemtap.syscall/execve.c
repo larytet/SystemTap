@@ -9,24 +9,24 @@ int main()
     /* Limit testing */
     execve((char *)-1, NULL, NULL);
 #ifdef __s390__
-    //staptest// execve (0x[7]?[f]+, \[\], \[/\* 0 vars \*/\]) = -NNNN (EFAULT)
+    //staptest// execve (0x[7]?[f]+, \[\], \[\]) = -NNNN (EFAULT)
 #else
-    //staptest// execve (0x[f]+, \[\], \[/\* 0 vars \*/\]) = -NNNN (EFAULT)
+    //staptest// execve (0x[f]+, \[\], \[\]) = -NNNN (EFAULT)
 #endif
 
     execve(NULL, (char **)-1, NULL);
 #ifdef __s390__
-    //staptest// execve (0x0, \[0x[7]?[f]+\], \[/\* 0 vars \*/\]) = -NNNN (EFAULT)
+    //staptest// execve (0x0, \[0x[7]?[f]+\], \[\]) = -NNNN (EFAULT)
 #else
-    //staptest// execve (0x0, \[0x[f]+\], \[/\* 0 vars \*/\]) = -NNNN (EFAULT)
+    //staptest// execve (0x0, \[0x[f]+\], \[\]) = -NNNN (EFAULT)
 #endif
 
     execve(NULL, NULL, (char **)-1);
-    //staptest// execve (0x0, \[\], \[/\* 0 vars \*/\]) = -NNNN
+    //staptest// execve (0x0, \[\], \[0x[f]+\]) = -NNNN
 
     /* Regular testing. */
     execve(newargv[0], newargv, newenv);
-    //staptest// execve ("/bin/true", \["/bin/true", "a", "b", "cde"\], \[/\* 2 vars \*/\]) = NNNN
+    //staptest// execve ("/bin/true", \["/bin/true", "a", "b", "cde"\], \["FOO=10", "BAR=20"\]) = NNNN
 
     return 0;
 }
