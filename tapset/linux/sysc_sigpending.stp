@@ -23,7 +23,7 @@ probe dw_syscall.sigpending = __syscall.sigpending ?,
 	kernel.function("compat_sys_sigpending").call ?
 {
 	@_SYSCALL_SIGPENDING_NAME
-	set = $set
+	set = @choose_defined($set, $set32)
 	@_SYSCALL_SIGPENDING_ARGSTR
 }
 probe __syscall.sigpending = kernel.function("sys_sigpending").call ?
