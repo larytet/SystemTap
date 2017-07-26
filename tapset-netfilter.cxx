@@ -258,6 +258,8 @@ netfilter_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "#include <linux/tcp.h>";
   s.op->newline() << "#include <linux/ip.h>";
 
+  s.op->newline() << "#include \"linux/netfilter.c\"";
+
   for (unsigned i=0; i < probes.size(); i++)
     {
       netfilter_derived_probe *np = probes[i];

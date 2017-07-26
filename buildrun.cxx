@@ -464,6 +464,9 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-uapi-linux-sched-types.c",
 		  "STAPCONF_UAPI_LINUX_SCHED_TYPES", NULL);
 
+  // used by runtime/linux/netfilter.c
+  output_exportconf(s, o, "nf_register_hook", "STAPCONF_NF_REGISTER_HOOK");
+
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
   for (unsigned i=0; i<s.c_macros.size(); i++)
