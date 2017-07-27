@@ -34,7 +34,7 @@ probe __syscall.preadv2 = kernel.function("sys_preadv2").call ?
 	fd = __int32($fd)
 	vector_uaddr = $vec
 	count = __int32($vlen)
-	offset = ($pos_h << @const("BITS_PER_LONG")) + __ulong($pos_l)
+	offset = @__pos_from_hilo($pos_h, $pos_l)
 	flags = $flags
 	flags_str = _preadv2_flags_str(flags)
 	@_SYSCALL_PREADV2_ARGSTR
@@ -69,7 +69,7 @@ probe __nd_syscall.preadv2 = kprobe.function("sys_preadv2")
 	fd = int_arg(1)
 	vector_uaddr = pointer_arg(2)
 	count = int_arg(3)
-	offset = (ulong_arg(5) << @const("BITS_PER_LONG")) + ulong_arg(4)
+	offset = @__pos_from_hilo(ulong_arg(5), ulong_arg(4))
 	flags = int_arg(6)
 	flags_str = _preadv2_flags_str(flags)
 	@_SYSCALL_PREADV2_ARGSTR

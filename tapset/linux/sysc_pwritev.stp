@@ -31,7 +31,7 @@ probe __syscall.pwritev = kernel.function("sys_pwritev").call
 	fd = __int32($fd)
 	vector_uaddr = $vec
 	count = __int32($vlen)
-	offset = ($pos_h << @const("BITS_PER_LONG")) + __ulong($pos_l)
+	offset = @__pos_from_hilo($pos_h, $pos_l)
 	@_SYSCALL_PWRITEV_ARGSTR
 }
 probe __syscall.compat_pwritev = kernel.function("compat_sys_pwritev").call
@@ -62,7 +62,7 @@ probe __nd_syscall.pwritev = kprobe.function("sys_pwritev").call
 	fd = int_arg(1)
 	vector_uaddr = pointer_arg(2)
 	count = int_arg(3)
-	offset = (ulong_arg(5) << @const("BITS_PER_LONG")) + ulong_arg(4)
+	offset = @__pos_from_hilo(ulong_arg(5), ulong_arg(4))
 	@_SYSCALL_PWRITEV_ARGSTR
 }
 probe __nd_syscall.compat_pwritev = kprobe.function("compat_sys_pwritev").call

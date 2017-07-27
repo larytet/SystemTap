@@ -25,7 +25,7 @@
   (unsigned long) ((((u_int64_t) (val)) >> (sizeof (long) * 4)) >> (sizeof (long) * 4))
 
 static inline ssize_t
-pwritev2(int fd, const struct iovec *iov, int iovcnt, loff_t offset, int flags)
+__pwritev2(int fd, const struct iovec *iov, int iovcnt, loff_t offset, int flags)
 {
     return syscall(__NR_pwritev2, fd, iov, iovcnt,
 		   LO_HI_LONG(offset), flags);
@@ -96,19 +96,19 @@ int main()
   wr_iovec[1].iov_len = 0;
   wr_iovec[2].iov_base = NULL;
   wr_iovec[2].iov_len = 0;
-  pwritev2(fd, wr_iovec, 1, 0, 0);
+  __pwritev2(fd, wr_iovec, 1, 0, 0);
   //staptest// pwritev2 (NNNN, XXXX, 1, 0x0, 0x0) = -NNNN (EINVAL)
 
-  pwritev2(-1, wr_iovec, 1, 0, RWF_HIPRI);
+  __pwritev2(-1, wr_iovec, 1, 0, RWF_HIPRI);
   //staptest// pwritev2 (-1, XXXX, 1, 0x0, RWF_HIPRI) = -NNNN (EBADF)
 
-  pwritev2(fd, wr_iovec, -1, 0, 0);
+  __pwritev2(fd, wr_iovec, -1, 0, 0);
   //staptest// pwritev2 (NNNN, XXXX, -1, 0x0, 0x0) = -NNNN (EINVAL)
 
-  pwritev2(fd, wr_iovec, 1, 0, -1);
+  __pwritev2(fd, wr_iovec, 1, 0, -1);
   //staptest// pwritev2 (NNNN, XXXX, 1, 0x0, RWF_[^ ]+|XXXX) = -NNNN
 
-  pwritev2(fd, wr_iovec, 0, 0, 0);
+  __pwritev2(fd, wr_iovec, 0, 0, 0);
   //staptest// pwritev2 (NNNN, XXXX, 0, 0x0, 0x0) = 0
 
   wr_iovec[0].iov_base = buf;
@@ -117,22 +117,22 @@ int main()
   wr_iovec[1].iov_len = 0;
   wr_iovec[2].iov_base = NULL;
   wr_iovec[2].iov_len = 0;
-  pwritev2(fd, wr_iovec, 3, 0, 0);
+  __pwritev2(fd, wr_iovec, 3, 0, 0);
   //staptest// pwritev2 (NNNN, XXXX, 3, 0x0, 0x0) = 64
 
-  pwritev2(fd, wr_iovec, 3, 64, 0);
+  __pwritev2(fd, wr_iovec, 3, 64, 0);
   //staptest// pwritev2 (NNNN, XXXX, 3, 0x40, 0x0) = 64
 
   close (fd);
   //staptest// close (NNNN) = 0
 
-  pwritev2(-1, wr_iovec, 3, -1, 0);
+  __pwritev2(-1, wr_iovec, 3, -1, 0);
   //staptest// pwritev2 (-1, XXXX, 3, 0xffffffffffffffff, 0x0) = -NNNN
 
-  pwritev2(-1, wr_iovec, 3, 0x12345678deadbeefLL, 0);
+  __pwritev2(-1, wr_iovec, 3, 0x12345678deadbeefLL, 0);
   //staptest// pwritev2 (-1, XXXX, 3, 0x12345678deadbeef, 0x0) = -NNNN
 
-  pwritev2(-1, wr_iovec, 3, LLONG_MAX, 0);
+  __pwritev2(-1, wr_iovec, 3, LLONG_MAX, 0);
   //staptest// pwritev2 (-1, XXXX, 3, 0x7fffffffffffffff, 0x0) = -NNNN
 #endif
 #endif

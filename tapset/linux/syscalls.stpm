@@ -343,3 +343,10 @@
 #endif
 %}
 %)
+
+# @__pos_from_hilo() is lifted straight from fs/read_write.c and only
+# used by preadv*/pwritev*.
+@define __pos_from_hilo(high, low)
+%(
+  (((__ulong(@high) << (@const("BITS_PER_LONG") / 2)) << (@const("BITS_PER_LONG") / 2)) | __ulong(@low))
+%)
