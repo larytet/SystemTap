@@ -728,9 +728,11 @@ stapkp_init(struct stap_kprobe_probe *probes,
       sd.nprobes = nprobes;
       sd.probe_max = probe_max;
       sd.modname = NULL;
+      mutex_lock(&module_mutex);
       preempt_disable();
       kallsyms_on_each_symbol(stapkp_symbol_callback, &sd);
       preempt_enable();
+      mutex_unlock(&module_mutex);
       dbug_stapkp("found %lu probes\n", sd.probe_max);
    }
 #endif
@@ -794,9 +796,11 @@ stapkp_refresh(const char *modname,
 	 sd.nprobes = nprobes;
 	 sd.probe_max = probe_max;
 	 sd.modname = modname;
+	 mutex_lock(&module_mutex);
 	 preempt_disable();
 	 kallsyms_on_each_symbol(stapkp_symbol_callback, &sd);
 	 preempt_enable();
+	 mutex_unlock(&module_mutex);
       }
    }
 #endif
