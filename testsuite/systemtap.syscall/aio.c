@@ -39,7 +39,7 @@ int main() {
 	aio_context_t ctx;
 	struct iocb cb;
 	struct iocb *cbs[1];
-	char data[8];
+	char data[9];
 	struct io_event events[1];
 	int ret;
 	int fd;
