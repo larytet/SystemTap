@@ -413,8 +413,8 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-sched-task_stack.c", "STAPCONF_SCHED_TASK_STACK_H", NULL);
 
   // used by tapset/timestamp_monotonic.stp
-  output_exportconf(s, o, "cpu_clock", "STAPCONF_CPU_CLOCK");
-  output_exportconf(s, o, "local_clock", "STAPCONF_LOCAL_CLOCK");
+  output_autoconf(s, o, "autoconf-cpu-clock.c", "STAPCONF_CPU_CLOCK", NULL);
+  output_autoconf(s, o, "autoconf-local-clock.c", "STAPCONF_LOCAL_CLOCK", NULL);
 
   // used by runtime/uprobe-inode.c
   output_either_exportconf(s, o, "uprobe_register", "register_uprobe",
