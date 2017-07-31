@@ -32,25 +32,20 @@ static int nf_register_hook(struct nf_hook_ops *reg)
 	struct net *net, *last;
 	int ret = 0;
 
-	rcu_read_lock();
-	for_each_net_rcu(net) {
+	for_each_net(net) {
 		ret = nf_register_net_hook(net, reg);
 		if (ret && ret != -ENOENT)
 			goto rollback;
 	}
-	ret = 0;
-	goto nrh_exit;
+	return 0;
 
 rollback:
 	last = net;
-	for_each_net_rcu(net) {
+	for_each_net(net) {
 		if (net == last)
 			break;
 		nf_unregister_net_hook(net, reg);
 	}
-
-nrh_exit:
-	rcu_read_unlock();
 	return ret;
 }
 
@@ -58,11 +53,9 @@ static void nf_unregister_hook(struct nf_hook_ops *reg)
 {
 	struct net *net;
 
-	rcu_read_lock();
-	for_each_net_rcu(net) {
+	for_each_net(net) {
 		nf_unregister_net_hook(net, reg);
 	}
-	rcu_read_unlock();
 }
 
 #endif	// STAPCONF_NF_REGISTER_HOOK
