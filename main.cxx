@@ -1060,11 +1060,9 @@ passes_0_4 (systemtap_session &s)
   gettimeofday (&tv_before, NULL);
   PROBE1(stap, pass4__start, &s);
 
-#ifdef HAVE_LINUX_BPF_H
   if (s.runtime_mode == systemtap_session::bpf_runtime)
     rc = translate_bpf_pass (s);
   else
-#endif
     {
       if (s.use_cache)
 	{

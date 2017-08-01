@@ -86,6 +86,9 @@
 /* Define to 1 if libxml2 development libraries are installed */
 #undef HAVE_LIBXML2
 
+/* Define to 1 if you have the <linux/bpf.h> header file. */
+#undef HAVE_LINUX_BPF_H
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 

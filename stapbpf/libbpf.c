@@ -87,19 +87,26 @@ int bpf_get_next_key(int fd, void *key, void *next_key)
 #define ROUND_UP(x, n) (((x) + (n) - 1u) & ~((n) - 1u))
 
 char bpf_log_buf[LOG_BUF_SIZE];
+extern int log_level; // set from stapbpf command line
 
 int bpf_prog_load(enum bpf_prog_type prog_type,
 		  const struct bpf_insn *insns, int prog_len,
 		  const char *license, int kern_version)
 {
 	union bpf_attr attr;
+        memset (&attr, 0, sizeof(attr)); // kernel asserts 0 pad values
 	attr.prog_type = prog_type;
 	attr.insns = ptr_to_u64((void *) insns);
 	attr.insn_cnt = prog_len / sizeof(struct bpf_insn);
 	attr.license = ptr_to_u64((void *) license);
-	attr.log_buf = ptr_to_u64(bpf_log_buf);
-	attr.log_size = LOG_BUF_SIZE;
-	attr.log_level = 1;
+
+        if (log_level)
+          {
+            attr.log_buf = ptr_to_u64(bpf_log_buf);
+            attr.log_size = LOG_BUF_SIZE;
+            attr.log_level = log_level;
+            /* they hang together, or they hang separately with -EINVAL */
+          }
 
 	/* assign one field outside of struct init to make sure any
 	 * padding is zero initialized
@@ -107,6 +114,9 @@ int bpf_prog_load(enum bpf_prog_type prog_type,
 	attr.kern_version = kern_version;
 
 	bpf_log_buf[0] = 0;
+
+        if (log_level > 1)
+          fprintf(stderr, "Loading probe type %d, size %d\n", prog_type, prog_len);
 
 	return syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 }

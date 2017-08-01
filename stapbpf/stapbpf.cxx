@@ -26,6 +26,7 @@
 #include <cerrno>
 #include <vector>
 #include <unistd.h>
+#include <limits.h>
 #include <inttypes.h>
 #include <getopt.h>
 #include <sys/fcntl.h>
@@ -57,7 +58,9 @@ extern "C" {
 #endif
 
 static int group_fd = -1;		// ??? Need one per cpu.
-static int log_level = 0;
+extern "C" { 
+int log_level = 0;
+};
 static int warnings = 1;
 static FILE *output_f = stdout;
 
@@ -110,7 +113,7 @@ fatal(const char *str, ...)
   va_start(va, str);
   vfprintf(stderr, str, va);
   va_end(va);
-
+  
   exit(1);
 }
 
@@ -291,7 +294,7 @@ register_kprobes()
   size_t nprobes = kprobes.size();
   if (nprobes == 0)
     return;
-
+    
   int fd = open(KPROBE_EVENTS, O_WRONLY);
   if (fd < 0)
     fatal("Error opening %s: %s\n", KPROBE_EVENTS, strerror(errno));
@@ -301,10 +304,11 @@ register_kprobes()
   for (size_t i = 0; i < nprobes; ++i)
     {
       kprobe_data &k = kprobes[i];
-
-      ssize_t olen = snprintf(bpf_log_buf, sizeof(bpf_log_buf), "%c:p%d_%zu %s",
+      char msgbuf[128];
+      
+      ssize_t olen = snprintf(msgbuf, sizeof(msgbuf), "%c:p%d_%zu %s",
 			      k.type, pid, i, k.args);
-      if ((size_t)olen >= sizeof(bpf_log_buf))
+      if ((size_t)olen >= sizeof(msgbuf))
 	{
 	  fprintf(stderr, "Buffer overflow creating probe %zu\n", i);
 	  if (i == 0)
@@ -313,7 +317,10 @@ register_kprobes()
 	  goto fail_n;
 	}
 
-      ssize_t wlen = write(fd, bpf_log_buf, olen);
+      if (log_level > 1)
+        fprintf(stderr, "Associating probe %zu with kprobe %s\n", i, msgbuf);
+      
+      ssize_t wlen = write(fd, msgbuf, olen);
       if (wlen != olen)
 	{
 	  fprintf(stderr, "Error creating probe %zu: %s\n",
@@ -328,7 +335,8 @@ register_kprobes()
 
   for (size_t i = 0; i < nprobes; ++i)
     {
-      ssize_t len = snprintf(bpf_log_buf, sizeof(bpf_log_buf),
+      char fnbuf[PATH_MAX];
+      ssize_t len = snprintf(fnbuf, sizeof(fnbuf),
 			     DEBUGFS "events/kprobes/p%d_%zu/id", pid, i);
       if ((size_t)len >= sizeof(bpf_log_buf))
 	{
@@ -336,7 +344,7 @@ register_kprobes()
 	  goto fail_n;
 	}
 
-      fd = open(bpf_log_buf, O_RDONLY);
+      fd = open(fnbuf, O_RDONLY);
       if (fd < 0)
 	{
 	  fprintf(stderr, "Error opening probe event id %zu: %s\n",
@@ -344,7 +352,8 @@ register_kprobes()
 	  goto fail_n;
 	}
 
-      len = read(fd, bpf_log_buf, sizeof(bpf_log_buf) - 1);
+      char msgbuf[128];
+      len = read(fd, msgbuf, sizeof(msgbuf) - 1);
       if (len < 0)
 	{
 	  fprintf(stderr, "Error reading probe event id %zu: %s\n",
@@ -353,8 +362,8 @@ register_kprobes()
 	}
       close(fd);
 
-      bpf_log_buf[len] = 0;
-      kprobes[i].event_id = atoi(bpf_log_buf);
+      msgbuf[len] = 0;
+      kprobes[i].event_id = atoi(msgbuf);
     }
 
   // ??? Iterate to enable on all cpus, each with a different group_fd.
@@ -413,9 +422,10 @@ unregister_kprobes(const size_t nprobes)
     {
       close(kprobes[i].event_fd);
 
-      ssize_t olen = snprintf(bpf_log_buf, sizeof(bpf_log_buf), "-:p%d_%zu",
+      char msgbuf[128];
+      ssize_t olen = snprintf(msgbuf, sizeof(msgbuf), "-:p%d_%zu",
 			      pid, i);
-      ssize_t wlen = write(fd, bpf_log_buf, olen);
+      ssize_t wlen = write(fd, msgbuf, olen);
       if (wlen < 0)
 	fprintf(stderr, "Error removing probe %zu: %s\n",
 		i, strerror(errno));
