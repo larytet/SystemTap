@@ -402,6 +402,14 @@ static int collect_stpm(const char* fpath, const struct stat*,
   return FTW_CONTINUE;
 }
 
+#ifndef HAVE_LINUX_BPF_H
+int
+translate_bpf_pass (systemtap_session &)
+{
+  return 1;
+}
+#endif
+
 // Compilation passes 0 through 4
 int
 passes_0_4 (systemtap_session &s)
