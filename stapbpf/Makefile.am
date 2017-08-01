@@ -17,10 +17,17 @@ if HAVE_LINUX_BPF_H
 bin_PROGRAMS = stapbpf
 
 stapbpf_SOURCES = stapbpf.cxx bpfinterp.cxx libbpf.c
+stapbpf_CPPFLAGS = $(AM_CPPFLAGS)
 stapbpf_CFLAGS = $(AM_CFLAGS)
 stapbpf_CXXFLAGS = $(AM_CXXFLAGS)
 stapbpf_LDFLAGS = $(AM_LDFLAGS)
 stapbpf_LDADD = $(stapbpf_LIBS)
+
+if BUILD_ELFUTILS
+stapbpf_CPPFLAGS += -I../include-elfutils
+stapbpf_LDFLAGS += -L../lib-elfutils -Wl,-rpath-link,lib-elfutils \
+		-Wl,--enable-new-dtags,-rpath,$(pkglibdir)
+endif
 
 BUILT_SOURCES =
 CLEANFILES =

@@ -171,7 +171,7 @@ BUILT_SOURCES += stamp-elfutils
 CLEANFILES += stamp-elfutils
 stamp-elfutils: config.status
 	$(MAKE) $(AM_MAKEFLAGS) -C build-elfutils all bin_PROGRAMS=
-	for dir in libelf libebl libdw libdwfl backends; do \
+	for dir in libelf libebl libdw libdwfl libdwelf backends; do \
 	  $(MAKE) $(AM_MAKEFLAGS) -j1 -C build-elfutils/$$dir bin_PROGRAMS= install; \
 	done
 	$(MAKE) $(AM_MAKEFLAGS) -j1 -C build-elfutils install-pkgincludeHEADERS;

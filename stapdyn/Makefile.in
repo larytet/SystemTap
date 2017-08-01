@@ -97,6 +97,10 @@ bin_PROGRAMS = $(am__EXEEXT_1)
 noinst_PROGRAMS = $(am__EXEEXT_2)
 @HAVE_DYNINST_TRUE@am__append_3 = stapdyn
 @HAVE_DYNINST_TRUE@am__append_4 = dynsdt
+@BUILD_ELFUTILS_TRUE@@HAVE_DYNINST_TRUE@am__append_5 = -I../include-elfutils
+@BUILD_ELFUTILS_TRUE@@HAVE_DYNINST_TRUE@am__append_6 = -L../lib-elfutils -Wl,-rpath-link,lib-elfutils \
+@BUILD_ELFUTILS_TRUE@@HAVE_DYNINST_TRUE@		-Wl,--enable-new-dtags,-rpath,$(pkglibdir)
+
 subdir = stapdyn
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
@@ -442,8 +446,10 @@ AM_LDFLAGS = @PIELDFLAGS@ $(am__append_2)
 @HAVE_DYNINST_TRUE@stapdyn_LDFLAGS = $(AM_LDFLAGS) @DYNINST_LDFLAGS@
 @HAVE_DYNINST_TRUE@stapdyn_LDADD = -ldl -ldyninstAPI -lsymtabAPI -lpthread
 @HAVE_DYNINST_TRUE@dynsdt_SOURCES = dynsdt.cxx dynutil.cxx ../util.cxx
+@HAVE_DYNINST_TRUE@dynsdt_CPPFLAGS = $(AM_CPPFLAGS) $(am__append_5)
 @HAVE_DYNINST_TRUE@dynsdt_CXXFLAGS = $(AM_CXXFLAGS) @DYNINST_CXXFLAGS@
-@HAVE_DYNINST_TRUE@dynsdt_LDFLAGS = $(AM_LDFLAGS) @DYNINST_LDFLAGS@
+@HAVE_DYNINST_TRUE@dynsdt_LDFLAGS = $(AM_LDFLAGS) @DYNINST_LDFLAGS@ \
+@HAVE_DYNINST_TRUE@	$(am__append_6)
 @HAVE_DYNINST_TRUE@dynsdt_LDADD = -ldl -lelf -ldyninstAPI -lsymtabAPI -lpthread
 
 # Arrange for the top-level git_version.h to be regenerated at every "make".
@@ -580,46 +586,46 @@ distclean-compile:
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 dynsdt-dynsdt.o: dynsdt.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -MT dynsdt-dynsdt.o -MD -MP -MF $(DEPDIR)/dynsdt-dynsdt.Tpo -c -o dynsdt-dynsdt.o `test -f 'dynsdt.cxx' || echo '$(srcdir)/'`dynsdt.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dynsdt_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -MT dynsdt-dynsdt.o -MD -MP -MF $(DEPDIR)/dynsdt-dynsdt.Tpo -c -o dynsdt-dynsdt.o `test -f 'dynsdt.cxx' || echo '$(srcdir)/'`dynsdt.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/dynsdt-dynsdt.Tpo $(DEPDIR)/dynsdt-dynsdt.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='dynsdt.cxx' object='dynsdt-dynsdt.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o dynsdt-dynsdt.o `test -f 'dynsdt.cxx' || echo '$(srcdir)/'`dynsdt.cxx
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dynsdt_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o dynsdt-dynsdt.o `test -f 'dynsdt.cxx' || echo '$(srcdir)/'`dynsdt.cxx
 
 dynsdt-dynsdt.obj: dynsdt.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -MT dynsdt-dynsdt.obj -MD -MP -MF $(DEPDIR)/dynsdt-dynsdt.Tpo -c -o dynsdt-dynsdt.obj `if test -f 'dynsdt.cxx'; then $(CYGPATH_W) 'dynsdt.cxx'; else $(CYGPATH_W) '$(srcdir)/dynsdt.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dynsdt_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -MT dynsdt-dynsdt.obj -MD -MP -MF $(DEPDIR)/dynsdt-dynsdt.Tpo -c -o dynsdt-dynsdt.obj `if test -f 'dynsdt.cxx'; then $(CYGPATH_W) 'dynsdt.cxx'; else $(CYGPATH_W) '$(srcdir)/dynsdt.cxx'; fi`
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/dynsdt-dynsdt.Tpo $(DEPDIR)/dynsdt-dynsdt.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='dynsdt.cxx' object='dynsdt-dynsdt.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o dynsdt-dynsdt.obj `if test -f 'dynsdt.cxx'; then $(CYGPATH_W) 'dynsdt.cxx'; else $(CYGPATH_W) '$(srcdir)/dynsdt.cxx'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dynsdt_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o dynsdt-dynsdt.obj `if test -f 'dynsdt.cxx'; then $(CYGPATH_W) 'dynsdt.cxx'; else $(CYGPATH_W) '$(srcdir)/dynsdt.cxx'; fi`
 
 dynsdt-dynutil.o: dynutil.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -MT dynsdt-dynutil.o -MD -MP -MF $(DEPDIR)/dynsdt-dynutil.Tpo -c -o dynsdt-dynutil.o `test -f 'dynutil.cxx' || echo '$(srcdir)/'`dynutil.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dynsdt_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -MT dynsdt-dynutil.o -MD -MP -MF $(DEPDIR)/dynsdt-dynutil.Tpo -c -o dynsdt-dynutil.o `test -f 'dynutil.cxx' || echo '$(srcdir)/'`dynutil.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/dynsdt-dynutil.Tpo $(DEPDIR)/dynsdt-dynutil.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='dynutil.cxx' object='dynsdt-dynutil.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o dynsdt-dynutil.o `test -f 'dynutil.cxx' || echo '$(srcdir)/'`dynutil.cxx
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dynsdt_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o dynsdt-dynutil.o `test -f 'dynutil.cxx' || echo '$(srcdir)/'`dynutil.cxx
 
 dynsdt-dynutil.obj: dynutil.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -MT dynsdt-dynutil.obj -MD -MP -MF $(DEPDIR)/dynsdt-dynutil.Tpo -c -o dynsdt-dynutil.obj `if test -f 'dynutil.cxx'; then $(CYGPATH_W) 'dynutil.cxx'; else $(CYGPATH_W) '$(srcdir)/dynutil.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dynsdt_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -MT dynsdt-dynutil.obj -MD -MP -MF $(DEPDIR)/dynsdt-dynutil.Tpo -c -o dynsdt-dynutil.obj `if test -f 'dynutil.cxx'; then $(CYGPATH_W) 'dynutil.cxx'; else $(CYGPATH_W) '$(srcdir)/dynutil.cxx'; fi`
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/dynsdt-dynutil.Tpo $(DEPDIR)/dynsdt-dynutil.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='dynutil.cxx' object='dynsdt-dynutil.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o dynsdt-dynutil.obj `if test -f 'dynutil.cxx'; then $(CYGPATH_W) 'dynutil.cxx'; else $(CYGPATH_W) '$(srcdir)/dynutil.cxx'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dynsdt_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o dynsdt-dynutil.obj `if test -f 'dynutil.cxx'; then $(CYGPATH_W) 'dynutil.cxx'; else $(CYGPATH_W) '$(srcdir)/dynutil.cxx'; fi`
 
 ../dynsdt-util.o: ../util.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -MT ../dynsdt-util.o -MD -MP -MF ../$(DEPDIR)/dynsdt-util.Tpo -c -o ../dynsdt-util.o `test -f '../util.cxx' || echo '$(srcdir)/'`../util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dynsdt_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -MT ../dynsdt-util.o -MD -MP -MF ../$(DEPDIR)/dynsdt-util.Tpo -c -o ../dynsdt-util.o `test -f '../util.cxx' || echo '$(srcdir)/'`../util.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../$(DEPDIR)/dynsdt-util.Tpo ../$(DEPDIR)/dynsdt-util.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../util.cxx' object='../dynsdt-util.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o ../dynsdt-util.o `test -f '../util.cxx' || echo '$(srcdir)/'`../util.cxx
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dynsdt_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o ../dynsdt-util.o `test -f '../util.cxx' || echo '$(srcdir)/'`../util.cxx
 
 ../dynsdt-util.obj: ../util.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -MT ../dynsdt-util.obj -MD -MP -MF ../$(DEPDIR)/dynsdt-util.Tpo -c -o ../dynsdt-util.obj `if test -f '../util.cxx'; then $(CYGPATH_W) '../util.cxx'; else $(CYGPATH_W) '$(srcdir)/../util.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dynsdt_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -MT ../dynsdt-util.obj -MD -MP -MF ../$(DEPDIR)/dynsdt-util.Tpo -c -o ../dynsdt-util.obj `if test -f '../util.cxx'; then $(CYGPATH_W) '../util.cxx'; else $(CYGPATH_W) '$(srcdir)/../util.cxx'; fi`
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../$(DEPDIR)/dynsdt-util.Tpo ../$(DEPDIR)/dynsdt-util.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../util.cxx' object='../dynsdt-util.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o ../dynsdt-util.obj `if test -f '../util.cxx'; then $(CYGPATH_W) '../util.cxx'; else $(CYGPATH_W) '$(srcdir)/../util.cxx'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dynsdt_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o ../dynsdt-util.obj `if test -f '../util.cxx'; then $(CYGPATH_W) '../util.cxx'; else $(CYGPATH_W) '$(srcdir)/../util.cxx'; fi`
 
 stapdyn-stapdyn.o: stapdyn.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapdyn_CXXFLAGS) $(CXXFLAGS) -MT stapdyn-stapdyn.o -MD -MP -MF $(DEPDIR)/stapdyn-stapdyn.Tpo -c -o stapdyn-stapdyn.o `test -f 'stapdyn.cxx' || echo '$(srcdir)/'`stapdyn.cxx

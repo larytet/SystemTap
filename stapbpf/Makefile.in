@@ -92,6 +92,10 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 @HAVE_LINUX_BPF_H_TRUE@bin_PROGRAMS = stapbpf$(EXEEXT)
+@BUILD_ELFUTILS_TRUE@@HAVE_LINUX_BPF_H_TRUE@am__append_1 = -I../include-elfutils
+@BUILD_ELFUTILS_TRUE@@HAVE_LINUX_BPF_H_TRUE@am__append_2 = -L../lib-elfutils -Wl,-rpath-link,lib-elfutils \
+@BUILD_ELFUTILS_TRUE@@HAVE_LINUX_BPF_H_TRUE@		-Wl,--enable-new-dtags,-rpath,$(pkglibdir)
+
 subdir = stapbpf
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
@@ -400,9 +404,11 @@ AM_CPPFLAGS = -D_GNU_SOURCE -I$(srcdir)/../includes \
 	-DPKGLIBDIR='"$(pkglibexecdir)"' -DLOCALEDIR='"$(localedir)"'
 AM_LDFLAGS = @PIELDFLAGS@
 @HAVE_LINUX_BPF_H_TRUE@stapbpf_SOURCES = stapbpf.cxx bpfinterp.cxx libbpf.c
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_CPPFLAGS = $(AM_CPPFLAGS) \
+@HAVE_LINUX_BPF_H_TRUE@	$(am__append_1)
 @HAVE_LINUX_BPF_H_TRUE@stapbpf_CFLAGS = $(AM_CFLAGS)
 @HAVE_LINUX_BPF_H_TRUE@stapbpf_CXXFLAGS = $(AM_CXXFLAGS)
-@HAVE_LINUX_BPF_H_TRUE@stapbpf_LDFLAGS = $(AM_LDFLAGS)
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_LDFLAGS = $(AM_LDFLAGS) $(am__append_2)
 @HAVE_LINUX_BPF_H_TRUE@stapbpf_LDADD = $(stapbpf_LIBS)
 
 # Arrange for the top-level git_version.h to be regenerated at every "make".
@@ -516,18 +522,18 @@ distclean-compile:
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 stapbpf-libbpf.o: libbpf.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CFLAGS) $(CFLAGS) -MT stapbpf-libbpf.o -MD -MP -MF $(DEPDIR)/stapbpf-libbpf.Tpo -c -o stapbpf-libbpf.o `test -f 'libbpf.c' || echo '$(srcdir)/'`libbpf.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stapbpf_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CFLAGS) $(CFLAGS) -MT stapbpf-libbpf.o -MD -MP -MF $(DEPDIR)/stapbpf-libbpf.Tpo -c -o stapbpf-libbpf.o `test -f 'libbpf.c' || echo '$(srcdir)/'`libbpf.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stapbpf-libbpf.Tpo $(DEPDIR)/stapbpf-libbpf.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libbpf.c' object='stapbpf-libbpf.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CFLAGS) $(CFLAGS) -c -o stapbpf-libbpf.o `test -f 'libbpf.c' || echo '$(srcdir)/'`libbpf.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stapbpf_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CFLAGS) $(CFLAGS) -c -o stapbpf-libbpf.o `test -f 'libbpf.c' || echo '$(srcdir)/'`libbpf.c
 
 stapbpf-libbpf.obj: libbpf.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CFLAGS) $(CFLAGS) -MT stapbpf-libbpf.obj -MD -MP -MF $(DEPDIR)/stapbpf-libbpf.Tpo -c -o stapbpf-libbpf.obj `if test -f 'libbpf.c'; then $(CYGPATH_W) 'libbpf.c'; else $(CYGPATH_W) '$(srcdir)/libbpf.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stapbpf_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CFLAGS) $(CFLAGS) -MT stapbpf-libbpf.obj -MD -MP -MF $(DEPDIR)/stapbpf-libbpf.Tpo -c -o stapbpf-libbpf.obj `if test -f 'libbpf.c'; then $(CYGPATH_W) 'libbpf.c'; else $(CYGPATH_W) '$(srcdir)/libbpf.c'; fi`
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stapbpf-libbpf.Tpo $(DEPDIR)/stapbpf-libbpf.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libbpf.c' object='stapbpf-libbpf.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CFLAGS) $(CFLAGS) -c -o stapbpf-libbpf.obj `if test -f 'libbpf.c'; then $(CYGPATH_W) 'libbpf.c'; else $(CYGPATH_W) '$(srcdir)/libbpf.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stapbpf_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CFLAGS) $(CFLAGS) -c -o stapbpf-libbpf.obj `if test -f 'libbpf.c'; then $(CYGPATH_W) 'libbpf.c'; else $(CYGPATH_W) '$(srcdir)/libbpf.c'; fi`
 
 .cxx.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -546,32 +552,32 @@ stapbpf-libbpf.obj: libbpf.c
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 stapbpf-stapbpf.o: stapbpf.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -MT stapbpf-stapbpf.o -MD -MP -MF $(DEPDIR)/stapbpf-stapbpf.Tpo -c -o stapbpf-stapbpf.o `test -f 'stapbpf.cxx' || echo '$(srcdir)/'`stapbpf.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stapbpf_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -MT stapbpf-stapbpf.o -MD -MP -MF $(DEPDIR)/stapbpf-stapbpf.Tpo -c -o stapbpf-stapbpf.o `test -f 'stapbpf.cxx' || echo '$(srcdir)/'`stapbpf.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stapbpf-stapbpf.Tpo $(DEPDIR)/stapbpf-stapbpf.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='stapbpf.cxx' object='stapbpf-stapbpf.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -c -o stapbpf-stapbpf.o `test -f 'stapbpf.cxx' || echo '$(srcdir)/'`stapbpf.cxx
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stapbpf_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -c -o stapbpf-stapbpf.o `test -f 'stapbpf.cxx' || echo '$(srcdir)/'`stapbpf.cxx
 
 stapbpf-stapbpf.obj: stapbpf.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -MT stapbpf-stapbpf.obj -MD -MP -MF $(DEPDIR)/stapbpf-stapbpf.Tpo -c -o stapbpf-stapbpf.obj `if test -f 'stapbpf.cxx'; then $(CYGPATH_W) 'stapbpf.cxx'; else $(CYGPATH_W) '$(srcdir)/stapbpf.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stapbpf_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -MT stapbpf-stapbpf.obj -MD -MP -MF $(DEPDIR)/stapbpf-stapbpf.Tpo -c -o stapbpf-stapbpf.obj `if test -f 'stapbpf.cxx'; then $(CYGPATH_W) 'stapbpf.cxx'; else $(CYGPATH_W) '$(srcdir)/stapbpf.cxx'; fi`
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stapbpf-stapbpf.Tpo $(DEPDIR)/stapbpf-stapbpf.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='stapbpf.cxx' object='stapbpf-stapbpf.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -c -o stapbpf-stapbpf.obj `if test -f 'stapbpf.cxx'; then $(CYGPATH_W) 'stapbpf.cxx'; else $(CYGPATH_W) '$(srcdir)/stapbpf.cxx'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stapbpf_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -c -o stapbpf-stapbpf.obj `if test -f 'stapbpf.cxx'; then $(CYGPATH_W) 'stapbpf.cxx'; else $(CYGPATH_W) '$(srcdir)/stapbpf.cxx'; fi`
 
 stapbpf-bpfinterp.o: bpfinterp.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -MT stapbpf-bpfinterp.o -MD -MP -MF $(DEPDIR)/stapbpf-bpfinterp.Tpo -c -o stapbpf-bpfinterp.o `test -f 'bpfinterp.cxx' || echo '$(srcdir)/'`bpfinterp.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stapbpf_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -MT stapbpf-bpfinterp.o -MD -MP -MF $(DEPDIR)/stapbpf-bpfinterp.Tpo -c -o stapbpf-bpfinterp.o `test -f 'bpfinterp.cxx' || echo '$(srcdir)/'`bpfinterp.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stapbpf-bpfinterp.Tpo $(DEPDIR)/stapbpf-bpfinterp.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='bpfinterp.cxx' object='stapbpf-bpfinterp.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -c -o stapbpf-bpfinterp.o `test -f 'bpfinterp.cxx' || echo '$(srcdir)/'`bpfinterp.cxx
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stapbpf_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -c -o stapbpf-bpfinterp.o `test -f 'bpfinterp.cxx' || echo '$(srcdir)/'`bpfinterp.cxx
 
 stapbpf-bpfinterp.obj: bpfinterp.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -MT stapbpf-bpfinterp.obj -MD -MP -MF $(DEPDIR)/stapbpf-bpfinterp.Tpo -c -o stapbpf-bpfinterp.obj `if test -f 'bpfinterp.cxx'; then $(CYGPATH_W) 'bpfinterp.cxx'; else $(CYGPATH_W) '$(srcdir)/bpfinterp.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stapbpf_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -MT stapbpf-bpfinterp.obj -MD -MP -MF $(DEPDIR)/stapbpf-bpfinterp.Tpo -c -o stapbpf-bpfinterp.obj `if test -f 'bpfinterp.cxx'; then $(CYGPATH_W) 'bpfinterp.cxx'; else $(CYGPATH_W) '$(srcdir)/bpfinterp.cxx'; fi`
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stapbpf-bpfinterp.Tpo $(DEPDIR)/stapbpf-bpfinterp.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='bpfinterp.cxx' object='stapbpf-bpfinterp.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -c -o stapbpf-bpfinterp.obj `if test -f 'bpfinterp.cxx'; then $(CYGPATH_W) 'bpfinterp.cxx'; else $(CYGPATH_W) '$(srcdir)/bpfinterp.cxx'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stapbpf_CPPFLAGS) $(CPPFLAGS) $(stapbpf_CXXFLAGS) $(CXXFLAGS) -c -o stapbpf-bpfinterp.obj `if test -f 'bpfinterp.cxx'; then $(CYGPATH_W) 'bpfinterp.cxx'; else $(CYGPATH_W) '$(srcdir)/bpfinterp.cxx'; fi`
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
