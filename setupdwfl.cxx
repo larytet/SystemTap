@@ -358,13 +358,13 @@ setup_dwfl_kernel (unsigned *modules_found, systemtap_session &s)
   // no way to set the dwfl_callback.debuginfo_path and always
   // passs the plain kernel_release here.  So instead we have to
   // hard-code this magic here.
-  if (s.kernel_build_tree == string(s.sysroot + "/lib/modules/"
-				    + s.kernel_release
-				    + "/build"))
-    elfutils_kernel_path = s.kernel_release;
-  else
-    elfutils_kernel_path = s.kernel_build_tree;
-
+   string lib_path = "/lib/modules/" + s.kernel_release + "/build";
+   if (s.kernel_build_tree == string(s.sysroot + lib_path) ||
+       (s.kernel_build_tree == lib_path
+	&& s.sysroot == "/"))
+      elfutils_kernel_path = s.kernel_release;
+   else
+      elfutils_kernel_path = s.kernel_build_tree;
   offline_modules_found = 0;
 
   // First try to report full path modules.
