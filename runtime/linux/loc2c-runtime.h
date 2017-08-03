@@ -358,7 +358,18 @@ static inline int __stp_deref_nocheck_(u64 *pv, size_t size, void *addr)
     case 1: { u8 b; r = __stp_get_user(b, (u8 *)addr); v = b; } break;
     case 2: { u16 w; r = __stp_get_user(w, (u16 *)addr); v = w; } break;
     case 4: { u32 l; r = __stp_get_user(l, (u32 *)addr); v = l; } break;
+#if defined(__i386__) || defined(__arm__)
+    /* x86 and arm can't do 8-byte get_user, so we have to split it */
+    case 8: { union { u32 l[2]; u64 ll; } val;
+	      r = __stp_get_user(val.l[0], &((u32 *)addr)[0]);
+	      if (! r)
+		  r = __stp_get_user(val.l[1], &((u32 *)addr)[1]);
+	      if (! r)
+		  v = val.ll;
+	    } break;
+#else
     case 8: { r = __stp_get_user(v, (u64 *)addr); } break;
+#endif
     }
 
   *pv = v;
@@ -519,7 +530,17 @@ static inline int __stp_store_deref_nocheck_(size_t size, void *addr, u64 v)
     case 1: r = __stp_put_user((u8)v, (u8 *)addr); break;
     case 2: r = __stp_put_user((u16)v, (u16 *)addr); break;
     case 4: r = __stp_put_user((u32)v, (u32 *)addr); break;
+#if defined(__i386__) || defined(__arm__)
+    /* x86 and arm can't do 8-byte put_user, so we have to split it */
+    default: { union { u32 l[2]; u64 ll; } val;
+	       val.ll = v;
+	       r = __stp_put_user(val.l[0], &((u32 *)addr)[0]);
+	       if (! r)
+		   r = __stp_put_user(val.l[1], &((u32 *)addr)[1]);
+	     } break;
+#else
     default: r = __stp_put_user(v, (u64 *)addr); break;
+#endif
     }
   return r;
 }
