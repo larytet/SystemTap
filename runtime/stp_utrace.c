@@ -1204,8 +1204,8 @@ static bool utrace_reset(struct task_struct *task, struct utrace *utrace)
 	 */
 	rcu_read_lock();
 	utrace->utrace_flags = flags;
-	stp_spin_unlock(&utrace->lock);
 	rcu_read_unlock();
+	stp_spin_unlock(&utrace->lock);
 
 	put_detached_list(&detached);
 
