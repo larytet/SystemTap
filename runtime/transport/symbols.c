@@ -316,6 +316,12 @@ static int _stp_module_panic_notifier (struct notifier_block *nb, unsigned long 
 {
         int i;
 
+	if (unlikely(_stp_relay_data.rchan == NULL))
+	{
+		printk(KERN_ERR "No _stp_relay_data.rchan\n");
+		return NOTIFY_DONE;
+	}
+
         /* Loop over each cpu buffer */
         for_each_possible_cpu(i)
         {
@@ -329,6 +335,8 @@ static int _stp_module_panic_notifier (struct notifier_block *nb, unsigned long 
                 int first_iteration;
 
                 sub_buf = _stp_get_rchan_subbuf(_stp_relay_data.rchan->buf, i);
+		if (unlikely(sub_buf == NULL))
+			break;
 
                 /* Set our pointer to the beginning of the channel buffer */
                 subbuf_start = (char *)sub_buf->start;
