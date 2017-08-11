@@ -134,17 +134,41 @@ local_backend:: generate_module(const struct client_request_data *,
 class docker_backend : public backend_base
 {
 public:
+    docker_backend();
+
     bool can_generate_module(const struct client_request_data *crd);
     int generate_module(const struct client_request_data *crd,
 			const vector<string> &argv,
 			const string &tmp_dir,
 			const string &stdout_path,
 			const string &stderr_path);
+
+private:
+    // The docker executable path.
+    string docker_path;
 };
+
+
+docker_backend::docker_backend()
+{
+    try {
+	docker_path = find_executable("docker");
+    }
+    catch (...) {
+	// It really isn't an error for the system to not have the
+	// "docker" executable. We'll just disallow builds using the
+	// docker backend (down in
+	// docker_backend::can_generate_module()).
+	docker_path.clear();
+    }
+}
 
 bool
 docker_backend::can_generate_module(const struct client_request_data *)
 {
+    if (docker_path.empty())
+	return false;
+
     // FIXME: We'll have to see if we have a docker file for that
     // distro and the arches match.
     return false;
