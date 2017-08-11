@@ -1,3 +1,13 @@
+# nd_syscall.exp
+#
+# This script searches the systemtap.syscall directory for C files to
+# test. See the README file for details on the C files.
+#
+# To restrict C files to test, set the CHECK_ONLY environment variable.
+# For example, to only test the readwrite and accept C files, run:
+#
+#    make installcheck RUNTESTFLAGS=nd_syscall.exp CHECK_ONLY="readwrite accept"
+
 set test_script "nd_sys.stp"
 set test_module_name "nd_syscall"
 set wd [pwd]
@@ -6,13 +16,36 @@ set test_module "${wd}/${test_module_name}.ko"
 source $srcdir/$subdir/test.tcl
 
 proc test_procedure {} {
-    global srcdir subdir test_script test_module test_module_name
+    global env srcdir subdir test_script test_module test_module_name
     set wd [pwd]
     set flags ""
-    if {$srcdir == ""} {
-	set pattern "*.c"
+
+    set patterns []
+    if {[info exists env(CHECK_ONLY)]} {
+	foreach file $env(CHECK_ONLY) {
+	    lappend patterns "$file.c"
+	}
     } else {
-	set pattern "$srcdir/$subdir/*.c"
+	lappend patterns "*.c"
+    }
+
+    if {$srcdir == ""} {
+	set basedir ""
+    } else {
+	set basedir "$srcdir/$subdir/"
+    }
+
+    set test_files []
+    foreach pattern $patterns {
+	set test_files [concat $test_files \
+			    [glob -nocomplain "${basedir}${pattern}"]]
+    }
+
+    if {[llength $test_files] == 0} {
+	# If our globbing didn't find any test files, there isn't any
+	# point in proceeding.
+	fail "$test_module_name: no tests found"
+	return
     }
 
     # To speed things up, go ahead and compile the test module once
@@ -61,7 +94,7 @@ proc test_procedure {} {
 	set arch_size [arch_compile_flag_bits $i]
 	verbose -log "i: $i flags: $flags arch: $arch size: $arch_size"
 
-	foreach filename [lsort [glob $pattern]] {
+	foreach filename [lsort $test_files] {
 	    set testname [file tail [string range $filename 0 end-2]]
 	    if {![installtest_p]} {
 		untested "${arch_size}-bit $testname"; continue
