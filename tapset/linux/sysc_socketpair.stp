@@ -43,19 +43,19 @@ probe __syscall.socketpair = kernel.function("sys_socketpair").call ?
 probe __syscall.socketcall.socketpair = kernel.function("sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_SOCKETPAIR")) next;
-	family = __int32(user_ulong(&@cast($args, "ulong")[0]))
-	type = __int32(user_ulong(&@cast($args, "ulong")[1]))
-	protocol = __int32(user_ulong(&@cast($args, "ulong")[2]))
-	sv_uaddr = __uint32(user_ulong(&@cast($args, "ulong")[3]))
+	family = __int32(user_ulong(&@ulong_cast($args)[0]))
+	type = __int32(user_ulong(&@ulong_cast($args)[1]))
+	protocol = __int32(user_ulong(&@ulong_cast($args)[2]))
+	sv_uaddr = __uint32(user_ulong(&@ulong_cast($args)[3]))
 }
 probe __syscall.compat_socketcall.socketpair =
 	kernel.function("compat_sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_SOCKETPAIR")) next;
-	family = user_int(&@cast($args, "unsigned int")[0])
-	type = user_int(&@cast($args, "unsigned int")[1])
-	protocol = user_int(&@cast($args, "unsigned int")[2])
-	sv_uaddr = user_uint32(&@cast($args, "unsigned int")[3])
+	family = user_int(&@uint_cast($args)[0])
+	type = user_int(&@uint_cast($args)[1])
+	protocol = user_int(&@uint_cast($args)[2])
+	sv_uaddr = user_uint32(&@uint_cast($args)[3])
 }
 probe dw_syscall.socketpair.return = __syscall.socketpair.return ?,
 	__syscall.socketcall.socketpair.return ?
@@ -101,7 +101,7 @@ probe __nd_syscall.socketcall.socketpair =
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SOCKETPAIR")) next;
-	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
+	__args = &@ulong_cast(pointer_arg(2))
 	family = __int32(user_ulong(&(__args)[0]))
 	type = __int32(user_ulong(&(__args)[1]))
 	protocol = __int32(user_ulong(&(__args)[2]))
@@ -112,7 +112,7 @@ probe __nd_syscall.compat_socketcall.socketpair =
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SOCKETPAIR")) next;
-	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	__args = &@uint_cast(pointer_arg(2))
 	family = user_int(&(__args)[0])
 	type = user_int(&(__args)[1])
 	protocol = user_int(&(__args)[2])

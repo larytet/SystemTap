@@ -69,7 +69,7 @@ probe nd_syscall.mmap2 = __nd_syscall.mmap2 ?, __nd_syscall.mmap2_32 ?
 probe __nd_syscall.mmap2 = kprobe.function("sys_mmap2")
 {
 	asmlinkage()
-	__args = &@cast(pointer_arg(1), "ulong", "kernel<linux/types.h>")
+	__args = &@ulong_cast(pointer_arg(1))
 	start = user_ulong(&(__args)[0])
 	length = user_ulong(&(__args)[1])
 	prot = user_ulong(&(__args)[2])
@@ -80,7 +80,7 @@ probe __nd_syscall.mmap2 = kprobe.function("sys_mmap2")
 probe __nd_syscall.mmap2_32 = kprobe.function("sys32_mmap2")
 {
 	asmlinkage()
-	__args = &@cast(pointer_arg(1), "unsigned int", "kernel<linux/types.h>")
+	__args = &@uint_cast(pointer_arg(1))
 	start = user_uint32(&(__args)[0])
 	length = user_uint32(&(__args)[1])
 	prot = user_uint32(&(__args)[2])

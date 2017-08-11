@@ -40,19 +40,19 @@ probe __syscall.accept4 = kernel.function("sys_accept4").call
 probe __syscall.socketcall.accept4 = kernel.function("sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_ACCEPT4")) next;
-	sockfd = __int32(user_ulong(&@cast($args, "ulong")[0]))
-	addr_uaddr = user_ulong(&@cast($args, "ulong")[1])
-	addrlen_uaddr = user_ulong(&@cast($args, "ulong")[2])
-	flags = __int32(user_ulong(&@cast($args, "ulong")[3]))
+	sockfd = __int32(user_ulong(&@ulong_cast($args)[0]))
+	addr_uaddr = user_ulong(&@ulong_cast($args)[1])
+	addrlen_uaddr = user_ulong(&@ulong_cast($args)[2])
+	flags = __int32(user_ulong(&@ulong_cast($args)[3]))
 }
 probe __syscall.compat_socketcall.accept4 =
 	kernel.function("compat_sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_ACCEPT4")) next;
-	sockfd = user_int(&@cast($args, "unsigned int")[0])
-	addr_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
-	addrlen_uaddr = user_uint32(&@cast($args, "unsigned int")[2])
-	flags = user_int(&@cast($args, "unsigned int")[3])
+	sockfd = user_int(&@uint_cast($args)[0])
+	addr_uaddr = user_uint32(&@uint_cast($args)[1])
+	addrlen_uaddr = user_uint32(&@uint_cast($args)[2])
+	flags = user_int(&@uint_cast($args)[3])
 }
 probe dw_syscall.accept4.return = __syscall.accept4.return ?,
 	__syscall.socketcall.accept4.return ?
@@ -96,22 +96,22 @@ probe __nd_syscall.socketcall.accept4 = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_ACCEPT4")) next;
-	__args = &@cast(pointer_arg(2), "ulong")
-	sockfd = __int32(user_ulong(&@cast(__args, "ulong")[0]))
-	addr_uaddr = user_ulong(&@cast(__args, "ulong")[1])
-	addrlen_uaddr = user_ulong(&@cast(__args, "ulong")[2])
-	flags = __int32(user_ulong(&@cast(__args, "ulong")[3]))
+	__args = &@ulong_cast(pointer_arg(2))
+	sockfd = __int32(user_ulong(&@ulong_cast(__args)[0]))
+	addr_uaddr = user_ulong(&@ulong_cast(__args)[1])
+	addrlen_uaddr = user_ulong(&@ulong_cast(__args)[2])
+	flags = __int32(user_ulong(&@ulong_cast(__args)[3]))
 }
 probe __nd_syscall.compat_socketcall.accept4 =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_ACCEPT4")) next;
-	__args = &@cast(pointer_arg(2), "unsigned int")
-	sockfd = user_int(&@cast(__args, "unsigned int")[0])
-	addr_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
-	addrlen_uaddr = user_uint32(&@cast(__args, "unsigned int")[2])
-	flags = user_int(&@cast(__args, "unsigned int")[3])
+	__args = &@uint_cast(pointer_arg(2))
+	sockfd = user_int(&@uint_cast(__args)[0])
+	addr_uaddr = user_uint32(&@uint_cast(__args)[1])
+	addrlen_uaddr = user_uint32(&@uint_cast(__args)[2])
+	flags = user_int(&@uint_cast(__args)[3])
 }
 probe nd_syscall.accept4.return = __nd_syscall.accept4.return ?,
 	__nd_syscall.socketcall.accept4.return ?

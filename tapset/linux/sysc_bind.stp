@@ -34,17 +34,17 @@ probe __syscall.bind = kernel.function("sys_bind").call ?
 probe __syscall.socketcall.bind = kernel.function("sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_BIND")) next;
-	sockfd = __int32(user_ulong(&@cast($args, "ulong")[0]))
-	my_addr_uaddr = user_ulong(&@cast($args, "ulong")[1])
-	addrlen = __int32(user_ulong(&@cast($args, "ulong")[2]))
+	sockfd = __int32(user_ulong(&@ulong_cast($args)[0]))
+	my_addr_uaddr = user_ulong(&@ulong_cast($args)[1])
+	addrlen = __int32(user_ulong(&@ulong_cast($args)[2]))
 }
 probe __syscall.compat_socketcall.bind =
 	kernel.function("compat_sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_BIND")) next;
-	sockfd = user_int(&@cast($args, "unsigned int")[0])
-	my_addr_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
-	addrlen = user_int(&@cast($args, "unsigned int")[2])
+	sockfd = user_int(&@uint_cast($args)[0])
+	my_addr_uaddr = user_uint32(&@uint_cast($args)[1])
+	addrlen = user_int(&@uint_cast($args)[2])
 }
 probe dw_syscall.bind.return = __syscall.bind.return ?,
 	__syscall.socketcall.bind.return ?
@@ -84,20 +84,20 @@ probe __nd_syscall.socketcall.bind = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_BIND")) next;
-	__args = &@cast(pointer_arg(2), "ulong")
-	sockfd = __int32(user_ulong(&@cast(__args, "ulong")[0]))
-	my_addr_uaddr = user_ulong(&@cast(__args, "ulong")[1])
-	addrlen = __int32(user_ulong(&@cast(__args, "ulong")[2]))
+	__args = &@ulong_cast(pointer_arg(2))
+	sockfd = __int32(user_ulong(&@ulong_cast(__args)[0]))
+	my_addr_uaddr = user_ulong(&@ulong_cast(__args)[1])
+	addrlen = __int32(user_ulong(&@ulong_cast(__args)[2]))
 }
 probe __nd_syscall.compat_socketcall.bind =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_BIND")) next;
-	__args = &@cast(pointer_arg(2), "unsigned int")
-	sockfd = user_int(&@cast(__args, "unsigned int")[0])
-	my_addr_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
-	addrlen = user_int(&@cast(__args, "unsigned int")[2])
+	__args = &@uint_cast(pointer_arg(2))
+	sockfd = user_int(&@uint_cast(__args)[0])
+	my_addr_uaddr = user_uint32(&@uint_cast(__args)[1])
+	addrlen = user_int(&@uint_cast(__args)[2])
 }
 probe nd_syscall.bind.return = __nd_syscall.bind.return ?,
 	__nd_syscall.socketcall.bind.return ?

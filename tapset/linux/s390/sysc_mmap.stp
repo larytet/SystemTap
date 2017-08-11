@@ -71,7 +71,7 @@ probe __nd_syscall.mmap = kprobe.function("old_mmap") ?,
 			  kprobe.function("SyS_s390_old_mmap") ?
 {
 	asmlinkage()
-	__args = &@cast(pointer_arg(1), "ulong", "kernel<linux/types.h>")
+	__args = &@ulong_cast(pointer_arg(1))
 	start = user_ulong(&(__args)[0])
 	len = user_ulong(&(__args)[1])
 	prot = user_ulong(&(__args)[2])
@@ -82,7 +82,7 @@ probe __nd_syscall.mmap = kprobe.function("old_mmap") ?,
 probe __nd_syscall.mmap32 = kprobe.function("old32_mmap")
 {
 	asmlinkage()
-	__args = &@cast(pointer_arg(1), "unsigned int", "kernel<linux/types.h>")
+	__args = &@uint_cast(pointer_arg(1))
 	start = user_uint32(&(__args)[0])
 	len = user_uint32(&(__args)[1])
 	prot = user_uint32(&(__args)[2])

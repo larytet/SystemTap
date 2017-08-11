@@ -133,7 +133,7 @@ probe nd_syscall.compat_fadvise64_64 = kprobe.function("sys32_fadvise64_64") ?,
 	kprobe.function("compat_sys_s390_fadvise64_64") ?
 {
 	@_SYSCALL_COMPAT_FADVISE64_NAME
-	__args = &@cast(pointer_arg(1), "unsigned int", "kernel<linux/types.h>")
+	__args = &@uint_cast(pointer_arg(1))
 	fd = user_int(&(__args)[0])
 	offset = user_int64(&(__args)[2])
 	len = user_uint64(&(__args)[4])

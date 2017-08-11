@@ -121,7 +121,7 @@ probe nd_syscall.mmap32 = kprobe.function("sys32_mmap")
 {
 	@_SYSCALL_MMAP_NAME
 	asmlinkage()
-	__args = &@cast(pointer_arg(1), "unsigned int", "kernel<linux/types.h>")
+	__args = &@uint_cast(pointer_arg(1))
 	start = user_uint32(&(__args)[0])
 	len = user_uint32(&(__args)[1])
 	prot = user_uint32(&(__args)[2])

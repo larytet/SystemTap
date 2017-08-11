@@ -44,21 +44,21 @@ probe __syscall.getsockopt = kernel.function("sys_getsockopt").call ?
 probe __syscall.socketcall.getsockopt = kernel.function("sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_GETSOCKOPT")) next;
-	fd = __int32(user_ulong(&@cast($args, "ulong")[0]))
-	level = __int32(user_ulong(&@cast($args, "ulong")[1]))
-	optname = __int32(user_ulong(&@cast($args, "ulong")[2]))
-	optval_uaddr = user_ulong(&@cast($args, "ulong")[3])
-	optlen_uaddr = user_ulong(&@cast($args, "ulong")[4])
+	fd = __int32(user_ulong(&@ulong_cast($args)[0]))
+	level = __int32(user_ulong(&@ulong_cast($args)[1]))
+	optname = __int32(user_ulong(&@ulong_cast($args)[2]))
+	optval_uaddr = user_ulong(&@ulong_cast($args)[3])
+	optlen_uaddr = user_ulong(&@ulong_cast($args)[4])
 }
 probe __syscall.compat_socketcall.getsockopt =
 	kernel.function("compat_sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_GETSOCKOPT")) next;
-	fd = user_int(&@cast($args, "unsigned int")[0])
-	level = user_int(&@cast($args, "unsigned int")[1])
-	optname = user_int(&@cast($args, "unsigned int")[2])
-	optval_uaddr = user_uint32(&@cast($args, "unsigned int")[3])
-	optlen_uaddr = user_uint32(&@cast($args, "unsigned int")[4])
+	fd = user_int(&@uint_cast($args)[0])
+	level = user_int(&@uint_cast($args)[1])
+	optname = user_int(&@uint_cast($args)[2])
+	optval_uaddr = user_uint32(&@uint_cast($args)[3])
+	optlen_uaddr = user_uint32(&@uint_cast($args)[4])
 }
 probe dw_syscall.getsockopt.return = __syscall.getsockopt.return ?,
       __syscall.socketcall.getsockopt.return ?
@@ -103,7 +103,7 @@ probe __nd_syscall.socketcall.getsockopt =
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_GETSOCKOPT")) next;
-	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
+	__args = &@ulong_cast(pointer_arg(2))
 	fd = __int32(user_ulong(&(__args)[0]))
 	level = __int32(user_ulong(&(__args)[1]))
 	optname = __int32(user_ulong(&(__args)[2]))
@@ -115,7 +115,7 @@ probe __nd_syscall.compat_socketcall.getsockopt =
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_GETSOCKOPT")) next;
-	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	__args = &@uint_cast(pointer_arg(2))
 	fd = user_int(&(__args)[0])
 	level = user_int(&(__args)[1])
 	optname = user_int(&(__args)[2])

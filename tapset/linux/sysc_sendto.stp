@@ -46,23 +46,23 @@ probe __syscall.sendto = kernel.function("sys_sendto").call ?
 probe __syscall.socketcall.sendto = kernel.function("sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_SENDTO")) next;
-	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
-	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
-	len = user_ulong(&@cast($args, "ulong")[2])
-	flags = __uint32(user_ulong(&@cast($args, "ulong")[3]))
-	to_uaddr = user_ulong(&@cast($args, "ulong")[4])
-	tolen = __uint32(user_ulong(&@cast($args, "ulong")[5]))
+	s = __int32(user_ulong(&@ulong_cast($args)[0]))
+	buf_uaddr = user_ulong(&@ulong_cast($args)[1])
+	len = user_ulong(&@ulong_cast($args)[2])
+	flags = __uint32(user_ulong(&@ulong_cast($args)[3]))
+	to_uaddr = user_ulong(&@ulong_cast($args)[4])
+	tolen = __uint32(user_ulong(&@ulong_cast($args)[5]))
 }
 probe __syscall.compat_socketcall.sendto =
 	kernel.function("compat_sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_SENDTO")) next;
-	s = user_int(&@cast($args, "unsigned int")[0])
-	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
-	len = user_uint32(&@cast($args, "unsigned int")[2])
-	flags = user_uint32(&@cast($args, "unsigned int")[3])
-	to_uaddr = user_uint32(&@cast($args, "unsigned int")[4])
-	tolen = user_uint32(&@cast($args, "unsigned int")[5])
+	s = user_int(&@uint_cast($args)[0])
+	buf_uaddr = user_uint32(&@uint_cast($args)[1])
+	len = user_uint32(&@uint_cast($args)[2])
+	flags = user_uint32(&@uint_cast($args)[3])
+	to_uaddr = user_uint32(&@uint_cast($args)[4])
+	tolen = user_uint32(&@uint_cast($args)[5])
 }
 probe dw_syscall.sendto.return = kernel.function("sys_sendto").return ?,
 	kernel.function("sys_socketcall").return ?,
@@ -105,26 +105,26 @@ probe __nd_syscall.socketcall.sendto = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SENDTO")) next;
-	__args = &@cast(pointer_arg(2), "ulong")
-	s = __int32(user_ulong(&@cast(__args, "ulong")[0]))
-	buf_uaddr = user_ulong(&@cast(__args, "ulong")[1])
-	len = user_ulong(&@cast(__args, "ulong")[2])
-	flags = __uint32(user_ulong(&@cast(__args, "ulong")[3]))
-	to_uaddr = user_ulong(&@cast(__args, "ulong")[4])
-	tolen = __uint32(user_ulong(&@cast(__args, "ulong")[5]))
+	__args = &@ulong_cast(pointer_arg(2))
+	s = __int32(user_ulong(&@ulong_cast(__args)[0]))
+	buf_uaddr = user_ulong(&@ulong_cast(__args)[1])
+	len = user_ulong(&@ulong_cast(__args)[2])
+	flags = __uint32(user_ulong(&@ulong_cast(__args)[3]))
+	to_uaddr = user_ulong(&@ulong_cast(__args)[4])
+	tolen = __uint32(user_ulong(&@ulong_cast(__args)[5]))
 }
 probe __nd_syscall.compat_socketcall.sendto =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SENDTO")) next;
-	__args = &@cast(pointer_arg(2), "unsigned int")
-	s = user_int(&@cast(__args, "unsigned int")[0])
-	buf_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
-	len = user_uint32(&@cast(__args, "unsigned int")[2])
-	flags = user_uint32(&@cast(__args, "unsigned int")[3])
-	to_uaddr = user_uint32(&@cast(__args, "unsigned int")[4])
-	tolen = user_uint32(&@cast(__args, "unsigned int")[5])
+	__args = &@uint_cast(pointer_arg(2))
+	s = user_int(&@uint_cast(__args)[0])
+	buf_uaddr = user_uint32(&@uint_cast(__args)[1])
+	len = user_uint32(&@uint_cast(__args)[2])
+	flags = user_uint32(&@uint_cast(__args)[3])
+	to_uaddr = user_uint32(&@uint_cast(__args)[4])
+	tolen = user_uint32(&@uint_cast(__args)[5])
 }
 probe nd_syscall.sendto.return = __nd_syscall.sendto.return ?,
 	__nd_syscall.socketcall.sendto.return ?

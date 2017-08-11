@@ -30,7 +30,7 @@ probe dw_syscall.fchmodat = kernel.function("sys_fchmodat").call ?
 	# Why @cast() here? Even though the user passes an unsigned
 	# int (32-bits), some kernels (2.6.32-431.el6.i686) get an
 	# unsigned short (16-bits).
-	mode = @cast(&$mode, "unsigned int")
+	mode = @uint_cast(&$mode)
 %:
 	mode = __uint32($mode)
 %)

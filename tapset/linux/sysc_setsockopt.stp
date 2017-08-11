@@ -45,21 +45,21 @@ probe __syscall.setsockopt = kernel.function("sys_setsockopt").call ?
 probe __syscall.socketcall.setsockopt = kernel.function("sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_SETSOCKOPT")) next;
-	fd = __int32(user_ulong(&@cast($args, "ulong")[0]))
-	level = __int32(user_ulong(&@cast($args, "ulong")[1]))
-	optname = __int32(user_ulong(&@cast($args, "ulong")[2]))
-	optval_uaddr = user_ulong(&@cast($args, "ulong")[3])
-	optlen = __uint32(user_ulong(&@cast($args, "ulong")[4]))
+	fd = __int32(user_ulong(&@ulong_cast($args)[0]))
+	level = __int32(user_ulong(&@ulong_cast($args)[1]))
+	optname = __int32(user_ulong(&@ulong_cast($args)[2]))
+	optval_uaddr = user_ulong(&@ulong_cast($args)[3])
+	optlen = __uint32(user_ulong(&@ulong_cast($args)[4]))
 }
 probe __syscall.compat_socketcall.setsockopt =
 	kernel.function("compat_sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_SETSOCKOPT")) next;
-	fd = user_int(&@cast($args, "unsigned int")[0])
-	level = user_int(&@cast($args, "unsigned int")[1])
-	optname = user_int(&@cast($args, "unsigned int")[2])
-	optval_uaddr = user_uint32(&@cast($args, "unsigned int")[3])
-	optlen = user_uint32(&@cast($args, "unsigned int")[4])
+	fd = user_int(&@uint_cast($args)[0])
+	level = user_int(&@uint_cast($args)[1])
+	optname = user_int(&@uint_cast($args)[2])
+	optval_uaddr = user_uint32(&@uint_cast($args)[3])
+	optlen = user_uint32(&@uint_cast($args)[4])
 }
 probe dw_syscall.setsockopt.return = __syscall.setsockopt.return ?,
       __syscall.socketcall.setsockopt.return ?
@@ -105,24 +105,24 @@ probe __nd_syscall.socketcall.setsockopt =
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SETSOCKOPT")) next;
-	__args = &@cast(pointer_arg(2), "ulong")
-	fd = __int32(user_ulong(&@cast(__args, "ulong")[0]))
-	level = __int32(user_ulong(&@cast(__args, "ulong")[1]))
-	optname = __int32(user_ulong(&@cast(__args, "ulong")[2]))
-	optval_uaddr = user_ulong(&@cast(__args, "ulong")[3])
-	optlen = __uint32(user_ulong(&@cast(__args, "ulong")[4]))
+	__args = &@ulong_cast(pointer_arg(2))
+	fd = __int32(user_ulong(&@ulong_cast(__args)[0]))
+	level = __int32(user_ulong(&@ulong_cast(__args)[1]))
+	optname = __int32(user_ulong(&@ulong_cast(__args)[2]))
+	optval_uaddr = user_ulong(&@ulong_cast(__args)[3])
+	optlen = __uint32(user_ulong(&@ulong_cast(__args)[4]))
 }
 probe __nd_syscall.compat_socketcall.setsockopt =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SETSOCKOPT")) next;
-	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
-	fd = user_int(&@cast(__args, "unsigned int")[0])
-	level = user_int(&@cast(__args, "unsigned int")[1])
-	optname = user_int(&@cast(__args, "unsigned int")[2])
-	optval_uaddr = user_uint32(&@cast(__args, "unsigned int")[3])
-	optlen = user_uint32(&@cast(__args, "unsigned int")[4])
+	__args = &@uint_cast(pointer_arg(2))
+	fd = user_int(&@uint_cast(__args)[0])
+	level = user_int(&@uint_cast(__args)[1])
+	optname = user_int(&@uint_cast(__args)[2])
+	optval_uaddr = user_uint32(&@uint_cast(__args)[3])
+	optlen = user_uint32(&@uint_cast(__args)[4])
 }
 probe nd_syscall.setsockopt.return = __nd_syscall.setsockopt.return ?,
 	__nd_syscall.socketcall.setsockopt.return ?

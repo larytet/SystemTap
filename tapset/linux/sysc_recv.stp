@@ -33,19 +33,19 @@ probe dw_syscall.recv = __syscall.socketcall.recv ?,
 probe __syscall.socketcall.recv = kernel.function("sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_RECV")) next;
-	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
-	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
-	len = user_ulong(&@cast($args, "ulong")[2])
-	flags = __uint32(user_ulong(&@cast($args, "ulong")[3]))
+	s = __int32(user_ulong(&@ulong_cast($args)[0]))
+	buf_uaddr = user_ulong(&@ulong_cast($args)[1])
+	len = user_ulong(&@ulong_cast($args)[2])
+	flags = __uint32(user_ulong(&@ulong_cast($args)[3]))
 }
 probe __syscall.compat_socketcall.recv =
 	kernel.function("compat_sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_RECV")) next;
-	s = user_int(&@cast($args, "unsigned int")[0])
-	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
-	len = user_uint32(&@cast($args, "unsigned int")[2])
-	flags = user_uint32(&@cast($args, "unsigned int")[3])
+	s = user_int(&@uint_cast($args)[0])
+	buf_uaddr = user_uint32(&@uint_cast($args)[1])
+	len = user_uint32(&@uint_cast($args)[2])
+	flags = user_uint32(&@uint_cast($args)[3])
 }
 probe __syscall.recv = kernel.function("sys_recv").call ?
 {
@@ -86,22 +86,22 @@ probe __nd_syscall.socketcall.recv = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_RECV")) next;
-	__args = &@cast(pointer_arg(2), "ulong")
-	s = __int32(user_ulong(&@cast(__args, "ulong")[0]))
-	buf_uaddr = user_ulong(&@cast(__args, "ulong")[1])
-	len = user_ulong(&@cast(__args, "ulong")[2])
-	flags = __uint32(user_ulong(&@cast(__args, "ulong")[3]))
+	__args = &@ulong_cast(pointer_arg(2))
+	s = __int32(user_ulong(&@ulong_cast(__args)[0]))
+	buf_uaddr = user_ulong(&@ulong_cast(__args)[1])
+	len = user_ulong(&@ulong_cast(__args)[2])
+	flags = __uint32(user_ulong(&@ulong_cast(__args)[3]))
 }
 probe __nd_syscall.compat_socketcall.recv =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_RECV")) next;
-	__args = &@cast(pointer_arg(2), "unsigned int")
-	s = user_int(&@cast(__args, "unsigned int")[0])
-	buf_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
-	len = user_uint32(&@cast(__args, "unsigned int")[2])
-	flags = user_uint32(&@cast(__args, "unsigned int")[3])
+	__args = &@uint_cast(pointer_arg(2))
+	s = user_int(&@uint_cast(__args)[0])
+	buf_uaddr = user_uint32(&@uint_cast(__args)[1])
+	len = user_uint32(&@uint_cast(__args)[2])
+	flags = user_uint32(&@uint_cast(__args)[3])
 }
 probe __nd_syscall.recv = kprobe.function("sys_recv").call ?
 {

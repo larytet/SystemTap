@@ -41,9 +41,9 @@ probe __syscall.sendmsg = kernel.function("sys_sendmsg").call ?
 probe __syscall.socketcall.sendmsg = kernel.function("sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_SENDMSG")) next;
-	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
-	msg_uaddr = user_ulong(&@cast($args, "ulong")[1])
-	flags = __uint32(user_ulong(&@cast($args, "ulong")[2]))
+	s = __int32(user_ulong(&@ulong_cast($args)[0]))
+	msg_uaddr = user_ulong(&@ulong_cast($args)[1])
+	flags = __uint32(user_ulong(&@ulong_cast($args)[2]))
 }
 probe dw_syscall.sendmsg.return = __syscall.sendmsg.return ?,
 	__syscall.socketcall.sendmsg.return ?
@@ -95,10 +95,10 @@ probe __nd_syscall.socketcall.sendmsg = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SENDMSG")) next;
-	__args = &@cast(pointer_arg(2), "ulong")
-	s = __int32(user_ulong(&@cast(__args, "ulong")[0]))
-	msg_uaddr = user_ulong(&@cast(__args, "ulong")[1])
-	flags = __uint32(user_ulong(&@cast(__args, "ulong")[2]))
+	__args = &@ulong_cast(pointer_arg(2))
+	s = __int32(user_ulong(&@ulong_cast(__args)[0]))
+	msg_uaddr = user_ulong(&@ulong_cast(__args)[1])
+	flags = __uint32(user_ulong(&@ulong_cast(__args)[2]))
 }
 probe nd_syscall.sendmsg.return = __nd_syscall.sendmsg.return ?,
 	__nd_syscall.socketcall.sendmsg.return ?
@@ -149,9 +149,9 @@ probe dw_syscall.compat_sys_sendmsg =
 {
 	if (__int32($call) != @const("SYS_SENDMSG")) next;
 	@_SYSCALL_SENDMSG_NAME
-	s = user_int(&@cast($args, "unsigned int")[0])
-	msg_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
-	flags = user_uint32(&@cast($args, "unsigned int")[2])
+	s = user_int(&@uint_cast($args)[0])
+	msg_uaddr = user_uint32(&@uint_cast($args)[1])
+	flags = user_uint32(&@uint_cast($args)[2])
 	flags_str = _msg_flags_str(flags)
 	@_SYSCALL_SENDMSG_ARGSTR
 }
@@ -171,10 +171,10 @@ probe nd_syscall.compat_sys_sendmsg =
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_SENDMSG")) next;
 	@_SYSCALL_SENDMSG_NAME
-	__args = &@cast(pointer_arg(2), "unsigned int")
-	s = user_int(&@cast(__args, "unsigned int")[0])
-	msg_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
-	flags = user_uint32(&@cast(__args, "unsigned int")[2])
+	__args = &@uint_cast(pointer_arg(2))
+	s = user_int(&@uint_cast(__args)[0])
+	msg_uaddr = user_uint32(&@uint_cast(__args)[1])
+	flags = user_uint32(&@uint_cast(__args)[2])
 	flags_str = _msg_flags_str(flags)
 	@_SYSCALL_SENDMSG_ARGSTR
 }

@@ -350,3 +350,21 @@
 %(
   (((__ulong(@high) << (@const("BITS_PER_LONG") / 2)) << (@const("BITS_PER_LONG") / 2)) | __ulong(@low))
 %)
+
+# Here's an explanation of the @cast() 3rd argument here. In RHEL6-era
+# kernels (2.6.32), the "ulong" and "unsigned int" definitions can be
+# found in <linux/types.h>. However, in newer kernels those
+# definitions have been moved to <uapi/linux/types.h>.  But, we can't
+# do "kernel<linux/types.h><uapi/linux/types.h>" because the
+# <uapi/linux/types.h> doesn't exist on RHEL6-era kernels. So, we list
+# each header file separately.
+
+@define ulong_cast(val)
+%(
+  @cast(@val, "ulong", "kernel<linux/types.h>:kernel<uapi/linux/types.h>")
+%)
+
+@define uint_cast(val)
+%(
+  @cast(@val, "unsigned int", "kernel<linux/types.h>:kernel<uapi/linux/types.h>")
+%)

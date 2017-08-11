@@ -42,9 +42,9 @@ probe __syscall.recvmsg = kernel.function("sys_recvmsg").call ?
 probe __syscall.socketcall.recvmsg = kernel.function("sys_socketcall").call ?
 {
 	if (__int32($call) != @const("SYS_RECVMSG")) next;
-	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
-	msg_uaddr = user_ulong(&@cast($args, "ulong")[1])
-	flags = __uint32(user_ulong(&@cast($args, "ulong")[2]))
+	s = __int32(user_ulong(&@ulong_cast($args)[0]))
+	msg_uaddr = user_ulong(&@ulong_cast($args)[1])
+	flags = __uint32(user_ulong(&@ulong_cast($args)[2]))
 }
 probe dw_syscall.recvmsg.return = __syscall.recvmsg.return ?,
 	__syscall.socketcall.recvmsg.return ?
@@ -91,10 +91,10 @@ probe __nd_syscall.socketcall.recvmsg = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_RECVMSG")) next;
-	__args = &@cast(pointer_arg(2), "ulong")
-	s = __int32(user_ulong(&@cast(__args, "ulong")[0]))
-	msg_uaddr = user_ulong(&@cast(__args, "ulong")[1])
-	flags = __uint32(user_ulong(&@cast(__args, "ulong")[2]))
+	__args = &@ulong_cast(pointer_arg(2))
+	s = __int32(user_ulong(&@ulong_cast(__args)[0]))
+	msg_uaddr = user_ulong(&@ulong_cast(__args)[1])
+	flags = __uint32(user_ulong(&@ulong_cast(__args)[2]))
 }
 probe nd_syscall.recvmsg.return = __nd_syscall.recvmsg.return ?,
 	__nd_syscall.socketcall.recvmsg.return ?
@@ -141,9 +141,9 @@ probe dw_syscall.compat_sys_recvmsg =
 {
 	if (__int32($call) != @const("SYS_RECVMSG")) next;
 	@_SYSCALL_RECVMSG_NAME
-	s = user_int(&@cast($args, "unsigned int")[0])
-	msg_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
-	flags = user_uint32(&@cast($args, "unsigned int")[2])
+	s = user_int(&@uint_cast($args)[0])
+	msg_uaddr = user_uint32(&@uint_cast($args)[1])
+	flags = user_uint32(&@uint_cast($args)[2])
 	flags_str = _msg_flags_str(flags)
 	@_SYSCALL_RECVMSG_ARGSTR
 }
@@ -163,10 +163,10 @@ probe nd_syscall.compat_sys_recvmsg =
 	asmlinkage()
 	if (int_arg(1) != @const("SYS_RECVMSG")) next;
 	@_SYSCALL_RECVMSG_NAME
-	__args = &@cast(pointer_arg(2), "unsigned int")
-	s = user_int(&@cast(__args, "unsigned int")[0])
-	msg_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
-	flags = user_uint32(&@cast(__args, "unsigned int")[2])
+	__args = &@uint_cast(pointer_arg(2))
+	s = user_int(&@uint_cast(__args)[0])
+	msg_uaddr = user_uint32(&@uint_cast(__args)[1])
+	flags = user_uint32(&@uint_cast(__args)[2])
 	flags_str = _msg_flags_str(flags)
 	@_SYSCALL_RECVMSG_ARGSTR
 }
