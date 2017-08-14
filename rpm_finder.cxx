@@ -100,8 +100,7 @@ missing_rpm_enlist (systemtap_session& sess, const char *filename, const char *r
 	    break;
 	  /* Verify the kernel file is not already installed.  */
 
-	  rpminfo = headerSprintf(h, header,
-			      rpmTagTable, rpmHeaderFormats, &err);
+	  rpminfo = headerFormat(h, header, &err);
 
 	  if (!rpminfo)
 	    {
@@ -154,9 +153,8 @@ missing_rpm_enlist (systemtap_session& sess, const char *filename, const char *r
 	  /* The allocated memory gets utilized below for MISSING_RPM_HASH.  */
           if(strcmp(rpm_type,"-debuginfo")==0){
 	    xfree(rpminfo);
-	    rpminfo = headerSprintf(h,
-		      "%{name}-%{version}-%{release}.%{arch}",
-		      rpmTagTable, rpmHeaderFormats, &err);
+	    rpminfo = headerFormat(h, "%{name}-%{version}-%{release}.%{arch}",
+				   &err);
 	  }
 	  if (!rpminfo)
 	    {
