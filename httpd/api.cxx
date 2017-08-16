@@ -351,6 +351,13 @@ response build_collection_rh::POST(const request &req)
 	else if (it->first == "cmd_args") {
 	    crd->cmd_args = it->second;
 	}
+	else if (it->first == "distro_name") {
+	    crd->distro_name = it->second[0];
+	}
+	else if (it->first == "distro_version") {
+	    crd->distro_version = it->second[0];
+	}
+	// Notice we silently ignore any "extra" parameters.
     }
     if (! req.files.empty()) {
 	clog << "Files received:" << endl;
@@ -364,7 +371,8 @@ response build_collection_rh::POST(const request &req)
     }
 
     // Make sure we've got everything we need.
-    if (crd->kver.empty() || crd->arch.empty() || crd->cmd_args.empty()) {
+    if (crd->kver.empty() || crd->arch.empty() || crd->cmd_args.empty()
+	|| crd->distro_name.empty() || crd->distro_version.empty()) {
 	// Return an error.
 	clog << "400 - bad request" << endl;
 	response error400(400);

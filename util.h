@@ -413,6 +413,7 @@ template <class T>
 int write_to_file (const std::string &fname, const T &data);
 int flush_to_stream (const std::string &fname, std::ostream &o);
 
+bool get_distro_info(std::vector<std::string> &info);
 #endif // UTIL_H
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

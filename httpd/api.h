@@ -18,6 +18,8 @@ struct client_request_data
     std::string kver;
     std::string arch;
     std::string base_dir;
+    std::string distro_name;
+    std::string distro_version;
     std::vector<std::string> cmd_args;
     std::vector<std::string> files;
 };

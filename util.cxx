@@ -1495,4 +1495,64 @@ flush_to_stream (const string &fname, ostream &o)
   return 1; // Failure
 }
 
+// Tries to determine the name and version of the running Linux OS
+// distribution. Fills in the 'info' argument with (name, version)
+// strings. Returns true if it was able to retrieve the information.
+bool
+get_distro_info(vector<string> &info)
+{
+    string name, version;
+
+    // Getting the distro name and version is harder than it should
+    // be. We've got a multi-pronged strategy.
+    //
+    // (1) First, try the "lsb_release" executable, which may or may
+    // not exist on the system.
+    vector<string> cmd { "lsb_release", "--short", "--id" };
+    stringstream out;
+    int rc = stap_system_read(0, cmd, out);
+    if (rc == 0) {
+	name = out.str();
+
+	vector<string> cmd2 { "lsb_release", "--short", "--release" };
+	rc = stap_system_read(0, cmd2, out);
+	if (rc == 0) {
+	    version = out.str();
+	}
+    }
+
+    // (2) Look for the /etc/os-release file.
+    if (name.empty()) {
+	ifstream infile;
+	infile.open("/etc/os-release");
+	if (infile.is_open()) {
+	    string line;
+	    while (getline(infile, line)) {
+		vector<string> components;
+		tokenize(line, components, "=");
+		transform(components[0].begin(), components[0].end(),
+			  components[0].begin(), ::tolower);
+		if (components[0] == "name") {
+		    name = components[1];
+		}
+		else if (components[0] == "version_id") {
+		    version = components[1];
+		}
+	    }
+	    infile.close();
+	}
+    }
+
+    // (3) Here we could look for /etc/*-release ('redhat', 'arch', 'gentoo',
+    // etc.) or /etc/*_version ('debian', etc.), if needed.
+
+    info.clear();
+    if (! name.empty()) {
+	info.push_back(name);
+	info.push_back(version);
+	return true;
+    }
+    return false;
+}
+
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

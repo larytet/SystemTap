@@ -7,6 +7,7 @@ import logging
 import time
 import json
 import sys
+import platform
 
 def download_file(url):
     local_filename = url.split('/')[-1]
@@ -25,6 +26,9 @@ def download_file(url):
 
 def handle_post_result(r):
     # We should get a 'Location' header from the POST request.
+    if 'location' not in r.headers:
+        logging.debug("No 'location' in headers")
+        return
     uri = server_base + r.headers['location']
     delay = int(r.headers['retry-after'])
     result_found = False
@@ -143,8 +147,13 @@ r = requests.get(server_base)
 
 #print r.headers['content-type']
 
+distro_name = platform.linux_distribution()[0]
+distro_version = platform.linux_distribution()[1]
+logging.debug("distro '%s'", distro_name)
+
 # For now, just pass over the kernel version and arch and a basic command line.
 payload = (('kver', os.uname()[2]), ('arch', os.uname()[4]),
+           ('distro_name', distro_name), ('distro_version', distro_version),
            ('cmd_args', '-vp4'), ('cmd_args', '-e'),
            ('cmd_args', 'probe begin { exit() }'))
 r = requests.post(server_base + '/builds', data=payload)
@@ -157,6 +166,7 @@ handle_post_result(r)
 # FIXME: How do we know we need to send the file?
 #
 payload = (('kver', os.uname()[2]), ('arch', os.uname()[4]),
+           ('distro_name', distro_name), ('distro_version', distro_version),
            ('cmd_args', '-v'), ('cmd_args', 'hello_world.stp'))
 files = {'files': open('hello_world.stp', 'rb')}
 r = requests.post(server_base + '/builds', data=payload, files=files)
@@ -167,6 +177,7 @@ handle_post_result(r)
 # Lets try a "stap -L".
 #
 payload = (('kver', os.uname()[2]), ('arch', os.uname()[4]),
+           ('distro_name', distro_name), ('distro_version', distro_version),
            ('cmd_args', '-L'), ('cmd_args', 'kernel.function("sys_open")'))
 r = requests.post(server_base + '/builds', data=payload)
 
