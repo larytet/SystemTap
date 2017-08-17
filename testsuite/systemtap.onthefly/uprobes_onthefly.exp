@@ -35,7 +35,7 @@ proc run_stap {subtest args script} {
    set err [catch {eval exec stap -e {$script} $args} out]
 
    # Kill app
-   kill -INT $pid
+   kill -INT $pid 1
 
    if {$err} {error $out}
    return $out
