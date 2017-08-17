@@ -428,7 +428,7 @@ passes_0_4 (systemtap_session &s)
     }
 
   // Perform passes 0 through 4 using a compile server?
-  if (! s.specified_servers.empty () || ! s.http_servers.empty ())
+  if (! s.specified_servers.empty ())
     {
 #if NEED_BASE_CLIENT_CODE
       compile_server_client client (s);
@@ -907,6 +907,13 @@ passes_0_4 (systemtap_session &s)
   s.verbose = s.perpass_verbose[1];
   PROBE1(stap, pass2__start, &s);
   rc = semantic_pass (s);
+
+  // http handled probes need probe information from pass 2
+  if (! s.http_servers.empty ())
+    {
+      compile_server_client client (s);
+      return client.passes_0_4 ();
+    }
 
   // Dump a list of known probe point types, if requested.
   if (s.dump_mode == systemtap_session::dump_probe_types)

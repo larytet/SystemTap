@@ -1,6 +1,6 @@
 set test_name additional_scripts
 
-# test scripts and arguements
+# test scripts and arguments
 set script1 { "probe begin\{printf(\"beginning\")\}" }
 set script2 { "probe process.begin\{printf(\"%s\", \$1)\}" }
 set timeout_script { "probe timer.s(15) \{ printf(\"ending\") exit ()\}" }
