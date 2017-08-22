@@ -7,6 +7,14 @@
 // later version.
 
 %{
+#include <linux/sched.h>
+
+// On 4.13 kernels, linux/sched.h doesn't include
+// linux/sched/clock.h, where local_clock() is declared. But
+// linux/sched/clock.h doesn't exist on RHEL6-era kernels. So, we'll
+// include linux/blkdev.h, which includes linux/sched/clock.h.
+#include <linux/blkdev.h>
+
 // Since scripts can run from quite arbitrary contexts, we can only use
 // cpu_clock once it was made NMI safe.  This was in commit def0a9b2 for
 // HAVE_UNSTABLE_SCHED_CLOCK archs (included in 2.6.32), and commit b9f8fcd5
