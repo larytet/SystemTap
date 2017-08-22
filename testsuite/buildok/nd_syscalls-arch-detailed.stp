@@ -108,11 +108,11 @@ probe nd_syscall.set_zone_reclaim.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.vm86, nd_syscall.vm86old ?
+probe nd_syscall.vm86 ?, nd_syscall.vm86old ?
 {
 	printf("%s, %s\n", name, argstr)
 }
-probe nd_syscall.vm86.return, nd_syscall.vm86old.return ?
+probe nd_syscall.vm86.return ?, nd_syscall.vm86old.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
