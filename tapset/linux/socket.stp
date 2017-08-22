@@ -1,6 +1,6 @@
 // Socket tapset
 // Copyright (C) 2006 IBM Corp.
-// Copyright (C) 2010-2013 Red Hat Inc.
+// Copyright (C) 2010-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -1103,7 +1103,7 @@ probe init
 
 @__private30 function _get_sock_addr:long(file:long)
 %{ /* pure */
-	struct file *filep = (struct file *)(long)(STAP_ARG_file);
+	struct file *filep = (struct file *)(uintptr_t)(STAP_ARG_file);
 	struct socket *sockp;
 	if (filep) {
 #ifdef STAPCONF_DPATH_PATH
@@ -1127,7 +1127,7 @@ probe init
 
 @__private30 function _get_sock_size:long(iov:long, nr_segs:long)
 %{ /* pure */
-	struct iovec *iovp = (struct iovec *)(long)(STAP_ARG_iov);
+	struct iovec *iovp = (struct iovec *)(uintptr_t)(STAP_ARG_iov);
 	if (iovp == NULL)
 		STAP_RETVALUE = -1;
 	else {

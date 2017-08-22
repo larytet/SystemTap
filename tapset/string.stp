@@ -1,5 +1,5 @@
 // Standard string functions tapset.
-// Copyright (C) 2009-2015 Red Hat, Inc.
+// Copyright (C) 2009-2017 Red Hat, Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -142,8 +142,8 @@ function text_strn:string(input:string, len:long, quoted:long)
  */
 function str_replace:string (prnt_str:string, srch_str:string, rplc_str:string)
 %{ /* pure */ /* unprivileged */
-	char *ptr = STAP_ARG_prnt_str;
-	char *ptr_base = STAP_ARG_prnt_str;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_prnt_str;
+	char *ptr_base = (char *)(uintptr_t)STAP_ARG_prnt_str;
 	int strlen_srch_str = strlen(STAP_ARG_srch_str);
 
 	STAP_RETVALUE[0] = '\0';

@@ -1,7 +1,7 @@
 // TCP tapset
 // Copyright (C) 2006 IBM Corp.
 // Copyright (C) 2006 Intel Corporation.
-// Copyright (C) 2007, 2010, 2012 Red Hat, Inc.
+// Copyright (C) 2007, 2010, 2012-2017 Red Hat, Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -24,7 +24,7 @@
 // timeout (TCP_RTO_MAX)
 function tcp_get_info_rto:long(sock:long)
 %{ /* pure */
-	struct sock *sk = (struct sock *)(long) STAP_ARG_sock;
+	struct sock *sk = (struct sock *)(uintptr_t) STAP_ARG_sock;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
 	struct tcp_opt *tp = tcp_sk(sk);
 	STAP_RETVALUE = (int64_t) jiffies_to_usecs(kread(&(tp->rto)));
@@ -41,7 +41,7 @@ function tcp_get_info_rto:long(sock:long)
 //is performing slow start or congestion avoidance. 
 function tcp_get_info_snd_cwnd:long(sock:long)
 %{ /* pure */
-	struct sock *sk = (struct sock *)(long) STAP_ARG_sock;
+	struct sock *sk = (struct sock *)(uintptr_t) STAP_ARG_sock;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
 	struct tcp_opt *tp = tcp_sk(sk);
 #else
@@ -69,7 +69,7 @@ function tcp_get_info_snd_cwnd:long(sock:long)
 // 
 function tcp_ts_get_info_state:long(sock:long)
 %{ /* pure */
-	struct sock *sk = (struct sock *)(long) STAP_ARG_sock;
+	struct sock *sk = (struct sock *)(uintptr_t) STAP_ARG_sock;
 	STAP_RETVALUE = (int64_t) kread(&(sk->sk_state));
 	CATCH_DEREF_FAULT();
 %}
@@ -88,7 +88,7 @@ function __tcp_sock_dport:long (sock:long)
 @__private30 function __get_skb_tcphdr_new:long(skb:long)
 %{ /* pure */
 	struct sk_buff *skb;
-	skb = (struct sk_buff *)(long)STAP_ARG_skb;
+	skb = (struct sk_buff *)(uintptr_t)STAP_ARG_skb;
 	/* as done by skb_transport_header() */
 	#ifdef NET_SKBUFF_DATA_USES_OFFSET
 		STAP_RETVALUE = (long)(kread(&(skb->head)) + kread(&(skb->transport_header)));
@@ -190,7 +190,7 @@ function tcp_sockstate_str:string (state:long) {
 // avoidance.
 function tcp_ts_get_info_snd_ssthresh:long(sock:long)
 %{ /* pure */
-	struct sock *sk = (struct sock *)(long) STAP_ARG_sock;
+	struct sock *sk = (struct sock *)(uintptr_t) STAP_ARG_sock;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
 	struct tcp_opt *tp = tcp_sk(sk);
 #else
@@ -204,7 +204,7 @@ function tcp_ts_get_info_snd_ssthresh:long(sock:long)
 // than what receiver can accept.
 function tcp_ts_get_info_rcv_mss:long(sock:long)
 %{ /* pure */
-	struct sock *sk = (struct sock *)(long) STAP_ARG_sock;
+	struct sock *sk = (struct sock *)(uintptr_t) STAP_ARG_sock;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
 	struct tcp_opt *tp = tcp_sk(sk);
 	STAP_RETVALUE = (int64_t) kread(&(tp->ack.rcv_mss));

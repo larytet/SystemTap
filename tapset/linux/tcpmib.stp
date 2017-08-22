@@ -1,6 +1,6 @@
 /*
  *      Copyright (C) 2009 IBM Corp.
- *      Copyright (C) 2010 Red Hat Inc.
+ *      Copyright (C) 2010-2017 Red Hat Inc.
  *
  *      This file is part of systemtap, and is free software.  You can
  *      redistribute it and/or modify it under the terms of the GNU General
@@ -242,7 +242,7 @@ tcpmib.OutRsts = __tcpmib.OutRsts.*
 @__private30 function _is_reset:long (skb:long)
 %{ /* pure */
         struct tcphdr *th;
-        struct sk_buff *skb = (struct sk_buff *)(long)STAP_ARG_skb;
+        struct sk_buff *skb = (struct sk_buff *)(uintptr_t)STAP_ARG_skb;
 	struct tcphdr th_copy;
 
 	#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,21)
@@ -270,7 +270,7 @@ tcpmib.OutRsts = __tcpmib.OutRsts.*
 @__private30 function _tcpmib_input_route_type:long (skb:long)
 %{ /* pure */
 	struct rtable *rt;
-	struct sk_buff *skb = (struct sk_buff *)(long)STAP_ARG_skb;
+	struct sk_buff *skb = (struct sk_buff *)(uintptr_t)STAP_ARG_skb;
 
 	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)
 		rt = (struct rtable *)kread(&(skb->_skb_refdst));

@@ -1,6 +1,6 @@
 // task information tapset
 // Copyright (C) 2006 Intel Corporation.
-// Copyright (C) 2010-2014 Red Hat Inc.
+// Copyright (C) 2010-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -222,7 +222,7 @@ function task_pid:long (task:long)
  * the specified pid namespace..
  */
 function task_ns_pid:long (task:long) %{ /* pure */ /* guru */
-  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
   int64_t rc;
 
   /* Before using the task_struct pointer, make sure it is valid to
@@ -301,7 +301,7 @@ function task_tid:long (task:long)
  * in the pid namespace.
  */
 function task_ns_tid:long (task:long)%{ /* pure */ /* guru */
-  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
   int64_t rc;
 
   /* Before using the task_struct pointer, make sure it is valid to
@@ -324,7 +324,7 @@ function task_ns_tid:long (task:long)%{ /* pure */ /* guru */
  * Description: This function returns the group id of the given task.
  */
 function task_gid:long (task:long) %{ /* pure */
-    struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+    struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
 #ifdef STAPCONF_TASK_UID
     STAP_RETVALUE = kread(&(t->gid));
 #else
@@ -363,7 +363,7 @@ function task_gid:long (task:long) %{ /* pure */
  * in the given user namespace.
 */
 function task_ns_gid:long (task:long) %{ /* pure */ /* guru */
-  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
   int64_t rc;
 
   /* Before using the task_struct pointer, make sure it is valid to
@@ -386,7 +386,7 @@ function task_ns_gid:long (task:long) %{ /* pure */ /* guru */
  * Description: This function returns the effective group id of the given task.
  */
 function task_egid:long (task:long) %{ /* pure */
-    struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+    struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
 #ifdef STAPCONF_TASK_UID
     STAP_RETVALUE = kread(&(t->egid));
 #else
@@ -424,7 +424,7 @@ function task_egid:long (task:long) %{ /* pure */
  * Description: This function returns the effective group id of the given task.
  */
 function task_ns_egid:long (task:long) %{ /* pure */ /* guru */
-  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
   int64_t rc;
 
   /* Before using the task_struct pointer, make sure it is valid to
@@ -447,7 +447,7 @@ function task_ns_egid:long (task:long) %{ /* pure */ /* guru */
  * Description: This function returns the user id of the given task.
  */
 function task_uid:long (task:long) %{ /* pure */
-    struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+    struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
 #ifdef STAPCONF_TASK_UID
     STAP_RETVALUE = kread(&(t->uid));
 #else
@@ -480,7 +480,7 @@ function task_uid:long (task:long) %{ /* pure */
  * Description: This function returns the user id of the given task.
  */
 function task_ns_uid:long (task:long) %{ /* pure */ /* guru */
-  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
   int64_t rc;
 
   /* Before using the task_struct pointer, make sure it is valid to
@@ -503,7 +503,7 @@ function task_ns_uid:long (task:long) %{ /* pure */ /* guru */
  * Description: This function returns the effective user id of the given task.
  */
 function task_euid:long (task:long) %{ /* pure */
-    struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+    struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
 #ifdef STAPCONF_TASK_UID
     STAP_RETVALUE = kread(&(t->euid));
 #else
@@ -536,7 +536,7 @@ function task_euid:long (task:long) %{ /* pure */
  * Description: This function returns the effective user id of the given task.
  */
 function task_ns_euid:long (task:long) %{ /* pure */ /* guru */
-  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
   int64_t rc;
 
   /* Before using the task_struct pointer, make sure it is valid to
@@ -560,7 +560,7 @@ function task_ns_euid:long (task:long) %{ /* pure */ /* guru */
  * Description: This function returns the priority value of the given task.
  */
 function task_prio:long (task:long) %{ /* pure */
-    struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+    struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
     STAP_RETVALUE =  kread(&(t->prio)) - MAX_RT_PRIO;
     CATCH_DEREF_FAULT();
 %}
@@ -574,7 +574,7 @@ function task_prio:long (task:long) %{ /* pure */
  * Description: This function returns the nice value of the given task.
  */
 function task_nice:long (task:long) %{ /* pure */
-    struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+    struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
     STAP_RETVALUE = kread(&(t->static_prio)) - MAX_RT_PRIO - 20;
     CATCH_DEREF_FAULT();
 %}
@@ -616,7 +616,7 @@ function task_open_file_handles:long (task:long)
     struct files_struct *fs;
     struct fdtable *f;
 #endif
-    t = (struct task_struct *)(long)STAP_ARG_task;
+    t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
     /* Older kernels */
     f = kread(&(t->files));
@@ -654,7 +654,7 @@ function task_max_file_handles:long (task:long)
     struct files_struct *fs;
     struct fdtable *f;
 #endif
-    t = (struct task_struct *)(long)STAP_ARG_task;
+    t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
     f = kread(&(t->files));
 #else
@@ -680,7 +680,7 @@ function task_max_file_handles:long (task:long)
  */
 function task_fd_lookup:long(task:long, fd:long)
 %{ /* pure */
-	struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+	struct task_struct *t = (struct task_struct *)(uintptr_t)STAP_ARG_task;
 	struct files_struct *files = NULL;
 	unsigned int fd = (unsigned int)(unsigned long)STAP_ARG_fd;
 	struct file *file = NULL;
@@ -733,7 +733,7 @@ function task_fd_lookup:long(task:long, fd:long)
 function task_cwd_path:long(task:long)
 %{ /* pure */
 	struct task_struct *task
-		= (struct task_struct *)(unsigned long)STAP_ARG_task;
+		= (struct task_struct *)(uintptr_t)STAP_ARG_task;
 	int put_task_struct_needed = 0;
 
 	// Before using the task_struct pointer, make sure it is valid

@@ -1,5 +1,5 @@
 // guru-mode conversions tapset
-// Copyright (C) 2010-2014 Red Hat Inc.
+// Copyright (C) 2010-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -59,7 +59,7 @@ deref_fault: /* branched to from store_deref_string() */
  */
 function set_kernel_long (addr:long, val:long) %{ /* guru */
   __label__ deref_fault;
-  kwrite((long *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+  kwrite((long *) (uintptr_t) STAP_ARG_addr, STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from kwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
@@ -79,7 +79,7 @@ deref_fault: /* branched to from kwrite() */
  */
 function set_kernel_int (addr:long, val:long) %{ /* guru */
   __label__ deref_fault;
-  kwrite((int *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+  kwrite((int *) (uintptr_t) STAP_ARG_addr, STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from kwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
@@ -99,7 +99,7 @@ deref_fault: /* branched to from kwrite() */
  */
 function set_kernel_short (addr:long, val:long) %{ /* guru */
   __label__ deref_fault;
-  kwrite((short *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+  kwrite((short *) (uintptr_t) STAP_ARG_addr, STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from kwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
@@ -119,7 +119,7 @@ deref_fault: /* branched to from kwrite() */
  */
 function set_kernel_char (addr:long, val:long) %{ /* guru */
   __label__ deref_fault;
-  kwrite((char *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+  kwrite((char *) (uintptr_t) STAP_ARG_addr, STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from kwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),

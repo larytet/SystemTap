@@ -1,5 +1,5 @@
 // Process memory query and utility functions.
-// Copyright (C) 2009, 2010 Red Hat Inc.
+// Copyright (C) 2009-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -49,7 +49,7 @@ enum {
    starting, exiting or (coopted by) a kernel thread. */
 @__private30 function _stp_valid_task:long(tsk:long)
 %{
-  struct task_struct *tsk = (struct task_struct *)(long)STAP_ARG_tsk;
+  struct task_struct *tsk = (struct task_struct *)(uintptr_t)STAP_ARG_tsk;
 
   STAP_RETVALUE = 0;
   if (tsk) {

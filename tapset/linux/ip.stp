@@ -131,7 +131,7 @@ function __get_skb_iphdr:long(skb:long)
 %:
 %{ /* pure */
 	struct sk_buff *skb;
-	skb = (struct sk_buff *)(long)STAP_ARG_skb;
+	skb = (struct sk_buff *)(uintptr_t)STAP_ARG_skb;
 
 	/* We used to have our own version of skb_network_header()
 	 * here, but it has changed too much over time to keep up with

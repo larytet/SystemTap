@@ -1,7 +1,7 @@
 // Signal tapset
 // Copyright (C) 2006 IBM Corp.
 // Copyright (C) 2006 Intel Corporation.
-// Copyright (C) 2008-2014 Red Hat, Inc.
+// Copyright (C) 2008-2017 Red Hat, Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -753,7 +753,7 @@ function get_sigaction_mask:long(act:long)
 
 @__private30 function __get_action_mask:long(act:long) %{ /* pure */
     int i;
-    struct k_sigaction *act = (struct k_sigaction *)((long)STAP_ARG_act);
+    struct k_sigaction *act = (struct k_sigaction *)((uintptr_t)STAP_ARG_act);
     sigset_t *sigset = &act->sa.sa_mask;
     STAP_RETVALUE = kread(&(sigset->sig[0]));
     for (i=1; i<_NSIG_WORDS; ++i) {
@@ -789,7 +789,7 @@ probe signal.procmask = kernel.function("sigprocmask")
 
 function get_sigset:long(sigset:long) %{ /* pure */
     int i;
-    sigset_t *sigset = (sigset_t *)((long)STAP_ARG_sigset);
+    sigset_t *sigset = (sigset_t *)((uintptr_t)STAP_ARG_sigset);
     STAP_RETVALUE = kread(&(sigset->sig[0]));
     for (i=1; i<_NSIG_WORDS; ++i) {
         uint64_t part = kread(&(sigset->sig[i]));
@@ -902,7 +902,7 @@ function sigset_mask_str:string (mask:long) %{ /* pure */
 function is_sig_blocked:long (task:long, sig:long) %{ /* pure */
 	int i;
 	sigset_t blocked;
-	struct task_struct *p = (struct task_struct *)((long)STAP_ARG_task);
+	struct task_struct *p = (struct task_struct *)((uintptr_t)STAP_ARG_task);
 	for (i = 0; i < _NSIG_WORDS; ++i)
 		blocked.sig[i] = kread(&p->blocked.sig[i]);
 	STAP_RETVALUE = sigismember(&blocked, STAP_ARG_sig);

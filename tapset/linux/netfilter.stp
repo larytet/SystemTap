@@ -1,6 +1,6 @@
 /* netfilter.stp - netfilter hook tapset
  *
- * Copyright (C) 2012 Red Hat Inc.
+ * Copyright (C) 2012, 2017 Red Hat Inc.
  * <tapsetdescription>
  * This family of probe points provides a simple way to examine network traffic using the netfilter hooks mechanism.
  * </tapsetdescription>
@@ -43,7 +43,7 @@
 @__private30 function __get_skb_brhdr_new:long(skb:long)
 %{ /* pure */
     struct sk_buff *skb;
-    skb = (struct sk_buff *)(long)STAP_ARG_skb;
+    skb = (struct sk_buff *)(uintptr_t)STAP_ARG_skb;
     /* as done by skb_network_header() */
     #ifdef NET_SKBUFF_DATA_USES_OFFSET
         STAP_RETVALUE = (long)(kread(&(skb->head)) + kread(&(skb->network_header)) + sizeof(struct llc_pdu_un));
@@ -68,7 +68,7 @@
 @__private30 function __get_skb_llc:long(skb:long)
 %{ /* pure */
     struct sk_buff *skb;
-    skb = (struct sk_buff *)(long)STAP_ARG_skb;
+    skb = (struct sk_buff *)(uintptr_t)STAP_ARG_skb;
     /* as done by skb_network_header() */
     #ifdef NET_SKBUFF_DATA_USES_OFFSET
         STAP_RETVALUE = (long)(kread(&(skb->head)) + kread(&(skb->network_header)));
@@ -107,26 +107,26 @@
 
 private function __skb_nonlinear:long(addr:long)
 %{ /* pure */
-  struct sk_buff *skb = (struct sk_buff *)STAP_ARG_addr;
+  struct sk_buff *skb = (struct sk_buff *)(uintptr_t)STAP_ARG_addr;
   STAP_RETVALUE = skb_is_nonlinear(skb);
 %}
 
 private function __skb_shinfo:long(addr:long)
 %{ /* pure */
-  struct sk_buff *skb = (struct sk_buff *)STAP_ARG_addr;
+  struct sk_buff *skb = (struct sk_buff *)(uintptr_t)STAP_ARG_addr;
   STAP_RETVALUE = (uintptr_t)skb_end_pointer(skb);
 %}
 
 private function __skb_frag_size:long(addr:long, frag:long)
 %{ /* pure */
-  struct skb_shared_info *skb_shr = (struct skb_shared_info *)STAP_ARG_addr;
+  struct skb_shared_info *skb_shr = (struct skb_shared_info *)(uintptr_t)STAP_ARG_addr;
   skb_frag_t skb_frag = skb_shr->frags[STAP_ARG_frag];
   STAP_RETVALUE = skb_frag.size;
 %}
 
 private function __skb_frag_data_addr:long(addr:long, frag:long)
 %{ /* pure */
-  struct skb_shared_info *skb_shr = (struct skb_shared_info *)STAP_ARG_addr;
+  struct skb_shared_info *skb_shr = (struct skb_shared_info *)(uintptr_t)STAP_ARG_addr;
   const skb_frag_t *skb_frag = &skb_shr->frags[STAP_ARG_frag];
   STAP_RETVALUE = (uintptr_t)skb_frag_address_safe(skb_frag);
 %}

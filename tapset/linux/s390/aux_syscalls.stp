@@ -14,7 +14,7 @@ typedef struct
 
 function _stp_ptrace_area_u:string(ptrace_area_uaddr:long)
 %{ /* pure */
-	char *area_uaddr = (void *)(intptr_t)STAP_ARG_ptrace_area_uaddr;
+	char *area_uaddr = (void *)(uintptr_t)STAP_ARG_ptrace_area_uaddr;
 	ptrace_area area;
 	if (area_uaddr == NULL)
 		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -34,7 +34,7 @@ function _stp_ptrace_area_u:string(ptrace_area_uaddr:long)
 function _stp_compat_ptrace_area_u:string(compat_ptrace_area_uaddr:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
-	char *area_uaddr = (void *)(intptr_t)STAP_ARG_compat_ptrace_area_uaddr;
+	char *area_uaddr = (void *)(uintptr_t)STAP_ARG_compat_ptrace_area_uaddr;
 	__stp_compat_ptrace_area area;
 	if (area_uaddr == NULL)
 		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -166,7 +166,7 @@ function get_32mmap_args:string(args:long)
 		u32     offset;
 	} a;
 
-	if (_stp_copy_from_user((char *)&a, (char *)STAP_ARG_args,
+	if (_stp_copy_from_user((char *)&a, (char *)(uintptr_t)STAP_ARG_args,
 				sizeof(a)) == 0) {
 		int len;
 		_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%x, %u, ",

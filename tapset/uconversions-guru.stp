@@ -51,7 +51,7 @@ deref_fault: /* branched to from store_deref_string() */
  */
 function set_user_long (addr:long, val:long) %{ /* guru */
   __label__ deref_fault;
-  uwrite((long *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+  uwrite((long *) (uintptr_t) STAP_ARG_addr, STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from uwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
@@ -71,7 +71,7 @@ deref_fault: /* branched to from uwrite() */
  */
 function set_user_int (addr:long, val:long) %{ /* guru */
   __label__ deref_fault;
-  uwrite((int *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+  uwrite((int *) (uintptr_t) STAP_ARG_addr, STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from uwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
@@ -91,7 +91,7 @@ deref_fault: /* branched to from uwrite() */
  */
 function set_user_short (addr:long, val:long) %{ /* guru */
   __label__ deref_fault;
-  uwrite((short *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+  uwrite((short *) (uintptr_t) STAP_ARG_addr, STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from uwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
@@ -111,7 +111,7 @@ deref_fault: /* branched to from uwrite() */
  */
 function set_user_char (addr:long, val:long) %{ /* guru */
   __label__ deref_fault;
-  uwrite((char *) (intptr_t) STAP_ARG_addr, STAP_ARG_val);
+  uwrite((char *) (uintptr_t) STAP_ARG_addr, STAP_ARG_val);
   if (0) {
 deref_fault: /* branched to from uwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),

@@ -1,6 +1,6 @@
 // kernel process tapset
 // Copyright (C) 2006 Intel Corporation.
-// Copyright (C) 2014 Red Hat Inc.
+// Copyright (C) 2014-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -11,7 +11,7 @@
 // </tapsetdescription>
 
 @__private30 function _IS_ERR:long(ptr:long) %{ /* pure */
-    STAP_RETVALUE = IS_ERR((const void *)(long)STAP_ARG_ptr);
+    STAP_RETVALUE = IS_ERR((const void *)(uintptr_t)STAP_ARG_ptr);
 %}
 
 

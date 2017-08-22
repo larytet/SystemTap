@@ -1,5 +1,5 @@
 /* target operations in the Linux kernel mode
- * Copyright (C) 2005-2016 Red Hat Inc.
+ * Copyright (C) 2005-2017 Red Hat Inc.
  * Copyright (C) 2005-2007 Intel Corporation.
  * Copyright (C) 2007 Quentin Barnes.
  *
@@ -629,26 +629,32 @@ static inline int _stp_store_deref_(size_t size, void *addr, u64 v,
 #define store_uderef(s,a,v) _stp_store_deref(s,a,v,USER_DS)
 #endif
 
-#if defined (__i386__) || defined (__arm__)
+#ifndef CONFIG_64BIT
 
-/* x86 and arm can't do 8-byte put/get_user_asm, so we have to split it */
+/* The kderef/uderef macros (which is what Xderef gets set to), alway
+ * returns a 64-bit value. This causes a problem on a 32-bit system
+ * when we want to cast the 64-bit value to a 32-bit pointer - gcc
+ * gives a "cast to pointer from integer of different size" error. So,
+ * we'll cast it to a u32 before doing the final cast to the actual
+ * type. */
 
-#define __Xread(ptr, Xderef)                            \
-  ((sizeof(*(ptr)) == 8) ?                              \
-       *(typeof(ptr))&(u32[2]) {                        \
-         (u32) Xderef(4, &((u32 *)(ptr))[0]),           \
-         (u32) Xderef(4, &((u32 *)(ptr))[1]) }          \
-     : (typeof(*(ptr))) Xderef(sizeof(*(ptr)), (ptr)))
+#define __Xread(ptr, Xderef)						\
+  ((sizeof(*(ptr)) == 8)						\
+   ? *(typeof(ptr))&(u64) { Xderef(sizeof(*(ptr)), (ptr)) }		\
+   : *(typeof(ptr))&(u32) { (u32) Xderef(sizeof(*(ptr)), (ptr)) } )
 
-#define __Xwrite(ptr, value, store_Xderef)                                   \
-  ({                                                                         \
-    if (sizeof(*(ptr)) == 8) {                                               \
-      union { typeof(*(ptr)) v; u32 l[2]; } _kw;                             \
-      _kw.v = (typeof(*(ptr)))(value);                                       \
-      store_Xderef(4, &((u32 *)(ptr))[0], _kw.l[0]);                         \
-      store_Xderef(4, &((u32 *)(ptr))[1], _kw.l[1]);                         \
-    } else                                                                   \
-      store_Xderef(sizeof(*(ptr)), (ptr), (long)(typeof(*(ptr)))(value));    \
+/* For __Xwrite, we need to handle the case where 'value' is a pointer
+ * and avoid the "cast from pointer to integer of different size" gcc
+ * errors. */
+
+#define __Xwrite(ptr, value, store_Xderef)				  \
+  ({									  \
+    if (sizeof(*(ptr)) == 8) {						  \
+      union { typeof(*(ptr)) v; u64 l; } _kw;				  \
+      _kw.v = (typeof(*(ptr)))(value);					  \
+      store_Xderef(8, (ptr), _kw.l);					  \
+    } else								  \
+      store_Xderef(sizeof(*(ptr)), (ptr), (long)(typeof(*(ptr)))(value)); \
   })
 
 #else

@@ -155,7 +155,7 @@ function _struct_timeval_u:string(uaddr:long, n:long)
 %{ /* pure */
 	int n = (int)STAP_ARG_n;
 	struct timeval tv[n];
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	
 	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -183,7 +183,7 @@ function _struct_compat_timeval_u:string(uaddr:long, n:long)
 #ifdef CONFIG_COMPAT
 	int n = (int)STAP_ARG_n;
 	struct compat_timeval tv[n];
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 
 	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -212,7 +212,7 @@ function _struct_compat_timeval_u:string(uaddr:long, n:long)
 function _struct_timezone_u:string(uaddr:long)
 %{ /* pure */
 	struct timezone tz;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -249,7 +249,7 @@ function _stp_clock_nanosleep_flags_str:string(flags:long)
 function _struct_utimbuf_actime:long(uaddr:long)
 %{ /* pure */
 	struct utimbuf ubuf;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	
 	if (ptr == NULL)
 	  STAP_RETVALUE = 0;
@@ -265,7 +265,7 @@ function _struct_utimbuf_actime:long(uaddr:long)
 function _struct_utimbuf_modtime:long(uaddr:long)
 %{ /* pure */
 	struct utimbuf ubuf;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	
 	if (ptr == NULL)
 	  STAP_RETVALUE = 0;
@@ -282,7 +282,7 @@ function _struct_compat_utimbuf_actime:long(uaddr:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
 	struct compat_utimbuf ubuf;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	
 	if (ptr == NULL)
 	  STAP_RETVALUE = 0;
@@ -300,7 +300,7 @@ function _struct_compat_utimbuf_modtime:long(uaddr:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
 	struct compat_utimbuf ubuf;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	
 	if (ptr == NULL)
 	  STAP_RETVALUE = 0;
@@ -318,7 +318,7 @@ function _struct_timespec_u:string(uaddr:long, n:long)
 #define STP_UTIME_OMIT ((1l << 30) - 2l)
 	int n = (int)STAP_ARG_n;
 	struct timespec ts[n];
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 
 	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -362,7 +362,7 @@ function _struct_compat_timespec_u:string(uaddr:long, n:long)
 #define STP_UTIME_OMIT ((1l << 30) - 2l)
 	int n = (int)STAP_ARG_n;
 	struct compat_timespec ts[n];
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 
 	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -404,7 +404,7 @@ function _struct_compat_timespec_u:string(uaddr:long, n:long)
 function _struct_itimerspec_u:string(uaddr:long)
 %{ /* pure */
 	struct itimerspec its;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -423,7 +423,7 @@ function _struct_compat_itimerspec_u:string(uaddr:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
 	struct compat_itimerspec its;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -445,7 +445,7 @@ function _struct_compat_itimerspec_u:string(uaddr:long)
 function _struct_itimerval_u:string(uaddr:long)
 %{ /* pure */
 	struct itimerval itv;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -464,7 +464,7 @@ function _struct_compat_itimerval_u:string(uaddr:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
 	struct compat_itimerval itv;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -551,7 +551,7 @@ function _struct_sockaddr_u:string(uaddr:long, len:long)
 
     sa_dispatch what = (sa_dispatch)STAP_ARG_what;
 
-    char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+    char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
     size_t len = clamp_t(size_t, STAP_ARG_len, 0, 128);
     struct sockaddr *sa = (struct sockaddr *)CONTEXT->buf;
 
@@ -808,7 +808,7 @@ function _struct_sockaddr_u:string(uaddr:long, len:long)
 function _struct_rlimit_u:string(uaddr:long)
 %{ /* pure */
 	struct rlimit rl;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -825,7 +825,7 @@ function _struct_rlimit_u:string(uaddr:long)
 function _fildes_index_u:long (uaddr:long, index:long)
 %{ /* pure */
 	int fd[2];
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 
 	if (ptr == NULL || !(STAP_ARG_index == 0 || STAP_ARG_index == 1))
 		STAP_RETVALUE = 0;
@@ -2358,7 +2358,7 @@ function _quotactl_quota_type_str:string(fmt:long)
 function _struct_dqblk_u:string(uaddr:long)
 %{ /* pure */
 	struct if_dqblk dqb;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else
@@ -2382,7 +2382,7 @@ function _struct_dqblk_u:string(uaddr:long)
 function _struct_dqinfo_u:string(uaddr:long)
 %{ /* pure */
 	struct if_dqinfo dqi;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else
@@ -3048,7 +3048,7 @@ function _semctl_cmd:string(cmd:long)
 
 function _stp_sigset_u:string(setptr:long)
 %{ /* pure */
-	char *ptr = (char *)(unsigned long)STAP_ARG_setptr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_setptr;
 	sigset_t set;
 
 	if (ptr == NULL)
@@ -3065,7 +3065,7 @@ function _stp_sigset_u:string(setptr:long)
 function _stp_compat_sigset_u:string(setptr:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
-	char *ptr = (char *)(unsigned long)STAP_ARG_setptr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_setptr;
 
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -3373,7 +3373,7 @@ function get_mmap_args:string (args:long)
 	} a;
 #endif
 
-	if(_stp_copy_from_user((char *)&a,(char *)(unsigned long)STAP_ARG_args, sizeof(a))== 0) {
+	if(_stp_copy_from_user((char *)&a,(char *)(uintptr_t)STAP_ARG_args, sizeof(a))== 0) {
 		int len;
 		_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx, %lu, ",
 			      (unsigned long)a.addr, (unsigned long)a.len);
@@ -3453,7 +3453,7 @@ function _stp_sigmask_str:string(sigmask:long)
 function _struct_sigaction_u:string(uaddr:long)
 %{ /* pure */
   struct sigaction act;
-  char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+  char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
   
   if (ptr == NULL)
     strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -3488,7 +3488,7 @@ function _struct_sigaction32_u:string(uaddr:long)
   struct sigaction32 act32;
 #endif
 
-  char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+  char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
   
   if (ptr == NULL)
     strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -3545,7 +3545,7 @@ function _struct_old_sigaction32_u:string(uaddr:long)
 
   struct old_sigaction32 act32;
 #endif
-  char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+  char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
   
   if (ptr == NULL)
     strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -3617,7 +3617,7 @@ function irqflags_str:string(f:long)
 
 @__private30 function _stp_struct_iovec_u:string(iov_uaddr:long)
 %{ /* pure */
-	char *iov_uaddr = (void *)(intptr_t)STAP_ARG_iov_uaddr;
+	char *iov_uaddr = (void *)(uintptr_t)STAP_ARG_iov_uaddr;
 	struct iovec iov = { 0 };
 	if (iov_uaddr == NULL)
 		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -3637,7 +3637,7 @@ function irqflags_str:string(f:long)
 @__private30 function _stp_struct_compat_iovec_u:string(iov_uaddr:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
-	char *iov_uaddr = (void *)(intptr_t)STAP_ARG_iov_uaddr;
+	char *iov_uaddr = (void *)(uintptr_t)STAP_ARG_iov_uaddr;
 	struct compat_iovec iov = { 0 };
 	if (iov_uaddr == NULL)
 		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -3952,7 +3952,7 @@ function _swapon_flags_str:string(flags:long)
 /* do_fork helper function to determine fork type. */
 @__private30 function __is_user_regs:long (regs:long)
 %{ /* pure */
-	struct pt_regs * regs = (void *)((unsigned long)STAP_ARG_regs);
+	struct pt_regs * regs = (void *)((uintptr_t)STAP_ARG_regs);
 /* copied from asm/ptrace.h */
 #if defined(__i386__)
 #ifdef STAPCONF_X86_UNIREGS
@@ -4092,7 +4092,7 @@ struct compat_ipc_kludge {
 function _stp_compat_msgrcv_msgbuf:long(uaddr:long, version:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	int version = (int)(unsigned long)STAP_ARG_version;
 	void *msgbuf = ptr;
 
@@ -4113,7 +4113,7 @@ function _stp_compat_msgrcv_msgbuf:long(uaddr:long, version:long)
 function _stp_compat_msgrcv_msgtyp:long(uaddr:long, version:long, msgtyp:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	int version = (int)(unsigned long)STAP_ARG_version;
 	long msgtyp = (long)STAP_ARG_msgtyp;
 
@@ -4150,7 +4150,7 @@ function _stp_xattr_flags_str:string(flags:long)
 
 function _stp_xattr_val_str:string(uaddr:long, size:long)
 %{ /* pure */
-	void *uaddr = (void *)(unsigned long)STAP_ARG_uaddr;
+	void *uaddr = (void *)(uintptr_t)STAP_ARG_uaddr;
 	unsigned long size = STAP_ARG_size;
 	unsigned char buffer[50];
 	size_t copy_size = clamp_t(size_t, size, 0, sizeof(buffer));
@@ -5156,7 +5156,7 @@ static const _stp_val_array _stp_adjtimex_modes_list[] = {
 function _struct_timex_u:string(uaddr:long)
 %{ /* pure */
 	struct timex ts;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	int len;
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -5188,7 +5188,7 @@ function _struct_compat_timex_u:string(uaddr:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
 	struct compat_timex ts;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	int len;
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
@@ -5352,7 +5352,7 @@ static const _stp_val_array _stp_sigsys_si_code_list[] = {
 function _stp_siginfo_u:string(uaddr:long)
 %{ /* pure */
 	siginfo_t sinfo;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	int len;
 
 	if (ptr == NULL) {
@@ -5499,7 +5499,7 @@ function _stp_compat_siginfo_u:string(uaddr:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
 	compat_siginfo_t sinfo;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	int len;
 
 	if (ptr == NULL) {
@@ -5645,7 +5645,7 @@ function _stp_compat_siginfo_u:string(uaddr:long)
 function _struct_tms_u:string(uaddr:long)
 %{ /* pure */
 	struct tms tm;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else
@@ -5672,7 +5672,7 @@ function _struct_tms_u:string(uaddr:long)
 function _struct_sysinfo_u:string(uaddr:long)
 %{ /* pure */
 	struct sysinfo si;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else
@@ -5766,7 +5766,7 @@ function _stp_sigaltstack_u:string(uaddr:long)
 %{ /* pure */
 	stack_t stk;
 
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	int len;
 
 	if (ptr == NULL || _stp_copy_from_user((void *)&stk, ptr,
@@ -5799,7 +5799,7 @@ function _stp_compat_sigaltstack_u:string(uaddr:long)
 	stack_32_t stk;
 #endif
 
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	int len;
 
 	if (ptr == NULL || _stp_copy_from_user((void *)&stk, ptr,
@@ -5993,7 +5993,7 @@ function _struct_sched_attr_u:string(uaddr:long)
 /* struct sched_attr introduced in kernel commit d50dde5a10 along with SCHED_ATTR_SIZE_VER0 */
 #ifdef SCHED_ATTR_SIZE_VER0
 	struct sched_attr sa;
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	char *ptr = (char *)(uintptr_t)STAP_ARG_uaddr;
 	if (ptr == NULL)
 		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else

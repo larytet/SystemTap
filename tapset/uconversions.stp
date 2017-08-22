@@ -11,7 +11,7 @@
 %{
 #define STP_GET_USER(t)							\
 	do {								\
-		t *_ptr = (t*) (intptr_t) STAP_ARG_addr;		\
+		t *_ptr = (t*) (uintptr_t) STAP_ARG_addr;		\
 		STAP_RETVALUE = uread (_ptr);				\
 	} while (0)
 %}
@@ -270,7 +270,7 @@ function user_string_n_quoted:string (addr:long, inlen:long, outlen:long)
 #if STAP_COMPAT_VERSION < STAP_VERSION(2,3) // PR15044
 		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 #else
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p", (void *)(long)STAP_ARG_addr);
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p", (void *)(uintptr_t)STAP_ARG_addr);
 #endif
 	else {
 		int rc = _stp_text_str(STAP_RETVALUE,
@@ -286,7 +286,7 @@ function user_string_n_quoted:string (addr:long, inlen:long, outlen:long)
 			else
 #endif
 				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p",
-					 (void *)(long)STAP_ARG_addr);
+					 (void *)(uintptr_t)STAP_ARG_addr);
 #endif
 		}
 	}
@@ -309,7 +309,7 @@ function user_string_n2_quoted:string (addr:long, inlen:long, outlen:long) {
 function user_string_utf32:string (addr:long) %{ /* pure */ /* myproc-unprivileged */
   __label__ deref_fault;
   int rc = 0, len = MAXSTRINGLEN;
-  uint32_t c32, *source = (uint32_t*)(intptr_t)STAP_ARG_addr;
+  uint32_t c32, *source = (uint32_t*)(uintptr_t)STAP_ARG_addr;
   char *destination = STAP_RETVALUE;
 
   *destination = '\0';
@@ -377,7 +377,7 @@ function user_string_utf16:string (addr:long) %{ /* pure */ /* myproc-unprivileg
   __label__ deref_fault;
   int rc = 0, len = MAXSTRINGLEN;
   uint32_t c32;
-  uint16_t c16low, *source = (uint16_t*)(intptr_t)STAP_ARG_addr;
+  uint16_t c16low, *source = (uint16_t*)(uintptr_t)STAP_ARG_addr;
   char *destination = STAP_RETVALUE;
 
   *destination = '\0';

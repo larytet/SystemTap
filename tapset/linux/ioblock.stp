@@ -20,7 +20,7 @@
 function bio_op:long(bio:long)
 %{ /* pure */ /* unprivileged */
 #if defined(bio_op)
-    struct bio *bio = (struct bio *)(long)STAP_ARG_bio;
+    struct bio *bio = (struct bio *)(uintptr_t)STAP_ARG_bio;
 
     STAP_RETVALUE = 0;
     if (bio) {
@@ -30,7 +30,7 @@ function bio_op:long(bio:long)
 	STAP_RETVALUE = bio_op(bio);
     }
 #else
-    struct bio *bio = (struct bio *)(long)STAP_ARG_bio;
+    struct bio *bio = (struct bio *)(uintptr_t)STAP_ARG_bio;
 
     STAP_RETVALUE = 0;
     if (bio) {
@@ -43,7 +43,7 @@ function bio_op:long(bio:long)
 /* get i-node number of mapped file */
 @__private30 function __bio_ino:long(bio:long)
 %{ /* pure */
-    struct bio *bio = (struct bio *)(long)STAP_ARG_bio;
+    struct bio *bio = (struct bio *)(uintptr_t)STAP_ARG_bio;
     struct page *bv_page = ((bio && kread(&(bio->bi_vcnt)))
 			    ? kread(&(bio->bi_io_vec[0].bv_page)) : NULL);
 

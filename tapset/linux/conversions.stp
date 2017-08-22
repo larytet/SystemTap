@@ -1,5 +1,5 @@
 // conversions tapset
-// Copyright (C) 2005-2015 Red Hat Inc.
+// Copyright (C) 2005-2017 Red Hat Inc.
 // Copyright (C) 2007 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -67,7 +67,7 @@ function kernel_string_quoted:string (addr:long)
                        (char *)(uintptr_t)STAP_ARG_addr,
                        MAXSTRINGLEN, MAXSTRINGLEN, 1, 0, 0);
   if (STAP_ARG_addr == 0 || rc < 0)
-    snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p", (void *)(long)STAP_ARG_addr);
+    snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p", (void *)(uintptr_t)STAP_ARG_addr);
 %}
 
 /**
@@ -102,7 +102,7 @@ deref_fault: /* branched to from deref_string() */
 function kernel_string_utf32:string (addr:long) %{ /* pure */
   __label__ deref_fault;
   int rc = 0, len = MAXSTRINGLEN;
-  uint32_t c32, *source = (uint32_t*)(intptr_t)STAP_ARG_addr;
+  uint32_t c32, *source = (uint32_t*)(uintptr_t)STAP_ARG_addr;
   char *destination = STAP_RETVALUE;
 
   *destination = '\0';
@@ -168,7 +168,7 @@ function kernel_string_utf16:string (addr:long) %{ /* pure */
   __label__ deref_fault;
   int rc = 0, len = MAXSTRINGLEN;
   uint32_t c32;
-  uint16_t c16low, *source = (uint16_t*)(intptr_t)STAP_ARG_addr;
+  uint16_t c16low, *source = (uint16_t*)(uintptr_t)STAP_ARG_addr;
   char *destination = STAP_RETVALUE;
 
   *destination = '\0';
@@ -245,7 +245,7 @@ function kernel_string_quoted_utf16:string (addr:long) {
  */
 function kernel_long:long (addr:long) %{ /* pure */
   __label__ deref_fault;
-  STAP_RETVALUE = kread((long *) (intptr_t) STAP_ARG_addr);
+  STAP_RETVALUE = kread((long *) (uintptr_t) STAP_ARG_addr);
   if (0) {
 deref_fault: /* branched to from kread() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
@@ -263,7 +263,7 @@ deref_fault: /* branched to from kread() */
  */
 function kernel_int:long (addr:long) %{ /* pure */
   __label__ deref_fault;
-  STAP_RETVALUE = kread((int *) (intptr_t) STAP_ARG_addr);
+  STAP_RETVALUE = kread((int *) (uintptr_t) STAP_ARG_addr);
   if (0) {
 deref_fault: /* branched to from kread() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
@@ -281,7 +281,7 @@ deref_fault: /* branched to from kread() */
  */
 function kernel_short:long (addr:long) %{ /* pure */
   __label__ deref_fault;
-  STAP_RETVALUE = kread((short *) (intptr_t) STAP_ARG_addr);
+  STAP_RETVALUE = kread((short *) (uintptr_t) STAP_ARG_addr);
   if (0) {
 deref_fault: /* branched to from kread() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
@@ -299,7 +299,7 @@ deref_fault: /* branched to from kread() */
  */
 function kernel_char:long (addr:long) %{ /* pure */
   __label__ deref_fault;
-  STAP_RETVALUE = kread((char *) (intptr_t) STAP_ARG_addr);
+  STAP_RETVALUE = kread((char *) (uintptr_t) STAP_ARG_addr);
   if (0) {
 deref_fault: /* branched to from kread() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),

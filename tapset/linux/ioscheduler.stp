@@ -1,6 +1,6 @@
 // IO scheduler tapset
 // Copyright (C) 2005, 2006 IBM Corp.
-// Copyright (C) 2010-2015 Red Hat Inc.
+// Copyright (C) 2010-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -364,7 +364,7 @@ probe ioscheduler_trace.unplug_timer = kernel.trace("block_unplug_timer") ?
 
 function disk_major_from_request:long(var_q:long)
 %{ /* pure */
-	struct request_queue *q = (struct request_queue *)((long)STAP_ARG_var_q);
+	struct request_queue *q = (struct request_queue *)((uintptr_t)STAP_ARG_var_q);
 
 	/* We need to make sure there isn't a deref hazard here when
 	 * reading 'q->queue_head'.  However, kread() wants a pointer to
@@ -386,7 +386,7 @@ function disk_major_from_request:long(var_q:long)
 
 function disk_minor_from_request:long(var_q:long)
 %{ /* pure */
-	struct request_queue *q = (struct request_queue *)((long)STAP_ARG_var_q);
+	struct request_queue *q = (struct request_queue *)((uintptr_t)STAP_ARG_var_q);
 
 	/* We need to make sure there isn't a deref hazard here when
 	 * reading 'q->queue_head'.  However, kread() wants a pointer to
