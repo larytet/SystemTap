@@ -396,7 +396,7 @@ probe ipmib.ReasmReqds=kernel.function("ip_defrag")
  */
 probe ipmib.FragOKs=kernel.function("ip_fragment").return
 {
-	skb = $skb;
+	skb = @entry($skb);
 	op = 1;
 	SourceIsLocal = 1;
 	if ( $return ) next
