@@ -229,14 +229,14 @@
 #else
 #define DEREF_FAULT(addr) ({						    \
     snprintf(c->error_buffer, sizeof(c->error_buffer),			    \
-      STAP_MSG_LOC2C_01, (intptr_t)(addr));   \
+	     STAP_MSG_LOC2C_01, (long)(intptr_t)(addr));		    \
     c->last_error = c->error_buffer;					    \
     goto deref_fault;							    \
     })
 
 #define STORE_DEREF_FAULT(addr) ({					    \
     snprintf(c->error_buffer, sizeof(c->error_buffer),			    \
-      STAP_MSG_LOC2C_02, (intptr_t)(addr));  \
+	     STAP_MSG_LOC2C_02, (long)(intptr_t)(addr));		    \
     c->last_error = c->error_buffer;					    \
     goto deref_fault;							    \
     })
