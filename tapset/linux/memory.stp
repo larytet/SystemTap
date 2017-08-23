@@ -380,7 +380,9 @@ probe vm.oom_kill = kernel.function("oom_kill_process") !,
 #ifdef __GFP_NORETRY
 	__GFP_BITMASKS(__GFP_NORETRY)
 #endif
+#ifdef __GFP_MEMALLOC
 	__GFP_BITMASKS(__GFP_MEMALLOC)
+#endif
 	__GFP_BITMASKS(__GFP_COMP)
 	__GFP_BITMASKS(__GFP_ZERO)
 	__GFP_BITMASKS(__GFP_NOMEMALLOC)
@@ -555,7 +557,7 @@ probe __vm.kmalloc_node.kp = kernel.function("kmalloc_node").return ?
 {
 	call_site = 0
 	caller_function = "unknown"
-	bytes_req = $size
+	bytes_req = @entry($size)
 	bytes_alloc = bytes_req // pretend they are always the same
 
 	# Unfortunately, on i686 f11 (2.6.29.4-167.fc11.i686.PAE), we
@@ -563,8 +565,8 @@ probe __vm.kmalloc_node.kp = kernel.function("kmalloc_node").return ?
 	# '$size' argument above).  Note that we can see the '$flags'
 	# argument on x86_64 f11 (2.6.29.4-167.fc11.x86_64).  So, the
 	# best we can do here is just use 0 when $flags isn't defined.
-	gfp_flags = @choose_defined($flags, 0)
-	gfp_flag_name = __gfp_flag_str(@choose_defined($flags, 0))
+	gfp_flags = @choose_defined(@entry($flags), 0)
+	gfp_flag_name = __gfp_flag_str(@choose_defined(@entry($flags), 0))
 
 	ptr = $return
 }
