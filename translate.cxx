@@ -4749,11 +4749,11 @@ c_unparser::visit_binary_expression (binary_expression* e)
   else if (e->op == ">>" ||
            e->op == "<<")
     {
-      o->line() << "(";
+      o->line() << "((int64_t)(";
       e->left->visit (this);
       o->line() << ") " << e->op << " ((";
       e->right->visit (this);
-      o->line() << ") & 63)";
+      o->line() << ") & 63))";
     }
   else if (e->op == ">>>")
     {
