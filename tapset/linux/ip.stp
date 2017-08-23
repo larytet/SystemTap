@@ -143,23 +143,30 @@ function __get_skb_iphdr:long(skb:long)
 %}
 %)
 
+# Here's an explanation of the @cast() 3rd argument here. In newer
+# kernels, the "iphdr" structure is in <uapi/linux/ip.h>. But in RHEL6
+# that structure is in <linux/ip.h> and <uapi/linux/ip.h> doesn't
+# exist. So, we can't do "kernel<linux/ip.h><uapi/linux/ip.h>". So, we
+# list each header file separately.
+
+@define iphdr_cast(ptr) %(
+  @cast(@ptr, "iphdr", "kernel<linux/ip.h>:kernel<uapi/linux/ip.h>")
+%)
+
 /* return the source next layer protocol for a given sk_buff structure */
 function __ip_skb_proto:long (iphdr)
 {
-  return @choose_defined(@cast(iphdr, "iphdr", "kernel<linux/ip.h>")->protocol,
-                         @cast(iphdr, "iphdr", "kernel<uapi/linux/ip.h>")->protocol)
+  return @iphdr_cast(iphdr)->protocol
 }
 
 /* return the source IP address for a given sk_buff structure */
 function __ip_skb_saddr:long (iphdr)
 {
-  return @choose_defined(@cast(iphdr, "iphdr", "kernel<linux/ip.h>")->saddr,
-                         @cast(iphdr, "iphdr", "kernel<uapi/linux/ip.h>")->saddr)
+  return @iphdr_cast(iphdr)->saddr
 }
 
 /* return the destination IP address for a given skb */
 function __ip_skb_daddr:long (iphdr)
 {
-  return @choose_defined(@cast(iphdr, "iphdr", "kernel<linux/ip.h>")->daddr,
-                         @cast(iphdr, "iphdr", "kernel<uapi/linux/ip.h>")->daddr)
+  return @iphdr_cast(iphdr)->daddr
 }
