@@ -25,6 +25,9 @@
 #include <csignal>
 #include <cerrno>
 #include <vector>
+#include <string>
+#include <fstream>
+#include <sstream>
 #include <unistd.h>
 #include <limits.h>
 #include <inttypes.h>
@@ -57,6 +60,8 @@ extern "C" {
 #define R_BPF_MAP_FD 1
 #endif
 
+using namespace std;
+
 static int group_fd = -1;		// ??? Need one per cpu.
 extern "C" { 
 int log_level = 0;
@@ -72,11 +77,11 @@ static uint32_t kernel_version;
 
 // Sized by the contents of the "maps" section.
 static bpf_map_def *map_attrs;
-static std::vector<int> map_fds;
+static vector<int> map_fds;
 
 // Sized by the number of sections, so that we can easily
 // look them up by st_shndx.
-static std::vector<int> prog_fds;
+static vector<int> prog_fds;
 
 // Programs to run at begin and end of execution.
 static Elf_Data *prog_begin;
@@ -89,18 +94,18 @@ static void unregister_kprobes(const size_t nprobes);
 
 struct kprobe_data
 {
-  const char *args;
+  string args;
   char type;
   int prog_fd;
   int event_id;
   int event_fd;				// ??? Need one per cpu.
 
-  kprobe_data(char t, const char *a, int fd)
-    : args(a), type(t), prog_fd(fd), event_id(-1), event_fd(-1)
+  kprobe_data(char t, string s, int fd)
+    : args(s), type(t), prog_fd(fd), event_id(-1), event_fd(-1)
   { }
 };
 
-static std::vector<kprobe_data> kprobes;
+static vector<kprobe_data> kprobes;
 
 
 static void __attribute__((noreturn))
@@ -251,10 +256,38 @@ maybe_collect_kprobe(const char *name, unsigned name_idx,
 		     unsigned fd_idx, Elf64_Addr offset)
 {
   char type;
+  string arg;
+
   if (strncmp(name, "kprobe/", 7) == 0)
-    type = 'p', name += 7;
+    {
+      string line;
+      const char *stext = NULL;
+      type = 'p';
+      name += 7;
+
+      ifstream syms("/proc/kallsyms");
+      if (syms.fail())
+        fatal("could not open /proc/kallsyms");
+
+      // get value of symbol _stext and add it to the offset found in name.
+      while (stext == NULL && getline(syms, line))
+        {
+          const char *l = line.c_str();
+          if (strncmp(l + 19, "_stext", 6) == 0)
+            stext = l;
+        }
+
+      if (stext == NULL)
+        fatal("could not find _stext in /proc/kallsyms");
+
+      unsigned long addr = strtoul(stext, NULL, 16);
+      addr += strtoul(name, NULL, 16);
+      stringstream ss;
+      ss << "0x" << hex << addr;
+      arg = ss.str();
+    }
   else if (strncmp(name, "kretprobe/", 10) == 0)
-    type = 'r', name += 10;
+    type = 'r', arg = name + 10;
   else
     return;
 
@@ -264,7 +297,7 @@ maybe_collect_kprobe(const char *name, unsigned name_idx,
   if (offset != 0)
     fatal("probe %u offset non-zero\n", name_idx);
 
-  kprobes.push_back(kprobe_data(type, name, fd));
+  kprobes.push_back(kprobe_data(type, arg, fd));
 }
 
 static void
@@ -305,9 +338,10 @@ register_kprobes()
     {
       kprobe_data &k = kprobes[i];
       char msgbuf[128];
-      
+
       ssize_t olen = snprintf(msgbuf, sizeof(msgbuf), "%c:p%d_%zu %s",
-			      k.type, pid, i, k.args);
+			      k.type, pid, i, k.args.c_str());
+
       if ((size_t)olen >= sizeof(msgbuf))
 	{
 	  fprintf(stderr, "Buffer overflow creating probe %zu\n", i);
@@ -485,9 +519,9 @@ load_bpf_file(const char *module)
   unsigned shnum = ehdr->e_shnum;
   prog_fds.assign(shnum, -1);
 
-  std::vector<Elf64_Shdr *> shdrs(shnum, NULL);
-  std::vector<Elf_Data *> sh_data(shnum, NULL);
-  std::vector<const char *> sh_name(shnum, NULL);
+  vector<Elf64_Shdr *> shdrs(shnum, NULL);
+  vector<Elf_Data *> sh_data(shnum, NULL);
+  vector<const char *> sh_name(shnum, NULL);
   unsigned maps_idx = 0;
   unsigned version_idx = 0;
   unsigned license_idx = 0;
@@ -637,6 +671,7 @@ load_bpf_file(const char *module)
   module_name = NULL;
 }
 
+
 static void
 usage(const char *argv0)
 {
@@ -737,7 +772,7 @@ main(int argc, char **argv)
   signal(SIGINT, (sighandler_t)sigint);
   signal(SIGTERM, (sighandler_t)sigint);
   pause();
-    
+
   // Disable the kprobes before deregistering and running exit probes.
   ioctl(group_fd, PERF_EVENT_IOC_DISABLE, 0);
   close(group_fd);
