@@ -17,3 +17,6 @@ expect {
      "1\r\n2\r\n3\r\n4\r\n5\r\n\r\n" { pass "ok" }
      timeout { fail "(timeout)" }
 }
+
+kill -INT -[exp_pid] 3
+catch {close}; catch {wait}

@@ -29,3 +29,6 @@ expect {
        "01234\r\n01234\r\n56789\r\n56789\r\n" { pass "ok" }
        timeout { fail "(timeout)" }
 }
+
+kill -INT -[exp_pid] 3
+catch {close}; catch {wait}
