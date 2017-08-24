@@ -128,8 +128,20 @@ probe begin {
   printf ("starting container_check.stp. monitoring %d\n", target())
 }
 
-probe kprobe.function("ns_capable")!, kprobe.function("capable") {
+# bool ns_capable(struct user_namespace *ns, int cap)
+probe ns_capable = kprobe.function("ns_capable")
+{
   cap = 1 << int_arg(2)
+}
+
+# bool capable(int cap)
+probe capable = kprobe.function("capable")
+{
+  cap = 1 << int_arg(1)
+}
+
+probe ns_capable !, capable
+{
   if ((cap & badcaps) && child_of_target(task_current()))
     cap_use[tid()] |= cap
 }
