@@ -44,7 +44,7 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
     }
 
     # Run the test.
-    stap_run $testname no_load $output_string -g $stppath -c $exepath
+    stap_run $testname wait_5_secs $output_string -g $stppath -c $exepath
 
     catch {exec rm -f $exepath foobar}
 }
