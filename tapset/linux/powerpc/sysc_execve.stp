@@ -32,7 +32,7 @@ probe dw_syscall.execve = kernel.function("sys_execve").call
 	@_SYSCALL_EXECVE_NAME
 	filename = user_string_quoted($a0)
 	args = __get_argv($a1, 0)
-	env_str = __count_envp($a2)
+	env_str = __get_argv($a2, 0)
 	@_SYSCALL_EXECVE_ARGSTR
 }
 probe dw_syscall.execve.return = kernel.function("sys_execve").return
@@ -48,7 +48,7 @@ probe nd_syscall.execve = kprobe.function("sys_execve")
 	@_SYSCALL_EXECVE_NAME
 	filename = user_string_quoted(pointer_arg(1))
 	args = __get_argv(pointer_arg(2), 0)
-	env_str = __count_envp(pointer_arg(3))
+	env_str = __get_argv(pointer_arg(3), 0)
 	@_SYSCALL_EXECVE_ARGSTR
 }
 probe nd_syscall.execve.return = kprobe.function("sys_execve").return
@@ -81,7 +81,7 @@ probe dw_syscall.compat_execve = kernel.function("compat_sys_execve").call ?
 	@_SYSCALL_EXECVE_NAME
 	filename = user_string_quoted($a0)
 	args = __get_compat_argv($a1, 0)
-	env_str = __count_compat_envp($a2)
+	env_str = __get_compat_argv($a2, 0)
 	@_SYSCALL_EXECVE_ARGSTR
 }
 probe dw_syscall.compat_execve.return =
@@ -98,7 +98,7 @@ probe nd_syscall.compat_execve = kprobe.function("compat_sys_execve") ?
 	@_SYSCALL_EXECVE_NAME
 	filename = user_string_quoted(pointer_arg(1))
 	args = __get_compat_argv(pointer_arg(2), 0)
-	env_str = __count_compat_envp(pointer_arg(3))
+	env_str = __get_compat_argv(pointer_arg(3), 0)
 	@_SYSCALL_EXECVE_ARGSTR
 }
 probe nd_syscall.compat_execve.return =

@@ -30,8 +30,10 @@ probe begin {
 	print (__sem_flags(0))
 	print (__get_argv(0,0))
 	print (__get_compat_argv(0,0))
+%(systemtap_v <= "3.2" %?
 	print (__count_envp(0))
 	print (__count_compat_envp(0))
+%)
 
 %(systemtap_v <= "2.7" %?
 	print (_adjtx_mode_str(0))

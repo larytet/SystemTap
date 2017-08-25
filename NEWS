@@ -9,7 +9,9 @@
 - Runtime/tapsets were ported to include up to kernel version PRERELEASE.
 
 - The syscall.execve probes now provide a decoded env_str string vector,
-  just like the argument vector.
+  just like the argument vector. Because of this, the unused
+  __count_envp() and __count_compat_evenp() functions have been
+  deprecated.
 
 - The task_exe_file() Function has been deprecated and replaced by the
   current_exe_file() function.

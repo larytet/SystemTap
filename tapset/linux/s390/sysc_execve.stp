@@ -52,11 +52,11 @@ probe dw_syscall.execve = kernel.function("sys_execve").call
 	__regs = &@cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")
 	filename = user_string_quoted(__regs->orig_gpr2)
 	args = __get_argv(__regs->gprs[3], 0)
-	env_str = __count_envp(__regs->gprs[4])
+	env_str = __get_argv(__regs->gprs[4], 0)
 %:
 	filename = user_string_quoted(@choose_defined($name, $filename))
 	args = __get_argv($argv, 0)
-	env_str = __count_envp($envp)
+	env_str = __get_argv($envp, 0)
 %)
 	@_SYSCALL_EXECVE_ARGSTR
 }
@@ -75,11 +75,11 @@ probe nd_syscall.execve = kprobe.function("sys_execve")
 	__regs = &@cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")
 	filename = user_string_quoted(__regs->orig_gpr2)
 	args = __get_argv(__regs->gprs[3], 0)
-	env_str = __count_envp(__regs->gprs[4])
+	env_str = __get_argv(__regs->gprs[4], 0)
 %:
 	filename = user_string_quoted(pointer_arg(1))
 	args = __get_argv(pointer_arg(2), 0)
-	env_str = __count_envp(pointer_arg(3))
+	env_str = __get_argv(pointer_arg(3), 0)
 %)
 	@_SYSCALL_EXECVE_ARGSTR
 }
@@ -110,11 +110,11 @@ probe dw_syscall.compat_execve = kernel.function("sys32_execve").call ?
 	__regs = &@cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")
 	filename = user_string_quoted(__regs->orig_gpr2 & 0x7fffffff)
 	args = __get_compat_argv(__regs->gprs[3] & 0x7fffffff, 0)
-	env_str = __count_compat_envp(__regs->gprs[4] & 0x7fffffff)
+	env_str = __get_compat_argv(__regs->gprs[4] & 0x7fffffff, 0)
 %:
 	filename = user_string_quoted(@choose_defined($name, $filename))
 	args = __get_compat_argv($argv, 0)
-	env_str = __count_compat_envp($envp)
+	env_str = __get_compat_argv($envp, 0)
 %)
 	@_SYSCALL_EXECVE_ARGSTR
 }
@@ -134,11 +134,11 @@ probe nd_syscall.compat_execve = kprobe.function("sys32_execve") ?
 	__regs = &@cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")
 	filename = user_string_quoted(__regs->orig_gpr2 & 0x7fffffff)
 	args = __get_compat_argv(__regs->gprs[3] & 0x7fffffff, 0)
-	env_str = __count_compat_envp(__regs->gprs[4] & 0x7fffffff)
+	env_str = __get_compat_argv(__regs->gprs[4] & 0x7fffffff, 0)
 %:
 	filename = user_string_quoted(pointer_arg(1))
 	args = __get_compat_argv(pointer_arg(2), 0)
-	env_str = __count_compat_envp(pointer_arg(3))
+	env_str = __get_compat_argv(pointer_arg(3), 0)
 %)
 	@_SYSCALL_EXECVE_ARGSTR
 }

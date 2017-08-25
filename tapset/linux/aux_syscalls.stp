@@ -956,6 +956,12 @@ function __get_compat_argv:string(argv:long, first:long)
 	return str
 }
 
+%( systemtap_v <= "3.2" %?
+/*
+ * The __count_envp() and __count_compat_envp() functions aren't
+ * used anywhere, so let's deprecate them.
+ */
+
 /* Count the number of environment variables. */
 function __count_envp:string(envp:long)
 {
@@ -996,6 +1002,7 @@ function __count_compat_envp:string(envp:long)
 	}
 	return sprintf("[/* %d var%s */]", __argc, __argc != 1 ? "s" : "")
 }
+%)
 
 %(systemtap_v <= "2.7" %?
 /*

@@ -29,7 +29,7 @@ probe dw_syscall.execve = kernel.function("sys_execve").call
 	@_SYSCALL_EXECVE_NAME
 	filename = user_string_quoted(@choose_defined($regs->bx, $regs->ebx))
 	args = __get_argv(@choose_defined($regs->cx, $regs->ecx), 0)
-	env_str = __count_envp(@choose_defined($regs->dx, $regs->edx))
+	env_str = __get_argv(@choose_defined($regs->dx, $regs->edx), 0)
 	@_SYSCALL_EXECVE_ARGSTR
 }
 probe dw_syscall.execve.return = kernel.function("sys_execve").return
@@ -49,12 +49,12 @@ probe nd_syscall.execve = kprobe.function("sys_execve")
 	# a pt_regs struct itself is passed.
 	filename = user_string_quoted(pointer_arg(1))
 	args = __get_argv(pointer_arg(2), 0)
-	env_str = __count_envp(pointer_arg(3))
+	env_str = __get_argv(pointer_arg(3), 0)
 %:
 	__regs = &@cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")
 	filename = user_string_quoted(__regs->bx)
 	args = __get_argv(__regs->cx, 0)
-	env_str = __count_envp(__regs->dx)
+	env_str = __get_argv(__regs->dx, 0)
 %)
 	@_SYSCALL_EXECVE_ARGSTR
 }
