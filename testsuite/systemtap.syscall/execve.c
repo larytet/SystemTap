@@ -22,7 +22,11 @@ int main()
 #endif
 
     execve(NULL, NULL, (char **)-1);
+#ifdef __s390__
+    //staptest// execve (0x0, \[\], \[0x[7]?[f]+\]) = -NNNN
+#else
     //staptest// execve (0x0, \[\], \[0x[f]+\]) = -NNNN
+#endif
 
     /* Regular testing. */
     execve(newargv[0], newargv, newenv);
