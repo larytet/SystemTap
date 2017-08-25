@@ -5242,8 +5242,6 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
 
   if (q.has_module && symbol_name != "")
     this->symbol_name = lex_cast(this->module) + ":" + lex_cast(symbol_name);
-  if (q.has_kernel && has_return)
-    this->symbol_name = lex_cast(funcname);
 
   if (user_lib.size() != 0)
     has_library = true;
@@ -6130,6 +6128,8 @@ generic_kprobe_derived_probe::args_for_bpf() const
 
   if (!symbol_name.empty())
     {
+      if (!module.empty())
+	o << module << ":";
       o << symbol_name;
       if (offset)
 	o << "+0x" << std::hex << offset;
