@@ -307,9 +307,9 @@ static inline void __stp_stat_add(Hist st, stat_data *sd, int64_t val,
 			sd->count++;
 		if(stat_op_sum)
 			sd->sum += val;
-		if (stat_op_min && (val > sd->max))
+		if (stat_op_max && (val > sd->max))
 			sd->max = val;
-		if (stat_op_max && (val < sd->min))
+		if (stat_op_min && (val < sd->min))
 			sd->min = val;
 		/*
 		 * Below, we use Welford's online algorithm for computing variance.

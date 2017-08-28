@@ -1,0 +1,7 @@
+set test_name "pr22005"
+
+set ::result_string "34"
+stap_run2 -e "global l probe oneshot \{l<<<12 l<<<34 println(@max(l))\}"
+
+set ::result_string "21"
+stap_run2 -e "global l probe oneshot \{l<<<43 l<<<21 println(@min(l))\}"
