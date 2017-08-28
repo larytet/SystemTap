@@ -104,7 +104,7 @@ if {[catch {exec cp $srcdir/$subdir/python-var.py . 2>@1} out]} {
 set error_seen 0
 # Note that we're incrementing MAXACTION, since we're doing lots of
 # actions in each probe.
-spawn stap -DMAXACTION=2000 $srcdir/$subdir/python-var.stp -c "$PYTHON -m $module_name python-var.py" python2
+spawn stap -DMAXACTION=4000 $srcdir/$subdir/python-var.stp -c "$PYTHON -m $module_name python-var.py" python2
 set types {"none" "type" "bool" "int" "long" "float" "complex" \
 	       "string" "unicode" "tuple" "list" "xrange" "dictionary" \
 	       "function" "class" "unbound" "instance" "method" "zip" \
