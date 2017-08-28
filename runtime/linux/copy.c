@@ -16,6 +16,28 @@
  * @brief Functions to copy from user space.
  */
 
+
+static long _stp_copy_from_user_inatomic(char *dst, const char __user *src, long count)
+{
+       int res;
+       long bytes = 0;
+       for (;count;dst++, src++, count--, bytes++)
+       {
+               res = __copy_from_user_inatomic(dst, src, 1);
+               if (unlikely(res != 0))
+               {
+                       *dst = 0;
+                       break;
+               }
+               if (unlikely(*dst == 0))
+               {
+                       break;
+               }
+       }
+
+       return bytes;
+}
+
 /** @addtogroup copy Functions to copy from user space.
  * Functions to copy from user space.
  * None of these functions will sleep (for example to allow pages
@@ -46,14 +68,8 @@ static long _stp_strncpy_from_user(char *dst, const char __user *src, long count
         mm_segment_t _oldfs = get_fs();
         set_fs(USER_DS);
         pagefault_disable();
-        /* XXX: The following preempt() manipulations should be
-           redundant with probe entry/exit code, but for unknown
-           reasons on RHEL5/6 conversions.exp intermittently fails
-           without this.  */
-        preempt_disable();
 	if (!lookup_bad_addr(VERIFY_READ, (const unsigned long)src, count))
-		res = strncpy_from_user(dst, src, count);
-        preempt_enable_no_resched();
+		res = _stp_copy_from_user_inatomic(dst, src, count);
         pagefault_enable();
         set_fs(_oldfs);
 	return res;
