@@ -398,7 +398,7 @@ static inline int __stp_deref_nocheck_(u64 *pv, size_t size, void *addr)
  * type: memory access type (either VERIFY_READ or VERIFY_WRITE)
  * size: number of bytes to verify
  * addr: address to verify
- * seg: memory segment to use, either kernel (KERN_DS) or user
+ * seg: memory segment to use, either kernel (KERNEL_DS) or user
  * (USER_DS)
  * 
  * The macro returns 0 if the address is valid, non-zero otherwise.
@@ -433,7 +433,7 @@ static inline int _stp_lookup_bad_addr_(int type, size_t size,
  * value: read the simple type into this variable
  * size: number of bytes to read
  * addr: address to read from
- * seg: memory segment to use, either kernel (KERN_DS) or user
+ * seg: memory segment to use, either kernel (KERNEL_DS) or user
  * (USER_DS)
  * 
  * If this macro gets an error while trying to read memory, nonzero is
@@ -481,7 +481,7 @@ static inline int _stp_deref_nofault_(u64 *pv, size_t size, void *addr,
  *
  * size: number of bytes to read
  * addr: address to read from
- * seg: memory segment to use, either kernel (KERN_DS) or user
+ * seg: memory segment to use, either kernel (KERNEL_DS) or user
  * (USER_DS)
  * 
  * The macro returns the value read. If this macro gets an error while
@@ -567,7 +567,7 @@ static inline int __stp_store_deref_nocheck_(size_t size, void *addr, u64 v)
  * size: number of bytes to write
  * addr: address to write to
  * value: read the simple type from this variable
- * seg: memory segment to use, either kernel (KERN_DS) or user
+ * seg: memory segment to use, either kernel (KERNEL_DS) or user
  * (USER_DS)
  * 
  * The macro has no return value. If this macro gets an error while
@@ -763,7 +763,7 @@ static inline char *kderef_string_(char *dst, void *addr, size_t len)
  * src: source string
  * addr: address to write to
  * maxbytes: maximum number of bytes to write
- * seg: memory segment to use, either kernel (KERN_DS) or user
+ * seg: memory segment to use, either kernel (KERNEL_DS) or user
  * (USER_DS)
  * 
  * The macro has no return value. If this macro gets an error while
