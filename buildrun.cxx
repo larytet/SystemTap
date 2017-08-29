@@ -463,6 +463,7 @@ compile_pass (systemtap_session& s)
 		  "STAPCONF_GET_USER_PAGES_REMOTE_FLAGS_LOCKED", NULL);
   output_autoconf(s, o, "autoconf-uapi-linux-sched-types.c",
 		  "STAPCONF_UAPI_LINUX_SCHED_TYPES", NULL);
+  output_autoconf(s, o, "autoconf-bio-bi_opf.c", "STAPCONF_BIO_BI_OPF", NULL);
 
   // used by runtime/linux/netfilter.c
   output_exportconf(s, o, "nf_register_hook", "STAPCONF_NF_REGISTER_HOOK");

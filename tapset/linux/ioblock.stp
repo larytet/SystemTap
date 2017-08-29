@@ -19,7 +19,7 @@
 /* Returns the REQ_OP_* bits for a bio structure. */
 function bio_op:long(bio:long)
 %{ /* pure */ /* unprivileged */
-#if defined(bio_op)
+#if defined(STAPCONF_BIO_BI_OPF)
     struct bio *bio = (struct bio *)(uintptr_t)STAP_ARG_bio;
 
     STAP_RETVALUE = 0;
