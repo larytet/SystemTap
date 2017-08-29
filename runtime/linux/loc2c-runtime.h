@@ -716,16 +716,30 @@ static inline char *kderef_buffer_(char *dst, void *addr, size_t len)
     _r;									\
   })
 
-/* The following is for kernel strings, see the uconversions.stp
-   tapset for user_string functions. */
+/* 
+ * _stp_deref_string_nofault(): safely read a string from memory
+ * without a DEREF_FAULT on error
+ *
+ * dst: read the string into this address
+ * addr: address to read from
+ * len: maximum number of bytes to read
+ * seg: memory segment to use, either kernel (KERNEL_DS) or user
+ * (USER_DS)
+ * 
+ * If this function gets an error while trying to read memory, -EFAULT
+ * is returned. On success, the number of bytes copied is returned
+ * (not including the trailing NULL). Note that the kernel will not
+ * pagefault when trying to read the string.
+ */
 
-static inline char *kderef_string_(char *dst, void *addr, size_t len)
+static inline long _stp_deref_string_nofault(char *dst, const char *addr,
+					     size_t len, mm_segment_t seg)
 {
   int err = 0;
-  size_t i;
+  size_t i = 0;
   mm_segment_t oldfs = get_fs();
 
-  set_fs(KERNEL_DS);
+  set_fs(seg);
   pagefault_disable();
   if (lookup_bad_addr(VERIFY_READ, (uintptr_t)addr, len))
     err = 1;
@@ -746,13 +760,13 @@ static inline char *kderef_string_(char *dst, void *addr, size_t len)
   pagefault_enable();
   set_fs(oldfs);
 
-  return err ? (char *)-1 : dst;
+  return err ? -EFAULT : i;
 }
 
 #define kderef_string(dst, addr, maxbytes)				\
   ({									\
-    char *_r = kderef_string_((dst), (void *)(uintptr_t)(addr), (maxbytes)); \
-    if (_r == (char *)-1)						\
+    long _r = _stp_deref_string_nofault((dst), (void *)(uintptr_t)(addr), (maxbytes), KERNEL_DS); \
+    if (_r < 0)								\
       DEREF_FAULT(addr);						\
     _r;									\
   })

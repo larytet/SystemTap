@@ -39,24 +39,10 @@
  * <i>count</i> bytes and returns <i>count</i>.
  */
 
-/* XXX: see also kread/uread in loc2c-runtime.h */
-static long _stp_strncpy_from_user(char *dst, const char __user *src, long count)
+static long _stp_strncpy_from_user(char *dst, const char __user *src,
+				   long count)
 {
-	long res = -EFAULT;
-        mm_segment_t _oldfs = get_fs();
-        set_fs(USER_DS);
-        pagefault_disable();
-        /* XXX: The following preempt() manipulations should be
-           redundant with probe entry/exit code, but for unknown
-           reasons on RHEL5/6 conversions.exp intermittently fails
-           without this.  */
-        preempt_disable();
-	if (!lookup_bad_addr(VERIFY_READ, (const unsigned long)src, count))
-		res = strncpy_from_user(dst, src, count);
-        preempt_enable_no_resched();
-        pagefault_enable();
-        set_fs(_oldfs);
-	return res;
+	return _stp_deref_string_nofault(dst, src, count, USER_DS);
 }
 
 /** Copy a block of data from user space.
