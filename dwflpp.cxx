@@ -3915,6 +3915,7 @@ dwflpp::literal_stmt_for_local (location_context &ctx,
   Dwarf_Attribute attr_mem;
   ctx.attr = &attr_mem;
   ctx.fb_attr = fb_attr;
+  ctx.dw = this;
 
   if (dwarf_attr_integrate (&vardie, DW_AT_const_value, &attr_mem) == NULL
       && dwarf_attr_integrate (&vardie, DW_AT_location, &attr_mem) == NULL)
