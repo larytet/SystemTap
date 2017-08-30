@@ -68,6 +68,7 @@ public:
   static size_t get_header_shim (void *ptr, size_t size, size_t nitems, void *client);
   std::string get_rpmname (std::string & pathname);
   void get_buildid (string fname);
+  void get_kernel_buildid (void);
 
 private:
   size_t get_header (void *ptr, size_t size, size_t nitems);
@@ -388,6 +389,61 @@ http_client::get_buildid (string fname)
 }
 
 
+void
+http_client::get_kernel_buildid (void)
+{
+  const char *notesfile = "/sys/kernel/notes";
+  int fd = open (notesfile, O_RDONLY);
+  if (fd < 0)
+    return;
+
+  union
+  {
+      GElf_Nhdr nhdr;
+      unsigned char data[8192];
+  } buf;
+
+  ssize_t n = read (fd, buf.data, sizeof buf);
+  close (fd);
+
+  if (n <= 0)
+    return;
+
+  unsigned char *p = buf.data;
+  while (p < &buf.data[n])
+    {
+      /* No translation required since we are reading the native kernel.  */
+      GElf_Nhdr *nhdr = (GElf_Nhdr *) p;
+      p += sizeof *nhdr;
+      unsigned char *name = p;
+      p += (nhdr->n_namesz + 3) & -4U;
+      unsigned char *bits = p;
+      p += (nhdr->n_descsz + 3) & -4U;
+
+      if (p <= &buf.data[n]
+          && nhdr->n_type == NT_GNU_BUILD_ID
+          && nhdr->n_namesz == sizeof "GNU"
+          && !memcmp (name, "GNU", sizeof "GNU"))
+        {
+          char *result = NULL;
+          int code;
+
+          for (unsigned int i = 0; i < nhdr->n_descsz; i++)
+            {
+              if (result)
+                code = asprintf (&result, "%s%02x", result, *(bits+i));
+              else
+                code = asprintf (&result, "%02x", *(bits+i));
+              if (code < 0)
+                return;
+            }
+          http->buildids.push_back(make_tuple("kernel", result));
+          break;
+        }
+    }
+}
+
+
 // Post REQUEST_PARAMETERS, script_files, modules, buildids to URL
 
 bool
@@ -611,6 +667,9 @@ http_client_backend::find_and_connect_to_server ()
 {
   s.probes[0]->print (clog);
 
+  http->add_module ("kernel." + s.kernel_release);
+  http->get_kernel_buildid ();
+
   for (set<std::string>::const_iterator i = s.unwindsym_modules.begin();
       i != s.unwindsym_modules.end();
       ++i)
@@ -713,12 +772,13 @@ http_client_backend::add_protocol_version (const std::string &version)
   return 0;
 }
 
+
 int
 http_client_backend::add_sysinfo ()
 {
-  // Add the sysinfo.
   request_parameters.push_back(make_tuple("kver", s.kernel_release));
   request_parameters.push_back(make_tuple("arch", s.architecture));
+
   vector<string> distro_info;
 
   get_distro_info (distro_info);
