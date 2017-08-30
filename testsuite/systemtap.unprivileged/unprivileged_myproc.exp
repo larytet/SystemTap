@@ -362,8 +362,15 @@ proc test_probes { privilege } {
 	    {
 		setup_kfail GCC *-*-*
 	    }
+	    process.function(string).callee(string) -
+	    process.function(string).callee(string).call -
+	    process.function(string).callee(string).return -
+	    process(number).function(string).callee(string) -
+	    process(number).function(string).callee(string).call -
+	    process(number).function(string).callee(string).return -
 	    process(string).function(string).callee(string) -
-	    process.function(string).callee(string)
+	    process(string).function(string).callee(string).call -
+	    process(string).function(string).callee(string).return
             {
                 if {![callee_probes_p]} {
                     setup_kfail CALLEE *-*-*
