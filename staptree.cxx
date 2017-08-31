@@ -467,17 +467,17 @@ void symbol::print (ostream& o) const
 
 void target_register::print (ostream &o) const
 {
-  o << (userspace_p ? "u" : "k") << "fetch_register(" << regno << ")";
+  o << "@" << (userspace_p ? "u" : "k") << "register(" << regno << ")";
 }
 
 void target_deref::print (ostream &o) const
 {
-  o << (userspace_p ? "u" : "k") << "deref(" << size << ", " << *addr << ")";
+  o << "@" << (userspace_p ? "u" : "k") << "deref(" << size << ", " << *addr << ")";
 }
 
 void target_bitfield::print (ostream &o) const
 {
-  o << (signed_p ? "s" : "u") << "bitfield(" << *base
+  o << "@" << (signed_p ? "s" : "u") << "bitfield(" << *base
     << ", " << offset << ", " << size << ")";
 }
 
