@@ -3333,6 +3333,7 @@ dwflpp::translate_components(location_context *ctx,
                              const target_symbol *e,
                              Dwarf_Die *vardie,
                              Dwarf_Die *typedie,
+			     bool lvalue,
                              unsigned first)
 {
   unsigned i = first;
@@ -3352,7 +3353,7 @@ dwflpp::translate_components(location_context *ctx,
 
         case DW_TAG_reference_type:
         case DW_TAG_rvalue_reference_type:
-	  translate_pointer (*ctx, typedie);
+	  translate_pointer (*ctx, typedie, lvalue);
           dwarf_die_type (typedie, typedie, c.tok);
           break;
 
@@ -3363,7 +3364,7 @@ dwflpp::translate_components(location_context *ctx,
                                      dwarf_type_name(typedie).c_str()), c.tok);
 
 	  if (!ctx->locations.empty())
-	    translate_pointer (*ctx, typedie);
+	    translate_pointer (*ctx, typedie, lvalue);
           if (c.type != target_symbol::comp_literal_array_index &&
               c.type != target_symbol::comp_expression_array_index)
             {
@@ -3813,13 +3814,14 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
           assert (typetag == DW_TAG_pointer_type);
         }
       if (typetag != DW_TAG_array_type)
-        translate_pointer (ctx, typedie);
+	translate_pointer (ctx, typedie, lvalue);
       break;
     }
 }
 
 void
-dwflpp::translate_pointer(location_context &ctx, Dwarf_Die *typedie)
+dwflpp::translate_pointer(location_context &ctx, Dwarf_Die *typedie,
+			  bool lvalue)
 {
   // ??? We also get DW_TAG_array_type here.  
   // assert (dwarf_tag (typedie) == DW_TAG_pointer_type ||
@@ -3838,7 +3840,7 @@ dwflpp::translate_pointer(location_context &ctx, Dwarf_Die *typedie)
 				 dwarf_errmsg (-1)), ctx.e->tok);
 
       /* We know this is a pointer, therefore the signedness is irrelevant.  */
-      translate_base_ref (ctx, byte_size, false, false);
+      translate_base_ref (ctx, byte_size, false, lvalue);
       /* We're going to want to dereference this pointer.  Therefore note
 	 that this is an address.  */
       loc = ctx.locations.back ();
@@ -3952,7 +3954,7 @@ dwflpp::literal_stmt_for_local (location_context &ctx,
       throw err;
     }
 
-  translate_components (&ctx, ctx.pc, e, &vardie, &typedie, 0);
+  translate_components (&ctx, ctx.pc, e, &vardie, &typedie, lvalue, 0);
 
   /* Translate the assignment part, either
      x = $foo->bar->baz[NN]
@@ -3968,7 +3970,8 @@ dwflpp::type_die_for_local (vector<Dwarf_Die>& scopes,
                             Dwarf_Addr pc,
                             string const & local,
                             const target_symbol *e,
-                            Dwarf_Die *typedie)
+                            Dwarf_Die *typedie,
+			    bool lvalue)
 {
   Dwarf_Die vardie;
   Dwarf_Attribute attr_mem;
@@ -3981,7 +3984,7 @@ dwflpp::type_die_for_local (vector<Dwarf_Die>& scopes,
   location_context ctx(const_cast<target_symbol *>(e));
   ctx.pc = pc;
   ctx.dw = this;
-  translate_components (&ctx, pc, e, &vardie, typedie);
+  translate_components (&ctx, pc, e, &vardie, typedie, lvalue);
   return typedie;
 }
 
@@ -4021,7 +4024,7 @@ dwflpp::literal_stmt_for_return (location_context &ctx,
                             (dwarf_diename(&vardie) ?: "<unknown>"),
                             (dwarf_diename(cu) ?: "<unknown>")), e->tok);
   
-  translate_components (&ctx, ctx.pc, e, &vardie, &typedie);
+  translate_components (&ctx, ctx.pc, e, &vardie, &typedie, lvalue);
 
   /* Translate the assignment part, either
      x = $return->bar->baz[NN]
@@ -4036,7 +4039,8 @@ Dwarf_Die*
 dwflpp::type_die_for_return (Dwarf_Die *scope_die,
                              Dwarf_Addr pc,
                              const target_symbol *e,
-                             Dwarf_Die *typedie)
+                             Dwarf_Die *typedie,
+			     bool lvalue)
 {
   Dwarf_Die vardie = *scope_die;
   if (dwarf_attr_die (&vardie, DW_AT_type, typedie) == NULL)
@@ -4044,7 +4048,7 @@ dwflpp::type_die_for_return (Dwarf_Die *scope_die,
                            (dwarf_diename(&vardie) ?: "<unknown>"),
                            (dwarf_diename(cu) ?: "<unknown>")), e->tok);
 
-  translate_components (NULL, pc, e, &vardie, typedie);
+  translate_components (NULL, pc, e, &vardie, typedie, lvalue);
   return typedie;
 }
 
@@ -4092,7 +4096,7 @@ dwflpp::literal_stmt_for_pointer (location_context &ctx,
     }
 
   /* Now translate the rest normally. */
-  translate_components (&ctx, 0, e, &vardie, &typedie, first);
+  translate_components (&ctx, 0, e, &vardie, &typedie, lvalue, first);
 
   /* Translate the assignment part, either
      x = (STAP_ARG_pointer)->bar->baz[NN]
@@ -4106,7 +4110,8 @@ dwflpp::literal_stmt_for_pointer (location_context &ctx,
 Dwarf_Die*
 dwflpp::type_die_for_pointer (Dwarf_Die *start_typedie,
                               const target_symbol *e,
-                              Dwarf_Die *typedie)
+                              Dwarf_Die *typedie,
+			      bool lvalue)
 {
   unsigned first = 0;
   *typedie = *start_typedie;
@@ -4127,7 +4132,7 @@ dwflpp::type_die_for_pointer (Dwarf_Die *start_typedie,
 
   location_context ctx(const_cast<target_symbol *>(e));
   ctx.dw = this;
-  translate_components (&ctx, 0, e, &vardie, typedie, first);
+  translate_components (&ctx, 0, e, &vardie, typedie, lvalue, first);
   return typedie;
 }
 

@@ -434,7 +434,8 @@ struct dwflpp
 				 Dwarf_Addr pc,
                                  std::string const & local,
                                  const target_symbol *e,
-                                 Dwarf_Die *die_mem);
+                                 Dwarf_Die *die_mem,
+				 bool lvalue);
 
   bool literal_stmt_for_return (location_context &ctx,
 				Dwarf_Die *scope_die,
@@ -444,7 +445,8 @@ struct dwflpp
   Dwarf_Die* type_die_for_return (Dwarf_Die *scope_die,
                                   Dwarf_Addr pc,
                                   const target_symbol *e,
-                                  Dwarf_Die *die_mem);
+                                  Dwarf_Die *die_mem,
+				  bool lvalue);
 
   bool literal_stmt_for_pointer (location_context &ctx,
 				 Dwarf_Die *type_die,
@@ -453,7 +455,8 @@ struct dwflpp
 				 Dwarf_Die *die_mem);
   Dwarf_Die* type_die_for_pointer (Dwarf_Die *type_die,
                                    const target_symbol *e,
-                                   Dwarf_Die *die_mem);
+                                   Dwarf_Die *die_mem,
+				   bool lvalue);
 
   enum blacklisted_type
     {  blacklisted_none, // not blacklisted
@@ -632,6 +635,7 @@ private:
                             const target_symbol *e,
                             Dwarf_Die *vardie,
                             Dwarf_Die *typedie,
+			    bool lvalue,
                             unsigned first=0);
 
   void translate_base_ref (location_context &ctx, Dwarf_Word byte_size,
@@ -644,7 +648,8 @@ private:
 				       Dwarf_Die *typedie,
 				       bool lvalue,
 				       Dwarf_Die *enddie);
-  void translate_pointer(location_context &ctx, Dwarf_Die *typedie);
+  void translate_pointer(location_context &ctx, Dwarf_Die *typedie,
+			 bool lvalue);
 
   regex_t blacklist_func; // function/statement probes
   regex_t blacklist_func_ret; // only for .return probes

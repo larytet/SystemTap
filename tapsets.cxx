@@ -3064,32 +3064,33 @@ struct dwarf_pretty_print
 {
   dwarf_pretty_print (dwflpp& dw, vector<Dwarf_Die>& scopes, Dwarf_Addr pc,
                       const string& local, bool userspace_p,
-                      const target_symbol& e):
+                      const target_symbol& e, bool lvalue):
     dw(dw), local(local), scopes(scopes), pc(pc),
     pointer(NULL), pointer_type(),
     userspace_p(userspace_p), deref_p(true)
   {
     init_ts (e);
-    dw.type_die_for_local (scopes, pc, local, ts, &base_type);
+    dw.type_die_for_local (scopes, pc, local, ts, &base_type, lvalue);
   }
 
   dwarf_pretty_print (dwflpp& dw, Dwarf_Die *scope_die, Dwarf_Addr pc,
-                      bool userspace_p, const target_symbol& e):
+                      bool userspace_p, const target_symbol& e, bool lvalue):
     dw(dw), scopes(1, *scope_die), pc(pc),
     pointer(NULL), pointer_type(),
     userspace_p(userspace_p), deref_p(true)
   {
     init_ts (e);
-    dw.type_die_for_return (&scopes[0], pc, ts, &base_type);
+    dw.type_die_for_return (&scopes[0], pc, ts, &base_type, lvalue);
   }
 
   dwarf_pretty_print (dwflpp& dw, Dwarf_Die *type_die, expression* pointer,
-                      bool deref_p, bool userspace_p, const target_symbol& e):
+                      bool deref_p, bool userspace_p, const target_symbol& e,
+		      bool lvalue):
     dw(dw), pc(0), pointer(pointer), pointer_type(*type_die),
     userspace_p(userspace_p), deref_p(deref_p)
   {
     init_ts (e);
-    dw.type_die_for_pointer (type_die, ts, &base_type);
+    dw.type_die_for_pointer (type_die, ts, &base_type, lvalue);
   }
 
   functioncall* expand ();
@@ -4490,14 +4491,14 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
           if (q.has_return && (e->name == "$return"))
             {
               dwarf_pretty_print dpp (q.dw, scope_die, addr,
-                                      q.has_process, *e);
+                                      q.has_process, *e, lvalue);
               dpp.expand()->visit(this);
             }
           else
             {
               dwarf_pretty_print dpp (q.dw, getscopes(e), addr,
                                       e->sym_name(),
-                                      q.has_process, *e);
+                                      q.has_process, *e, lvalue);
               dpp.expand()->visit(this);
             }
           return;
@@ -4741,7 +4742,8 @@ dwarf_cast_query::handle_query_module()
 
       if (e.check_pretty_print (lvalue))
         {
-          dwarf_pretty_print dpp(dw, type_die, e.operand, true, userspace_p, e);
+	  dwarf_pretty_print dpp(dw, type_die, e.operand, true, userspace_p,
+				 e, lvalue);
           result = dpp.expand();
           return;
         }
@@ -4924,7 +4926,8 @@ exp_type_dwarf::expand(autocast_op* e, bool lvalue)
 
       if (e->check_pretty_print (lvalue))
 	{
-	  dwarf_pretty_print dpp(*dw, &die, e->operand, deref_p, userspace_p, *e);
+	  dwarf_pretty_print dpp(*dw, &die, e->operand, deref_p, userspace_p,
+				 *e, lvalue);
 	  return dpp.expand();
 	}
 
@@ -5005,7 +5008,7 @@ dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, dwarf_atvar_query *q)
       if (q->e.check_pretty_print (q->lvalue))
         {
           dwarf_pretty_print dpp (q->dw, scopes, 0, q->e.sym_name(),
-                                  q->userspace_p, q->e);
+                                  q->userspace_p, q->e, q->lvalue);
           q->result = dpp.expand();
           return DWARF_CB_ABORT;
         }
@@ -10724,7 +10727,8 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
 
       if (e->check_pretty_print (lvalue))
         {
-          dwarf_pretty_print dpp(dw, &arg->type_die, e2, deref_p, false, *e);
+	  dwarf_pretty_print dpp(dw, &arg->type_die, e2, deref_p, false,
+				 *e, lvalue);
           dpp.expand()->visit (this);
           return;
         }
