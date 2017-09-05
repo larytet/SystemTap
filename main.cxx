@@ -911,8 +911,18 @@ passes_0_4 (systemtap_session &s)
   // http handled probes need probe information from pass 2
   if (! s.http_servers.empty ())
     {
+#if NEED_BASE_CLIENT_CODE
       compile_server_client client (s);
       return client.passes_0_4 ();
+#else
+      s.print_warning(_("Without NSS or HTTP client support, using a compile-server is not supported by this version of systemtap"));
+
+      // This cannot be an attempt to use a server after a local compile failed
+      // since --use-server-on-error is locked to 'no' if we don't have
+      // NSS.
+      assert (! s.try_server ());
+      s.print_warning(_("Ignoring --use-server"));
+#endif
     }
 
   // Dump a list of known probe point types, if requested.
