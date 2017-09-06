@@ -279,116 +279,131 @@ private function Py2Int_AsLong:long(op:long)
 
 private function Py2Long_AsLongLongAndOverflow_Small:long(v:long)
 {
-    res = -1
-    i = @Py2_SIZE(v)
-    if (i == -1) {
-	/* We're using 'x & 0xffff' instead of '(short)x' */
-	res = -(@Py2LongObject(v)->ob_digit[0] & 0xffff)
-    }
-    else if (i == 0) {
-	res = 0
-    }
-    else if (i == 1) {
-	res = @Py2LongObject(v)->ob_digit[0]
-    }
-    else {
-	sign = 1
-	x = 0
-	if (i < 0) {
-	    sign = -1
-	    i = -(i)
+    if (@defined(@Py2LongObject(0)->ob_digit[0])) {
+	res = -1
+	i = @Py2_SIZE(v)
+	if (i == -1) {
+	    /* We're using 'x & 0xffff' instead of '(short)x' */
+	    res = -(@Py2LongObject(v)->ob_digit[0] & 0xffff)
 	}
-	while (--i >= 0) {
-	    prev = x
-	    x = ((x << %{ Py2Long_SHIFT_SMALL %})
-		 | @Py2LongObject(v)->ob_digit[i])
-	    if ((x >> %{ Py2Long_SHIFT_SMALL %}) != prev) {
-		error("Python int too large")
-		return res
-	    }
+	else if (i == 0) {
+	    res = 0
 	}
-	/* Haven't lost any bits, but casting to long requires extra
-	 * care (see comment above).
-	 */
-	if (x <= %{ __LONG_LONG_MAX__ %}) {
-	    res = x * sign
-	}
-	else if (sign < 0 && x == %{ PY2_ABS_LLONG_MIN %}) {
-	    res = %{ PY2_LLONG_MIN %}
+	else if (i == 1) {
+	    res = @Py2LongObject(v)->ob_digit[0]
 	}
 	else {
-	    error("Python int too large")
-	    /* res is already set to -1 */
+	    sign = 1
+	    x = 0
+	    if (i < 0) {
+		sign = -1
+		i = -(i)
+	    }
+	    while (--i >= 0) {
+		prev = x
+		x = ((x << %{ Py2Long_SHIFT_SMALL %})
+		     | @Py2LongObject(v)->ob_digit[i])
+		if ((x >> %{ Py2Long_SHIFT_SMALL %}) != prev) {
+		    error("Python int too large")
+		    return res
+		}
+	    }
+	    /* Haven't lost any bits, but casting to long requires extra
+	     * care (see comment above).
+	     */
+	    if (x <= %{ __LONG_LONG_MAX__ %}) {
+		res = x * sign
+	    }
+	    else if (sign < 0 && x == %{ PY2_ABS_LLONG_MIN %}) {
+		res = %{ PY2_LLONG_MIN %}
+	    }
+	    else {
+		error("Python int too large")
+		/* res is already set to -1 */
+	    }
 	}
+	return res
     }
-    return res
+    else {
+	error("Py2Long_AsLongLongAndOverflow_Small isn't implemented")
+    }
 }
 
 private function Py2Long_AsLongLongAndOverflow_Big:long(v:long)
 {
-    res = -1
-    i = @Py2_SIZE(v)
-    if (i == -1) {
-	/* We're using 'x & 0xffffffff' instead of '(int32_t)x' */
-	res = -(@Py2LongObject(v)->ob_digit[0] & 0xffffffff)
-    }
-    else if (i == 0) {
-	res = 0
-    }
-    else if (i == 1) {
-	res = @Py2LongObject(v)->ob_digit[0]
-    }
-    else {
-	sign = 1
-	x = 0
-	if (i < 0) {
-	    sign = -1
-	    i = -(i)
+    if (@defined(@Py2LongObject(0)->ob_digit[0])) {
+	res = -1
+	i = @Py2_SIZE(v)
+	if (i == -1) {
+	    /* We're using 'x & 0xffffffff' instead of '(int32_t)x' */
+	    res = -(@Py2LongObject(v)->ob_digit[0] & 0xffffffff)
 	}
-	while (--i >= 0) {
-	    prev = x
-	    x = ((x << %{ Py2Long_SHIFT_BIG %})
-		 | @Py2LongObject(v)->ob_digit[i])
-	    if ((x >> %{ Py2Long_SHIFT_BIG %}) != prev) {
-		error("Python int too large")
-		return res
-	    }
+	else if (i == 0) {
+	    res = 0
 	}
-	/* Haven't lost any bits, but casting to long requires extra
-	 * care (see comment above).
-	 */
-	if (x <= %{ __LONG_LONG_MAX__ %}) {
-	    res = x * sign
-	}
-	else if (sign < 0 && x == %{ PY2_ABS_LLONG_MIN %}) {
-	    res = %{ PY2_LLONG_MIN %}
+	else if (i == 1) {
+	    res = @Py2LongObject(v)->ob_digit[0]
 	}
 	else {
-	    error("Python int too large")
-	    /* res is already set to -1 */
+	    sign = 1
+	    x = 0
+	    if (i < 0) {
+		sign = -1
+		i = -(i)
+	    }
+	    while (--i >= 0) {
+		prev = x
+		x = ((x << %{ Py2Long_SHIFT_BIG %})
+		     | @Py2LongObject(v)->ob_digit[i])
+		if ((x >> %{ Py2Long_SHIFT_BIG %}) != prev) {
+		    error("Python int too large")
+		    return res
+		}
+	    }
+	    /* Haven't lost any bits, but casting to long requires extra
+	     * care (see comment above).
+	     */
+	    if (x <= %{ __LONG_LONG_MAX__ %}) {
+		res = x * sign
+	    }
+	    else if (sign < 0 && x == %{ PY2_ABS_LLONG_MIN %}) {
+		res = %{ PY2_LLONG_MIN %}
+	    }
+	    else {
+		error("Python int too large")
+		/* res is already set to -1 */
+	    }
 	}
+	return res
     }
-    return res
+    else {
+	error("Py2Long_AsLongLongAndOverflow_Big isn't implemented")
+    }
 }
 
 private function Py2Long_AsLongLong:long(v:long)
 {
-    if (! @Py2Long_Check(v)) {    
-	error(sprintf("Py2Long_AsLong called on %s object at %p",
-	      python2_get_typename(v), @__pointer(v)))
-	return -1
-    }
+    if (@defined(@Py2LongObject(0)->ob_digit[0])) {
+	if (! @Py2Long_Check(v)) {    
+	    error(sprintf("Py2Long_AsLong called on %s object at %p",
+		  python2_get_typename(v), @__pointer(v)))
+	    return -1
+	}
 
 %( CONFIG_64BIT == "y" %?
 %( CONFIG_COMPAT == "y" %?
-    if (@__compat_task) {
-	return Py2Long_AsLongLongAndOverflow_Small(v)
-    }
+	if (@__compat_task) {
+	    return Py2Long_AsLongLongAndOverflow_Small(v)
+	}
 %)
-    return Py2Long_AsLongLongAndOverflow_Big(v)
+	return Py2Long_AsLongLongAndOverflow_Big(v)
 %:
-    return Py2Long_AsLongLongAndOverflow_Small(v)
+	return Py2Long_AsLongLongAndOverflow_Small(v)
 %)
+    }
+    else {
+	error("Py2Long_AsLongLong isn't implemented")
+    }
 }
 
 #
