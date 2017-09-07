@@ -3687,9 +3687,44 @@ dwflpp::translate_final_fetch_or_store (location_context &ctx,
       if (lvalue)
         throw SEMANTIC_ERROR (_("cannot write to member address"), e->tok);
 
-      if (dwarf_hasattr_integrate (vardie, DW_AT_bit_offset))
-        throw SEMANTIC_ERROR (_("cannot take address of bit-field"), e->tok);
+      if (dwarf_hasattr_integrate (vardie, DW_AT_bit_offset)
+	  || dwarf_hasattr_integrate (vardie, DW_AT_data_bit_offset))
+	throw SEMANTIC_ERROR (_("cannot take the address of a bit field"),
+			      e->tok);
 
+      switch (ctx.locations.back()->type)
+        {
+	case loc_address:
+	  /* do nothing, we're done */
+	  break;
+	case loc_register:
+	  throw SEMANTIC_ERROR (_("cannot take address of object in register"),
+				e->tok);
+	  break;
+	case loc_noncontiguous:
+	  throw SEMANTIC_ERROR (_("cannot take address of noncontiguous object"),
+				e->tok);
+	  break;
+	case loc_value:
+	  throw SEMANTIC_ERROR (_("cannot take address of computed value"),
+				e->tok);
+	  break;
+	case loc_constant:
+	  throw SEMANTIC_ERROR (_("cannot take address of constant value"),
+				e->tok);
+	  break;
+	case loc_unavailable:
+	  throw SEMANTIC_ERROR (_("cannot take address of unavailable value"),
+				e->tok);
+	  break;
+	case loc_implicit_pointer:
+	  throw SEMANTIC_ERROR (_("cannot take address of implicit pointer"),
+				e->tok);
+	  break;
+	default:
+	  abort ();
+	  break;
+	}
       return;
     }
 
