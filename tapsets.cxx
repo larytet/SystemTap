@@ -11308,6 +11308,7 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
       they_live.push_back ("struct spi_master;");
       they_live.push_back ("struct spi_message;");
       they_live.push_back ("struct spi_transfer;");
+      they_live.push_back ("struct spi_controller;");
     }
 
   if (header.find("thermal_power_allocator") != string::npos)
