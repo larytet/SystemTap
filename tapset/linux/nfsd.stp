@@ -38,6 +38,67 @@
  *15 :nfsd.proc3.rename.tfh
  */
 
+# In newer kernels, the 'rq_argp' and 'rq_resp' pointers in a
+# 'svc_rqst' structure are a void pointers that we need to cast to the
+# right nfsd private types, based on the protocol version. These
+# macros make all the casting easier.
+
+@define nfsd2_createargs(ptr)
+%(
+    @cast(@ptr, "nfsd_createargs", "kernel:nfsd")
+%)
+@define nfsd2_diropargs(ptr)
+%(
+    @cast(@ptr, "nfsd_diropargs", "kernel:nfsd")
+%)
+@define nfsd2_readargs(ptr)
+%(
+    @cast(@ptr, "nfsd_readargs", "kernel:nfsd")
+%)
+@define nfsd2_renameargs(ptr)
+%(
+    @cast(@ptr, "nfsd_renameargs", "kernel:nfsd")
+%)
+@define nfsd2_writeargs(ptr)
+%(
+    @cast(@ptr, "nfsd_writeargs", "kernel:nfsd")
+%)
+
+@define nfsd3_commitargs(ptr)
+%(
+    @cast(@ptr, "nfsd3_commitargs", "kernel:nfsd")
+%)
+@define nfsd3_createargs(ptr)
+%(
+    @cast(@ptr, "nfsd3_createargs", "kernel:nfsd")
+%)
+@define nfsd3_diropargs(ptr)
+%(
+    @cast(@ptr, "nfsd3_diropargs", "kernel:nfsd")
+%)
+@define nfsd3_readargs(ptr)
+%(
+    @cast(@ptr, "nfsd3_readargs", "kernel:nfsd")
+%)
+@define nfsd3_renameargs(ptr)
+%(
+    @cast(@ptr, "nfsd3_renameargs", "kernel:nfsd")
+%)
+@define nfsd3_writeargs(ptr)
+%(
+    @cast(@ptr, "nfsd3_writeargs", "kernel:nfsd")
+%)
+@define nfsd3_writeres(ptr)
+%(
+    @cast(@ptr, "nfsd3_writeres", "kernel:nfsd")
+%)
+
+@define nfsd4_compound_state(ptr)
+%(
+    @cast(@ptr, "nfsd4_compound_state", "kernel:nfsd")
+%)    
+
+
 /* Get file handle data from struct svc_fh. */
 @__private30 function __svc_fh:string(fhp:long)
 {
@@ -265,16 +326,24 @@ probe nfsd.proc2.lookup = kernel.function("nfsd_proc_lookup") !,
 	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 2
-	fh = & @cast($argp, "nfsd_diropargs", "kernel:nfsd")->fh
 
-	filelen = $argp->len
-	filename = kernel_string_n($argp->name, $argp->len)
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd2_diropargs($rqstp->rq_argp)->fh
+		filelen = @nfsd2_diropargs($rqstp->rq_argp)->len
+		filename = kernel_string_n(@nfsd2_diropargs($rqstp->rq_argp)->name,
+					   @nfsd2_diropargs($rqstp->rq_argp)->len)
+	}
+	else {
+		fh = & @nfsd2_diropargs($argp)->fh
+		filelen = $argp->len
+		filename = kernel_string_n($argp->name, $argp->len)
+	}
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
 
 	name = "nfsd.proc2.lookup"
-	argstr = sprintf("%s", kernel_string_n($argp->name, $argp->len))
+	argstr = sprintf("%s", filename)
 }
 
 probe nfsd.proc2.lookup.return =
@@ -294,16 +363,24 @@ probe nfsd.proc3.lookup = kernel.function("nfsd3_proc_lookup") !,
 	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
         version = 3
-	fh = & @cast($argp, "nfsd_diropargs", "kernel:nfsd")->fh
 
-	filelen = $argp->len
-	filename  = kernel_string_n($argp->name, $argp->len)
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd3_diropargs($rqstp->rq_argp)->fh
+		filelen = @nfsd3_diropargs($rqstp->rq_argp)->len
+		filename = kernel_string_n(@nfsd3_diropargs($rqstp->rq_argp)->name,
+					   @nfsd3_diropargs($rqstp->rq_argp)->len)
+	}
+	else {
+		fh = & @nfsd3_diropargs($argp)->fh
+		filelen = $argp->len
+		filename = kernel_string_n($argp->name, $argp->len)
+	}
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
 
 	name = "nfsd.proc3.lookup"
-	argstr = sprintf("%s", kernel_string_n($argp->name, $argp->len))
+	argstr = sprintf("%s", filename)
 } 
 
 probe nfsd.proc3.lookup.return =
@@ -341,16 +418,23 @@ probe nfsd.proc4.lookup = kernel.function("nfsd4_lookup").call !,
 	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 4
-	fh = & @cast($cstate, "nfsd4_compound_state", "kernel:nfsd")->current_fh
+	fh = & @nfsd4_compound_state($cstate)->current_fh
 
-	filelen = $lookup->lo_len
-	filename  = kernel_string_n($lookup->lo_name, $lookup->lo_len)
+	if (@defined($u)) {
+		filelen = $u->lookup->lo_len
+		filename = kernel_string_n($u->lookup->lo_name,
+					   $u->lookup->lo_len)
+	}
+	else {
+		filelen = $lookup->lo_len
+		filename = kernel_string_n($lookup->lo_name, $lookup->lo_len)
+	}
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
 
 	name = "nfsd.proc4.lookup"
-	argstr = sprintf("%s", kernel_string_n($lookup->lo_name, $lookup->lo_len))
+	argstr = sprintf("%s", filename)
 } 
 
 probe nfsd.proc4.lookup.return =
@@ -394,15 +478,23 @@ probe nfsd.proc.read.return =
 probe nfsd.proc2.read = kernel.function("nfsd_proc_read") !,
                         module("nfsd").function("nfsd_proc_read") ?
 {
-	client_ip =  addr_from_rqst_str($rqstp)
+	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
         version = 2
-	fh = & @cast($argp, "nfsd_readargs", "kernel:nfsd")->fh
-
-	count = $argp->count 
-	offset = $argp->offset 
-	vec = @choose_defined($rqstp->rq_vec, $argp->vec)
-	vlen = $argp->vlen
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd2_readargs($rqstp->rq_argp)->fh
+		count = @nfsd2_readargs($rqstp->rq_argp)->count 
+		offset = @nfsd2_readargs($rqstp->rq_argp)->offset 
+		vec = $rqstp->rq_vec
+		vlen = @nfsd2_readargs($rqstp->rq_argp)->vlen
+	}
+	else {
+		fh = & @nfsd2_readargs($argp)->fh
+		count = $argp->count 
+		offset = $argp->offset 
+		vec = @choose_defined($rqstp->rq_vec, $argp->vec)
+		vlen = $argp->vlen
+	}
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
@@ -428,15 +520,23 @@ probe nfsd.proc2.read.return =
 probe nfsd.proc3.read = kernel.function("nfsd3_proc_read") !,
                         module("nfsd").function("nfsd3_proc_read") ?
 {
-	client_ip =  addr_from_rqst_str($rqstp)
+	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 3
-	fh = & @cast($argp, "nfsd3_readargs", "kernel:nfsd")->fh
-
-	count = $argp->count 
-	offset = $argp->offset 
-	vec = @choose_defined($rqstp->rq_vec, $argp->vec)
-	vlen = $argp->vlen
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd3_readargs($rqstp->rq_argp)->fh
+		count = @nfsd3_readargs($rqstp->rq_argp)->count 
+		offset = @nfsd3_readargs($rqstp->rq_argp)->offset 
+		vec = $rqstp->rq_vec
+		vlen = @nfsd3_readargs($rqstp->rq_argp)->vlen
+	}
+	else {
+		fh = & @nfsd3_readargs($argp)->fh
+		count = $argp->count 
+		offset = $argp->offset 
+		vec = @choose_defined($rqstp->rq_vec, $argp->vec)
+		vlen = $argp->vlen
+	}
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
@@ -465,7 +565,7 @@ probe nfsd.proc4.read = kernel.function("nfsd4_read").call !,
 	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 4
-	fh = & @cast($cstate, "nfsd4_compound_state", "kernel:nfsd")->current_fh
+	fh = & @nfsd4_compound_state($cstate)->current_fh
 
 	count = $read->rd_length
 	offset = $read->rd_offset
@@ -523,15 +623,24 @@ probe nfsd.proc.write.return =
 probe nfsd.proc2.write = kernel.function("nfsd_proc_write") !,
                          module("nfsd").function("nfsd_proc_write") ?
 {
-	client_ip =  addr_from_rqst_str($rqstp)
+	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
         version = 2
-	fh = & @cast($argp, "nfsd_writeargs", "kernel:nfsd")->fh
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd2_writeargs($rqstp->rq_argp)->fh
+		count = @nfsd2_writeargs($rqstp->rq_argp)->len
+		offset = @nfsd2_writeargs($rqstp->rq_argp)->offset 
+		vec = $rqstp->rq_vec
+		vlen = @nfsd2_writeargs($rqstp->rq_argp)->vlen
+	}
+	else {
+		fh = & @nfsd2_writeargs($argp)->fh
+		count = $argp->len
+		offset = $argp->offset 
+		vec = @choose_defined($rqstp->rq_vec, $argp->vec)
+		vlen = $argp->vlen
+	}
 
-	count = $argp->len
-	offset = $argp->offset 
-	vec = @choose_defined($rqstp->rq_vec, $argp->vec)
-	vlen = $argp->vlen
 	stable = 1			# hardcoded in nfsd_proc_write()
 
 	uid = __rqstp_uid($rqstp)
@@ -553,23 +662,39 @@ probe nfsd.proc2.write.return =
 	name = "nfsd.proc2.write.return"
 	version = 2
 	retstr = sprintf("%s", nfsderror($return))
-	count = ($return == 0 ? @entry($argp->len) : $return)
+	if (@defined(@entry($rqstp->rq_argp))) {
+		count = ($return == 0
+			 ? @entry(@nfsd2_writeargs($rqstp->rq_argp)->len)
+			 : $return)
+	}
+	else {
+		count = ($return == 0 ? @entry($argp->len) : $return)
+	}
 	stable = 1
 }
 
 probe nfsd.proc3.write = kernel.function("nfsd3_proc_write") !,
                          module("nfsd").function("nfsd3_proc_write") ?
 {
-	client_ip =  addr_from_rqst_str($rqstp)
+	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 3
-	fh = & @cast($argp, "nfsd3_writeargs", "kernel:nfsd")->fh
-
-	count = $argp->count 
-	offset = $argp->offset 
-	vec = @choose_defined($rqstp->rq_vec, $argp->vec)
-	vlen = $argp->vlen
-	stable = $argp->stable
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd3_writeargs($rqstp->rq_argp)->fh
+		count = @nfsd3_writeargs($rqstp->rq_argp)->count 
+		offset = @nfsd3_writeargs($rqstp->rq_argp)->offset 
+		vec = $rqstp->rq_vec
+		vlen = @nfsd3_writeargs($rqstp->rq_argp)->vlen
+		stable = @nfsd3_writeargs($rqstp->rq_argp)->stable
+	}
+	else {
+		fh = & @nfsd3_writeargs($argp)->fh
+		count = $argp->count 
+		offset = $argp->offset 
+		vec = @choose_defined($rqstp->rq_vec, $argp->vec)
+		vlen = $argp->vlen
+		stable = $argp->stable
+	}
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
@@ -590,8 +715,14 @@ probe nfsd.proc3.write.return =
 	name = "nfsd.proc3.write.return"
 	version = 3
 	retstr = sprintf("%s", nfsderror($return))
-	count = @entry($resp->count)
-	stable = @entry($resp->committed)
+	if (@defined(@entry($rqstp->rq_resp))) {
+		count = @entry(@nfsd3_writeres($rqstp->rq_resp)->count)
+		stable = @entry(@nfsd3_writeres($rqstp->rq_resp)->committed)
+	}
+	else {
+		count = @entry($resp->count)
+		stable = @entry($resp->committed)
+	}
 }
 
 probe nfsd.proc4.write = kernel.function("nfsd4_write").call !,
@@ -600,12 +731,20 @@ probe nfsd.proc4.write = kernel.function("nfsd4_write").call !,
 	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 4
-	fh = & @cast($cstate, "nfsd4_compound_state", "kernel:nfsd")->current_fh
-	count = $write->wr_buflen
-	offset = $write->wr_offset
+	fh = & @nfsd4_compound_state($cstate)->current_fh
 	vec = $rqstp->rq_vec
-	vlen = @choose_defined($write->wr_vlen, 0)
-	stable = $write->wr_stable_how
+	if (@defined($u)) {
+		count = $u->write->wr_buflen
+		offset = $u->write->wr_offset
+		vlen = @choose_defined($u->write->wr_vlen, 0)
+		stable = $u->write->wr_stable_how
+	}
+	else {
+		count = $write->wr_buflen
+		offset = $write->wr_offset
+		vlen = @choose_defined($write->wr_vlen, 0)
+		stable = $write->wr_stable_how
+	}
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
@@ -625,8 +764,14 @@ probe nfsd.proc4.write.return =
 
 	name = "nfsd.proc4.write.return"
 	version = 4
-	count = @entry($write->wr_bytes_written)
-	stable = @entry($write->wr_how_written)
+	if (@defined(@entry($u))) {
+		count = @entry($u->write->wr_bytes_written)
+		stable = @entry($u->write->wr_how_written)
+	}
+	else {
+		count = @entry($write->wr_bytes_written)
+		stable = @entry($write->wr_how_written)
+	}
 
 	retstr = sprintf("%s", nfsderror($return))
 }
@@ -657,13 +802,20 @@ probe nfsd.proc.commit.return =
 probe nfsd.proc3.commit = kernel.function("nfsd3_proc_commit") !,
                           module("nfsd").function("nfsd3_proc_commit") ?
 {
-	client_ip =  addr_from_rqst_str($rqstp)
+	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
         version = 3
-	fh = & @cast($argp, "struct nfsd3_commitargs", "kernel:nfsd")->fh
 
-	count = $argp->count 
-	offset = $argp->offset 
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd3_commitargs($rqstp->rq_argp)->fh
+		count = @nfsd3_commitargs($rqstp->rq_argp)->count 
+		offset = @nfsd3_commitargs($rqstp->rq_argp)->offset 
+	}
+	else {
+		fh = & @nfsd3_commitargs($argp)->fh
+		count = $argp->count 
+		offset = $argp->offset 
+	}
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
@@ -692,7 +844,7 @@ probe nfsd.proc4.commit = kernel.function("nfsd4_commit").call !,
 	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 4
-	fh = & @cast($cstate, "nfsd4_compound_state", "kernel:nfsd")->current_fh
+	fh = & @nfsd4_compound_state($cstate)->current_fh
 	count = $commit->co_count 
 	offset = $commit->co_offset 
 
@@ -743,20 +895,29 @@ probe nfsd.proc.create.return =
 probe nfsd.proc2.create = kernel.function("nfsd_proc_create") !,
                           module("nfsd").function("nfsd_proc_create") ?
 {
-	client_ip =  addr_from_rqst_str($rqstp)
+	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 2
-	fh = & @cast($argp, "struct nfsd_createargs", "kernel:nfsd")->fh
 
-	filelen = $argp->len
-	filename  = kernel_string_n($argp->name, $argp->len)
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd2_createargs($rqstp->rq_argp)->fh
+		filelen = @nfsd2_createargs($rqstp->rq_argp->len)
+		filename = kernel_string_n(@nfsd2_createargs($rqstp->rq_argp)->name,
+					   @nfsd2_createargs($rqstp->rq_argp)->len)
+	}
+	else {
+		fh = & @nfsd2_createargs($argp)->fh
+		filelen = $argp->len
+		filename = kernel_string_n($argp->name, $argp->len)
+	}
+
 	createmode = 0			# gets computed by nfsd_proc_create
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
 
 	name = "nfsd.proc2.create"
-	argstr = sprintf("%s", kernel_string_n($argp->name, $argp->len))
+	argstr = sprintf("%s", filename)
 }
 
 probe nfsd.proc2.create.return =
@@ -773,22 +934,29 @@ probe nfsd.proc2.create.return =
 probe nfsd.proc3.create = kernel.function("nfsd3_proc_create") !,
                           module("nfsd").function("nfsd3_proc_create") ?
 {
-	client_ip =  addr_from_rqst_str($rqstp)
+	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 3
-	fh = & @cast($argp, "struct nfsd_createargs", "kernel:nfsd")->fh
 
-	filelen = $argp->len
-	filename  = kernel_string_n($argp->name, $argp->len)
-	createmode = $argp->createmode
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd3_createargs($rqstp->rq_argp)->fh
+		filelen = @nfsd3_createargs($rqstp->rq_argp)->len
+		filename = kernel_string_n(@nfsd3_createargs($rqstp->rq_argp)->name,
+					   @nfsd3_createargs($rqstp->rq_argp)->len)
+		createmode = @nfsd3_createargs($rqstp->rq_argp)->createmode
+	}
+	else {
+		fh = & @nfsd3_createargs($argp)->fh
+		filelen = $argp->len
+		filename = kernel_string_n($argp->name, $argp->len)
+		createmode = $argp->createmode
+	}
 	
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
 
 	name = "nfsd.proc3.create"
-	argstr = sprintf("%s (mode=%s)",
-			 kernel_string_n($argp->name, $argp->len), 
-			 nfs3_cmode(createmode))
+	argstr = sprintf("%s (mode=%s)", filename, nfs3_cmode(createmode))
 }
 
 probe nfsd.proc3.create.return =
@@ -809,19 +977,25 @@ probe nfsd.proc4.create = kernel.function("nfsd4_create").call !,
 	proto = $rqstp->rq_prot
 	version = 4
 	fh = (@defined($cstate)
-	      ? &@cast($cstate, "nfsd4_compound_state", "kernel:nfsd")->current_fh
+	      ? & @nfsd4_compound_state($cstate)->current_fh
 	      : $current_fh)
-	filelen = $create->cr_namelen
-	filename  = kernel_string_n($create->cr_name, $create->cr_namelen)
-	createmode = $create->cr_type
+	if (@defined($u)) {
+		filelen = $u->create->cr_namelen
+		filename = kernel_string_n($u->create->cr_name,
+					   $u->create->cr_namelen)
+		createmode = $u->create->cr_type
+	}
+	else {
+		filelen = $create->cr_namelen
+		filename = kernel_string_n($create->cr_name, $create->cr_namelen)
+		createmode = $create->cr_type
+	}
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
 
 	name = "nfsd.proc4.create"
-	argstr = sprintf("%s (type=%s)", 
-		kernel_string_n($create->cr_name, $create->cr_namelen), 
-		nfs4_ctype(createmode))
+	argstr = sprintf("%s (type=%s)", filename, nfs4_ctype(createmode))
 
 } 
 
@@ -862,26 +1036,32 @@ probe nfsd.proc.remove.return =
 probe nfsd.proc2.remove = kernel.function("nfsd_proc_remove") !,
                           module("nfsd").function("nfsd_proc_remove") ?
 {
-	client_ip =  addr_from_rqst_str($rqstp)
+	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 2
-	fh = & @cast($argp, "struct nfsd_diropargs", "kernel:nfsd")->fh
-
-	filelen = $argp->len
-	filename  = kernel_string_n($argp->name, $argp->len)
-
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd2_diropargs($rqstp->rq_argp)->fh
+		filelen = @nfsd2_diropargs($rqstp->rq_argp)->len
+		filename = kernel_string_n(@nfsd2_diropargs($rqstp->rq_argp)->name,
+					   @nfsd2_diropargs($rqstp->rq_argp)->len)
+	}
+	else {
+		fh = & @nfsd2_diropargs($argp)->fh
+		filelen = $argp->len
+		filename = kernel_string_n($argp->name, $argp->len)
+	}
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
 
 	name = "nfsd.proc2.remove"
-	argstr = sprintf("%s", kernel_string_n($argp->name, $argp->len))
+	argstr = sprintf("%s", filename)
 }
 
 probe nfsd.proc2.remove.return =
 		kernel.function("nfsd_proc_remove").return !,
 		module("nfsd").function("nfsd_proc_remove").return ?
 {
-	client_ip =  addr_from_rqst_str(@entry($rqstp))
+	client_ip = addr_from_rqst_str(@entry($rqstp))
 
 	name = "nfsd.proc2.remove.return"
 	version = 2
@@ -891,26 +1071,33 @@ probe nfsd.proc2.remove.return =
 probe nfsd.proc3.remove = kernel.function("nfsd3_proc_remove") !,
                           module("nfsd").function("nfsd3_proc_remove") ?
 {
-	client_ip =  addr_from_rqst_str($rqstp)
+	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 3
-	fh = & @cast($argp, "struct nfsd3_diropargs", "kernel:nfsd")->fh
-
-	filelen = $argp->len
-	filename  = kernel_string_n($argp->name, $argp->len)
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd3_diropargs($rqstp->rq_argp)->fh
+		filelen = @nfsd3_diropargs($rqstp->rq_argp)->len
+		filename = kernel_string_n(@nfsd3_diropargs($rqstp->rq_argp)->name,
+					   @nfsd3_diropargs($rqstp->rq_argp)->len)
+	}
+	else {
+		fh = & @nfsd3_diropargs($argp)->fh
+		filelen = $argp->len
+		filename = kernel_string_n($argp->name, $argp->len)
+	}
 	
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
 
 	name = "nfsd.proc3.remove"
-	argstr = sprintf("%s", kernel_string_n($argp->name, $argp->len))
+	argstr = sprintf("%s", filename)
 }
 
 probe nfsd.proc3.remove.return =
 		kernel.function("nfsd3_proc_remove").return !,
 		module("nfsd").function("nfsd3_proc_remove").return ?
 {
-	client_ip =  addr_from_rqst_str(@entry($rqstp))
+	client_ip = addr_from_rqst_str(@entry($rqstp))
 
 	name = "nfsd.proc3.remove.return"
 	version = 3
@@ -923,24 +1110,30 @@ probe nfsd.proc4.remove = kernel.function("nfsd4_remove").call !,
 	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 4
-	fh = & @cast($cstate, "nfsd4_compound_state", "kernel:nfsd")->current_fh
-	filelen = $remove->rm_namelen
-	filename  = kernel_string_n($remove->rm_name, $remove->rm_namelen)
+	fh = & @nfsd4_compound_state($cstate)->current_fh
+	if (@defined($u)) {
+		filelen = $u->remove->rm_namelen
+		filename = kernel_string_n($u->remove->rm_name,
+					   $u->remove->rm_namelen)
+	}
+	else {
+		filelen = $remove->rm_namelen
+		filename = kernel_string_n($remove->rm_name,
+					   $remove->rm_namelen)
+	}
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
 
 	name = "nfsd.proc4.remove"
-	argstr = sprintf("%s", 
-		kernel_string_n($remove->rm_name, $remove->rm_namelen))
-
+	argstr = sprintf("%s", filename)
 } 
 
 probe nfsd.proc4.remove.return =
 		kernel.function("nfsd4_remove").return !,
 		module("nfsd").function("nfsd4_remove").return ?
 {
-	client_ip =  addr_from_rqst_str(@entry($rqstp))
+	client_ip = addr_from_rqst_str(@entry($rqstp))
 
 	name = "nfsd.proc4.remove.return"
 	version = 4
@@ -975,31 +1168,41 @@ probe nfsd.proc.rename.return =
 probe nfsd.proc2.rename = kernel.function("nfsd_proc_rename") !,
                           module("nfsd").function("nfsd_proc_rename") ?
 {
-	client_ip =  addr_from_rqst_str($rqstp)
+	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 2
-	fh = & @cast($argp, "struct nfsd_renameargs", "kernel:nfsd")->ffh
-	tfh = & @cast($argp, "struct nfsd_renameargs", "kernel:nfsd")->tfh
 
-	filelen = $argp->flen
-	filename  = kernel_string_n($argp->fname, $argp->flen)	
-	tlen = $argp->tlen
-	tname = kernel_string_n($argp->tname, $argp->tlen)
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd2_renameargs($rqstp->rq_argp)->ffh
+		tfh = & @nfsd2_renameargs($rqstp->rq_argp)->tfh
+		filelen = @nfsd2_renameargs($rqstp->rq_argp)->flen
+		filename = kernel_string_n(@nfsd2_renameargs($rqstp->rq_argp)->fname,
+					   @nfsd2_renameargs($rqstp->rq_argp)->flen)	
+		tlen = @nfsd2_renameargs($rqstp->rq_argp)->tlen
+		tname = kernel_string_n(@nfsd2_renameargs($rqstp->rq_argp)->tname,
+					@nfsd2_renameargs($rqstp->rq_argp)->tlen)
+	}
+	else {
+		fh = & @nfsd2_renameargs($argp)->ffh
+		tfh = & @nfsd2_renameargs($argp)->tfh
+		filelen = $argp->flen
+		filename = kernel_string_n($argp->fname, $argp->flen)	
+		tlen = $argp->tlen
+		tname = kernel_string_n($argp->tname, $argp->tlen)
+	}
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
 
 	name = "nfsd.proc2.rename"
-	argstr = sprintf("%s to %s", 
-		kernel_string_n($argp->fname, $argp->flen),
-		kernel_string_n($argp->tname, $argp->tlen))
+	argstr = sprintf("%s to %s", filename, tname)
 }
 
 probe nfsd.proc2.rename.return =
 		kernel.function("nfsd_proc_rename").return !,
 		module("nfsd").function("nfsd_proc_rename").return ?
 {
-	client_ip =  addr_from_rqst_str(@entry($rqstp))
+	client_ip = addr_from_rqst_str(@entry($rqstp))
 
 	name = "nfsd.proc2.rename.return"
 	version = 2
@@ -1009,31 +1212,41 @@ probe nfsd.proc2.rename.return =
 probe nfsd.proc3.rename = kernel.function("nfsd3_proc_rename") !,
                           module("nfsd").function("nfsd3_proc_rename") ?
 {
-	client_ip =  addr_from_rqst_str($rqstp)
+	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 3
-	fh = & @cast($argp, "struct nfsd3_renameargs", "kernel:nfsd")->ffh
-	tfh = & @cast($argp, "struct nfsd3_renameargs", "kernel:nfsd")->tfh
 
-	filelen = $argp->flen
-	filename  = kernel_string_n($argp->fname, $argp->flen)	
-	tlen = $argp->tlen
-	tname = kernel_string_n($argp->tname, $argp->tlen)
+	if (@defined($rqstp->rq_argp)) {
+		fh = & @nfsd3_renameargs($rqstp->rq_argp)->ffh
+		tfh = & @nfsd3_renameargs($rqstp->rq_argp)->tfh
+		filelen = @nfsd3_renameargs($rqstp->rq_argp)->flen
+		filename = kernel_string_n(@nfsd3_renameargs($rqstp->rq_argp)->fname,
+					   @nfsd3_renameargs($rqstp->rq_argp)->flen)	
+		tlen = @nfsd3_renameargs($rqstp->rq_argp)->tlen
+		tname = kernel_string_n(@nfsd3_renameargs($rqstp->rq_argp)->tname,
+					@nfsd3_renameargs($rqstp->rq_argp)->tlen)
+	}
+	else {
+		fh = & @nfsd3_renameargs($argp)->ffh
+		tfh = & @nfsd3_renameargs($argp)->tfh
+		filelen = $argp->flen
+		filename = kernel_string_n($argp->fname, $argp->flen)	
+		tlen = $argp->tlen
+		tname = kernel_string_n($argp->tname, $argp->tlen)
+	}
 
 	uid = __rqstp_uid($rqstp)
 	gid = __rqstp_gid($rqstp)
 
 	name = "nfsd.proc3.rename"
-	argstr = sprintf("%s to %s", 
-		kernel_string_n($argp->fname, $argp->flen), 
-		kernel_string_n($argp->tname, $argp->tlen))
+	argstr = sprintf("%s to %s", filename, tname)
 }
 
 probe nfsd.proc3.rename.return =
 		kernel.function("nfsd3_proc_rename").return !,
 		module("nfsd").function("nfsd3_proc_rename").return ?
 {
-	client_ip =  addr_from_rqst_str(@entry($rqstp))
+	client_ip = addr_from_rqst_str(@entry($rqstp))
 
 	name = "nfsd.proc3.rename.return"
 	version = 3
@@ -1046,11 +1259,11 @@ probe nfsd.proc4.rename = kernel.function("nfsd4_rename").call !,
 	client_ip = addr_from_rqst_str($rqstp)
 	proto = $rqstp->rq_prot
 	version = 4
-	fh = & @cast($cstate, "nfsd4_compound_state", "kernel:nfsd")->save_fh
-	tfh = & @cast($cstate, "nfsd4_compound_state", "kernel:nfsd")->current_fh
+	fh = & @nfsd4_compound_state($cstate)->save_fh
+	tfh = & @nfsd4_compound_state($cstate)->current_fh
 
 	filelen = $rename->rn_snamelen
-	filename  = kernel_string_n($rename->rn_sname, $rename->rn_snamelen)	
+	filename = kernel_string_n($rename->rn_sname, $rename->rn_snamelen)	
 	tlen = $rename->rn_tnamelen
 	tname = kernel_string_n($rename->rn_tname, $rename->rn_tnamelen)
 
@@ -1067,7 +1280,7 @@ probe nfsd.proc4.rename.return =
 		kernel.function("nfsd4_rename").return !,
 		module("nfsd").function("nfsd4_rename").return ?
 {
-	client_ip =  addr_from_rqst_str(@entry($rqstp))
+	client_ip = addr_from_rqst_str(@entry($rqstp))
 
 	name = "nfsd.proc4.rename.return"
 	version = 4
@@ -1464,7 +1677,7 @@ probe nfsd.rename = kernel.function("nfsd_rename") !,
 	tfh = __svc_fh($tfhp)
 
 	filelen = $flen
-	filename  = kernel_string_n($fname, $flen)
+	filename = kernel_string_n($fname, $flen)
 	tlen = $tlen
 	tname = kernel_string_n($tname, $tlen)
 
