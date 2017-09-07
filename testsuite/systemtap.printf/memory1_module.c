@@ -13,6 +13,7 @@
 #include <linux/proc_fs.h>
 #include <linux/compiler.h>
 #include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* The purpose of this module is to provide a kernel string we can
  * safely read. We use a /proc file to trigger the function call from
