@@ -3586,7 +3586,7 @@ dwflpp::translate_base_ref (location_context &ctx, Dwarf_Word byte_size,
 
     case loc_noncontiguous:
       loc = loc->pieces;
-      if (loc && loc->byte_size >= byte_size)
+      if (loc && loc->byte_size < byte_size)
 	{
 	  ctx.locations.push_back(loc);
 	  goto restart;
