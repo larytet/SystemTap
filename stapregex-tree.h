@@ -90,6 +90,13 @@ inline void unmark(ins *i) { i->i.marked = 0; }
 /* Helper function for printing out one ins element in a sequence: */
 const ins* show_ins(std::ostream &o, const ins *i, const ins *base);
 
+/* Perform the obvious optimization/compression on an ins node
+   (namely, collapsing chained GOTOs).
+
+   NB: This function sets 'marked' flags on the node; the caller is
+   responsible for clearing these flags for subsequent use. */
+void ins_optimize(ins *i);
+
 // ------------------------------------------------------------------------
 
 struct regexp {
