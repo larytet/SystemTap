@@ -35,6 +35,7 @@ struct stapdfa {
            const token *tok = NULL, bool do_unescape = true, bool do_tag = true);
   ~stapdfa ();
   unsigned num_states() const;
+  unsigned num_map_items() const;
   unsigned num_tags() const;
 
   void emit_declaration (translator_output *o) const;

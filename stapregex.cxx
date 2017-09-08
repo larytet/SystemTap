@@ -45,7 +45,7 @@ regex_to_stapdfa (systemtap_session *s, const string& input, const token *tok)
   stapdfa *dfa = new stapdfa ("__stp_dfa" + lex_cast(s->dfa_counter++), input, tok, true, do_tag);
 
   // Update required size of subexpression-tracking data structure:
-  s->dfa_maxstate = max(s->dfa_maxstate, dfa->num_states());
+  s->dfa_maxmap = max(s->dfa_maxmap, dfa->num_map_items());
   s->dfa_maxtag = max(s->dfa_maxtag, dfa->num_tags());
 
   s->dfas[input] = dfa;
@@ -84,6 +84,12 @@ unsigned
 stapdfa::num_states () const
 {
   return content->nstates;
+}
+
+unsigned
+stapdfa::num_map_items () const
+{
+  return content->nmapitems;
 }
 
 unsigned

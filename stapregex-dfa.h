@@ -126,6 +126,7 @@ struct dfa {
   unsigned nstates;
 
   // Infrastructure to deal with tagging:
+  unsigned nmapitems;
   unsigned ntags;
   tdfa_action initializer; // -- run before entering start state
   std::vector<std::string> outcome_snippets;
