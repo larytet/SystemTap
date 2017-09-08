@@ -153,6 +153,8 @@ struct dfa {
   ~dfa ();
 
   void emit (translator_output *o) const;
+
+  void emit_action (translator_output *o, const tdfa_action &act) const;
   void emit_tagsave (translator_output *o, std::string tag_states,
                      std::string tag_vals, std::string tag_count) const;
 

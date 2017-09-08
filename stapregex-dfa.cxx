@@ -925,35 +925,86 @@ dfa::~dfa ()
 
 // ------------------------------------------------------------------------
 
-// TODOXXX add emission instructions for tag_ops
-
 void
 span::emit_jump (translator_output *o, const dfa *d) const
 {
 #ifdef STAPREGEX_DEBUG_MATCH
-  o->newline () << "printf(\" --> GOTO yystate%d\\n\", " << to->label << ");";
+  o->newline () << "_stp_printf(\" --> @%ld GOTO yystate%d\\n\", "
+                << "YYLENGTH, " << to->label << ");";
+  o->newline () << "_stp_print_flush();";
 #endif
 
-  // TODOXXX tags feature allows proper longest-match priority
   if (to->accepts)
     {
       emit_final(o, d);
+      return;
     }
-  else
-    {
-      o->newline () << "YYCURSOR++;";
-      o->newline () << "goto yystate" << to->label << ";";
-    }
+
+  // We record map_items *after* consuming YYCURSOR:
+  o->newline () << "YYCURSOR++;";
+  d->emit_action(o, action);
+  o->newline () << "goto yystate" << to->label << ";";
 }
 
-/* Assuming the target DFA of the span is a final state, emit code to
-   (TODOXXX) cleanup tags and exit with a final answer. */
+/* Assuming the target DFA state of the span is a final state, emit code to
+   cleanup tags and (if appropriate) exit with a final answer. */
 void
 span::emit_final (translator_output *o, const dfa *d) const
 {
   assert (to->accepts); // XXX: must guarantee correct usage of emit_final()
-  o->newline() << d->outcome_snippets[to->accept_outcome];
-  o->newline() << "goto yyfinish;";
+
+  // We record map_items *after* consuming YYCURSOR:
+  o->newline () << "YYCURSOR++;";
+  d->emit_action(o, action);
+
+  // XXX: Note that condition to->finalizer.empty() is only
+  // appropriate for the two-outcome scheme with one outcome being a
+  // failure.
+  if (d->ntags == 0 || to->finalizer.empty()) // terminate immediately
+    {
+      d->emit_action(o, to->finalizer);
+      if (d->ntags == 0)
+        {
+          o->newline() << d->outcome_snippets[to->accept_outcome];
+          o->newline() << "goto yyfinish;";
+        }
+      else
+        {
+          // Need to return the outcome associated with the longest match:
+          o->newline() << "if ( YYFINAL(0) >= 0 ) {";
+          o->newline(1) << d->outcome_snippets[d->success_outcome];
+          o->newline(-1) << "} else {";
+          o->newline(1) << d->outcome_snippets[d->fail_outcome];
+          o->newline(-1) << "}";
+          o->newline() << "goto yyfinish;";
+        }
+    }
+  else
+    {
+      // Ensure longest-match priority by comparing length + start coord:
+      map_item new_tag_0; bool found = false;
+      for (tdfa_action::iterator it = to->finalizer.begin();
+           it != to->finalizer.end(); it++)
+        // TODOXXX: Only works if finalizer only contains reordering commands
+        // (perhaps make that into an explicitly checked condition?)
+        if (it->save_tag && it->from.first == 0)
+          {
+            new_tag_0 = it->from; // the map_item saved to tag 0
+            found = true;
+          }
+      assert(found);
+#define NEW_TAG_0 "YYTAG(" << new_tag_0.first << "," << new_tag_0.second << ")"
+      // if (new_tag_0 == old_tag_0 && new_length > old_length) emit action;
+      o->newline() << "if ( YYFINAL(0) < 0 || "
+                   << "(" << NEW_TAG_0 << " == YYFINAL(0) &&";
+      o->newline() << "    (YYLENGTH - " << NEW_TAG_0 << ")"
+                   << " > (YYFINAL(1) - YYFINAL(0)))) {";
+      o->newline(1); d->emit_action(o, to->finalizer);
+      o->indent(-1);
+      o->newline() << "}";
+
+      o->newline () << "goto yystate" << to->label << ";";
+    }
 }
 
 string c_char(rchar c)
@@ -970,10 +1021,13 @@ state::emit (translator_output *o, const dfa *d) const
 {
   o->newline() << "yystate" << label << ": ";
 #ifdef STAPREGEX_DEBUG_MATCH
-  o->newline () << "printf(\"READ '%s' %c\", cur, *YYCURSOR);";
+  o->newline () << "_stp_printf(\"@%ld READ '%s' %c\", "
+                << "YYLENGTH, cur, *YYCURSOR);";
+  o->newline () << "_stp_print_flush();";
 #endif
   o->newline() << "switch (*YYCURSOR) {";
   o->indent(1);
+  const span *default_span = NULL;
   for (list<span>::const_iterator it = spans.begin();
        it != spans.end(); it++)
     {
@@ -981,18 +1035,29 @@ state::emit (translator_output *o, const dfa *d) const
       if (it->lb == '\0')
         {
           o->newline() << "case " << c_char('\0') << ":";
-          it->emit_final(o, d); // TODOXXX extra function may be unneeded
+          it->emit_final(o, d);
         }
 
       // Emit labels to handle all the other elements of the span:
       for (unsigned c = max((rchar) '\1', it->lb);
            c <= (unsigned) it->ub; c++) {
+        if (c > 127)
+          {
+            default_span = &(*it);
+            continue; // XXX: not an ASCII char, needs special handling
+          }
         o->newline() << "case " << c_char((rchar) c) << ":";
       }
       it->emit_jump(o, d);
 
-      // TODOXXX handle a 'default' set of characters for the largest span...
-      // TODOXXX optimize by accepting before end of string whenever possible... (also necessary for proper first-matched-substring selection)
+      // TODOXXX 'default' option should handle the largest span
+      // TODOXXX optimize by accepting before end of string whenever possible
+    }
+  if (default_span)
+    {
+      // Handle a non-ASCII (unknown) char:
+      o->newline() << "default:";
+      default_span->emit_jump(o, d);
     }
   o->newline(-1) << "}";
 }
@@ -1006,8 +1071,22 @@ dfa::emit (translator_output *o) const
   o->newline() << "{";
   o->newline(1);
 
-  // XXX: workaround for empty regex
+  // Initialize tags:
+  if (ntags > 0)
+    {
+      o->newline() << "unsigned int i;";
+      o->newline() << "for (i = 0; i < " << ntags << "; i++)";
+      o->newline(1) << "YYFINAL(i) = -1;";
+      o->indent(-1);
+    }
+
+  emit_action(o, initializer);
+
   if (first->accepts)
+    {
+      emit_action(o, first->finalizer);
+    }
+  if (first->accepts && ntags == 0) // XXX workaround for empty regex
     {
       o->newline() << outcome_snippets[first->accept_outcome];
       o->newline() << "goto yyfinish;";      
@@ -1022,10 +1101,36 @@ dfa::emit (translator_output *o) const
 }
 
 void
-dfa::emit_tagsave (translator_output *, std::string,
-                   std::string, std::string) const
+dfa::emit_action (translator_output *o, const tdfa_action &act) const
 {
-  // TODOXXX implement after testing the preceding algorithms
+#ifdef STAPREGEX_DEBUG_MATCH
+  o->newline () << "_stp_printf(\" --> @%ld, SET_TAG %s\\n\", "
+                << "YYLENGTH, \"" << act << "\");";
+  o->newline () << "_stp_print_flush();";
+#endif
+  for (tdfa_action::const_iterator it = act.begin(); it != act.end(); it++)
+    {
+      if (it->save_tag)
+        o->newline() << "YYFINAL(" << it->from.first << ") = ";
+      else
+        o->newline() << "YYTAG(" << it->to.first
+                     << "," << it->to.second << ") = ";
+      if (it->save_pos)
+        o->line() << "YYLENGTH";
+      else
+        o->line() << "YYTAG(" << it->from.first
+                  << "," << it->from.second << ")";
+      o->line() << ";";
+    }
+}
+
+void
+dfa::emit_tagsave (translator_output *o, std::string,
+                   std::string, std::string num_final_tags) const
+{
+  // TODOXXX: ignoring other two snippets (tag_states and tag_vals),
+  // which are handled by the earlier code in the actual matcher.
+  o->newline() << num_final_tags << " = " << ntags << ";";
 }
 
 // ------------------------------------------------------------------------
