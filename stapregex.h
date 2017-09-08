@@ -17,6 +17,8 @@
 #include <string>
 #include <iostream>
 
+#include "stapregex-defines.h"
+
 struct systemtap_session; /* from session.h */
 struct token; /* from parse.h */
 class translator_output; /* from translator-output.h */

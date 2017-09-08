@@ -19,18 +19,21 @@
 #include <utility>
 #include <stdexcept>
 
-// XXX: currently we only support ASCII
-#define NUM_REAL_CHARS 128
+#include "stapregex-defines.h"
+
+// Numbering scheme for tags representing start and end of n'th subexpression:
+#define TAG_START(n) (2*(n))
+#define TAG_END(n) (2*(n)+1)
 
 namespace stapregex {
 
-typedef std::pair<char, char> segment;
+typedef std::pair<rchar, rchar> segment;
 
 struct range {
-  std::deque<segment> segments;   // -- [lb, ub], sorted ascending // TODOXXX
+  std::deque<segment> segments;   // -- [lb, ub], XXX sorted ascending
 
   range () {}                     // -- empty range
-  range (char lb, char ub);       // -- a segment [lb, ub]
+  range (rchar lb, rchar ub);     // -- a segment [lb, ub]
   range (const std::string& str); // -- character class (no named entities)
 
   void print(std::ostream& o) const;
@@ -75,7 +78,7 @@ union ins {
   /* For the CHAR opcodes, we follow the instruction with a sequence of
      these special character-matching units, in ascending order: */
   struct {
-    char value;            // -- character to match
+    rchar value;           // -- character to match
     unsigned short bump;   // -- relative address of success-outcome insn
   } c;
 };
@@ -135,8 +138,8 @@ struct null_op : public regexp {
 };
 
 struct anchor_op : public regexp {
-  char type;
-  anchor_op (char type);
+  rchar type;
+  anchor_op (rchar type);
   const std::string type_of() const { return "anchor_op"; }
   bool anchored () const { return type == '^'; }
   void calc_size();

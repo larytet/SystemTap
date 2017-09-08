@@ -26,7 +26,7 @@ using namespace std;
 
 namespace stapregex {
 
-range::range (char lb, char ub)
+range::range (rchar lb, rchar ub)
 {
   segments.push_back(make_pair(lb,ub));
 }
@@ -70,7 +70,7 @@ range::print (std::ostream& o) const
   for (deque<segment>::const_iterator it = segments.begin();
        it != segments.end(); it++)
     {
-      char lb = it->first; char ub = it->second;
+      rchar lb = it->first; rchar ub = it->second;
       if (lb == ub)
         {
           print_escaped (o, lb);
@@ -144,10 +144,10 @@ range_invert(range *old_ran)
   range ran(*old_ran);
   range *new_ran = new range;
 
-  char start = '\1'; // exclude '\0'
+  rchar start = '\1'; // exclude '\0'
 
   while (!ran.segments.empty()) {
-    char end = ran.segments.front().first - 1;
+    rchar end = ran.segments.front().first - 1;
     if (start <= end) new_ran->segments.push_back(make_pair(start, end));
     start = ran.segments.front().second + 1;
     ran.segments.pop_front();
@@ -245,7 +245,7 @@ null_op::compile(ins *)
   ;
 }
 
-anchor_op::anchor_op(char type) : type(type) {}
+anchor_op::anchor_op(rchar type) : type(type) {}
 
 void
 anchor_op::calc_size()
@@ -442,7 +442,7 @@ rule_op::compile(ins *i)
 // ------------------------------------------------------------------------
 
 regexp *
-match_char(char c)
+match_char(rchar c)
 {
   return new match_op(new range(c,c));
 }

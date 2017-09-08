@@ -597,7 +597,7 @@ span::emit_final (translator_output *o, const dfa *d) const
   o->newline() << "goto yyfinish;";
 }
 
-string c_char(char c)
+string c_char(rchar c)
 {
   stringstream o;
   o << "'";
@@ -626,8 +626,9 @@ state::emit (translator_output *o, const dfa *d) const
         }
 
       // Emit labels to handle all the other elements of the span:
-      for (unsigned c = max('\1', it->lb); c <= (unsigned) it->ub; c++) {
-        o->newline() << "case " << c_char((char) c) << ":";
+      for (unsigned c = max((rchar) '\1', it->lb);
+           c <= (unsigned) it->ub; c++) {
+        o->newline() << "case " << c_char((rchar) c) << ":";
       }
       it->emit_jump(o, d);
 

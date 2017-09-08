@@ -74,7 +74,7 @@ namespace stapregex {
 // 	}
 // }
 
-char octCh(unsigned c)
+rchar octCh(unsigned c)
 {
 	return '0' + c % 8;
 }
@@ -129,7 +129,7 @@ void prtCh(std::ostream& o, unsigned c)
 
 		if ((oc < 256) && isprint(oc))
 		{
-			o << (char) oc;
+			o << (rchar) oc;
 		}
 		else
 		{
@@ -138,7 +138,7 @@ void prtCh(std::ostream& o, unsigned c)
 	}
 }
 
-void print_escaped(std::ostream& o, char c)
+void print_escaped(std::ostream& o, rchar c)
 {
   prtCh(o, c);
 }
@@ -155,7 +155,7 @@ cursor::cursor(const std::string *input, bool do_unescape)
   finished = ( pos >= input->length() );
 }
 
-char
+rchar
 cursor::next ()
 {
   if (! next_c && finished)
@@ -170,7 +170,7 @@ cursor::next ()
   return last_c;
 }
 
-char
+rchar
 cursor::peek ()
 {
   if (! next_c && ! finished)
@@ -295,7 +295,7 @@ regex_parser::parse (bool do_tag)
 
   if (! cur.finished)
     {
-      char c = cur.peek ();
+      rchar c = cur.peek ();
       if (c == ')')
         parse_error (_("unbalanced ')'"), cur.pos);
       else
@@ -309,7 +309,7 @@ regex_parser::parse (bool do_tag)
 }
 
 bool
-regex_parser::isspecial (char c)
+regex_parser::isspecial (rchar c)
 {
   return ( c == '.' || c == '[' || c == '{' || c == '(' || c == ')'
            || c == '\\' || c == '*' || c == '+' || c == '?' || c == '|'
@@ -317,9 +317,9 @@ regex_parser::isspecial (char c)
 }
 
 void
-regex_parser::expect (char expected)
+regex_parser::expect (rchar expected)
 {
-  char c = 0;
+  rchar c = 0;
   try {
     c = cur.next ();
   } catch (const regex_error &e) {
@@ -349,7 +349,7 @@ regex_parser::parse_expr ()
 {
   regexp *result = parse_term ();
 
-  char c = cur.peek ();
+  rchar c = cur.peek ();
   while (c && c == '|')
     {
       cur.next ();
@@ -366,7 +366,7 @@ regex_parser::parse_term ()
 {
   regexp *result = parse_factor ();
 
-  char c = cur.peek ();
+  rchar c = cur.peek ();
   while (c && c != '|' && c != ')')
     {
       regexp *next = parse_factor ();
@@ -383,7 +383,7 @@ regex_parser::parse_factor ()
   regexp *result;
   regexp *old_result = NULL;
 
-  char c = cur.peek ();
+  rchar c = cur.peek ();
   if (! c || c == '|' || c == ')')
     {
       result = new null_op;
@@ -430,7 +430,7 @@ regex_parser::parse_factor ()
   else // escaped or ordinary character -- not yet swallowed
     {
       string accumulate;
-      char d = 0;
+      rchar d = 0;
 
       while (c && ( ! isspecial (c) || c == '\\' ))
         {
@@ -554,7 +554,7 @@ regex_parser::parse_char_range ()
 
   // check for inversion
   bool inv = false;
-  char c = cur.peek ();
+  rchar c = cur.peek ();
   if (c == '^')
     {
       inv = true;
@@ -595,7 +595,7 @@ regex_parser::parse_number ()
 {
   string digits;
 
-  char c = cur.peek ();
+  rchar c = cur.peek ();
   while (c && isdigit (c))
     {
       cur.next ();
@@ -654,7 +654,7 @@ named_char_class (const string& name)
 range *
 stapregex_getrange (cursor& cur)
 {
-  char c = cur.peek ();
+  rchar c = cur.peek ();
 
   if (c == '\\')
     {
@@ -664,7 +664,7 @@ stapregex_getrange (cursor& cur)
   else if (c == '[')
     {
       // Check for '[:' digraph.
-      char old_c = c; cur.next (); c = cur.peek ();
+      rchar old_c = c; cur.next (); c = cur.peek ();
 
       if (c == ':')
         {
@@ -694,7 +694,7 @@ stapregex_getrange (cursor& cur)
   else
     cur.next ();
 
-  char lb = c, ub;
+  rchar lb = c, ub;
 
   if (!cur.has(2) || cur.peek () != '-' || (*cur.input)[cur.pos] == ']')
     {

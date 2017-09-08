@@ -22,6 +22,8 @@
 #include <queue>
 #include <utility>
 
+#include "stapregex-defines.h"
+
 class translator_output; /* from translator-output.h */
 
 namespace stapregex {
@@ -87,7 +89,7 @@ typedef std::list<kernel_point> state_kernel;
 /* Corresponds to a tagged-DFA transition arc, complete with
    subexpression map reordering and such. */
 struct span {
-  char lb, ub; // -- segment [lb, ub]
+  rchar lb, ub; // -- segment [lb, ub]
   state *to;
   tdfa_action action;
   state_kernel *reach_pairs; // -- for the subset-construction

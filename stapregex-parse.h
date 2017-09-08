@@ -17,12 +17,14 @@
 #include <iostream>
 #include <string>
 
+#include "stapregex-defines.h"
+
 namespace stapregex {
 
 struct range; /* from stapregex-tree.h */
 struct regexp; /* from stapregex-tree.h */
 
-void print_escaped(std::ostream& o, char c);
+void print_escaped(std::ostream& o, rchar c);
 
 struct cursor {
   const std::string *input;
@@ -36,12 +38,12 @@ struct cursor {
 
   cursor();
   cursor(const std::string *input, bool do_unescape = false);
-  char peek();
-  char next();
+  rchar peek();
+  rchar next();
 
 private:
-  char next_c;
-  char last_c;
+  rchar next_c;
+  rchar last_c;
   void get_unescaped();
 };
 
@@ -64,10 +66,10 @@ private:
   void parse_error (const std::string& msg); // report error at last_pos
 
   // character classes
-  bool isspecial (char c); // any of .[{()\*+?|^$
+  bool isspecial (rchar c); // any of .[{()\*+?|^$
 
   // expectations
-  void expect (char expected);
+  void expect (rchar expected);
 
 private: // nonterminals
   regexp *parse_expr ();
