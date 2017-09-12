@@ -81,6 +81,7 @@ if {! [uprobes_p]} {
 
     set ok 0
     set compile_errors 0
+    set hw_perf_probes 1
     expect {
 	-timeout 180
 	-re {^count main=1\r\n} { incr ok; exp_continue }
@@ -90,9 +91,10 @@ if {! [uprobes_p]} {
 	-re {^max main=[0-9]+\r\n} { incr ok; exp_continue }
 	-re {^max towers=[0-9]+\r\n} { incr ok; exp_continue }
 	-re {^WARNING:[^\r]*not supported by this kernel[^\r]*\r\n} {
-	    # If this type of perf probe isn't supported by this kernel,
-	    # kfail the test.
-	    setup_kfail 15727 *-*-*; exp_continue }
+	    # If this type of hardware perf probe isn't supported by
+	    # this kernel, kfail the test. Remember this kfail, and
+	    # try again with a software perf probe.
+	    set hw_perf_probes 0; setup_kfail 15727 *-*-*; exp_continue }
 	-re {^parse error[^\r\n]*\r\n} { incr compile_errors 1; exp_continue }
 	-re {^[^\r\n]*compilation failed[^\r\n]*\r\n} {
 	    incr compile_errors 1; exp_continue }
@@ -117,6 +119,48 @@ if {! [uprobes_p]} {
 	pass "$test $subtest"
     } else {
 	fail "$test $subtest ($ok - $compile_errors)"
+    }
+
+    if {! $hw_perf_probes} {
+	set subtest "counter (sw)"
+	spawn $stap_path $srcdir/$subdir/perf03sw.stp $exepath -c $exepath
+
+	set ok 0
+	set compile_errors 0
+	expect {
+	    -timeout 180
+	    -re {^count main=1\r\n} { incr ok; exp_continue }
+	    -re {^count towers=500\r\n} { incr ok; exp_continue }
+	    -re {^min main=[\-0-9]+\r\n} { incr ok; exp_continue }
+	    -re {^min towers=[\-0-9]+\r\n} { incr ok; exp_continue }
+	    -re {^max main=[0-9]+\r\n} { incr ok; exp_continue }
+	    -re {^max towers=[0-9]+\r\n} { incr ok; exp_continue }
+	    -re {^parse error[^\r\n]*\r\n} {
+		incr compile_errors 1; exp_continue }
+	    -re {^[^\r\n]*compilation failed[^\r\n]*\r\n} {
+		incr compile_errors 1; exp_continue }
+	    -re {^semantic error[^\r\n]*\r\n} { incr compile_errors 1;
+		exp_continue }
+	    timeout { fail "$test (timeout)" }
+	    eof { }
+	}
+	catch {close}; catch {wait}
+
+	spawn $stap_path -W $srcdir/$subdir/perf04sw.stp $exepath -c $exepath
+
+	expect {
+	    -timeout 180
+	    -re {^count main=1\r\n} { incr ok; exp_continue }
+	    timeout { fail "$test (timeout)" }
+	    eof { }
+	}
+	catch {close}; catch {wait}
+
+	if {$ok == 7 && $compile_errors == 0} {
+	    pass "$test $subtest"
+	} else {
+	    fail "$test $subtest ($ok - $compile_errors)"
+	}
     }
 }
 

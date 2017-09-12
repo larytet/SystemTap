@@ -1,0 +1,15 @@
+global main
+
+probe perf.sw.task_clock.counter("a") { }
+
+probe process(@1).function("main").return
+{
+    # counter "a" has no defined process so the default is ours
+    main <<< @perf("a") - @entry(@perf("a"))
+}
+
+probe end
+{
+    printf("count main=%d\n", @count(main))
+}
+

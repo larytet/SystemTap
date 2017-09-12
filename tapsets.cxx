@@ -9433,7 +9433,10 @@ uprobe_derived_probe_group::emit_module_utrace_decls (systemtap_session& s)
   s.op->newline(1) << "struct stap_uprobe *sup = container_of(inst->rp, struct stap_uprobe, urp);";
   s.op->newline() << "const struct stap_uprobe_spec *sups = &stap_uprobe_specs [sup->spec_index];";
   common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "sups->probe",
-				 "stp_probe_type_uretprobe");
+				 "stp_probe_type_uretprobe", true,
+				 udpg_entryfn_prologue_declaration_callback,
+				 udpg_entryfn_prologue_pre_context_callback,
+				 (void *)(unsigned long)max_perf_counters);
   s.op->newline() << "c->ips.ri = inst;";
   s.op->newline() << "if (sup->spec_index < 0 || "
                   << "sup->spec_index >= " << probes.size() << ") {";
@@ -9444,6 +9447,10 @@ uprobe_derived_probe_group::emit_module_utrace_decls (systemtap_session& s)
 
   s.op->newline() << "c->uregs = regs;";
   s.op->newline() << "c->user_mode_p = 1;";
+
+  // assign values to something in context
+  if (s.perf_counters.size())
+    s.op->newline() << "c->perf_read_values = perf_read_values;";
 
   // Make it look like the IP is set as it would in the actual user
   // task when calling real probe handler. Reset IP regs on return, so
