@@ -1292,8 +1292,19 @@ valid regular expression.)
 .PP
 The regular expression syntax supports most of the features of POSIX
 Extended Regular Expressions, except for subexpression reuse ("\\1")
-functionality. The ability to capture and extract the contents of the
-matched string and subexpressions has not yet been implemented.
+functionality.
+.PP
+After a successful match, the contents of the matched
+string and subexpressions can be extracted using the
+matched() and ngroups() tapset functions as follows:
+.SAMPLE
+if ("an example string" =~ "str(ing)") {
+  matched(0) // -> returns "string", the matched substring
+  matched(1) // -> returns "ing", the 1st matched subexpression
+  ngroups()  // -> returns 2, the number of matched groups
+}
+.ESAMPLE
+.PP
 
 .SS PROBES
 The main construct in the scripting language identifies probes.
