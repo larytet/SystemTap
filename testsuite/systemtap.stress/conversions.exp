@@ -12,8 +12,9 @@ proc run_conv_test {filename} {
 	if {![installtest_p]} { untested $test; continue }
 
 	# Turn off the duplication elimination to get an accurate
-	# count (PR12168)
-	spawn stap -vv -DMAXSKIPPED=99999 -DMAXERRORS=40 $filename $value
+	# count (PR12168). Turn off overload protection so that we get
+	# the right errors (not a "probe took too long" error).
+	spawn stap -g --suppress-time-limits -vv -DMAXSKIPPED=99999 -DMAXERRORS=40 $filename $value
 	set errs 0
 	verbose -log "exp $test $errs"
 	expect {
