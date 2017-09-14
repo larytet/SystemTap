@@ -3146,19 +3146,34 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
           if (vut.written.find (l) == vut.written.end() && ! l->init) // no initializer
             if (iterations == 0 && ! s.suppress_warnings)
               {
-                set<string> vars;
-                vector<vardecl*>::iterator it;
-                for (it = s.globals.begin(); it != s.globals.end(); it++)
-                  if (l->name != (*it)->unmangled_name)
-                    if (! (*it)->unmangled_name.starts_with("__private_"))
-                      vars.insert((*it)->unmangled_name);
+                // check if it was initialized on the command line via
+                // a '-G' option
+                bool init_by_gopt = false;
+                string init_prefix (l->unmangled_name.to_string() + "=");
+                for (auto gi = s.globalopts.begin(); gi != s.globalopts.end();
+		     gi++)
+		  if (! gi->compare(0, init_prefix.size(), init_prefix))
+		    {
+		      init_by_gopt = true;
+		      break;
+		    }
+                if (! init_by_gopt)
+		  {
+		    set<string> vars;
+		    for (auto it = s.globals.begin(); it != s.globals.end();
+			 it++)
+		      if (l->name != (*it)->unmangled_name)
+			if (! (*it)->unmangled_name.starts_with("__private_"))
+			  vars.insert((*it)->unmangled_name);
 
-                string sugs = levenshtein_suggest(l->name, vars, 5); // suggest top 5 vars
-                s.print_warning (_F("never-assigned global variable '%s'%s",
-                                    l->unmangled_name.to_string().c_str(),
-				    (sugs.empty() ? "" :
-				     (_(" (similar: ") + sugs + ")")).c_str()),
-				 l->tok);
+		    // suggest top 5 vars
+		    string sugs = levenshtein_suggest(l->name, vars, 5);
+		    s.print_warning (_F("never-assigned global variable '%s'%s",
+					l->unmangled_name.to_string().c_str(),
+					(sugs.empty() ? "" :
+					 (_(" (similar: ") + sugs + ")")).c_str()),
+				     l->tok);
+		  }
               }
 
           i++;
