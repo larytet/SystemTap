@@ -1,5 +1,5 @@
 // bpf translation pass
-// Copyright (C) 2016 Red Hat Inc.
+// Copyright (C) 2016-2017 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -516,12 +516,19 @@ program::program()
 
 program::~program()
 {
+  // XXX We need to suffer a memory leak here, as blocks / edges are
+  // tightly interlinked structures, and their dtors like to invoke
+  // functions on each other.  This will need a rethink, as this is
+  // the type of problem domain where a garbage collected runtime
+  // shines, and most other languages don't.
+  #if 0
   for (auto i = blocks.begin (); i != blocks.end (); ++i)
     delete *i;
   for (auto i = reg_vals.begin (); i != reg_vals.end (); ++i)
     delete *i;
   for (auto i = imm_map.begin (); i != imm_map.end (); ++i)
     delete i->second;
+  #endif
 }
 
 block *

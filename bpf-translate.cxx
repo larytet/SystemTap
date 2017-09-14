@@ -1643,7 +1643,7 @@ struct BPF_Section
   std::string name;
   Stap_Strent *name_ent;
   Elf_Data *data;
-  bool free_data;
+  bool free_data; // NB: then data must have been malloc()'d!
 
   BPF_Section(const std::string &n);
   ~BPF_Section();
@@ -1760,7 +1760,9 @@ output_kernel_version(BPF_Output &eo, const std::string &base_version)
 
   BPF_Section *so = eo.new_scn("version");
   Elf_Data *data = so->data;
-  data->d_buf = new uint32_t(KERNEL_VERSION(maj, min, rel));
+  data->d_buf = malloc(sizeof(uint32_t));
+  assert (data->d_buf);
+  * (uint32_t*) data->d_buf = KERNEL_VERSION(maj, min, rel);
   data->d_type = ELF_T_BYTE;
   data->d_size = 4;
   data->d_align = 4;
@@ -1910,11 +1912,10 @@ output_probe(BPF_Output &eo, program &prog,
 	}
     }
 
-  bpf_insn *buf = new bpf_insn[ninsns];
-  Elf64_Rel *rel = new Elf64_Rel[nreloc];
-
-  memset(buf, 0, sizeof(bpf_insn) * ninsns);
-  memset(rel, 0, sizeof(Elf64_Rel) * nreloc);
+  bpf_insn *buf = (bpf_insn*) calloc (sizeof(bpf_insn), ninsns);
+  assert (buf);
+  Elf64_Rel *rel = (Elf64_Rel*) calloc (sizeof(Elf64_Rel), nreloc);
+  assert (rel);
 
   unsigned i = 0, r = 0;
   for (auto bi = prog.blocks.begin(); bi != prog.blocks.end(); ++bi)
