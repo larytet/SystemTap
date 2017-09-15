@@ -37,6 +37,7 @@ stapdfa *
 regex_to_stapdfa (systemtap_session *s, const string& input, const token *tok)
 {
   // Tags are disabled when not used, for the extra bit of efficiency.
+  // bool do_tag = true; // <- XXX: use to temporarily force tag calculation
   bool do_tag = s->need_tagged_dfa;
 
   if (s->dfas.find(input) != s->dfas.end())
@@ -45,7 +46,7 @@ regex_to_stapdfa (systemtap_session *s, const string& input, const token *tok)
   stapdfa *dfa = new stapdfa ("__stp_dfa" + lex_cast(s->dfa_counter++), input, tok, true, do_tag);
 
   // Update required size of subexpression-tracking data structure:
-  s->dfa_maxstate = max(s->dfa_maxstate, dfa->num_states());
+  s->dfa_maxmap = max(s->dfa_maxmap, dfa->num_map_items());
   s->dfa_maxtag = max(s->dfa_maxtag, dfa->num_tags());
 
   s->dfas[input] = dfa;
@@ -87,6 +88,12 @@ stapdfa::num_states () const
 }
 
 unsigned
+stapdfa::num_map_items () const
+{
+  return content->nmapitems;
+}
+
+unsigned
 stapdfa::num_tags () const
 {
   return content->ntags;
@@ -106,12 +113,23 @@ stapdfa::emit_declaration (translator_output *o) const
   // appropriate.
 
   o->newline() << "const char *cur = str;";
+  o->newline() << "const char *start = cur;";
   o->newline() << "const char *mar;";
 
   if (do_tag)
-    o->newline() << "#define YYTAG(t,s,n) {c->last_match.tag_states[(t)][(s)] = (n);}";
+    {
+      o->newline() << "#define YYTAG(t,s) (c->last_match.tag_states[(t)][(s)])";
+      o->newline() << "#define YYFINAL(t) (c->last_match.tag_vals[(t)])";
+
+      // XXX: Paranoia -- be sure to erase the result of any previous match.
+      // Otherwise, matched(n) *might* return data from an earlier match.
+      o->newline() << "unsigned int t;";
+      o->newline() << "for (t = 0; t < STAPREGEX_MAX_TAG; t++) YYFINAL(t) = 0;";
+    }
   o->newline() << "#define YYCTYPE char";
+  o->newline() << "#define YYSTART start";
   o->newline() << "#define YYCURSOR cur";
+  o->newline() << "#define YYLENGTH (YYCURSOR-YYSTART)";
   o->newline() << "#define YYLIMIT cur";
   o->newline() << "#define YYMARKER mar";
   // XXX: YYFILL is disabled as it doesn't play well with ^
@@ -130,8 +148,15 @@ stapdfa::emit_declaration (translator_output *o) const
         throw SEMANTIC_ERROR(_F("regex compilation error: %s", e.what()), tok);
     }
 
+  if (do_tag)
+    {
+      o->newline() << "#undef YYTAG";
+      o->newline() << "#undef YYFINAL";
+    }
   o->newline() << "#undef YYCTYPE";
+  o->newline() << "#undef YYSTART";
   o->newline() << "#undef YYCURSOR";
+  o->newline() << "#undef YYLENGTH";
   o->newline() << "#undef YYLIMIT";
   o->newline() << "#undef YYMARKER";
 
@@ -139,7 +164,7 @@ stapdfa::emit_declaration (translator_output *o) const
   if (do_tag)
     {
       o->newline() << "strlcpy (c->last_match.matched_str, str, MAXSTRINGLEN);";
-      o->newline() << "c->last_match.result = 1";
+      o->newline() << "c->last_match.result = 1;";
       content->emit_tagsave(o, "c->last_match.tag_states", "c->last_match.tag_vals", "c->last_match.num_final_tags");
     }
   o->newline() << "return 1;";

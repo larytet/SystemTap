@@ -17,6 +17,8 @@
 #include <string>
 #include <iostream>
 
+#include "stapregex-defines.h"
+
 struct systemtap_session; /* from session.h */
 struct token; /* from parse.h */
 class translator_output; /* from translator-output.h */
@@ -35,6 +37,7 @@ struct stapdfa {
            const token *tok = NULL, bool do_unescape = true, bool do_tag = true);
   ~stapdfa ();
   unsigned num_states() const;
+  unsigned num_map_items() const;
   unsigned num_tags() const;
 
   void emit_declaration (translator_output *o) const;

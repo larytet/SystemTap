@@ -1,5 +1,8 @@
 * What's new in version 3.2, PRERELEASE
 
+- The regular expression engine now supports extraction of the matched
+  string and subexpressions using the matched() tapset function.
+
 - The translator produces better diagnostics for common/annoying case
   of missing debuginfo that blocks use of context $variables. 
 

@@ -6589,11 +6589,10 @@ typeresolution_info::visit_embeddedcode (embeddedcode* s)
   if (! session.need_tagged_dfa
       && s->code.find("/* pragma:tagged_dfa */") != string::npos)
     {
-      // if (session.verbose > 2)
-      //   clog << _F("Turning on DFA subexpressions, pragma:tagged_dfa found in %s",
-      // current_function->name.c_str()) << endl;
-      // session.need_tagged_dfa = true;
-      throw SEMANTIC_ERROR (_("Tagged DFA support is not yet available"), s->tok);
+      if (session.verbose > 2)
+        clog << _("Turning on DFA subexpressions because /* pragma:tagged_dfa */ seen") << endl;
+      session.need_tagged_dfa = true;
+      // TODOXXX throw SEMANTIC_ERROR (_("Tagged DFA support is not yet available"), s->tok);
     }
 }
 

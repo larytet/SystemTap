@@ -26,7 +26,7 @@ using namespace std;
 
 namespace stapregex {
 
-range::range (char lb, char ub)
+range::range (rchar lb, rchar ub)
 {
   segments.push_back(make_pair(lb,ub));
 }
@@ -70,7 +70,7 @@ range::print (std::ostream& o) const
   for (deque<segment>::const_iterator it = segments.begin();
        it != segments.end(); it++)
     {
-      char lb = it->first; char ub = it->second;
+      rchar lb = it->first; rchar ub = it->second;
       if (lb == ub)
         {
           print_escaped (o, lb);
@@ -144,10 +144,10 @@ range_invert(range *old_ran)
   range ran(*old_ran);
   range *new_ran = new range;
 
-  char start = '\1'; // exclude '\0'
+  rchar start = '\1'; // exclude '\0'
 
   while (!ran.segments.empty()) {
-    char end = ran.segments.front().first - 1;
+    rchar end = ran.segments.front().first - 1;
     if (start <= end) new_ran->segments.push_back(make_pair(start, end));
     start = ran.segments.front().second + 1;
     ran.segments.pop_front();
@@ -157,6 +157,48 @@ range_invert(range *old_ran)
     new_ran->segments.push_back(make_pair(start, NUM_REAL_CHARS-1));
 
   return new_ran;
+}
+
+// ------------------------------------------------------------------------
+
+void
+ins_optimize (ins *i)
+{
+  while (!marked(i))
+    {
+      mark (i); // -- aka "this node has already been optimized"
+
+      if (i->i.tag == CHAR)
+        {
+          i = (ins *) i->i.link; // -- skip node
+        }
+      else if (i->i.tag == GOTO || i->i.tag == FORK)
+        {
+          ins *target = (ins *) i->i.link;
+          ins_optimize(target);
+
+          if (target->i.tag == GOTO)
+            i->i.link = target->i.link == target ? i : target;
+
+          if (i->i.tag == FORK)
+            {
+              ins *follow = (ins *) &i[1];
+              ins_optimize(follow);
+
+              if (follow->i.tag == GOTO && follow->i.link == follow)
+                {
+                  i->i.tag = GOTO;
+                }
+              else if (i->i.link == i)
+                {
+                  i->i.tag = GOTO;
+                  i->i.link = follow;
+                }
+            }
+        }
+      else
+        ++i; // -- skip node
+    }
 }
 
 // ------------------------------------------------------------------------
@@ -208,8 +250,10 @@ regexp::compile()
   unsigned k = ins_size();
 
   ins *i = new ins[k + 1];
+  // XXX Keep Valgrind from complaining in ins_optimize():
+  for (unsigned ix = 0; ix <= k; ix++) i[ix].i.marked = 0;
   compile(i);
-  
+
   // Append an infinite-loop GOTO to avoid edges going outside the array:
   i[k].i.tag = GOTO;
   i[k].i.link = &i[k];
@@ -245,7 +289,7 @@ null_op::compile(ins *)
   ;
 }
 
-anchor_op::anchor_op(char type) : type(type) {}
+anchor_op::anchor_op(rchar type) : type(type) {}
 
 void
 anchor_op::calc_size()
@@ -442,7 +486,7 @@ rule_op::compile(ins *i)
 // ------------------------------------------------------------------------
 
 regexp *
-match_char(char c)
+match_char(rchar c)
 {
   return new match_op(new range(c,c));
 }

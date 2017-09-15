@@ -7913,9 +7913,9 @@ translate_pass (systemtap_session& s)
       s.op->newline() << "#endif";
 
       // Generated macros specifying how much storage is required for
-      // regexp subexpressions:
-      s.op->newline() << "#define STAPREGEX_MAX_STATE" << s.dfa_maxstate;
-      s.op->newline() << "#define STAPREGEX_MAX_TAG" << s.dfa_maxtag;
+      // regexp subexpressions. (TODOXXX Skip when there are no DFAs?)
+      s.op->newline() << "#define STAPREGEX_MAX_MAP " << s.dfa_maxmap;
+      s.op->newline() << "#define STAPREGEX_MAX_TAG " << s.dfa_maxtag;
 
       s.op->newline() << "#define STP_SKIP_BADVARS " << (s.skip_badvars ? 1 : 0);
 

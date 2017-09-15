@@ -96,7 +96,9 @@ struct stapregex_match {
   string_t matched_str;
   unsigned result:1;
   unsigned num_final_tags;
-  int tag_states[STAPREGEX_MAX_TAG][STAPREGEX_MAX_STATE];
+
+  // TODOXXX: could use a more efficient single-level array for tag_states
+  int tag_states[STAPREGEX_MAX_TAG][STAPREGEX_MAX_MAP];
   int tag_vals[STAPREGEX_MAX_TAG];
 } last_match;
 #endif

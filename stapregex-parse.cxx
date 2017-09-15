@@ -74,7 +74,7 @@ namespace stapregex {
 // 	}
 // }
 
-char octCh(unsigned c)
+rchar octCh(unsigned c)
 {
 	return '0' + c % 8;
 }
@@ -129,7 +129,7 @@ void prtCh(std::ostream& o, unsigned c)
 
 		if ((oc < 256) && isprint(oc))
 		{
-			o << (char) oc;
+			o << (rchar) oc;
 		}
 		else
 		{
@@ -138,7 +138,7 @@ void prtCh(std::ostream& o, unsigned c)
 	}
 }
 
-void print_escaped(std::ostream& o, char c)
+void print_escaped(std::ostream& o, rchar c)
 {
   prtCh(o, c);
 }
@@ -155,7 +155,7 @@ cursor::cursor(const std::string *input, bool do_unescape)
   finished = ( pos >= input->length() );
 }
 
-char
+rchar
 cursor::next ()
 {
   if (! next_c && finished)
@@ -170,7 +170,7 @@ cursor::next ()
   return last_c;
 }
 
-char
+rchar
 cursor::peek ()
 {
   if (! next_c && ! finished)
@@ -283,19 +283,20 @@ regexp *
 regex_parser::parse (bool do_tag)
 {
   cur = cursor(&input, do_unescape);
-  num_tags = 0; this->do_tag = do_tag;
+  this->do_tag = do_tag;
+  num_subexpressions = do_tag ? 1 : 0; // group 0 is guaranteed when using tag
 
   regexp *result = parse_expr ();
 
   // PR15065 glom appropriate tag_ops onto the expr (subexpression 0)
   if (do_tag) {
-    result = new cat_op(new tag_op(num_tags++), result);
-    result = new cat_op(result, new tag_op(num_tags++));
+    result = new cat_op(new tag_op(TAG_START(0)), result);
+    result = new cat_op(result, new tag_op(TAG_END(0)));
   }
 
   if (! cur.finished)
     {
-      char c = cur.peek ();
+      rchar c = cur.peek ();
       if (c == ')')
         parse_error (_("unbalanced ')'"), cur.pos);
       else
@@ -304,12 +305,12 @@ regex_parser::parse (bool do_tag)
     }
 
   // PR15065 store num_tags in result
-  result->num_tags = num_tags;
+  result->num_tags = 2 * num_subexpressions;
   return result;
 }
 
 bool
-regex_parser::isspecial (char c)
+regex_parser::isspecial (rchar c)
 {
   return ( c == '.' || c == '[' || c == '{' || c == '(' || c == ')'
            || c == '\\' || c == '*' || c == '+' || c == '?' || c == '|'
@@ -317,9 +318,9 @@ regex_parser::isspecial (char c)
 }
 
 void
-regex_parser::expect (char expected)
+regex_parser::expect (rchar expected)
 {
-  char c = 0;
+  rchar c = 0;
   try {
     c = cur.next ();
   } catch (const regex_error &e) {
@@ -349,7 +350,7 @@ regex_parser::parse_expr ()
 {
   regexp *result = parse_term ();
 
-  char c = cur.peek ();
+  rchar c = cur.peek ();
   while (c && c == '|')
     {
       cur.next ();
@@ -366,7 +367,7 @@ regex_parser::parse_term ()
 {
   regexp *result = parse_factor ();
 
-  char c = cur.peek ();
+  rchar c = cur.peek ();
   while (c && c != '|' && c != ')')
     {
       regexp *next = parse_factor ();
@@ -383,7 +384,7 @@ regex_parser::parse_factor ()
   regexp *result;
   regexp *old_result = NULL;
 
-  char c = cur.peek ();
+  rchar c = cur.peek ();
   if (! c || c == '|' || c == ')')
     {
       result = new null_op;
@@ -408,15 +409,20 @@ regex_parser::parse_factor ()
     }
   else if (c == '(')
     {
+      // To number tags correctly, reserve a subexpression number here:
+      unsigned curr_subexpression = 0;
+      if (do_tag)
+        curr_subexpression = num_subexpressions++;
+
       result = parse_expr ();
 
       // PR15065 glom appropriate tag_ops onto the expr
       if (do_tag) {
-        result = new cat_op(new tag_op(num_tags++), result);
-        result = new cat_op(result, new tag_op(num_tags++));
+        result = new cat_op(new tag_op(TAG_START(curr_subexpression)), result);
+        result = new cat_op(result, new tag_op(TAG_END(curr_subexpression)));
       } else {
         // XXX: workaround for certain error checking test cases which
-        // would otherwise produce divergent behaviour
+        // would otherwise produce divergent behaviour without tag_ops
         // (e.g. "^*" vs "(^)*").
         result = new cat_op(result, new null_op);
       }
@@ -430,7 +436,7 @@ regex_parser::parse_factor ()
   else // escaped or ordinary character -- not yet swallowed
     {
       string accumulate;
-      char d = 0;
+      rchar d = 0;
 
       while (c && ( ! isspecial (c) || c == '\\' ))
         {
@@ -554,7 +560,7 @@ regex_parser::parse_char_range ()
 
   // check for inversion
   bool inv = false;
-  char c = cur.peek ();
+  rchar c = cur.peek ();
   if (c == '^')
     {
       inv = true;
@@ -564,7 +570,7 @@ regex_parser::parse_char_range ()
   for (;;)
     {
       // break on string end whenever we encounter it
-      if (cur.finished) parse_error(_("unclosed character class")); // TODOXXX doublecheck that this is triggered correctly
+      if (cur.finished) parse_error(_("unclosed character class"));
 
       range *add = stapregex_getrange (cur);
       range *new_ran = ( ran != NULL ? range_union(ran, add) : add );
@@ -595,7 +601,7 @@ regex_parser::parse_number ()
 {
   string digits;
 
-  char c = cur.peek ();
+  rchar c = cur.peek ();
   while (c && isdigit (c))
     {
       cur.next ();
@@ -654,7 +660,7 @@ named_char_class (const string& name)
 range *
 stapregex_getrange (cursor& cur)
 {
-  char c = cur.peek ();
+  rchar c = cur.peek ();
 
   if (c == '\\')
     {
@@ -664,7 +670,7 @@ stapregex_getrange (cursor& cur)
   else if (c == '[')
     {
       // Check for '[:' digraph.
-      char old_c = c; cur.next (); c = cur.peek ();
+      rchar old_c = c; cur.next (); c = cur.peek ();
 
       if (c == ':')
         {
@@ -694,7 +700,7 @@ stapregex_getrange (cursor& cur)
   else
     cur.next ();
 
-  char lb = c, ub;
+  rchar lb = c, ub;
 
   if (!cur.has(2) || cur.peek () != '-' || (*cur.input)[cur.pos] == ']')
     {
