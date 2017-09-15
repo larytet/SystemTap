@@ -22,7 +22,6 @@ using namespace std;
 
 extern "C" {
 
-#define _RPM_4_4_COMPAT
 #include <string.h>
 #include <rpm/rpmlib.h>
 #include <rpm/rpmts.h>
