@@ -40,7 +40,7 @@ function matched:string(n:long)
 
   if (!CONTEXT->last_match.result) {
     snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-             "Attempted to get subexpression %lld from failed match", STAP_ARG_n);
+             "Attempted to get subexpression %lld from failed match", (long long) STAP_ARG_n);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 
@@ -48,7 +48,7 @@ function matched:string(n:long)
 
   if (end_ix >= CONTEXT->last_match.num_final_tags) {
     snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-             "Attempted to get nonexistent subexpression %lld", STAP_ARG_n);
+             "Attempted to get nonexistent subexpression %lld", (long long) STAP_ARG_n);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 
@@ -67,7 +67,7 @@ function matched:string(n:long)
   if (start > end) {
     // This should not happen.
     snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-             "BUG: inverted coordinates for subexpression %lld", STAP_ARG_n);
+             "BUG: inverted coordinates for subexpression %lld", (long long) STAP_ARG_n);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 

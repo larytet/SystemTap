@@ -1,5 +1,8 @@
 set self runok
 
+proc dyninst_kfails {test} {
+}
+
 foreach runtime [get_runtime_list] {
     foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	set test $self/[file tail $file]

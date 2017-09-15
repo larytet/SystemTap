@@ -542,7 +542,7 @@ dfa::find_equivalent (state *s, tdfa_action &action)
                it != s->kernel->end(); it++)
             {
               kernel_point *kp1 = &*it;
-              kernel_point *kp2;
+              kernel_point *kp2 = 0;
 
               // Find matching kernel_point in t:
               bool found_kp = false;
