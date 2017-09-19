@@ -46,10 +46,18 @@ function warn (msg:string) %{ /* unprivileged */ /* unmodified-fnargs */
  * (except "end" probes), but all currently   
  * running ones may complete their work.
  */
-function exit () %{ /* unprivileged */
-    atomic_set (session_state(), STAP_SESSION_STOPPING);
-    _stp_exit ();
-%}
+function exit ()
+%( runtime != "bpf" %?
+  %{ /* unprivileged */
+     atomic_set (session_state(), STAP_SESSION_STOPPING);
+     _stp_exit ();
+  %}
+%:
+  { /* bpf */ /* unprivileged */
+    _set_exit_flag()
+    printf("")
+  }
+%)
 
 
 /**
