@@ -28,8 +28,6 @@ static inline void stp_spin_lock_init(raw_spinlock_t *lock)	{ raw_spin_lock_init
 static inline void stp_spin_lock(raw_spinlock_t *lock)		{ raw_spin_lock(lock); }
 static inline void stp_spin_unlock(raw_spinlock_t *lock)	{ raw_spin_unlock(lock); }
 
-static inline void stp_spin_unlock_wait(raw_spinlock_t *lock)	{ raw_spin_unlock_wait(lock); }
-
 #define stp_spin_lock_irqsave(lock, flags)		raw_spin_lock_irqsave(lock, flags)
 #define stp_spin_unlock_irqrestore(lock, flags)		raw_spin_unlock_irqrestore(lock, flags)
 
@@ -56,8 +54,6 @@ static inline void stp_spin_lock_init(spinlock_t *lock)		{ spin_lock_init(lock);
 
 static inline void stp_spin_lock(spinlock_t *lock)		{ spin_lock(lock); }
 static inline void stp_spin_unlock(spinlock_t *lock)		{ spin_unlock(lock); }
-
-static inline void stp_spin_unlock_wait(spinlock_t *lock)	{ spin_unlock_wait(lock); }
 
 #define stp_spin_lock_irqsave(lock, flags)		spin_lock_irqsave(lock, flags)
 #define stp_spin_unlock_irqrestore(lock, flags)		spin_unlock_irqrestore(lock, flags)

@@ -1220,7 +1220,8 @@ static void utrace_finish_stop(void)
 	 */
 	if (unlikely(__fatal_signal_pending(current))) {
 		struct utrace *utrace = task_utrace_struct(current);
-		stp_spin_unlock_wait(&utrace->lock);
+		stp_spin_lock(&utrace->lock);
+		stp_spin_unlock(&utrace->lock);
 	}
 }
 
