@@ -87,7 +87,7 @@ stapregex_compile (regexp *re, const std::string& match_snippet,
   ins *i = re->compile();
 
 #ifdef STAPREGEX_DEBUG_INS
-  for (const ins *j = i; (j - i) < re->ins_size() + 1; )
+  for (const ins *j = i; (j - i) < (int)re->ins_size() + 1; )
     {
       j = show_ins(cerr, j, i); cerr << endl;
     }
@@ -95,7 +95,7 @@ stapregex_compile (regexp *re, const std::string& match_snippet,
 #endif
   
   ins_optimize(i);
-  for (ins *j = i; (j - i) < re->ins_size() + 1; )
+  for (ins *j = i; (j - i) < (int)re->ins_size() + 1; )
     {
       unmark(j);
       if (j->i.tag == CHAR)
@@ -106,7 +106,7 @@ stapregex_compile (regexp *re, const std::string& match_snippet,
 
 #ifdef STAPREGEX_DEBUG_INS
   cerr << "OPTIMIZED INS FROM THE SAME REGEX" << endl;
-  for (const ins *j = i; (j - i) < re->ins_size() + 1; )
+  for (const ins *j = i; (j - i) < (int)re->ins_size() + 1; )
     {
       j = show_ins(cerr, j, i); cerr << endl;
     }
