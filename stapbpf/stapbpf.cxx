@@ -95,14 +95,14 @@ static void unregister_kprobes(const size_t nprobes);
 
 struct kprobe_data
 {
-  const char *args;
+  string args;
   char type;
   int prog_fd;
   int event_id;
   int event_fd;				// ??? Need one per cpu.
 
-  kprobe_data(char t, const char *a, int fd)
-    : args(a), type(t), prog_fd(fd), event_id(-1), event_fd(-1)
+  kprobe_data(char t, string s, int fd)
+    : args(s), type(t), prog_fd(fd), event_id(-1), event_fd(-1)
   { }
 };
 
@@ -257,10 +257,41 @@ maybe_collect_kprobe(const char *name, unsigned name_idx,
 		     unsigned fd_idx, Elf64_Addr offset)
 {
   char type;
+  string arg;
+
   if (strncmp(name, "kprobe/", 7) == 0)
-    type = 'p', name += 7;
+    {
+      string line;
+      const char *stext = NULL;
+      type = 'p';
+      name += 7;
+
+      ifstream syms("/proc/kallsyms");
+      if (!syms)
+        fatal("error opening /proc/kallsyms: %s\n", strerror(errno));
+
+      // get value of symbol _stext and add it to the offset found in name.
+      while (getline(syms, line))
+        {
+          const char *l = line.c_str();
+          if (strncmp(l + 19, "_stext", 6) == 0)
+            {
+              stext = l;
+              break;
+            }
+        }
+
+      if (stext == NULL)
+        fatal("could not find _stext in /proc/kallsyms");
+
+      unsigned long addr = strtoul(stext, NULL, 16);
+      addr += strtoul(name, NULL, 16);
+      stringstream ss;
+      ss << "0x" << hex << addr;
+      arg = ss.str();
+    }
   else if (strncmp(name, "kretprobe/", 10) == 0)
-    type = 'r', name += 10;
+    type = 'r', arg = name + 10; 
   else
     return;
 
@@ -270,7 +301,7 @@ maybe_collect_kprobe(const char *name, unsigned name_idx,
   if (offset != 0)
     fatal("probe %u offset non-zero\n", name_idx);
 
-  kprobes.push_back(kprobe_data(type, name, fd));
+  kprobes.push_back(kprobe_data(type, arg, fd));
 }
 
 static void
@@ -313,7 +344,7 @@ register_kprobes()
       char msgbuf[128];
       
       ssize_t olen = snprintf(msgbuf, sizeof(msgbuf), "%c:p%d_%zu %s",
-			      k.type, pid, i, k.args);
+			      k.type, pid, i, k.args.c_str());
       if ((size_t)olen >= sizeof(msgbuf))
 	{
 	  fprintf(stderr, "Buffer overflow creating probe %zu\n", i);
@@ -422,6 +453,7 @@ unregister_kprobes(const size_t nprobes)
   int fd = open(DEBUGFS "kprobe_events", O_WRONLY);
   if (fd < 0)
     return;
+
 
   const int pid = getpid();
   for (size_t i = 0; i < nprobes; ++i)

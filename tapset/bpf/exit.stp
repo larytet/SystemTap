@@ -3,7 +3,7 @@
  *
  * Description: Set exit flag.
  */
-function _set_exit_flag:long ()
+function _set_exit_status:long ()
 %{ /* bpf */ /* unprivileged */ 
     0x118, 1, 0, 0, 0;          /* BPF_LD_MAP_FD(r1, map0) */
     0x7a, 10, 0, -8, 1; 	/* *(u64 *)(r10 - 8) = 1 (map value) */
