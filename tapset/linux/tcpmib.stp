@@ -102,7 +102,7 @@ tcpmib.ActiveOpens = kernel.function("tcp_connect").return
 	op = 1;
 	if ( $return ) next;
         // definition in tcpipstat.stp
-	key = tcpmib_filter_key($sk,op);
+	key = tcpmib_filter_key(sk, op);
 	if ( key ) ActiveOpens[key] += op;
 }
 
@@ -126,7 +126,7 @@ tcpmib.AttemptFails = kernel.function("tcp_done").call ?
 	TCP_SYN_SENT = 2;
 	TCP_SYN_RECV = 3;
 	if( state == TCP_SYN_SENT || state == TCP_SYN_RECV){
-		key = tcpmib_filter_key($sk,op);
+		key = tcpmib_filter_key($sk, op);
 		if ( key ) AttemptFails[key] += op;
 	}
 }
@@ -151,12 +151,12 @@ tcpmib.CurrEstab = kernel.function("tcp_set_state").call ?
 	TCP_ESTABLISHED = 1;
 	if ( oldstate == TCP_ESTABLISHED ) {
 		op = -1;
-		key = tcpmib_filter_key($sk,op);
+		key = tcpmib_filter_key($sk, op);
 		if ( key ) CurrEstab[key] += op;
 	} else {
 		if ( state == TCP_ESTABLISHED ) {
 			op = 1;
-			key = tcpmib_filter_key($sk,op);
+			key = tcpmib_filter_key($sk, op);
 			if ( key ) CurrEstab[key] += op;
 		}
 	}
@@ -185,7 +185,7 @@ tcpmib.EstabResets = kernel.function("tcp_set_state").call ?
 	TCP_ESTABLISHED = 1;
 	if ( ( state == TCP_CLOSE ) && 
 	   (oldstate == TCP_CLOSE_WAIT || oldstate == TCP_ESTABLISHED) ){
-        	key = tcpmib_filter_key($sk,op);
+        	key = tcpmib_filter_key($sk, op);
 		if ( key ) EstabResets[key] += op;
 	}
 }
@@ -208,12 +208,12 @@ tcpmib.InSegs =
 {
 	if (@defined($return)) {
 	        sk=$return
-		key = tcpmib_filter_key($return,op)
+		key = tcpmib_filter_key($return, op)
 	}
 	else {
 		# We don't know the sk in tcp_v4_rcv()
 		sk=0
-		key = ipmib_filter_key($skb,op,0);
+		key = ipmib_filter_key($skb, op, 0);
 	}
 	op=1
 	if ( key ) InSegs[key] += op;
@@ -310,8 +310,8 @@ __tcpmib.OutRsts.tcp_v4_send_reset = kernel.function("tcp_v4_send_reset")
         if ( _is_reset($skb) ) next
         if (_tcpmib_input_route_type($skb) != _rtn_local() )
                 next;
-        key = (@defined($sk) ? tcpmib_filter_key(sk,op)
-			     : ipmib_filter_key($skb,op,1))
+        key = (@defined($sk) ? tcpmib_filter_key(sk, op)
+			     : ipmib_filter_key($skb, op, 1))
         if ( key ) OutRsts[key] += op;
 }
 
@@ -324,7 +324,7 @@ __tcpmib.OutRsts.tcp_send_active_reset =
 	 */
 	sk = $sk;
 	op = 1;
-	key = tcpmib_filter_key($sk,op);
+	key = tcpmib_filter_key($sk, op);
         if ( key ) OutRsts[key] += op;
 }
 
@@ -346,9 +346,9 @@ tcpmib.OutSegs=kernel.function("ip_queue_xmit").return
 	op = 1;
 	
         //  Only count the events with protocol IPPROTO_TCP,6.
-	iphdr = __get_skb_iphdr($skb);
+	iphdr = __get_skb_iphdr(@entry($skb));
         if( !(__ip_skb_proto(iphdr) == 6) ) next ;
-	key = tcpmib_filter_key(sk,op);
+	key = tcpmib_filter_key(sk, op);
 	if ( key ) OutSegs[key] += op;
 }
 
@@ -368,7 +368,7 @@ tcpmib.PassiveOpens=kernel.function("tcp_v4_syn_recv_sock").return
         sk = $return;
         op = 1;
         if ( !sk ) next;
-        key = tcpmib_filter_key(sk,op);
+        key = tcpmib_filter_key(sk, op);
         if ( key ) PassiveOpens[key] += op;
 }
 
@@ -388,6 +388,6 @@ tcpmib.RetransSegs=kernel.function("tcp_retransmit_skb").return
 	sk = @entry($sk);
 	op = 1;
 	if ( $return ) next;
-	key = tcpmib_filter_key($sk,op);
+	key = tcpmib_filter_key(sk, op);
 	if ( key ) RetransSegs[key] += op;
 }

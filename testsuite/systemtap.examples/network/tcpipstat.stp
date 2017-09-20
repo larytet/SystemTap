@@ -594,11 +594,11 @@ probe tcpmib.CurrEstab
 global SockSendbytes;
 global SockSendmsg;
 probe tcp.sendmsg.return {
-	sk = @defined($sk) ? $sk : $sock->sk;
+	sk = @defined(@entry($sk)) ? @entry($sk) : @entry($sock->sk);
         op = size; // $return
 	if ( op <= 0 ) next;
         if ( !sk ) next;
-        key = tcpmib_filter_key(sk,op);
+        key = tcpmib_filter_key(sk, op);
         if ( key ) {
 		SockSendbytes[key] += op;
 		++SockSendmsg[key];
@@ -608,11 +608,11 @@ probe tcp.sendmsg.return {
 global SockRecvbytes;
 global SockRecvmsg;
 probe tcp.recvmsg.return{
-	sk = $sk
+	sk = @entry($sk)
 	op = size // $return
 	if ( op <= 0 ) next;
         if ( !sk ) next;
-        key = tcpmib_filter_key(sk,op);
+        key = tcpmib_filter_key(sk, op);
         if ( key ) {
 		SockRecvbytes[key] += op;
 		++SockRecvmsg[key];
