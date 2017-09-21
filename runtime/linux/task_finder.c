@@ -1179,7 +1179,7 @@ __stp_call_mmap_callbacks_for_task(struct stap_task_finder_target *tgt,
 	int file_based_vmas = 0;
 	struct vma_cache_t {
 #ifdef STAPCONF_DPATH_PATH
-		struct path *f_path;
+		struct path f_path;
 #else
 		struct vfsmount *f_vfsmnt;
 #endif
@@ -1238,8 +1238,8 @@ __stp_call_mmap_callbacks_for_task(struct stap_task_finder_target *tgt,
 			    // Notice we're increasing the reference
 			    // count for 'f_path'.  This way it won't
 			    // get deleted from out under us.
-			    vma_cache_p->f_path = &(vma->vm_file->f_path);
-			    path_get(vma_cache_p->f_path);
+			    vma_cache_p->f_path = vma->vm_file->f_path;
+			    path_get(&vma_cache_p->f_path);
 			    vma_cache_p->dentry = vma->vm_file->f_path.dentry;
 #else
 			    // Notice we're increasing the reference
@@ -1275,9 +1275,9 @@ __stp_call_mmap_callbacks_for_task(struct stap_task_finder_target *tgt,
 		vma_cache_p = vma_cache;
 		for (i = 0; i < file_based_vmas; i++) {
 #ifdef STAPCONF_DPATH_PATH
-			mmpath = d_path(vma_cache_p->f_path, mmpath_buf,
+			mmpath = d_path(&vma_cache_p->f_path, mmpath_buf,
 					PATH_MAX);
-			path_put(vma_cache_p->f_path);
+			path_put(&vma_cache_p->f_path);
 #else
 			mmpath = d_path(vma_cache_p->dentry,
 					vma_cache_p->f_vfsmnt, mmpath_buf,
