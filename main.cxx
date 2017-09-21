@@ -557,6 +557,8 @@ passes_0_4 (systemtap_session &s)
 	runtime_prefix = "/linux";
       else if (s.runtime_mode == systemtap_session::dyninst_runtime)
 	runtime_prefix = "/dyninst";
+      else if (s.runtime_mode == systemtap_session::bpf_runtime)
+        runtime_prefix = "/bpf";
       if (!runtime_prefix.empty())
 	for (unsigned i=0; i<version_suffixes.size(); i+=2)
 	    version_suffixes.insert(version_suffixes.begin() + i/2,

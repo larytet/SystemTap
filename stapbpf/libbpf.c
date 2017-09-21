@@ -36,6 +36,7 @@ int bpf_create_map(enum bpf_map_type map_type, unsigned key_size,
 		   unsigned flags __attribute__((unused)))
 {
 	union bpf_attr attr;
+        memset(&attr, 0, sizeof(union bpf_attr));
 	attr.map_type = map_type;
 	attr.key_size = key_size;
 	attr.value_size = value_size;
@@ -47,6 +48,7 @@ int bpf_create_map(enum bpf_map_type map_type, unsigned key_size,
 int bpf_update_elem(int fd, void *key, void *value, unsigned long long flags)
 {
 	union bpf_attr attr;
+        memset(&attr, 0, sizeof(union bpf_attr));
 	attr.map_fd = fd;
 	attr.key = ptr_to_u64(key);
 	attr.value = ptr_to_u64(value);
@@ -58,6 +60,7 @@ int bpf_update_elem(int fd, void *key, void *value, unsigned long long flags)
 int bpf_lookup_elem(int fd, void *key, void *value)
 {
 	union bpf_attr attr;
+        memset(&attr, 0, sizeof(union bpf_attr));
 	attr.map_fd = fd;
 	attr.key = ptr_to_u64(key);
 	attr.value = ptr_to_u64(value);
@@ -68,6 +71,7 @@ int bpf_lookup_elem(int fd, void *key, void *value)
 int bpf_delete_elem(int fd, void *key)
 {
 	union bpf_attr attr;
+        memset(&attr, 0, sizeof(union bpf_attr));
 	attr.map_fd = fd;
 	attr.key = ptr_to_u64(key);
 
@@ -77,6 +81,7 @@ int bpf_delete_elem(int fd, void *key)
 int bpf_get_next_key(int fd, void *key, void *next_key)
 {
 	union bpf_attr attr;
+        memset(&attr, 0, sizeof(union bpf_attr));
 	attr.map_fd = fd;
 	attr.key = ptr_to_u64(key);
 	attr.next_key = ptr_to_u64(next_key);
@@ -124,6 +129,7 @@ int bpf_prog_load(enum bpf_prog_type prog_type,
 int bpf_obj_pin(int fd, const char *pathname)
 {
 	union bpf_attr attr;
+        memset(&attr, 0, sizeof(union bpf_attr));
 	attr.pathname	= ptr_to_u64((void *)pathname);
 	attr.bpf_fd	= fd;
 
@@ -133,6 +139,7 @@ int bpf_obj_pin(int fd, const char *pathname)
 int bpf_obj_get(const char *pathname)
 {
 	union bpf_attr attr;
+        memset(&attr, 0, sizeof(union bpf_attr));
 	attr.pathname = ptr_to_u64((void *)pathname);
 
 	return syscall(__NR_bpf, BPF_OBJ_GET, &attr, sizeof(attr));

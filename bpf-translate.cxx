@@ -54,6 +54,8 @@ typedef Ebl_Strtab Stap_Strtab;
 #define R_BPF_MAP_FD 1
 #endif
 
+std::string module_name;
+
 namespace bpf {
 
 struct side_effects_visitor : public expression_visitor
@@ -525,7 +527,7 @@ bpf_unparser::visit_embeddedcode (embeddedcode *s)
       if (ii.fail() || s1 != ',' || s2 != ',' || s3 != ',' || s4 != ',')
 	throw SEMANTIC_ERROR (_("invalid bpf embeddedcode syntax"), s->tok);
 
-      if (code > 0xff)
+      if (code > 0xff && code != BPF_LD_MAP)
 	throw SEMANTIC_ERROR (_("invalid bpf code"), s->tok);
 
       bool r_dest = false, r_src0 = false, r_src1 = false, i_src1 = false;
@@ -576,7 +578,10 @@ bpf_unparser::visit_embeddedcode (embeddedcode *s)
 	  break;
 
 	default:
-	  throw SEMANTIC_ERROR (_("unknown opcode in bpf code"), s->tok);
+          if (code == BPF_LD_MAP)
+            r_dest = true, i_src1 = true;
+          else
+	    throw SEMANTIC_ERROR (_("unknown opcode in bpf code"), s->tok);
 	}
 
       std::string dest(dest_b);
@@ -1430,11 +1435,61 @@ bpf_unparser::visit_functioncall (functioncall *e)
   result = retval;
 }
 
+static void
+print_format_add_tag(print_format *e)
+{
+  // surround the string with <MODNAME>...</MODNAME> to facilitate
+  // stapbpf recovering it from debugfs.
+  std::string start_tag = module_name;
+  start_tag = "<" + start_tag.erase(4, 1) + ">";
+  std::string end_tag = start_tag + "\n";
+  end_tag.insert(1, "/");
+  e->raw_components.insert(0, start_tag);
+  e->raw_components.append(end_tag);
+
+  if (e->components.empty())
+    {
+      print_format::format_component c;
+      c.literal_string = start_tag + end_tag;
+      e->components.insert(e->components.begin(), c);
+    }
+  else
+    {
+      if (e->components[0].type == print_format::conv_literal)
+        {
+          std::string s = start_tag
+                            + e->components[0].literal_string.to_string();
+          e->components[0].literal_string = s;
+        }
+      else
+        {
+          print_format::format_component c;
+          c.literal_string = start_tag;
+          e->components.insert(e->components.begin(), c);
+        }
+
+      if (e->components.back().type == print_format::conv_literal)
+        {
+          std::string s = end_tag
+                            + e->components.back().literal_string.to_string();
+          e->components.back().literal_string = s;
+        }
+      else
+        {
+          print_format::format_component c;
+          c.literal_string = end_tag;
+          e->components.insert(e->components.end(), c);
+        }
+    }
+}
+
 void
 bpf_unparser::visit_print_format (print_format *e)
 {
   if (e->hist)
     throw SEMANTIC_ERROR (_("unhandled histogram print"), e->tok);
+
+  print_format_add_tag(e);
 
   // ??? Traditional stap allows max 32 args; trace_printk allows only 3.
   // ??? Could split the print into multiple calls, such that each is
@@ -1558,10 +1613,28 @@ bpf_unparser::visit_print_format (print_format *e)
 
 // } // anon namespace
 
+void
+build_internal_globals(globals& glob)
+{
+  struct vardecl exit;
+  exit.name = "__global___STAPBPF_exit";
+  exit.unmangled_name = "__STAPBPF_exit";
+  exit.type = pe_long;
+  exit.arity = 0;
+  glob.internal_exit = exit;
+
+  glob.globals.insert(std::pair<vardecl *, globals::map_slot>
+                      (&glob.internal_exit,
+                       globals::map_slot(0, globals::EXIT)));
+  glob.maps.push_back
+    ({ BPF_MAP_TYPE_ARRAY, 4, 8, globals::NUM_INTERNALS, 0 });
+}
+
 static void
 translate_globals (globals &glob, systemtap_session& s)
 {
   int long_map = -1;
+  build_internal_globals(glob);
 
   for (auto i = s.globals.begin(); i != s.globals.end(); ++i)
     {
@@ -1629,6 +1702,7 @@ translate_globals (globals &glob, systemtap_session& s)
 	  throw SEMANTIC_ERROR (_("unhandled multi-dimensional array"), v->tok);
 	}
 
+      assert(this_map != globals::internal_map_idx);
       auto ok = (glob.globals.insert
 		 (std::pair<vardecl *, globals::map_slot>
 		  (v, globals::map_slot(this_map, this_idx))));
@@ -2058,6 +2132,7 @@ translate_bpf_pass (systemtap_session& s)
   if (elf_version(EV_CURRENT) == EV_NONE)
     return 1;
 
+  module_name = s.module_name;
   const std::string module = s.tmpdir + "/" + s.module_filename();
   int fd = open(module.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0666);
   if (fd < 0)

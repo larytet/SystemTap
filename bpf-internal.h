@@ -15,6 +15,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include "bpf-bitset.h"
+#include "staptree.h"
 
 extern "C" {
 #include <linux/bpf.h>
@@ -261,8 +262,21 @@ struct globals
   // index into these maps.
   map_vect maps;
   globals_map globals;
-};
 
+  // Index into globals. This element represents the map of internal globals
+  // used for communication between stapbpf and kernel-side bpf programs.
+  static const int internal_map_idx = 0;
+
+  // Indicates whether exit() has been called from within a bpf program.
+  struct vardecl internal_exit;
+
+  // Indexes into the bpf map of internal globals.
+  enum internal_global_idx
+  {
+    EXIT = 0,
+    NUM_INTERNALS, // non-ABI
+  };
+};
 } // namespace bpf
 
 #endif // BPF_INTERNAL_H

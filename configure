@@ -11435,12 +11435,12 @@ See \`config.log' for more details" "$LINENO" 5; }
 fi
 
   staprun_LIBS="$staprun_LIBS -lelf"
-  stapbpf_LIBS="$stapbpf_LIBS -lelf"
+  stapbpf_LIBS="$stapbpf_LIBS -lelf -pthread"
   LIBS="$save_LIBS"
 else
   # We built our own and staprun_LDFLAGS points at the install.
   staprun_LIBS="$staprun_LIBS -lelf"
-  stapbpf_LIBS="$stapbpf_LIBS -lelf"
+  stapbpf_LIBS="$stapbpf_LIBS -lelf -pthread"
 fi
 
 

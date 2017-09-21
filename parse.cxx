@@ -937,8 +937,13 @@ bool eval_pp_conditional (systemtap_session& s,
       string query_runtime = r->content;
       string target_runtime;
 
-      target_runtime = (s.runtime_mode == systemtap_session::dyninst_runtime
-			? "dyninst" : "kernel");
+      if (s.runtime_mode == systemtap_session::dyninst_runtime)
+        target_runtime = "dyninst";
+      else if (s.runtime_mode == systemtap_session::bpf_runtime)
+        target_runtime = "bpf";
+      else
+        target_runtime = "kernel";
+
       int nomatch = fnmatch (query_runtime.c_str(),
                              target_runtime.c_str(),
                              FNM_NOESCAPE); // still spooky

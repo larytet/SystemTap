@@ -411,6 +411,7 @@ struct generic_kprobe_derived_probe: public derived_probe
   generic_kprobe_derived_probe* entry_handler;
 
   std::string args_for_bpf() const;
+  interned_string sym_name_for_bpf;
 };
 
 generic_kprobe_derived_probe::generic_kprobe_derived_probe(probe *base,
@@ -5246,6 +5247,9 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
   if (q.has_module && symbol_name != "")
     this->symbol_name = lex_cast(this->module) + ":" + lex_cast(symbol_name);
 
+  if (q.sess.runtime_mode == systemtap_session::bpf_runtime && q.has_return)
+    this->sym_name_for_bpf = funcname;
+
   if (user_lib.size() != 0)
     has_library = true;
 
@@ -6127,18 +6131,10 @@ generic_kprobe_derived_probe::args_for_bpf() const
 {
   std::stringstream o;
 
-  o << (has_return ? "kretprobe/" : "kprobe/");
-
-  if (!symbol_name.empty())
-    {
-      if (!module.empty())
-	o << module << ":";
-      o << symbol_name;
-      if (offset)
-	o << "+0x" << std::hex << offset;
-    }
+  if (has_return)
+    o << "kretprobe/" << sym_name_for_bpf;
   else
-    o << "0x" << std::hex << addr;
+    o << "kprobe/" << "0x" << std::hex << addr;
 
   return o.str();
 }

@@ -24,6 +24,10 @@
 #include <cassert>
 #include <csignal>
 #include <cerrno>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <thread>
 #include <vector>
 #include <unistd.h>
 #include <limits.h>
@@ -48,7 +52,7 @@ extern "C" {
 #include "config.h"
 #include "../git_version.h"
 #include "../version.h"
-
+#include "../bpf-internal.h"
 
 #ifndef EM_BPF
 #define EM_BPF 0xeb9f
@@ -56,6 +60,8 @@ extern "C" {
 #ifndef R_BPF_MAP_FD
 #define R_BPF_MAP_FD 1
 #endif
+
+using namespace std;
 
 static int group_fd = -1;		// ??? Need one per cpu.
 extern "C" { 
@@ -89,14 +95,14 @@ static void unregister_kprobes(const size_t nprobes);
 
 struct kprobe_data
 {
-  const char *args;
+  string args;
   char type;
   int prog_fd;
   int event_id;
   int event_fd;				// ??? Need one per cpu.
 
-  kprobe_data(char t, const char *a, int fd)
-    : args(a), type(t), prog_fd(fd), event_id(-1), event_fd(-1)
+  kprobe_data(char t, string s, int fd)
+    : args(s), type(t), prog_fd(fd), event_id(-1), event_fd(-1)
   { }
 };
 
@@ -251,10 +257,41 @@ maybe_collect_kprobe(const char *name, unsigned name_idx,
 		     unsigned fd_idx, Elf64_Addr offset)
 {
   char type;
+  string arg;
+
   if (strncmp(name, "kprobe/", 7) == 0)
-    type = 'p', name += 7;
+    {
+      string line;
+      const char *stext = NULL;
+      type = 'p';
+      name += 7;
+
+      ifstream syms("/proc/kallsyms");
+      if (!syms)
+        fatal("error opening /proc/kallsyms: %s\n", strerror(errno));
+
+      // get value of symbol _stext and add it to the offset found in name.
+      while (getline(syms, line))
+        {
+          const char *l = line.c_str();
+          if (strncmp(l + 19, "_stext", 6) == 0)
+            {
+              stext = l;
+              break;
+            }
+        }
+
+      if (stext == NULL)
+        fatal("could not find _stext in /proc/kallsyms");
+
+      unsigned long addr = strtoul(stext, NULL, 16);
+      addr += strtoul(name, NULL, 16);
+      stringstream ss;
+      ss << "0x" << hex << addr;
+      arg = ss.str();
+    }
   else if (strncmp(name, "kretprobe/", 10) == 0)
-    type = 'r', name += 10;
+    type = 'r', arg = name + 10; 
   else
     return;
 
@@ -264,7 +301,7 @@ maybe_collect_kprobe(const char *name, unsigned name_idx,
   if (offset != 0)
     fatal("probe %u offset non-zero\n", name_idx);
 
-  kprobes.push_back(kprobe_data(type, name, fd));
+  kprobes.push_back(kprobe_data(type, arg, fd));
 }
 
 static void
@@ -307,7 +344,7 @@ register_kprobes()
       char msgbuf[128];
       
       ssize_t olen = snprintf(msgbuf, sizeof(msgbuf), "%c:p%d_%zu %s",
-			      k.type, pid, i, k.args);
+			      k.type, pid, i, k.args.c_str());
       if ((size_t)olen >= sizeof(msgbuf))
 	{
 	  fprintf(stderr, "Buffer overflow creating probe %zu\n", i);
@@ -417,6 +454,7 @@ unregister_kprobes(const size_t nprobes)
   if (fd < 0)
     return;
 
+
   const int pid = getpid();
   for (size_t i = 0; i < nprobes; ++i)
     {
@@ -431,6 +469,19 @@ unregister_kprobes(const size_t nprobes)
 		i, strerror(errno));
     }
   close(fd);
+}
+
+static void
+init_internal_globals()
+{
+  using namespace bpf;
+
+  int key = globals::EXIT;
+  long val = 0;
+
+  if (bpf_update_elem(map_fds[globals::internal_map_idx],
+                     (void*)&key, (void*)&val, BPF_EXIST) != 0)
+    fatal("Error updating pid: %s\n", errno);
 }
 
 static void
@@ -633,8 +684,85 @@ load_bpf_file(const char *module)
       for (unsigned i = 1; i < shnum; ++i)
 	maybe_collect_kprobe(sh_name[i], i, i, 0);
     }
+}
 
-  module_name = NULL;
+static int
+get_exit_status()
+{
+  int key = bpf::globals::EXIT;
+  long val = 0;
+
+  if (bpf_lookup_elem
+       (map_fds[bpf::globals::internal_map_idx], &key, &val) != 0)
+    fatal("error during bpf map lookup: %s\n", strerror(errno));
+
+  return val;
+}
+
+static void
+print_trace_output(pthread_t main_thread)
+{
+  // Output from printf statements within probe handlers is sent to
+  // debugfs via trace_printk. Get this output and copy it to output_f.
+  string modname(module_name);
+  size_t pos = modname.find_last_of("/");
+  if (pos != string::npos)
+    modname = modname.substr(pos + 1);
+
+  string start_tag = "<" + modname.erase(modname.size() - 3).erase(4, 1) + ">";
+  string end_tag = start_tag;
+  end_tag.insert(1, "/");
+
+  while (1)
+    {
+      ifstream trace_pipe(DEBUGFS "trace_pipe");
+      if (!trace_pipe)
+        fatal("error opening trace_pipe: %s\n", strerror(errno));
+
+      bool start_tag_seen = false;
+      string line, buf;
+      while (getline(trace_pipe, line))
+        {
+          line += "\n";
+          if (!start_tag_seen)
+            {
+              pos = line.find(start_tag);
+              if (pos != string::npos)
+                {
+                  start_tag_seen = true;
+                  line = line.substr(pos + start_tag.size(), string::npos);
+                }
+            }
+          if (start_tag_seen)
+            {
+              pos = line.find(end_tag);
+              if (pos != string::npos)
+                {
+                  line = line.substr(0, pos);
+                  start_tag_seen = false;
+
+                  // exit() causes "" to be written to trace_pipe. If
+                  // "" is seen and the exit flag is set, wake up main
+                  // thread to begin program shutdown.
+                  if (line == "" && buf == "" && get_exit_status())
+                    {
+                      pthread_kill(main_thread, SIGINT);
+                      return;
+                    }
+                }
+
+              buf += line;
+              if (fwrite(buf.c_str(), sizeof(char), buf.size(), output_f)
+                   != buf.size())
+                fatal("error writing to output file: %s\n", strerror(errno));
+
+              fflush(output_f);
+              buf = "";
+            }
+        }
+      // If another process opens trace_pipe then we may read EOF. In this
+      // case simply reopen the file and continue parsing.
+    }
 }
 
 static void
@@ -653,11 +781,17 @@ usage(const char *argv0)
 void
 sigint(int s)
 {
-  // ??? set quit flag etc.
   // suppress any subsequent SIGINTs that may come from stap parent process
   signal(s, SIG_IGN);
-}
 
+  // set exit flag
+  int key = bpf::globals::EXIT;
+  long val = 1;
+
+  if (bpf_update_elem
+       (map_fds[bpf::globals::internal_map_idx], &key, &val, 0) != 0)
+     fatal("error during bpf map update: %s\n", strerror(errno));
+}
 
 int
 main(int argc, char **argv)
@@ -711,6 +845,7 @@ main(int argc, char **argv)
     goto do_usage;
 
   load_bpf_file(argv[optind]);
+  init_internal_globals();
 
   if (create_group_fds() < 0)
     fatal("Error creating perf event group: %s\n", strerror(errno));
@@ -724,7 +859,6 @@ main(int argc, char **argv)
 
       bpf_interpret(c, prog_begin->d_size / sizeof(bpf_insn),
 		    static_cast<bpf_insn *>(prog_begin->d_buf));
-      // ??? Check for systemtap exit having been called.
 
       bpf_context_export(c, map_fds.data());
       bpf_context_free(c);
@@ -733,10 +867,13 @@ main(int argc, char **argv)
   // Now that the begin probe has run, enable the kprobes.
   ioctl(group_fd, PERF_EVENT_IOC_ENABLE, 0);
 
-  // ??? Wait for ^C; read BPF_OUTPUT events, copying them to output_f.
+  // Wait for ^C; read BPF_OUTPUT events, copying them to output_f.
   signal(SIGINT, (sighandler_t)sigint);
   signal(SIGTERM, (sighandler_t)sigint);
-  pause();
+  std::thread(print_trace_output, pthread_self()).detach();
+
+  while (!get_exit_status())
+    pause();
     
   // Disable the kprobes before deregistering and running exit probes.
   ioctl(group_fd, PERF_EVENT_IOC_DISABLE, 0);

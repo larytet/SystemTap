@@ -502,6 +502,16 @@ as_str(uintptr_t ptr)
   return reinterpret_cast<char *>(ptr);
 }
 
+const std::string
+remove_tag(const char *fstr)
+{
+  while (*(++fstr) != '>');
+  ++fstr;
+  const char *end = fstr + strlen(fstr);
+  while (*(--end) != '<');
+  return std::string(fstr, end - fstr);
+}
+
 uint64_t
 bpf_interpret(bpf_context *c, size_t ninsns, const struct bpf_insn insns[])
 {
@@ -706,7 +716,8 @@ bpf_interpret(bpf_context *c, size_t ninsns, const struct bpf_insn insns[])
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
               // regs[2] is the strlen(regs[1]) - not used by printf(3);
               // instead we assume regs[1] string is \0 terminated
-	      dr = printf(as_str(regs[1]), /*regs[2],*/ regs[3], regs[4], regs[5]);
+	      dr = printf(remove_tag(as_str(regs[1])).c_str(), /*regs[2],*/
+                          regs[3], regs[4], regs[5]);
 #pragma GCC diagnostic pop
 	      break;
 	    default:
