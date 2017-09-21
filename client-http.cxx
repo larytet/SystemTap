@@ -50,7 +50,7 @@ public:
     s(s),
     curl(0),
     retry(0),
-    location(nullptr) {script_files.push_back ("");}
+    location(nullptr) { }
   ~http_client () {if (curl) curl_easy_cleanup(curl);};
 
   json_object *root;
@@ -480,17 +480,20 @@ http_client::post (const std::string & url,
       string script_base = basename (script_file.c_str());
 
       curl_formadd (&formpost,
-          &lastptr,
-          CURLFORM_COPYNAME, script_base.c_str(),
-          CURLFORM_FILE, script_file.c_str(),
-          CURLFORM_END);
+		    &lastptr,
+		    CURLFORM_COPYNAME, script_base.c_str(),
+		    CURLFORM_FILE, script_file.c_str(),
+		    CURLFORM_END);
 
-       curl_formadd (&formpost,
+      curl_formadd (&formpost,
                     &lastptr,
                     CURLFORM_COPYNAME, "files",
                     CURLFORM_COPYCONTENTS, script_file.c_str(),
                     CURLFORM_END);
 
+      // FIXME: There is no guarantee that the first file in
+      // script_files is a script - "stap -I foo/ -e '...script...'".
+      // 
       // script name is not in cmd_args so add it manually
       if (it == script_files.begin())
         curl_formadd (&formpost,
@@ -634,7 +637,7 @@ http_client::add_script_file (std::string script_type, std::string script_file)
   if (script_type == "tapset")
     script_files.push_back (script_file);
   else
-    script_files[0] = script_file;
+    script_files.insert(script_files.begin(), script_file);
 }
 
 
@@ -734,7 +737,7 @@ http_client_backend::process_response ()
                json_object *files_element = json_object_array_get_idx (files, k);
                json_object *loc;
                found = json_object_object_get_ex (files_element, "location", &loc);
-               string location = json_object_to_json_string (loc);
+               string location = json_object_get_string (loc);
                http->download (http->host + location, http->file_type);
              }
            break;
@@ -743,7 +746,7 @@ http_client_backend::process_response ()
      }
    json_object *stdio_loc;
    found = json_object_object_get_ex (http->root, "stderr_location", &stdio_loc);
-   string stdio_loc_str = json_object_to_json_string (stdio_loc);
+   string stdio_loc_str = json_object_get_string (stdio_loc);
    http->download (http->host + stdio_loc_str, http->file_type);
 
    std::ifstream ferr (s.tmpdir + "/stderr");
@@ -752,7 +755,7 @@ http_client_backend::process_response ()
    ferr.close();
 
    found = json_object_object_get_ex (http->root, "stdout_location", &stdio_loc);
-   stdio_loc_str = json_object_to_json_string (stdio_loc);
+   stdio_loc_str = json_object_get_string (stdio_loc);
    http->download (http->host + stdio_loc_str, http->file_type);
 
    std::ifstream fout (s.tmpdir + "/stdout");
