@@ -670,7 +670,7 @@ http_client_backend::find_and_connect_to_server ()
 {
   s.probes[0]->print (clog);
 
-  http->add_module ("kernel." + s.kernel_release);
+  http->add_module ("kernel-" + s.kernel_release);
   http->get_kernel_buildid ();
 
   for (set<std::string>::const_iterator i = s.unwindsym_modules.begin();
