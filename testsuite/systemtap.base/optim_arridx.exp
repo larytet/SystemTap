@@ -11,9 +11,9 @@ elide_global_b:long
 # functions
 exit:unknown ()
 %{ /* unprivileged */
-    atomic_set (session_state(), STAP_SESSION_STOPPING);
-    _stp_exit ();
-%}
+     atomic_set (session_state(), STAP_SESSION_STOPPING);
+     _stp_exit ();
+  %}
 fna:long (a:long)
 return a
 fnb:long (a:long, b:long)
