@@ -166,18 +166,30 @@ static void __stp_tf_free_task_work(struct task_work *work)
 /* 
  * Cancel (and free) all outstanding task work requests.
  */
-static void __stp_tf_cancel_task_work(void)
+static void __stp_tf_cancel_all_task_work(void)
+{
+	struct __stp_tf_task_work *node;
+	unsigned long flags;
+
+	// Cancel all remaining requests.
+	stp_spin_lock_irqsave(&__stp_tf_task_work_list_lock, flags);
+	list_for_each_entry(node, &__stp_tf_task_work_list, list) {
+	    stp_task_work_cancel(node->task, node->work.func);
+	}
+	stp_spin_unlock_irqrestore(&__stp_tf_task_work_list_lock, flags);
+}
+
+static void __stp_tf_free_all_task_work(void)
 {
 	struct __stp_tf_task_work *node;
 	struct __stp_tf_task_work *tmp;
 	unsigned long flags;
 
-	// Cancel all remaining requests.
+	// Free everything.
 	stp_spin_lock_irqsave(&__stp_tf_task_work_list_lock, flags);
 	list_for_each_entry_safe(node, tmp, &__stp_tf_task_work_list, list) {
-	    // Remove the item from the list, cancel it, then free it.
+	    // Remove the item from the list, then free it.
 	    list_del(&node->list);
-	    stp_task_work_cancel(node->task, node->work.func);
 	    _stp_kfree(node);
 	}
 	stp_spin_unlock_irqrestore(&__stp_tf_task_work_list_lock, flags);
@@ -1878,11 +1890,19 @@ stap_stop_task_finder(void)
 #endif
 	debug_task_finder_report();
 
-	/* Make sure all outstanding task work requests are finished. */
-	stp_task_work_exit();
-	__stp_tf_cancel_task_work();
+	/* Make sure all pending task_work requests are canceled. */
+	__stp_tf_cancel_all_task_work();
 
+	/* Call utrace_exit(), which also calls stp_task_work_exit()
+	 * to wait on any running task_work items. */
 	utrace_exit();
+
+	/* After utrace_exit(), we're *sure* there are no tracepoint
+	 * probes or task work items running or scheduled to be
+	 * run. So, now would be a great time to actually free
+	 * everything. */
+	__stp_tf_free_all_task_work();
+
 #ifdef DEBUG_TASK_FINDER
 	printk(KERN_ERR "%s:%d - exit\n", __FUNCTION__, __LINE__);
 #endif

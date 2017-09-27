@@ -326,11 +326,21 @@ error:
 	return rc;
 }
 
+static void utrace_cleanup(struct utrace *utrace);
+
 static int utrace_exit(void)
 {
+	int i;
+	struct utrace *utrace;
+	struct hlist_head *head;
+	struct hlist_node *node, *node2;
+
 #ifdef STP_TF_DEBUG
 	printk(KERN_ERR "%s:%d - entry\n", __FUNCTION__, __LINE__);
 #endif
+	/* Note that we are being paranoid
+	 * here. stap_stop_task_finder() should have already called
+	 * utrace_shutdown(). */
 	utrace_shutdown();
 	stp_task_work_exit();
 
@@ -339,6 +349,20 @@ static int utrace_exit(void)
 	 * tracepoint probes or task work items running or scheduled
 	 * to be run. So, now would be a great time to actually free
 	 * everything. */
+
+#ifdef STP_TF_DEBUG
+	printk(KERN_ERR "%s:%d - freeing task-specific\n", __FUNCTION__, __LINE__);
+#endif
+	stp_spin_lock(&task_utrace_lock);
+	for (i = 0; i < TASK_UTRACE_TABLE_SIZE; i++) {
+		head = &task_utrace_table[i];
+		stap_hlist_for_each_entry_safe(utrace, node, node2, head,
+					       hlist) {
+			hlist_del(&utrace->hlist);
+			utrace_cleanup(utrace);
+		}
+	}
+	stp_spin_unlock(&task_utrace_lock);
 
 	if (utrace_cachep) {
 		kmem_cache_destroy(utrace_cachep);
@@ -381,9 +405,6 @@ stp_task_notify_resume(struct task_struct *target, struct utrace *utrace)
 	}
 }
 
-static void utrace_resume(struct task_work *work);
-static void utrace_report_work(struct task_work *work);
-
 /*
  * Clean up everything associated with @task.utrace.
  *
@@ -413,45 +434,75 @@ static void utrace_cleanup(struct utrace *utrace)
 	}
 	stp_spin_unlock(&utrace->lock);
 
-	if (atomic_add_unless(&utrace->resume_work_added, -1, 0)) {
-#ifdef STP_TF_DEBUG
-		if (stp_task_work_cancel(utrace->task, &utrace_resume) == NULL)
-			printk(KERN_ERR "%s:%d - task_work_cancel() failed? task %p, %d, %s\n",
-			       __FUNCTION__, __LINE__, utrace->task,
-			       utrace->task->tgid,
-			       (utrace->task->comm ? utrace->task->comm
-				: "UNKNOWN"));
-#else
-		stp_task_work_cancel(utrace->task, &utrace_resume);
-#endif
-	}
-	if (atomic_add_unless(&utrace->report_work_added, -1, 0)) {
-#ifdef STP_TF_DEBUG
-		if (stp_task_work_cancel(utrace->task, &utrace_report_work) == NULL)
-			printk(KERN_ERR "%s:%d - task_work_cancel() failed? task %p, %d, %s\n",
-			       __FUNCTION__, __LINE__, utrace->task,
-			       utrace->task->tgid,
-			       (utrace->task->comm ? utrace->task->comm
-				: "UNKNOWN"));
-#else
-		stp_task_work_cancel(utrace->task, &utrace_report_work);
-#endif
-	}
+	/* Note that we don't need to worry about
+	 * utrace->resume_work_added and utrace->report_work_added,
+	 * since those were cancelled by
+	 * utrace_cancel_all_task_work(). */
 
 	/* Free the struct utrace itself. */
+#ifdef STP_TF_DEBUG
+	memset(utrace, 0, sizeof(struct utrace));
+#endif
 	kmem_cache_free(utrace_cachep, utrace);
 #ifdef STP_TF_DEBUG
 	printk(KERN_ERR "%s:%d exit\n", __FUNCTION__, __LINE__);
 #endif
 }
 
-static void utrace_shutdown(void)
+static void utrace_resume(struct task_work *work);
+static void utrace_report_work(struct task_work *work);
+
+static void utrace_cancel_all_task_work(void)
 {
 	int i;
 	struct utrace *utrace;
 	struct hlist_head *head;
-	struct hlist_node *node, *node2;
+	struct hlist_node *node;
 
+	/* Cancel any pending task_work item(s). */
+	stp_spin_lock(&task_utrace_lock);
+	for (i = 0; i < TASK_UTRACE_TABLE_SIZE; i++) {
+		head = &task_utrace_table[i];
+		stap_hlist_for_each_entry(utrace, node, head, hlist) {
+			if (atomic_add_unless(&utrace->resume_work_added,
+					      -1, 0)) {
+#ifdef STP_TF_DEBUG
+				if (stp_task_work_cancel(utrace->task,
+							 &utrace_resume) == NULL)
+					printk(KERN_ERR "%s:%d - task_work_cancel() failed? task %p, %d, %s\n",
+					       __FUNCTION__, __LINE__,
+					       utrace->task, utrace->task->tgid,
+					       (utrace->task->comm
+						? utrace->task->comm
+						: "UNKNOWN"));
+#else
+				stp_task_work_cancel(utrace->task,
+						     &utrace_resume);
+#endif
+			}
+			if (atomic_add_unless(&utrace->report_work_added,
+					      -1, 0)) {
+#ifdef STP_TF_DEBUG
+				if (stp_task_work_cancel(utrace->task,
+							 &utrace_report_work) == NULL)
+					printk(KERN_ERR "%s:%d - task_work_cancel() failed? task %p, %d, %s\n",
+					       __FUNCTION__, __LINE__,
+					       utrace->task,
+					       utrace->task->tgid,
+					       (utrace->task->comm
+						? utrace->task->comm
+						: "UNKNOWN"));
+#else
+				stp_task_work_cancel(utrace->task, &utrace_report_work);
+#endif
+			}
+		}
+	}
+	stp_spin_unlock(&task_utrace_lock);
+}
+
+static void utrace_shutdown(void)
+{
 	if (atomic_read(&utrace_state) != __UTRACE_REGISTERED)
 		return;
 	atomic_set(&utrace_state, __UTRACE_UNREGISTERED);
@@ -470,32 +521,15 @@ static void utrace_shutdown(void)
 	 * currently executing tracepoint probes will be finished. */
 	tracepoint_synchronize_unregister();
 
-	/* (We'd like to wait here until all currrently executing
+	/* We'd like to wait here until all currrently executing
 	 * task_work items are finished (by calling
-	 * stp_task_work_exit()), but that gets stuck.)
+	 * stp_task_work_exit()). But we can't call
+	 * stp_task_work_exit() yet, since the task_finder hasn't
+	 * canceled its task_work items yet.
 	 *
-	 * After the code above we're *sure* there are no tracepoint
-	 * probes running (or scheduled to be run). There could be
-	 * currently running task_work items.  Go ahead and cleanup
-	 * everything.  Currently running items should be OK, since
-	 * utrace_cleanup() just puts the memory back into the utrace
-	 * kmem caches. */
-#ifdef STP_TF_DEBUG
-	printk(KERN_ERR "%s:%d - freeing task-specific\n", __FUNCTION__, __LINE__);
-#endif
-	stp_spin_lock(&task_utrace_lock);
-	for (i = 0; i < TASK_UTRACE_TABLE_SIZE; i++) {
-		head = &task_utrace_table[i];
-		stap_hlist_for_each_entry_safe(utrace, node, node2, head,
-					       hlist) {
-			hlist_del(&utrace->hlist);
-			utrace_cleanup(utrace);
-		}
-	}
-	stp_spin_unlock(&task_utrace_lock);
-#ifdef STP_TF_DEBUG
-	printk(KERN_ERR "%s:%d - done\n", __FUNCTION__, __LINE__);
-#endif
+	 * So, we'll just cancel all our task_work items here.
+	 */
+	utrace_cancel_all_task_work();
 }
 
 /*
@@ -549,6 +583,9 @@ static bool utrace_task_alloc(struct task_struct *task)
 			       &task_utrace_table[hash_ptr(task, TASK_UTRACE_HASH_BITS)]);
 	}
 	else {
+#ifdef STP_TF_DEBUG
+		memset(utrace, 0, sizeof(struct utrace));
+#endif
 		kmem_cache_free(utrace_cachep, utrace);
 	}
 	stp_spin_unlock(&task_utrace_lock);
@@ -610,6 +647,9 @@ static void utrace_free(struct utrace *utrace)
 				: "UNKNOWN"), utrace->task->state, utrace->task->exit_state);
 	}
 
+#ifdef STP_TF_DEBUG
+	memset(utrace, 0, sizeof(struct utrace));
+#endif
 	kmem_cache_free(utrace_cachep, utrace);
 }
 
@@ -824,7 +864,6 @@ static struct utrace_engine *utrace_attach_task(
 		kmem_cache_free(utrace_engine_cachep, engine);
 		engine = ERR_PTR(ret);
 	}
-
 
 	return engine;
 }
