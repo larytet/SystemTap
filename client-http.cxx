@@ -69,6 +69,7 @@ public:
   std::string get_rpmname (std::string & pathname);
   void get_buildid (string fname);
   void get_kernel_buildid (void);
+  long get_response_code (void);
 
 private:
   size_t get_header (void *ptr, size_t size, size_t nitems);
@@ -171,7 +172,6 @@ http_client::download (const std::string & url, http_client::download_type type)
   curl = curl_easy_init ();
   curl_global_init (CURL_GLOBAL_ALL);
   curl_easy_setopt (curl, CURLOPT_URL, url.c_str ());
-  curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1); //Prevent "longjmp causes uninitialized stack frame" bug
   curl_easy_setopt (curl, CURLOPT_ACCEPT_ENCODING, "deflate");
   headers = curl_slist_append (headers, "Accept: */*");
@@ -444,6 +444,15 @@ http_client::get_kernel_buildid (void)
 }
 
 
+long
+http_client::get_response_code (void)
+{
+  long response_code = 0;
+  curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &response_code);
+  return response_code;
+}
+
+
 // Post REQUEST_PARAMETERS, script_files, modules, buildids to URL
 
 bool
@@ -668,8 +677,6 @@ http_client_backend::package_request ()
 int
 http_client_backend::find_and_connect_to_server ()
 {
-  s.probes[0]->print (clog);
-
   http->add_module ("kernel-" + s.kernel_release);
   http->get_kernel_buildid ();
 
@@ -678,22 +685,31 @@ http_client_backend::find_and_connect_to_server ()
       ++i)
     {
       string module = (*i);
-      string rpmname = http->get_rpmname (module);
-      http->get_buildid (module);
-      http->add_module (rpmname);
+      if (module != "kernel")
+        {
+	  string rpmname = http->get_rpmname (module);
+	  http->get_buildid (module);
+	  http->add_module (rpmname);
+	}
     }
 
   for (vector<std::string>::const_iterator i = s.http_servers.begin ();
       i != s.http_servers.end ();
       ++i)
-    if (http->download (*i + "/builds", http->json_type))
-      {
-        http->host = *i;
-        if (! http->post (http->host + "/builds", request_parameters))
-          return 1;
-      }
+    {
+      // Try to connect to the server.
+      if (http->download (*i + "/builds", http->json_type))
+        {
+	  if (http->post (*i + "/builds", request_parameters))
+	    {
+	      s.winning_server = *i;
+	      http->host = *i;
+	      return 0;
+	    }
+	}
+    }
 
-  return 0;
+  return 1;
 }
 
 int
@@ -717,51 +733,103 @@ http_client_backend::process_response ()
   else
     uri = http->host + http->header_values["Location"];
 
-   while (true)
-     {
-       int retry = std::stoi (http->header_values["Retry-After"], nullptr, 10);
-       if (s.verbose >= 2)
-         clog << "Waiting " << retry << " seconds" << endl;
-       sleep (retry);
-       if (http->download (http->host + http->header_values["Location"], http->json_type))
-         {
-           json_object *files;
-           json_object_object_get_ex (http->root, "files", &files);
-           if (!files)
-             {
-               clog << "No files received from server" << endl;
-               return 1;
-             }
-           for (int k = 0; k < json_object_array_length (files); k++)
-             {
-               json_object *files_element = json_object_array_get_idx (files, k);
-               json_object *loc;
-               found = json_object_object_get_ex (files_element, "location", &loc);
-               string location = json_object_get_string (loc);
-               http->download (http->host + location, http->file_type);
-             }
-           break;
-         }
-       return 1;
-     }
-   json_object *stdio_loc;
-   found = json_object_object_get_ex (http->root, "stderr_location", &stdio_loc);
-   string stdio_loc_str = json_object_get_string (stdio_loc);
-   http->download (http->host + stdio_loc_str, http->file_type);
+  if (s.verbose >= 2)
+    clog << "Initial response code: " << http->get_response_code() << endl;
+  while (true)
+    {
+      auto it = http->header_values.find("Retry-After");
+      if (it == http->header_values.end())
+        {
+	  clog << "No retry-after?" << endl;
+	  break;
+	}
+      int retry = std::stoi(http->header_values["Retry-After"], nullptr, 10);
+      if (s.verbose >= 2)
+	clog << "Waiting " << retry << " seconds" << endl;
+      sleep (retry);
+      if (http->download (http->host + http->header_values["Location"],
+			  http->json_type))
+        {
+	  // We need to wait until we get a 303 (See Other)
+	  long response_code = http->get_response_code();
+	  if (s.verbose >= 2)
+	    clog << "Response code: " << response_code << endl;
+	  if (response_code == 200)
+	    continue;
+	  else if (response_code == 303)
+	    break;
+	  else
+	    {
+	      clog << "Received a unhandled response code "
+		   << response_code << endl;
+	      return 1;
+	    }
+	}
+    }
 
-   std::ifstream ferr (s.tmpdir + "/stderr");
-   if (ferr.is_open())
-     std::cout << ferr.rdbuf() << endl;
-   ferr.close();
+  // If we're here, we got a '303' (See Other). Read the "other"
+  // location, which should contain our results.
+  if (! http->download (http->host + http->header_values["Location"],
+			http->json_type))
+    {
+      clog << "Couldn't read result information" << endl;
+      return 1;
+    }
 
-   found = json_object_object_get_ex (http->root, "stdout_location", &stdio_loc);
-   stdio_loc_str = json_object_get_string (stdio_loc);
-   http->download (http->host + stdio_loc_str, http->file_type);
+  // Download each item in the optional 'files' array. This is
+  // optional since not all stap invocations produce an output file
+  // (like a module).
+  json_object *files;
+  json_object_object_get_ex (http->root, "files", &files);
+  if (files)
+    {
+      for (int k = 0; k < json_object_array_length (files); k++)
+        {
+	  json_object *files_element = json_object_array_get_idx (files, k);
+	  json_object *loc;
+	  found = json_object_object_get_ex (files_element, "location", &loc);
+	  string location = json_object_get_string (loc);
+	  http->download (http->host + location, http->file_type);
+	}
+    }
 
-   std::ifstream fout (s.tmpdir + "/stdout");
-   if (fout.is_open())
-     std::cout << fout.rdbuf() << endl;
-   fout.close();
+  // Download the stdout and stderr file items.
+  json_object *stdio_loc;
+  found = json_object_object_get_ex (http->root, "stderr_location",
+				     &stdio_loc);
+  if (found)
+    {
+      string stdio_loc_str = json_object_get_string (stdio_loc);
+      http->download (http->host + stdio_loc_str, http->file_type);
+
+      std::ifstream ferr (s.tmpdir + "/stderr");
+      if (ferr.is_open())
+	std::cout << ferr.rdbuf() << endl;
+      ferr.close();
+    }
+  else
+    {
+      clog << "Couldn't find 'stderr' in JSON data" << endl;
+      return 1;
+    }
+
+  found = json_object_object_get_ex (http->root, "stdout_location",
+				     &stdio_loc);
+  if (found)
+    {
+      string stdio_loc_str = json_object_get_string (stdio_loc);
+      http->download (http->host + stdio_loc_str, http->file_type);
+
+      std::ifstream fout (s.tmpdir + "/stdout");
+      if (fout.is_open())
+	std::cout << fout.rdbuf() << endl;
+      fout.close();
+    }
+  else
+    {
+      clog << "Couldn't find 'stdout' in JSON data" << endl;
+      return 1;
+    }
 
   return 0;
 }
