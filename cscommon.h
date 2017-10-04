@@ -2,6 +2,9 @@
 #ifndef CSCOMMON_H
 #define CSCOMMON_H 1
 
+#define MOK_PUBLIC_CERT_NAME "signing_key.x509"
+#define MOK_PUBLIC_CERT_FILE "/" MOK_PUBLIC_CERT_NAME
+
 #if HAVE_NSS
 extern "C"
 {

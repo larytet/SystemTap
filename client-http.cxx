@@ -187,18 +187,14 @@ http_client::download (const std::string & url, http_client::download_type type)
   else if (type == file_type)
     {
       std::string filename = url;
-      std::string ko_suffix = ".ko\"";
       std::string filepath;
+
       if (filename.back() == '/')
         filename.erase(filename.length()-1);
-
-      if (std::equal(ko_suffix.rbegin(), ko_suffix.rend(), filename.rbegin()))
-        filepath = s.tmpdir + "/" + s.module_name + ".ko";
-      else
-        filepath = s.tmpdir + "/" + filename.substr (filename.rfind ('/')+1);
+      filepath = s.tmpdir + "/" + filename.substr (filename.rfind ('/')+1);
 
       if (s.verbose >= 3)
-        clog << "Downloaded " + filepath << endl;
+	clog << "Downloaded " + filepath << endl;
       std::FILE *File = std::fopen (filepath.c_str(), "wb");
       curl_easy_setopt (curl, CURLOPT_WRITEDATA, File);
       curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, http_client::get_file);
@@ -655,9 +651,15 @@ http_client::add_script_file (std::string script_type, std::string script_file)
 void
 http_client::add_module (std::string module)
 {
-    modules.push_back (module);
+  modules.push_back (module);
 }
 
+
+http_client_backend::http_client_backend (systemtap_session &s)
+  : client_backend(s)
+{
+  server_tmpdir = s.tmpdir;
+}
 
 int
 http_client_backend::initialize ()
@@ -715,13 +717,6 @@ http_client_backend::find_and_connect_to_server ()
 int
 http_client_backend::unpack_response ()
 {
-  return 0;
-}
-
-int
-http_client_backend::process_response ()
-{
-
   std::string::size_type found = http->host.find ("/builds");
   std::string uri;
   std::map<std::string, std::string>::iterator it_loc;
@@ -776,6 +771,20 @@ http_client_backend::process_response ()
       return 1;
     }
 
+  // Get the return code information.
+  json_object *rc_obj;
+  json_bool jfound = json_object_object_get_ex (http->root, "rc", &rc_obj);
+  if (jfound)
+    {
+      int rc = json_object_get_int(rc_obj);
+      write_to_file(s.tmpdir + "/rc", rc);
+    }
+  else
+    {
+      clog << "Couldn't find 'rc' in JSON results data" << endl;
+      return 1;
+    }
+
   // Download each item in the optional 'files' array. This is
   // optional since not all stap invocations produce an output file
   // (like a module).
@@ -787,52 +796,40 @@ http_client_backend::process_response ()
         {
 	  json_object *files_element = json_object_array_get_idx (files, k);
 	  json_object *loc;
-	  found = json_object_object_get_ex (files_element, "location", &loc);
+	  jfound = json_object_object_get_ex (files_element, "location", &loc);
 	  string location = json_object_get_string (loc);
 	  http->download (http->host + location, http->file_type);
 	}
     }
 
-  // Download the stdout and stderr file items.
-  json_object *stdio_loc;
-  found = json_object_object_get_ex (http->root, "stderr_location",
-				     &stdio_loc);
-  if (found)
+  // Output stdout and stderr.
+  json_object *loc_obj;
+  jfound = json_object_object_get_ex (http->root, "stderr_location", &loc_obj);
+  if (jfound)
     {
-      string stdio_loc_str = json_object_get_string (stdio_loc);
-      http->download (http->host + stdio_loc_str, http->file_type);
-
-      std::ifstream ferr (s.tmpdir + "/stderr");
-      if (ferr.is_open())
-	std::cout << ferr.rdbuf() << endl;
-      ferr.close();
+      string loc_str = json_object_get_string (loc_obj);
+      http->download (http->host + loc_str, http->file_type);
     }
   else
     {
-      clog << "Couldn't find 'stderr' in JSON data" << endl;
+      clog << "Couldn't find 'stderr' in JSON results data" << endl;
       return 1;
     }
 
-  found = json_object_object_get_ex (http->root, "stdout_location",
-				     &stdio_loc);
-  if (found)
+  jfound = json_object_object_get_ex (http->root, "stdout_location", &loc_obj);
+  if (jfound)
     {
-      string stdio_loc_str = json_object_get_string (stdio_loc);
-      http->download (http->host + stdio_loc_str, http->file_type);
-
-      std::ifstream fout (s.tmpdir + "/stdout");
-      if (fout.is_open())
-	std::cout << fout.rdbuf() << endl;
-      fout.close();
+      string loc_str = json_object_get_string (loc_obj);
+      http->download (http->host + loc_str, http->file_type);
     }
   else
     {
-      clog << "Couldn't find 'stdout' in JSON data" << endl;
+      clog << "Couldn't find 'stdout' in JSON results data" << endl;
       return 1;
     }
-
   return 0;
 }
+
 
 int
 http_client_backend::add_protocol_version (const std::string &version)

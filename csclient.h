@@ -22,7 +22,6 @@ public:
   virtual int package_request () = 0;
   virtual int find_and_connect_to_server () = 0;
   virtual int unpack_response () = 0;
-  virtual int process_response () = 0;
 
   virtual int add_protocol_version (const std::string &version) = 0;
   virtual int add_sysinfo () = 0;
@@ -37,6 +36,9 @@ public:
 
   virtual void add_mok_fingerprint(const std::string &fingerprint) = 0;
   virtual int finalize_mok_fingerprints() = 0;
+
+  std::string server_tmpdir;
+  cs_protocol_version server_version;
 
 protected:
   systemtap_session &s;
@@ -53,6 +55,7 @@ private:
   // Client/server session methods.
   int initialize ();
   int create_request ();
+  int process_response ();
 
   // Client/server utility methods.
   int add_cmd_args ();

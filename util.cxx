@@ -1456,6 +1456,7 @@ write_to_file (const string &fname, const T &data)
 // Let's go ahead an instantiate a few variants of the write_to_file()
 // templated function.
 template int write_to_file (const string &fname, const string &data);
+template int write_to_file (const string &fname, const int &data);
 
 int
 flush_to_stream (const string &fname, ostream &o)

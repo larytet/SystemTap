@@ -19,7 +19,7 @@ class http_client;
 class http_client_backend : public client_backend
 {
 public:
-  http_client_backend (systemtap_session &s) : client_backend(s) {}
+  http_client_backend (systemtap_session &s);
 
   friend class http_client;
 

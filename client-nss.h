@@ -26,7 +26,7 @@ struct compile_server_info;
 class nss_client_backend : public client_backend
 {
 public:
-  nss_client_backend (systemtap_session &s) : client_backend(s), argc(0) {}
+  nss_client_backend (systemtap_session &s);
 
   int initialize ();
   int add_protocol_version (const std::string &version);
@@ -46,14 +46,12 @@ public:
   int package_request ();
   int find_and_connect_to_server ();
   int unpack_response ();
-  int process_response ();
 
 private:
   unsigned argc;
   std::string client_zipfile;
   std::string server_tmpdir;
   std::string server_zipfile;
-  cs_protocol_version server_version;
   std::string locale_vars;
   std::ostringstream mok_fingerprints;
 

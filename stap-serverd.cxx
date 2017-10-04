@@ -73,8 +73,6 @@ static PRStatus spawn_and_wait (const vector<string> &argv, int *result,
                                 const char* fd0, const char* fd1, const char* fd2,
 				const char *pwd, const vector<string>& envVec = vector<string> ());
 
-#define MOK_PUBLIC_CERT_NAME "signing_key.x509"
-#define MOK_PUBLIC_CERT_FILE "/" MOK_PUBLIC_CERT_NAME
 #define MOK_PRIVATE_CERT_NAME "signing_key.priv"
 #define MOK_PRIVATE_CERT_FILE "/" MOK_PRIVATE_CERT_NAME
 #define MOK_CONFIG_FILE "/x509.genkey"
