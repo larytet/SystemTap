@@ -649,11 +649,15 @@ reg_alloc(program &p)
     {
       value *v = p.lookup_reg(i);
 
-      // Note that the hard registers are partition[i] == i,
-      // that partition heads have partition[i] == hard reg,
-      // and that other partition members have partition[i] == head.
-      // Thus a double dereference always yields the hard reg.
-      unsigned r = partition[partition[i]];
+      // Hard registers are partition[i] == i,
+      // and while other partition members should require
+      // no more than three dereferences to yeild a hard reg,
+      // we allow for up to ten dereferences.
+      unsigned r = partition[i];
+      for (int j = 0; r >= MAX_BPF_REG && j < 10; j++)
+        r = partition[r];
+
+      assert(r < MAX_BPF_REG);
       v->reg_val = r;
     }
 }
@@ -673,7 +677,7 @@ post_alloc_cleanup (program &p)
 	  n = j->next;
 	  if (j->is_move()
 	      && j->src1->is_reg()
-	      && j->dest->reg() == j->src1->reg())
+	      && j->dest->reg() == j->src1->reg() && n)
 	    {
 	      // Delete no-op moves created by partition merging.
 	      insn *p = j->prev;
