@@ -1,0 +1,12 @@
+probe begin {
+	printf("BEGIN\n")
+}
+
+probe kernel.function("vfs_read") {
+	exit()
+}
+
+probe end {
+	printf("END PASS\n")
+}
+

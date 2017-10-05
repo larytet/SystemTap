@@ -1,0 +1,18 @@
+// tests whether the tanslator can handle a large number of temporary registers
+probe begin {
+	printf("BEGIN\n")
+	x = 0
+	x = (x = (x = (x = (x = (x = (x = ++x + ++x) + ++x ) + ++x) + ++x) + ++x) + ++x) + ++x
+}
+
+probe kernel.function("vfs_read") {
+	x = 0
+	x = (x = (x = (x = (x = (x = (x = ++x + ++x) + ++x ) + ++x) + ++x) + ++x) + ++x) + ++x
+	exit()
+}
+
+probe end {
+	x = 0
+	x = (x = (x = (x = (x = (x = (x = ++x + ++x) + ++x ) + ++x) + ++x) + ++x) + ++x) + ++x	
+	printf("END PASS\n")
+}

@@ -1,0 +1,20 @@
+global res1, res2
+probe begin {
+	printf("BEGIN\n")
+}
+
+probe kernel.function("vfs_read") {
+	res1 = 1
+}
+
+probe kernel.function("vfs_read").return {
+	res2 = 1
+	exit()
+}
+
+probe end {
+	if (res1 == 1 && res2 == 1)
+		printf("END PASS\n")
+	else
+		printf("END FAIL\n")
+}

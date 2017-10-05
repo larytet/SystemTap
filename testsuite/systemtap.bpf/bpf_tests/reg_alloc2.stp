@@ -1,0 +1,31 @@
+// the current register allocation algorithm cannot find an allocation 
+// for this sequence operations.
+global res
+probe begin {
+	printf("BEGIN\n")
+        a = 1
+	b = a
+	c = b + 1
+	d = b = a + 2
+	res = a == 1 && b == 3 && c == 2 && d == 3
+}
+
+probe kernel.function("vfs_read") {
+	a = 1
+        b = a
+        c = b + 1
+        d = b = a + 2
+	res = res && a == 1 && b == 3 && c == 2 && d == 3
+	exit()
+}
+
+probe end {
+        a = 1 
+        b = a
+        c = b + 1 
+        d = b = a + 2
+	if (res && a == 1 && b == 3 && c == 2 && d == 3)
+		printf("END PASS\n")
+	else
+		printf("END FAIL\n")
+}

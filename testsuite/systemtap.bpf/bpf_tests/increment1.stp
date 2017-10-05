@@ -1,0 +1,22 @@
+global res
+probe begin {
+	printf("BEGIN\n")
+	x = 0; y = 2 
+	if (x++ == 0 && y++ == 2 && ++x == 2 && ++y == 4)
+		res = 1
+}
+
+probe kernel.function("vfs_read") {
+        x = 0; y = 2 
+        if (!(x++ == 0 && y++ == 2 && ++x == 2 && ++y == 4))
+                res = 0
+	exit()
+}
+
+probe end {
+        x = 0; y = 2
+        if (res && x++ == 0 && y++ == 2 && ++x == 2 && ++y == 4)
+		printf("END PASS\n")
+	else
+		printf("END FAIL\n")
+}

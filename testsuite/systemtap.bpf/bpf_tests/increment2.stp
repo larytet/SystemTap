@@ -1,0 +1,18 @@
+probe begin {
+	a = 0; b = 0; c = 0;
+       	d = 0; e = 0; f = 0;
+       	g = 0; h = 0
+
+#	a = a + a++
+#	b = b + ++b
+#	c = ++c + c
+#	d = ++d + ++c
+#	e = ++e + e++
+#	f = f++ + f
+#	g = g++ + ++g
+#	h = h++ + h++
+	printf("%d %d %d ", a,b,c)
+	printf("%d %d %d ", d,e,f)
+	printf("%d %d\n", g,h)
+        exit()
+}

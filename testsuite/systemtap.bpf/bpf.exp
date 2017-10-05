@@ -1,0 +1,115 @@
+set testdir "$srcdir/$subdir/bpf_tests"
+
+# All tests should start by printing "BEGIN". If OUTPUT_STR is "", then 
+# the test passes if "END PASS" is read and fails if "END FAIL" is read. Otherwise
+# the test passes when "${OUTPUT_STR}END" is read and fails if END is read without
+# OUTPUT_STR preceeding it.
+proc stapbpf_run { TEST_NAME OUTPUT_STR args } { 
+    global rc
+    set rc -1
+    set begin_str "BEGIN"
+    set pass_str [expr { $OUTPUT_STR == "" ? "END PASS" : "${OUTPUT_STR}END" }]
+    set fail_str [expr { $OUTPUT_STR == "" ? "END FAIL" : "END" }]
+
+    # return codes
+    set pass 0
+    set fail 1
+    set bad_output 2
+    set eof_start 3
+    set eof_end 4
+    set timeout_start 5
+    set timeout_end 6
+    set invalid_prog 7
+    set comp_err 8
+    
+    set cmd [concat stap -v --runtime=bpf $args]
+    # don't the following: ... $test_file_name could be some transient or leftover file
+    # if [file readable $test_file_name] { lappend cmd $test_file_name }
+
+    send_log "executing: $cmd\n"
+    eval spawn $cmd
+    set mypid [exp_pid -i $spawn_id]
+    expect {
+        -timeout 30 
+        -re {^WARNING: cannot find module [^\r]*DWARF[^\r]*\r\n} {exp_continue}
+        -re {^WARNING: No unwind data for /.+\r\n} {exp_continue}
+        -re {^Pass\ ([1234]):[^\r]*\ in\ ([0-9]+)usr/([0-9]+)sys/([0-9]+)real\ ms\.\r\n}
+        {set pass$expect_out(1,string) "\t$expect_out(2,string)\t$expect_out(3,string)\t$expect_out(4,string)"; exp_continue}
+        -re {^Pass\ ([34]): using cached [^\r]+\r\n}
+        {set pass$expect_out(1,string) "\t0\t0\t0"; exp_continue}
+        -re {^Passes: via server [^\r]* using [^\r]* in [0-9]+usr/[0-9]+sys/[0-9]+real ms\.\r\n} {exp_continue}
+        -re {^Pass 5: starting run.\r\n} {exp_continue}
+        -re $begin_str {
+            # By default, "expect -re" will match up to 2000 chars.
+            # Increase this to 8K worth of data.
+            exp_match_max 8192
+
+            # Avoid PR17274 to propagate
+            set origexpinternal 1
+            if {"[exp_internal -info]" == "0"} {set origexpinternal 0}
+            #exp_internal 0
+
+            expect {
+                -timeout 20
+                -re $pass_str  {
+                    set rc $pass
+                }
+                -re $fail_str {
+                    set rc $fail
+                }
+                default {
+                    set rc $bad_output
+                }
+                timeout {
+                    set rc $timeout_end
+                    kill -INT -$mypid
+                }
+                eof { set rc $eof_end }
+            }
+            exp_internal $origexpinternal
+        }
+        -re "semantic error:" { set rc $comp_err }
+        -re "bpf program load failed:" { set rc $invalid_prog }
+        timeout {
+            set rc $timeout_start
+            kill -INT -$mypid
+        }
+        eof { set rc $eof_start  }
+    }
+  # again for good measure with KILL after 3s
+  kill -INT -$mypid 3
+  catch close
+  wait
+  return $rc
+}
+
+proc get_output_str { test } {
+    global res
+    switch $test {
+        printf.stp {set res [string repeat "abcd123456" 3] }
+        default { set res "" }
+    }
+    return $res
+} 
+
+foreach file [lsort [glob -nocomplain $testdir/*.stp]] {
+    set test [file tail $file]
+    if {! [installtest_p]} { untested $test; continue }
+
+    set output_str [get_output_str $test]
+    verbose -log "Running $file"
+    switch [stapbpf_run $test $output_str $file] {
+        0 { pass $test }
+        1 { fail "$test incorrect result" }
+        2 { fail "$test unexpected output" }
+        3 { fail "$test eof (startup)" }
+        4 { fail "$test eof (shutdown)" }
+        5 { fail "$test timeout (startup)" }
+        6 { fail "$test timeout (startup)" }
+        7 { fail "$test invalid bpf program" }
+        8 { fail "$test compilation" }
+        default { fail "$test unknown return value" }
+    }
+}
+
+

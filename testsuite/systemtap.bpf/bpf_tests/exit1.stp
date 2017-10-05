@@ -1,0 +1,9 @@
+probe begin {
+	printf("BEGIN\n")
+	exit()
+}
+
+probe end {
+       printf("END PASS\n")
+}
+

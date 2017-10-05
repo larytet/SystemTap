@@ -1,0 +1,18 @@
+globals x = 1, y, z = 3, res
+probe begin {
+	printf("BEGIN\n")
+	if (x == 1 && y == 0 && z == 3 && res == 0)
+		res = 1
+}
+
+probe kernel.function("vfs_read") {
+	if (!(x == 1 && y == 0 && z == 3))
+		res = 0
+}
+
+probe end {
+        if (x == 1 && y == 0 && z == 3 && res == 1)
+		printf("END PASS\n")
+	else
+		printf("END FAIL\n")
+}

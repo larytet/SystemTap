@@ -70,13 +70,21 @@ function exit ()
  * running probe.  Depending on the MAXERRORS parameter, it may
  * trigger an exit().
  */
-function error (msg:string) %{ /* unprivileged */ /* unmodified-fnargs */
-  /* NB: we used to reuse msg[] for an assignment to last_error; this
-   is clearer & safer. */
-  strlcpy (CONTEXT->error_buffer, STAP_ARG_msg, MAXSTRINGLEN);
-  CONTEXT->last_error = CONTEXT->error_buffer;
-  CONTEXT->last_stmt = NULL;
-%}
+function error (msg:string)
+%( runtime != "bpf" %?
+  %{ /* unprivileged */ /* unmodified-fnargs */
+     /* NB: we used to reuse msg[] for an assignment to last_error; this
+      is clearer & safer. */
+     strlcpy (CONTEXT->error_buffer, STAP_ARG_msg, MAXSTRINGLEN);
+     CONTEXT->last_error = CONTEXT->error_buffer;
+     CONTEXT->last_stmt = NULL;
+  %}
+%:
+   { /* bpf */ /* unprivileged */
+     printf("ERROR\n")
+     exit()
+   }
+%)
 
 /**
  * sfunction assert - evaluate assertion

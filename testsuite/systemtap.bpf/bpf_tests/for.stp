@@ -1,0 +1,30 @@
+global res
+probe begin {
+	printf("BEGIN\n")
+	x = 0
+	for (i = 1; i < 6; i++)
+		x += i
+	res = x == 15
+	exit()
+}
+
+/*
+probe kernel.function("vfs_read") {
+        x = 0 
+        for (i = 0; i < 6; i++)
+		x += i
+	res = res && x == 15
+	exit()
+}
+*/
+
+probe end {
+	x = 0
+	for (i = 1; i < 6; i++)
+		x += i
+	if (res && x == 15)
+		printf("END PASS\n")
+	else
+		printf("END FAIL\n")
+}
+

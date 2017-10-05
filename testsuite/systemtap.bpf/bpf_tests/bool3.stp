@@ -1,0 +1,23 @@
+global res
+probe begin {
+	printf("BEGIN\n")
+        x = 1
+	res = !(x > x) && (x >= x) && !(x < x) && (x <= x)
+	      && !(1 > 1) && (1 >= 1) && !(1 < 1) && (1 <= 1)
+}
+
+probe kernel.function("vfs_read") {
+	x = 1
+        res = !(x > x) && (x >= x) && !(x < x) && (x <= x)
+              && !(1 > 1) && (1 >= 1) && !(1 < 1) && (1 <= 1)
+	exit()
+}
+
+probe end {
+	x = 1
+        if (res && !(x > x) && (x >= x) && !(x < x) && (x <= x)
+            && !(1 > 1) && (1 >= 1) && !(1 < 1) && (1 <= 1))
+		printf("END PASS\n")
+	else
+		printf("END FAIL\n")
+}

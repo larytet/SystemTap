@@ -1,0 +1,13 @@
+global res1
+probe begin {
+	printf("BEGIN\n")
+}
+
+probe kernel.function("vfs_read") {
+	if ($file != 0 && $file->f_cred->usage->counter > 0 && $buf != 0)
+		exit()
+}
+
+probe end {
+	printf("END PASS\n")
+}

@@ -1,0 +1,29 @@
+global res
+probe begin {
+	printf("BEGIN\n")
+        a = 1
+	b = a
+	res = b == a
+	c = b = a = 5
+	res = res && a == 5 && b == 5 && c == 5 
+}
+
+probe kernel.function("vfs_read") {
+        a = 1
+        b = a
+        res = res && b == a
+        c = b = a = 5
+        res = res && a == 5 && b == 5 && c == 5
+	exit()
+}
+
+probe end {
+        a = 1 
+        b = a 
+        res = res && b == a
+        c = b = a = 5
+        if (res && a == 5 && b == 5 && c == 5)
+		printf("END PASS\n")
+	else
+		printf("END FAIL\n")
+}
