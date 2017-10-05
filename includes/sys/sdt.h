@@ -84,7 +84,11 @@
 # define _SDT_ARGFMT(no)		%n[_SDT_S##no]@_SDT_ARGTMPL(_SDT_A##no)
 
 # ifndef STAP_SDT_ARG_CONSTRAINT
+# if defined __powerpc__
+# define STAP_SDT_ARG_CONSTRAINT        nZr
+# else
 # define STAP_SDT_ARG_CONSTRAINT        nor
+# endif
 # endif
 
 # define _SDT_STRINGIFY(x)              #x
