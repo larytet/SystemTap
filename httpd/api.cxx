@@ -186,7 +186,8 @@ void result_info::generate_response(response &r)
 	// exception is thrown.
 	lock_guard<mutex> lock(res_mutex);
 
-	os << "  \"uuid\": \"" << uuid_str << "\"";
+	os << "  \"version\": \"" VERSION "\"";
+	os << "," << endl << "  \"uuid\": \"" << uuid_str << "\"";
 	os << "," << endl << "  \"rc\": " << rc;
 
 	// Always output stdout and stderr.
@@ -267,6 +268,7 @@ void build_info::generate_response(response &r)
 	    r.headers["Location"] = result->get_uri();
 	}
 
+	os << "  \"version\": \"" VERSION "\"," << endl;
 	os << "  \"uuid\": \"" << uuid_str << "\"," << endl;
 	os << "  \"kver\": \"" << crd->kver << "\"," << endl;
 	os << "  \"arch\": \"" << crd->arch << "\"," << endl;

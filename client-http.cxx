@@ -771,9 +771,23 @@ http_client_backend::unpack_response ()
       return 1;
     }
 
+  // Get the server version number.
+  json_object *ver_obj;
+  json_bool jfound = json_object_object_get_ex (http->root, "version",
+						&ver_obj);
+  if (jfound)
+    {
+      server_version = json_object_get_string(ver_obj);
+    }
+  else
+    {
+      clog << "Couldn't find 'version' in JSON results data" << endl;
+      return 1;
+    }
+
   // Get the return code information.
   json_object *rc_obj;
-  json_bool jfound = json_object_object_get_ex (http->root, "rc", &rc_obj);
+  jfound = json_object_object_get_ex (http->root, "rc", &rc_obj);
   if (jfound)
     {
       int rc = json_object_get_int(rc_obj);
