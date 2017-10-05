@@ -1611,8 +1611,8 @@ Optional Features:
                           etc. found).
   --enable-virt           enable building of stapvirt support (default on if
                           libvirt etc. found).
-  --disable-http          Disable building http web compilation service, even
-                          if we could
+  --enable-http           Enable building http web compilation service, if
+                          possible
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -11435,12 +11435,12 @@ See \`config.log' for more details" "$LINENO" 5; }
 fi
 
   staprun_LIBS="$staprun_LIBS -lelf"
-  stapbpf_LIBS="$stapbpf_LIBS -lelf -pthread"
+  stapbpf_LIBS="$stapbpf_LIBS -lelf"
   LIBS="$save_LIBS"
 else
   # We built our own and staprun_LDFLAGS points at the install.
   staprun_LIBS="$staprun_LIBS -lelf"
-  stapbpf_LIBS="$stapbpf_LIBS -lelf -pthread"
+  stapbpf_LIBS="$stapbpf_LIBS -lelf"
 fi
 
 
@@ -12638,7 +12638,7 @@ if test "${enable_http+set}" = set; then :
 fi
 
 have_http_support=no
-if test "x$enable_http" != "xno"; then :
+if test "x$enable_http" = "xyes"; then :
 
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libmicrohttpd" >&5

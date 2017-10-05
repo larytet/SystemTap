@@ -21,7 +21,7 @@ stapbpf_CPPFLAGS = $(AM_CPPFLAGS)
 stapbpf_CFLAGS = $(AM_CFLAGS)
 stapbpf_CXXFLAGS = $(AM_CXXFLAGS)
 stapbpf_LDFLAGS = $(AM_LDFLAGS)
-stapbpf_LDADD = $(stapbpf_LIBS)
+stapbpf_LDADD = $(stapbpf_LIBS) -lpthread
 
 if BUILD_ELFUTILS
 stapbpf_CPPFLAGS += -I../include-elfutils

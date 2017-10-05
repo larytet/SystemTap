@@ -907,10 +907,11 @@ AC_SUBST(STAP_EXTRA_VERSION, "$stap_extra_version")
 
 dnl Handle the option to build httpd web compilation service
 AC_ARG_ENABLE([http],
-  AS_HELP_STRING([--disable-http],
-    [Disable building http web compilation service, even if we could]))
+  AS_HELP_STRING([--enable-http],
+    [Enable building http web compilation service, if possible]))
 have_http_support=no
-AS_IF([test "x$enable_http" != "xno"],
+dnl (default off)
+AS_IF([test "x$enable_http" = "xyes"],
   [dnl Do we have the microhttpd library?
    PKG_CHECK_MODULES([libmicrohttpd], [libmicrohttpd > 0.9.0], [have_libmicrohttpd=true], [have_libmicrohttpd=false])
 

@@ -409,7 +409,7 @@ AM_LDFLAGS = @PIELDFLAGS@
 @HAVE_LINUX_BPF_H_TRUE@stapbpf_CFLAGS = $(AM_CFLAGS)
 @HAVE_LINUX_BPF_H_TRUE@stapbpf_CXXFLAGS = $(AM_CXXFLAGS)
 @HAVE_LINUX_BPF_H_TRUE@stapbpf_LDFLAGS = $(AM_LDFLAGS) $(am__append_2)
-@HAVE_LINUX_BPF_H_TRUE@stapbpf_LDADD = $(stapbpf_LIBS)
+@HAVE_LINUX_BPF_H_TRUE@stapbpf_LDADD = $(stapbpf_LIBS) -lpthread
 
 # Arrange for the top-level git_version.h to be regenerated at every "make".
 @HAVE_LINUX_BPF_H_TRUE@BUILT_SOURCES = git_version.stamp
