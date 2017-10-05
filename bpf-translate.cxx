@@ -1156,11 +1156,11 @@ bpf_unparser::visit_target_deref (target_deref* e)
   value *src = emit_expr (e->addr);
   value *frame = this_prog.lookup_reg (BPF_REG_10);
 
-  this_prog.mk_mov (this_ins, this_prog.lookup_reg(BPF_REG_2), src);
-  this_prog.mk_mov (this_ins, this_prog.lookup_reg(BPF_REG_1),
+  this_prog.mk_mov (this_ins, this_prog.lookup_reg(BPF_REG_3), src);
+  this_prog.mk_mov (this_ins, this_prog.lookup_reg(BPF_REG_2),
 		    this_prog.new_imm (e->size));
-  this_prog.mk_binary (this_ins, BPF_ADD, this_prog.lookup_reg(BPF_REG_0),
-		       frame, this_prog.new_imm (-e->size));
+  this_prog.mk_binary (this_ins, BPF_ADD, this_prog.lookup_reg(BPF_REG_1),
+		       frame, this_prog.new_imm (-(int64_t)e->size));
   this_prog.use_tmp_space(e->size);
 
   this_prog.mk_call(this_ins, BPF_FUNC_probe_read, 3);
@@ -1184,6 +1184,7 @@ bpf_unparser::visit_target_deref (target_deref* e)
       this_prog.mk_binary (this_ins, BPF_LSH, d, d, sh);
       this_prog.mk_binary (this_ins, BPF_ARSH, d, d, sh);
     }
+  result = d;
 }
 
 void
@@ -1361,11 +1362,11 @@ bpf_unparser::visit_target_register (target_register* e)
     }
 
   value *frame = this_prog.lookup_reg (BPF_REG_10);
-  this_prog.mk_binary (this_ins, BPF_ADD, this_prog.lookup_reg(BPF_REG_2),
+  this_prog.mk_binary (this_ins, BPF_ADD, this_prog.lookup_reg(BPF_REG_3),
                        this_in_arg0, this_prog.new_imm (ofs));
-  this_prog.mk_mov (this_ins, this_prog.lookup_reg(BPF_REG_1),
+  this_prog.mk_mov (this_ins, this_prog.lookup_reg(BPF_REG_2),
 		    this_prog.new_imm (size));
-  this_prog.mk_binary (this_ins, BPF_ADD, this_prog.lookup_reg(BPF_REG_0),
+  this_prog.mk_binary (this_ins, BPF_ADD, this_prog.lookup_reg(BPF_REG_1),
 		       frame, this_prog.new_imm (-size));
   this_prog.use_tmp_space(size);
 
@@ -1381,6 +1382,7 @@ bpf_unparser::visit_target_register (target_register* e)
       throw SEMANTIC_ERROR(_("unhandled register size"), e->tok);
     }
   this_prog.mk_ld (this_ins, opc, d, frame, -size);
+  result = d;
 }
 
 void
@@ -1922,7 +1924,7 @@ translate_probe(program &prog, globals &glob, derived_probe *dp)
   // inserting a new start block that would enable retroactively saving
   // this only when needed.
   u.this_in_arg0 = prog.new_reg();
-  prog.mk_mov(u.this_ins, u.this_in_arg0, prog.lookup_reg(BPF_REG_0));
+  prog.mk_mov(u.this_ins, u.this_in_arg0, prog.lookup_reg(BPF_REG_1));
 
   dp->body->visit (&u);
   if (u.in_block())
