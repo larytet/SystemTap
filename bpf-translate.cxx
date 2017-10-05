@@ -320,7 +320,7 @@ bpf_unparser::emit_cond(expression *e, block *t_dest, block *f_dest)
 	}
     }
 
-  this_prog.mk_jcond (this_ins, cond, s1, s0, t_dest, f_dest);
+  this_prog.mk_jcond (this_ins, cond, s0, s1, t_dest, f_dest);
   clear_block ();
 }
 
