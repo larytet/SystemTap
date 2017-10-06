@@ -78,5 +78,15 @@ static int stp_session_init(void)
 	g_refresh_timing = _stp_stat_init(STAT_OP_MIN, STAT_OP_MAX, STAT_OP_AVG, STAT_OP_VARIANCE, 0, NULL);
 #endif
 
+#if defined(STAPCONF_UDELAY_SIMPLE) && !defined(STAPCONF_UDELAY_SIMPLE_EXPORTED)
+	// PR20516: Some s390 kernels that have udelay_simple() don't
+	// have it exported. Note that we have to do this early since
+	// other init routines could call udelay().
+        kallsyms_udelay_simple = (void *)kallsyms_lookup_name("udelay_simple");
+        if (kallsyms_udelay_simple == NULL) {
+	    _stp_error("couldn't find udelay_simple");
+	    return 1;
+        }
+#endif
 	return 0;
 }

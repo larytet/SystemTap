@@ -62,9 +62,14 @@
 #define STP_TRANSPORT_VERSION 1
 #endif
 
-#ifdef STAPCONF_UDELAY_SIMPLE
+#if defined(STAPCONF_UDELAY_SIMPLE_EXPORTED)
 #undef udelay
 #define udelay(x) udelay_simple(x)
+#elif defined(STAPCONF_UDELAY_SIMPLE)
+#undef udelay
+static void *kallsyms_udelay_simple;
+typedef typeof(&udelay_simple) udelay_simple_fn;
+#define udelay(x) ((* (udelay_simple_fn)(kallsyms_udelay_simple))((x)))
 #endif
 
 #ifndef clamp
