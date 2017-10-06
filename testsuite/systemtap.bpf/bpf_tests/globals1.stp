@@ -1,4 +1,4 @@
-globals x = 1, y, z = 3, res
+global x = 1, y, z = 3, res
 probe begin {
 	printf("BEGIN\n")
 	if (x == 1 && y == 0 && z == 3 && res == 0)
@@ -8,6 +8,7 @@ probe begin {
 probe kernel.function("vfs_read") {
 	if (!(x == 1 && y == 0 && z == 3))
 		res = 0
+	exit()
 }
 
 probe end {

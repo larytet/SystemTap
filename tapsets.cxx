@@ -6143,7 +6143,7 @@ bool
 sort_for_bpf(generic_kprobe_derived_probe_group *ge,
 	     sort_for_bpf_probe_arg_vector &v)
 {
-  if (ge->probes_by_module.empty())
+  if (!ge || ge->probes_by_module.empty())
     return false;
 
   for (auto i = ge->probes_by_module.begin();

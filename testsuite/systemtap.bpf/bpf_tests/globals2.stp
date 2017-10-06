@@ -1,12 +1,15 @@
-globals x, y = 1, z = 2
+global x, y = 1, z = 2, flag
 probe begin {
 	printf("BEGIN\n")
 	x++; y++; z++
 }
 
 probe kernel.function("vfs_read") {
-        x++; y++; z++
-	exit()
+	if (!flag) {
+	   x++; y++; z++
+	   flag = 1
+	   exit()
+	}
 }
 
 probe end {

@@ -263,6 +263,8 @@ struct globals
   map_vect maps;
   globals_map globals;
 
+  bool empty() { return this->globals.empty(); }
+
   // Index into globals. This element represents the map of internal globals
   // used for communication between stapbpf and kernel-side bpf programs.
   static const int internal_map_idx = 0;

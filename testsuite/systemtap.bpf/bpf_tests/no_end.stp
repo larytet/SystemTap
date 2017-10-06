@@ -1,0 +1,12 @@
+global flag = 1
+probe begin {
+	printf("BEGIN\n")
+}
+
+probe kernel.function("vfs_read") {
+	if (flag) {
+		flag = 0
+		printf("END PASS\N")
+		exit()
+	}
+}

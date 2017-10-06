@@ -1,0 +1,19 @@
+// Tests whether globals are correctly initialized without
+// a begin probe being present. In this case the translator
+// creates a begin probe in which to perform the assignments.
+global x = 1, y, z = 3, flag = 1
+
+probe kernel.function("vfs_read") {
+	if (x == 1 && y == 0 && z == 3 && flag) {
+		printf("BEGIN\n")
+		flag = 0
+		exit()
+	}
+}
+
+probe end {
+        if (x == 1 && y == 0 && z == 3)
+		printf("END PASS\n")
+	else
+		printf("END FAIL\n")
+}

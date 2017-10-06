@@ -74,6 +74,58 @@ struct side_effects_visitor : public expression_visitor
   void visit_hist_op (hist_op *) { side_effects = true; }
 };
 
+struct init_block : public ::block
+{
+  // This block contains statements that initialize global variables
+  // with default values. It should be visited first among any
+  // begin probe bodies. Note that initialization of internal globals
+  // (ex. the exit status) is handled by the stapbpf runtime.
+  init_block(globals &glob);
+  ~init_block();
+  bool empty() { return this->statements.empty(); }
+};
+
+init_block::init_block(globals &glob)
+{
+  for (auto i = glob.globals.begin(); i != glob.globals.end(); ++i)
+    {
+      struct vardecl *v = i->first;
+
+      if (v->init && v->type == pe_long)
+        {
+          struct literal_number *num = static_cast<literal_number *>(v->init);
+          struct symbol *sym = new symbol;
+          struct assignment *asgn = new assignment;
+          struct expr_statement *stmt = new expr_statement;
+
+          sym->referent = v;
+          asgn->type = pe_long;
+          asgn->op = "=";
+          asgn->left = sym;
+          asgn->right = num;
+          stmt->value = asgn;
+          this->statements.push_back(stmt);
+        }
+    }
+}
+
+init_block::~init_block()
+{
+  for (auto i = this->statements.begin(); i != this->statements.end(); ++i)
+    {
+      struct expr_statement *stmt = static_cast<expr_statement *>(*i);
+      struct assignment *asgn = static_cast<assignment *>(stmt->value);
+      struct symbol *sym = static_cast<symbol *>(asgn->left);
+
+      // referent and right are not owned by this.
+      sym->referent = NULL;
+      asgn->right = NULL;
+      delete sym;
+      delete asgn;
+      delete stmt;
+    }
+}
+
 static bool
 has_side_effects (expression *e)
 {
@@ -1936,7 +1988,16 @@ translate_probe_v(program &prog, globals &glob,
 		  const std::vector<derived_probe *> &v)
 {
   bpf_unparser u(prog, glob);
-  block *this_block = prog.new_block();
+  block *this_block;
+
+  if (prog.blocks.empty())
+    this_block = prog.new_block();
+  else
+    {
+      u.set_block(prog.blocks.back());
+      this_block = prog.new_block();
+      u.emit_jmp(this_block);
+    }
 
   for (size_t n = v.size(), i = 0; i < n; ++i)
     {
@@ -1954,6 +2015,26 @@ translate_probe_v(program &prog, globals &glob,
 	this_block = prog.new_block();
       if (u.in_block())
 	u.emit_jmp(this_block);
+    }
+}
+
+static void
+translate_init_and_probe_v(program &prog, globals &glob, init_block &b,
+                     const std::vector<derived_probe *> &v)
+{
+  bpf_unparser u(prog, glob);
+  block *this_block = prog.new_block();
+
+  u.set_block(this_block);
+  b.visit(&u);
+
+  if (!v.empty())
+    translate_probe_v(prog, glob, v);
+  else
+    {
+      this_block = u.get_ret0_block();
+      assert(u.in_block());
+      u.emit_jmp(this_block);
     }
 }
 
@@ -2148,18 +2229,27 @@ translate_bpf_pass (systemtap_session& s)
       translate_globals(glob, s);
       output_maps(eo, glob);
 
-      if (s.be_derived_probes)
+      if (s.be_derived_probes || !glob.empty())
         {
           std::vector<derived_probe *> begin_v, end_v;
           sort_for_bpf(s.be_derived_probes, begin_v, end_v);
+          init_block init(glob);
 
-          if (!begin_v.empty())
+          if (!init.empty())
+            {
+              program p;
+              translate_init_and_probe_v(p, glob, init, begin_v);
+              p.generate();
+              output_probe(eo, p, "stap_begin", 0);
+            }
+          else if (!begin_v.empty())
             {
               program p;
               translate_probe_v(p, glob, begin_v);
               p.generate();
               output_probe(eo, p, "stap_begin", 0);
             }
+
           if (!end_v.empty())
             {
               program p;
@@ -2168,6 +2258,7 @@ translate_bpf_pass (systemtap_session& s)
               output_probe(eo, p, "stap_end", 0);
             }
         }
+
       if (s.generic_kprobe_derived_probes)
         {
           sort_for_bpf_probe_arg_vector kprobe_v;

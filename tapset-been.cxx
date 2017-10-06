@@ -195,7 +195,7 @@ sort_for_bpf(be_derived_probe_group *be,
 	     std::vector<derived_probe *> &begin_v,
 	     std::vector<derived_probe *> &end_v)
 {
-  if (be->probes.empty())
+  if (!be || be->probes.empty())
     return false;
 
   sort(be->probes.begin(), be->probes.end(), be_derived_probe::comp);
