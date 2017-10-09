@@ -132,13 +132,17 @@ local_backend:: generate_module(const struct client_request_data *,
 
     // If stap_spawn() failed, no need to wait.
     if (pid == -1) {
+	rc = errno;
 	clog << "Error in spawn: " << strerror(errno) << endl;
-	return errno;
+	(void)posix_spawn_file_actions_destroy(&actions);
+	return rc;
     }
 
     // Wait on the spawned process to finish.
     rc = stap_waitpid(0, pid);
     if (rc < 0) {			// stap_waitpid() failed
+	clog << "waitpid failed: " << strerror(errno) << endl;
+	(void)posix_spawn_file_actions_destroy(&actions);
 	return rc;
     }
 
