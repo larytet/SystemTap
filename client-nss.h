@@ -50,7 +50,6 @@ public:
 private:
   unsigned argc;
   std::string client_zipfile;
-  std::string server_tmpdir;
   std::string server_zipfile;
   std::string locale_vars;
   std::ostringstream mok_fingerprints;
