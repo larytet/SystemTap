@@ -490,6 +490,7 @@ bpf_unparser::emit_store(expression *e, value *val)
 
 	  this_prog.load_map(this_ins, this_prog.lookup_reg(BPF_REG_1),
 			     g->second.first);
+          emit_mov(this_prog.lookup_reg(BPF_REG_4), this_prog.new_imm(0));
 	  this_prog.mk_call(this_ins, BPF_FUNC_map_update_elem, 4);
 	  return;
 	}
