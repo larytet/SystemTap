@@ -11402,6 +11402,26 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s,
       they_live.push_back ("struct rxrpc_serial_t;");
     }
 
+  if (header.find("xdp") != string::npos)
+    {
+      they_live.push_back ("struct bpf_map;");
+    }	  
+
+  if (header.find("bridge") != string::npos)
+    {
+      // br_private.h gets included as
+      // "../../../net/bridge/br_private.h", so we need an include
+      // path that is 3 levels deep.
+      if (file_exists(s.kernel_build_tree + "/net/bridge/br_private.h")
+	  && file_exists(s.kernel_build_tree + "/fs/xfs/libxfs"))
+	s.kernel_extra_cflags.push_back ("-I" + s.kernel_build_tree
+					 + "/fs/xfs/libxfs");
+      else if (!s.kernel_source_tree.empty()
+	       && file_exists(s.kernel_source_tree + "/net/bridge/br_private.h")
+	       && file_exists(s.kernel_source_tree + "/fs/xfs/libxfs"))
+	s.kernel_extra_cflags.push_back ("-I" + s.kernel_source_tree
+					 + "/fs/xfs/libxfs");
+    }	  
   return they_live;
 }
 
