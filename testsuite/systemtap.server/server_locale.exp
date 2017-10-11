@@ -95,6 +95,54 @@ catch {close}; catch {wait}
 ################### LANG TESTS #######################
 ######################################################
 
+########### LANG French Sniff Test ###########
+#
+# Note that on newer versions of Fedora, setting LANG to French isn't
+# enough, you also need the French langpack installed. To do so,
+# you'll need to do (as root):
+#
+#   dnf install langpacks-fr
+#
+# In theory, we could test the system to see if has the French
+# langpacks installed, but in practice the command to do that varies
+# between distros.
+#
+# So, let's test and see if the French locale seems to work. Run stap
+# locally and see if we get French output. If we don't get French
+# output when run locally, we won't get it from the server on this
+# system either.
+
+set test "French LANG Sniff Test"
+set french_supported -1
+set cmd [concat env LANG=fr_FR.utf8 stap -V]
+send_log "executing: $cmd\n"
+eval spawn $cmd
+expect {
+	-timeout 150
+	-re {^options activées :[^\r\n][^\r\n]*\r\n} {
+	    set french_supported 1
+	    pass $test
+	}
+	-re {^enabled features:[^\r\n][^\r\n]*\r\n} {
+	    set french_supported 0
+	    xfail $test
+	}
+	-re {^[^\r\n]*\r\n} {
+	    exp_continue
+	}
+	eof { 
+	    fail "$test (eof)"
+        }
+	timeout { 
+	    kill -INT -[exp_pid] 2
+	    fail "$test (timeout)"
+	}
+}
+catch {close}; catch {wait}
+if {$french_supported == -1} {
+    fail "$test - no expected output seen"
+}
+
 ########### LANG Proper Syntax Test (French) ##############
 # Run a basic execution test in French. Should return only "Bonjour".
 set test "LANG Proper Syntax Test (French)"
@@ -153,6 +201,9 @@ catch {close}; catch {wait}
 # up to date French translations. So, if we get anything in French, we
 # pass.
 set test "LANG Bad Syntax Test (French)"
+if {$french_supported != 1} {
+    setup_xfail *-*-*
+}
 set cmd [concat env LANG=fr_FR.utf8 stap -e $invalid_script $use_server]
 send_log "executing: $cmd\n"
 eval spawn $cmd
