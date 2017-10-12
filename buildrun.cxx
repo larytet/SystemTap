@@ -470,6 +470,9 @@ compile_pass (systemtap_session& s)
   // used by runtime/linux/netfilter.c
   output_exportconf(s, o, "nf_register_hook", "STAPCONF_NF_REGISTER_HOOK");
 
+  // used by tapset/linux/ioblock.stp
+  output_exportconf(s, o, "disk_get_part", "STAPCONF_DISK_GET_PART");
+
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
   for (unsigned i=0; i<s.c_macros.size(); i++)

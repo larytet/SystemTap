@@ -53,6 +53,17 @@ function usrdev2kerndev:long(dev:long)
     STAP_RETVALUE = new_decode_dev(STAP_ARG_dev);
 %}
 
+function disk_name:string(hd:long, partno:long)
+{
+	if (!partno)
+		return kernel_string(@cast(hd, "gendisk")->disk_name)
+	disk_name = kernel_string(@cast(hd, "gendisk")->disk_name)
+	if (isdigit(substr(disk_name, strlen(disk_name)-1, 1)))
+		return sprintf("%sp%d", disk_name, partno)
+	else
+		return sprintf("%s%d", disk_name, partno)
+}
+
 function bdevname:string(bdev:long)
 {
 	bdev = & @cast(bdev, "block_device")
@@ -65,12 +76,5 @@ function bdevname:string(bdev:long)
 		partno = bdev->bd_part->partno
 	else
 		partno = MINOR(bdev->bd_dev) - hd->first_minor;
-
-	if (!partno)
-		return kernel_string(hd->disk_name)
-	disk_name = kernel_string(hd->disk_name)
-	if (isdigit(substr(disk_name, strlen(disk_name) - 1, 1)))
-		return sprintf("%sp%d", disk_name, partno)
-	else
-		return sprintf("%s%d", disk_name, partno)
+	return disk_name(hd, partno)
 }
