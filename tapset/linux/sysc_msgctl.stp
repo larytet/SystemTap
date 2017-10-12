@@ -81,8 +81,8 @@ probe dw_syscall.compat_sys_msgctl = __syscall.compat_msgctl ?,
 probe __syscall.compat_msgctl = kernel.function("compat_sys_msgctl").call ?
 {
 	@__compat_syscall_gate_negative(@const("__NR_compat_ipc"))
-	msqid = __int32($first)
-	cmd = __int32($second)
+	msqid = __int32(@choose_defined($first, $msqid))
+	cmd = __int32(@choose_defined($second, $cmd))
 	buf_uaddr = $uptr
 }
 probe __syscall.compat_ipc.msgctl = kernel.function("compat_sys_ipc").call ?,

@@ -83,13 +83,13 @@ probe dw_syscall.compat_sys_shmctl = __syscall.compat_shmctl ?,
 {
 	@_SYSCALL_SHMCTL_NAME
 %( systemtap_v <= "2.5" %?
-	first = $first
-	second = $second
+	first = @choose_defined($first, $shmid)
+	second = @choose_defined($second, $cmd)
 	uptr_uaddr = @choose_defined($uptr, $ptr)
 %)
-	shmid = __int32($first)
-	cmd = __int32($second)
-	cmd_str = _semctl_cmd(__int32($second))
+	shmid = __int32(@choose_defined($first, $shmid))
+	cmd = __int32(@choose_defined($second, $cmd))
+	cmd_str = _semctl_cmd(__int32(@choose_defined($second, $cmd)))
 	buf_uaddr = @choose_defined($uptr, $ptr)
 	@_SYSCALL_SHMCTL_ARGSTR
 }
