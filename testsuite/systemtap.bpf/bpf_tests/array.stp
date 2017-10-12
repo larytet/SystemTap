@@ -4,7 +4,6 @@ probe begin {
 	arr[0] = 1
 	arr[10] = 2
 	arr[199] = 3
-	exit()
 }
 
 probe kernel.function("vfs_read") {
@@ -13,6 +12,7 @@ probe kernel.function("vfs_read") {
             arr[10]++
 	    arr[199]++
 	    flag = 0
+	    exit()
 	}
 }
 

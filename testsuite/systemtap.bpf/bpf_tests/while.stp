@@ -1,0 +1,20 @@
+global flag = 1
+probe begin {
+	x = 0
+	printf("BEGIN\n")
+	while (x != 10)
+		x++
+	if (x != 10)
+		flag = 0
+	exit()
+}
+
+probe end {
+	x = 0 
+	while (x != 10)
+		x++
+	if (x == 10 && flag)
+		printf("END PASS\n")
+	else
+		printf("END FAIL\n")
+}
