@@ -1442,7 +1442,7 @@ probe perf.type(NN).config(MM).hz(XX)
 probe perf.type(NN).config(MM)
 probe perf.type(NN).config(MM).process("PROC")
 probe perf.type(NN).config(MM).counter("COUNTER")
-probe perf.type(NN).config(MM).process("PROC").counter("COUNTER")
+probe perf.type(NN).config(MM).process("PROC").counter("NAME")
 .ESAMPLE
 The systemtap probe handler is called once per XX increments
 of the underlying performance counter when using the .sample field
@@ -1463,7 +1463,7 @@ demand using .counter.  The body of the perf probe handler will not be
 invoked for a .counter probe; instead, the counter is read in a user
 space probe via:
 .TP
-   process("PROCESS").statement("func@file") {stat <<< @perf("NAME")} 
+   process("PROC").statement("func@file") {stat <<< @perf("NAME")} 
 
 
 .SS PYTHON
