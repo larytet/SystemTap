@@ -144,7 +144,7 @@ probe::*%generated list of tapset probe aliases
 function::*%generated list of tapset functions
 macro::*%generated list of tapset macros
 stapvars%some of the tapset global variables
-staprun, stapdyn%programs for executing compiled systemtap scripts
+staprun, stapdyn, stapbpf%programs for executing compiled systemtap scripts
 systemtap%initscript, boot-time probing
 stap-server%compilation server
 stapex%a few very basic script examples
@@ -764,8 +764,8 @@ This option requires guru mode.
 
 .TP
 .BI \-\-runtime "=MODE"
-Set the pass-5 runtime mode.  Valid options are \fIkernel\fR (default)
-and \fIdyninst\fR.  See
+Set the pass-5 runtime mode.  Valid options are \fIkernel\fR (default),
+\fIdyninst\fR and \fIbpf\fR.  See
 .BR ALTERNATE\ RUNTIMES
 below for more information.
 
@@ -2482,14 +2482,15 @@ group stapusr.
 .PP
 As described above, systemtap's default runtime mode involves building and
 loading kernel modules, with various security tradeoffs presented.  Systemtap
-now includes a new prototype backend, selected with \fI\-\-runtime=dyninst\fR,
-which uses Dyninst to instrument a user's own processes at runtime. This
-backend does not use kernel modules, and does not require root privileges, but
-is restricted with respect to the kinds of probes and other constructs that a
-script may use.
+now includes two new prototype backends: \fI\-\-runtime=dyninst\fR and
+\fI\-\-runtime=bpf\fR.
 
-The \fIdyninst\fR runtime operates in target-attach mode, so it does require
-a \fI\-c COMMAND\fR or \fI\-x PID\fR process.  For example:
+\fI\-\-runtime=dyninst\fR uses Dyninst to instrument a user's own processes
+at runtime. This backend does not use kernel modules, and does not require
+root privileges, but is restricted with respect to the kinds of probes and
+other constructs that a script may use. \fIdyninst\fR runtime operates in
+target-attach mode, so it does requirea \fI\-c COMMAND\fR or \fI\-x PID\fR
+process.  For example:
 .SAMPLE
 stap \-\-runtime=dyninst \-c 'stap \-V' \\
      \-e 'probe process.function("main")
@@ -2500,6 +2501,13 @@ It may be necessary to disable a conflicting selinux check with
 .SAMPLE
 # setsebool allow_execstack 1
 .ESAMPLE
+
+\fI\-\-runtime=bpf\fR compiles the user script into extended Berkeley Packet
+Filter (eBPF) programs instead of a kernel module. eBPF programs are verified
+by the kernel for safety and are executed by an in-kernel virtual machine.
+This runtime is in an early stage of development and currently lacks support
+for a number of features available in the default runtime. Please see the
+\fIstapbpf\fR(8) man page for more information.
 
 .SH EXIT STATUS
 

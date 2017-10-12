@@ -1,5 +1,16 @@
 * What's new in version 3.2, PRERELEASE
 
+- SystemTap now includes an extended Berkeley Packet Filter (eBPF)
+  backend. This experimental backend does not use kernel modules
+  and instead produces eBPF programs that are verified by the kernel
+  and executed by an in-kernel virtual machine. Select this backend
+  with the new stap option '--runtime=bpf'. For example:
+
+    stap --runtime=bpf -e \
+      'probe kernel.function("sys_open") { printf("hi from stapbpf!\n") }'
+
+  Please see the stapbpf(8) man page for more information.
+
 - The regular expression engine now supports extraction of the matched
   string and subexpressions using the matched() tapset function:
   

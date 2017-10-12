@@ -16,6 +16,8 @@ AM_LDFLAGS = @PIELDFLAGS@
 if HAVE_LINUX_BPF_H
 bin_PROGRAMS = stapbpf
 
+man_MANS = stapbpf.8
+
 stapbpf_SOURCES = stapbpf.cxx bpfinterp.cxx libbpf.c
 stapbpf_CPPFLAGS = $(AM_CPPFLAGS)
 stapbpf_CFLAGS = $(AM_CFLAGS)
