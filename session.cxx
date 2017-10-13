@@ -884,7 +884,8 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
         case 'r':
           assert(optarg);
           if (client_options) // NB: no paths!
-            assert_regexp_match("-r parameter from client", optarg, "^[a-z0-9_.-]+$");
+	    // Note that '-' must come last in a regex bracket expression.
+            assert_regexp_match("-r parameter from client", optarg, "^[a-z0-9_.+-]+$");
 	  server_args.push_back (string ("-") + (char)grc + optarg);
           setup_kernel_release(optarg);
           break;
