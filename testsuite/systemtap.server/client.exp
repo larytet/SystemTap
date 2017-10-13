@@ -136,9 +136,11 @@ proc list_servers { TEST_NAME SERVER_SPEC args } {
 	    exp_continue
 	}
 	-re {^[^\r]*\r\n} {
+	    verbose -log "unexpected output: $expect_out(0,string)"
 	    set failed 1
 	}
 	timeout { 
+	    verbose -log "timeout"
 	    kill -INT -[exp_pid] 2
 	    set failed 1
 	}
@@ -369,6 +371,14 @@ if {[array_equal new_trusted_servers our_servers]} {
     pass "$test"
 } else {
     fail "$test"
+    verbose -log "new_trusted_servers:"
+	foreach {index value} [array get new_trusted_servers] {
+	    verbose -log "  index: $index, value: $value" 
+	}
+	verbose -log "our_servers:"
+	foreach {index value} [array get our_servers] {
+	    verbose -log "  index: $index, value: $value" 
+	}
 }
 
 # Trust our server as a module signer. This must be done as root. Specify
@@ -426,6 +436,14 @@ if {[array size new_signing_servers] == [array size our_servers]} {
 	pass "$test"
     } else {
 	fail "$test"
+	verbose -log "new_signing_servers:"
+	foreach {index value} [array get new_signing_servers] {
+	    verbose -log "  index: $index, value: $value" 
+	}
+	verbose -log "our_servers:"
+	foreach {index value} [array get our_servers] {
+	    verbose -log "  index: $index, value: $value" 
+	}
     }
 } else {
     fail "$test"

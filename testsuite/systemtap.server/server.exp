@@ -127,9 +127,26 @@ if {$dontTest == 1} {
     # Notice we are using the tcl 'exec' command redirection of
     # '2>@1', which is equivalent to the shell's '2>&1'.
     if {[as_root "service avahi-daemon restart 2>@1"]} {
-	# Could not restart the avahi daemon
-	set dontTest 1
-    } else {
+	# If the avahi daemon didn't restart properly, let's try to
+	# fix it. If the daemon exits improperly, it can leave its pid
+	# file behind which mean it can't be restarted.
+	set pid_file "/run/avahi-daemon/pid"
+	if {[file exists $pid_file]} {
+	    verbose -log "Removing the avahi-daemon pid file"
+	    as_root "rm -f $pid_file"
+
+	    # Try to restart the daemon again.
+	    if {[as_root "service avahi-daemon restart 2>@1"]} {
+		# Could not restart the avahi daemon
+		set dontTest 1
+	    }
+	} else {
+	    # Could not restart the avahi daemon
+	    set dontTest 1
+	}
+    }
+
+    if {$dontTest == 0} {
 	# Give the server time to react
 	catch {exec sleep 1}
     }

@@ -361,6 +361,23 @@ proc shutdown_server {} {
     foreach sig [glob -nocomplain [pwd]/stap_*.ko.sgn] {
 	exec /bin/rm -f $sig
     }
+
+    # Make sure that stap can no longer find the server.
+    set waited 0
+    set use_server --use-server
+    set res 0
+    set listRes 1
+    while { $listRes > 0 && $waited < 30 } {
+      catch exec sleep 1
+      incr waited
+      set res [catch { exec stap --list-servers=online,trusted,compatible >& stap-list-servers.out } seen_servers]
+      set listRes [catch { exec grep "^ host" stap-list-servers.out } looksee]
+    }
+    if { $listRes > 0 } {
+	verbose -log "shutdown_server: warning - stap can still find a server"
+    } else {
+	verbose -log "shutdown_server: no servers (after $waited tries)"
+    }
 }
 
 # Set up the environment so that tests will be performed using the systemtap
