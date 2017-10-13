@@ -2291,8 +2291,14 @@ translate_bpf_pass (systemtap_session& s)
       s.print_error(e);
       ret = 1;
     }
+  catch (const std::runtime_error &e)
+    {
+      std::cerr << "bpf translation internal error: " << e.what() << std::endl;
+      ret = 1;
+    }
   catch (...)
     {
+      std::cerr << "bpf translation internal error" << std::endl;
       ret = 1;
     }
 
