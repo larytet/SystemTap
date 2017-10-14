@@ -2225,6 +2225,7 @@ translate_bpf_pass (systemtap_session& s)
   BPF_Output eo(fd);
   globals glob;
   int ret = 0;
+  const token* t = 0;
   try
     {
       translate_globals(glob, s);
@@ -2238,6 +2239,7 @@ translate_bpf_pass (systemtap_session& s)
 
           if (!init.empty())
             {
+              t = begin_v[0]->tok;
               program p;
               translate_init_and_probe_v(p, glob, init, begin_v);
               p.generate();
@@ -2245,6 +2247,7 @@ translate_bpf_pass (systemtap_session& s)
             }
           else if (!begin_v.empty())
             {
+              t = begin_v[0]->tok;
               program p;
               translate_probe_v(p, glob, begin_v);
               p.generate();
@@ -2253,6 +2256,7 @@ translate_bpf_pass (systemtap_session& s)
 
           if (!end_v.empty())
             {
+              t = end_v[0]->tok;
               program p;
               translate_probe_v(p, glob, end_v);
               p.generate();
@@ -2267,6 +2271,7 @@ translate_bpf_pass (systemtap_session& s)
 
           for (auto i = kprobe_v.begin(); i != kprobe_v.end(); ++i)
             {
+              t = i->first->tok;
               program p;
               translate_probe(p, glob, i->first);
               p.generate();
@@ -2293,7 +2298,8 @@ translate_bpf_pass (systemtap_session& s)
     }
   catch (const std::runtime_error &e)
     {
-      std::cerr << "bpf translation internal error: " << e.what() << std::endl;
+      semantic_error er(ERR_SRC, _F("bpf translation failure: %s", e.what()), t);
+      s.print_error(er);
       ret = 1;
     }
   catch (...)
