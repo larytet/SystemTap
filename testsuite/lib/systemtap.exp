@@ -178,6 +178,11 @@ proc min_kernel_vers_p {min} {
     return [expr [strverscmp $cur $min] >= 0]
 }
 
+proc bpf_p {} {
+    # configure.ac checks for <linux/bpf.h>, so we will too.
+    return [file exists "/usr/include/linux/bpf.h"]
+}
+
 proc get_runtime_list {} {
     # Always return the default runtime.
     set runtime_list [list ""]

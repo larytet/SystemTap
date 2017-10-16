@@ -95,6 +95,7 @@ proc get_output_str { test } {
 foreach file [lsort [glob -nocomplain $testdir/*.stp]] {
     set test [file tail $file]
     if {! [installtest_p]} { untested $test; continue }
+    if {! [bpf_p]} { untested $test; continue }
 
     set output_str [get_output_str $test]
     verbose -log "Running $file"
