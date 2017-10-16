@@ -1522,15 +1522,22 @@ mok_sign_file (std::string &mok_fingerprint,
 static void
 filter_response_file (const string &file_name, const string &responseDirName)
 {
-  // Filter the server's home directory name
-  string swap = string ("s,") + get_home_directory () + ",<server>,g";
-  vector<string> cmd { "sed", "-i", swap, file_name };
-  (void) stap_system (0, cmd);
+  // Filter the server's home directory name (unless it is "/")
+  string dir = get_home_directory();
+  if (dir != "/")
+    {
+      string swap = string ("s,") + get_home_directory () + ",<server>,g";
+      vector<string> cmd { "sed", "-i", swap, file_name };
+      (void) stap_system (0, cmd);
+    }
 
-  // Filter the server's response directory name
-  swap = string ("s,") + responseDirName + ",<server>,g";
-  cmd = { "sed", "-i", swap, file_name };
-  (void) stap_system (0, cmd);
+  // Filter the server's response directory name (unless it is "/")
+  if (responseDirName != "/")
+    {
+      string swap = string ("s,") + responseDirName + ",<server>,g";
+      vector<string> cmd = { "sed", "-i", swap, file_name };
+      (void) stap_system (0, cmd);
+    }
 }
 
 static privilege_t
