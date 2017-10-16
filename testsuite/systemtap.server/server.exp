@@ -21,6 +21,24 @@ proc cleanup {} {
 # Test that the the server can handle particular situations of interest.
 
 #-------------------------------------------------------
+# Building and running a simple module.
+set subtest "simple"
+set rc [stap_run_batch $srcdir/systemtap.server/hello.stp --use-server=$server_spec]
+if {$rc == 0} { pass "$test $subtest" } else { fail "$test $subtest" }
+
+#-------------------------------------------------------
+# Try a "stap -L"
+set subtest "listing"
+set rc [stap_run_batch "" -L "syscall.open" --use-server=$server_spec]
+if {$rc == 0} { pass "$test $subtest" } else { fail "$test $subtest" }
+
+#-------------------------------------------------------
+# Build and run a module using "-I" and "-e SCRIPT".
+set subtest "tapset"
+set rc [stap_run_batch "" -I $srcdir/systemtap.server/tapset -e "probe oneshot { foo() }" --use-server=$server_spec]
+if {$rc == 0} { pass "$test $subtest" } else { fail "$test $subtest" }
+
+#-------------------------------------------------------
 # Building, returning and using the uprobes.ko module.
 set subtest "uprobes"
 if {! [uprobes_p]} then {
