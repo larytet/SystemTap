@@ -221,14 +221,11 @@ compile_server_client::create_request ()
       unsigned limit = s.include_path.size ();
       for (unsigned i = s.include_arg_start; i < limit; ++i)
 	{
-	  rc = backend->include_file_or_directory ("tapset",
-						   s.include_path[i]);
-	  if (rc != 0)
-	    return rc;
 	  rc = backend->add_cmd_arg ("-I");
 	  if (rc != 0)
 	    return rc;
-	  rc = backend->add_cmd_arg ("tapset");
+	  rc = backend->include_file_or_directory ("tapset",
+						   s.include_path[i]);
 	  if (rc != 0)
 	    return rc;
 	}

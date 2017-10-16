@@ -682,36 +682,38 @@ proc systemtap_finish {args} {
 proc systemtap_version {} {}
 
 proc stap_run_batch {filename args} {
-    verbose -log "starting $filename $args"
+    if {[string length $filename]} {
+	# Many of our test cases use "#! stap ...".  Since these lack
+	# /full/paths, they are not really executable.  (We can't have
+	# /full/paths because the choice of systemtap interpreter is set
+	# at "make check" time.)
 
-    # Many of our test cases use "#! stap ...".  Since these lack
-    # /full/paths, they are not really executable.  (We can't have
-    # /full/paths because the choice of systemtap interpreter is set
-    # at "make check" time.)
-
-    # So we cheat.  If the file begins with "#! stap", we will spawn
-    # stap manually here (relying on $PATH).  Otherwise, we presume
-    # the file properly executable.
-
-    set file [open $filename r]
-    set firstbits [gets $file]
-    close $file
-    if [regexp -line {\#! stap (.*)} $firstbits -> stap_args] {
-        verbose -log "spawn1 stap $stap_args $filename $args"
-        # Make sure we don't accidentially add an extra empty argument.
-        if {$args == ""} {
-            eval spawn stap $stap_args $filename
-        } else {
-            eval spawn stap $stap_args $filename $args
-        }
+	# So we cheat.  If the file begins with "#! stap", we will spawn
+	# stap manually here (relying on $PATH).  Otherwise, we presume
+	# the file properly executable.
+	set file [open $filename r]
+	set firstbits [gets $file]
+	close $file
+	if {[regexp -line {\#! stap (.*)} $firstbits -> stap_args]} {
+	    verbose -log "spawn1 stap $stap_args $filename $args"
+	    # Make sure we don't accidentially add an extra empty argument.
+	    if {$args == ""} {
+		eval spawn stap $stap_args $filename
+	    } else {
+		eval spawn stap $stap_args $filename $args
+	    }
+	} else {
+	    verbose -log "spawn2 $filename $args"
+	    # Make sure we don't accidentially add an extra empty argument.
+	    if {$args == ""} {
+		spawn $filename
+	    } else {
+		spawn $filename $args
+	    }
+	}
     } else {
-        verbose -log "spawn2 $filename $args"
-        # Make sure we don't accidentially add an extra empty argument.
-        if {$args == ""} {
-            spawn $filename
-        } else {
-            spawn $filename $args
-        }
+	verbose -log "spawn3 stap $args"
+	eval spawn stap $args
     }
 
     expect {
