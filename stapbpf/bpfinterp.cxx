@@ -513,7 +513,8 @@ remove_tag(const char *fstr)
 }
 
 uint64_t
-bpf_interpret(bpf_context *c, size_t ninsns, const struct bpf_insn insns[])
+bpf_interpret(bpf_context *c, size_t ninsns, const struct bpf_insn insns[],
+              FILE *output_f)
 {
   uint64_t stack[512 / 8];
   uint64_t regs[MAX_BPF_REG];
@@ -716,8 +717,9 @@ bpf_interpret(bpf_context *c, size_t ninsns, const struct bpf_insn insns[])
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
               // regs[2] is the strlen(regs[1]) - not used by printf(3);
               // instead we assume regs[1] string is \0 terminated
-	      dr = printf(remove_tag(as_str(regs[1])).c_str(), /*regs[2],*/
-                          regs[3], regs[4], regs[5]);
+	      dr = fprintf(output_f, remove_tag(as_str(regs[1])).c_str(),
+                           /*regs[2],*/ regs[3], regs[4], regs[5]);
+              fflush(output_f);
 #pragma GCC diagnostic pop
 	      break;
 	    default:

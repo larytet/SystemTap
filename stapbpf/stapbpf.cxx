@@ -860,7 +860,7 @@ main(int argc, char **argv)
       bpf_context *c = bpf_context_create(map_fds.size(), map_attrs);
 
       bpf_interpret(c, prog_begin->d_size / sizeof(bpf_insn),
-		    static_cast<bpf_insn *>(prog_begin->d_buf));
+		    static_cast<bpf_insn *>(prog_begin->d_buf), output_f);
 
       bpf_context_export(c, map_fds.data());
       bpf_context_free(c);
@@ -890,7 +890,7 @@ main(int argc, char **argv)
       bpf_context *c = bpf_context_create(map_fds.size(), map_attrs);
       bpf_context_import(c, map_fds.data());
       bpf_interpret(c, prog_end->d_size / sizeof(bpf_insn),
-		    static_cast<bpf_insn *>(prog_end->d_buf));
+		    static_cast<bpf_insn *>(prog_end->d_buf), output_f);
       bpf_context_free(c);
     }
 

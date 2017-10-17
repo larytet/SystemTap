@@ -6,7 +6,7 @@ probe begin {
         printf("%d4%d%d", x + 2, y + 4, z + 3)
 }
 
-probe kernel.function("sys_open") {
+probe kernel.function("sys_read") {
 	if (flag) {
 		y = 1; z = 3
 		printf("abcd%d2", x)

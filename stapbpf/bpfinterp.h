@@ -35,7 +35,7 @@ void bpf_context_free(struct bpf_context *c);
 void bpf_context_export(struct bpf_context *c, int fds[]);
 void bpf_context_import(struct bpf_context *c, int fds[]);
 uint64_t bpf_interpret(struct bpf_context *c, size_t ninsns,
-		       const struct bpf_insn insns[]);
+		       const struct bpf_insn insns[], FILE *output_f);
 
 #endif /* STAPRUNBPF_H */
 
