@@ -143,6 +143,8 @@ create_group_fds()
   memset(&peattr, 0, sizeof(peattr));
   peattr.size = sizeof(peattr);
   peattr.disabled = 1;
+  peattr.type = PERF_TYPE_SOFTWARE;
+  peattr.config = PERF_COUNT_SW_DUMMY;
 
   return group_fd = perf_event_open(&peattr, -1, 0, -1, 0);
 }

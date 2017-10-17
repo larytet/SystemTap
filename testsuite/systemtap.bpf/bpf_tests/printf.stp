@@ -1,4 +1,4 @@
-global x
+global x, flag = 1
 probe begin {
 	printf("BEGIN")
 	x = 1; y = 1; z = 3
@@ -7,10 +7,13 @@ probe begin {
 }
 
 probe kernel.function("sys_open") {
-        y = 1; z = 3
-        printf("abcd%d2", x)
-        printf("%d4%d%d", x + 2, y + 4, z + 3)
-	exit()
+	if (flag) {
+		y = 1; z = 3
+		printf("abcd%d2", x)
+		printf("%d4%d%d", x + 2, y + 4, z + 3)
+		flag = 0
+		exit()
+	}
 }
 
 
