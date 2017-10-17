@@ -1,7 +1,18 @@
+bpf-base.cxx
+bpf-bitset.cxx
+bpf-bitset.h
+bpf.h
+bpf-internal.h
+bpf-opt.cxx
+bpf-translate.cxx
 buildrun.cxx
 buildrun.h
 cache.cxx
 cache.h
+client-http.cxx
+client-http.h
+client-nss.cxx
+client-nss.h
 cmdline.cxx
 cmdline.h
 coveragedb.cxx
@@ -20,8 +31,8 @@ hash.cxx
 hash.h
 interactive.cxx
 interactive.h
-loc2c.c
-loc2c.h
+loc2stap.cxx
+loc2stap.h
 main.cxx
 mdfour.c
 mdfour.h
@@ -44,6 +55,7 @@ stap-authorize-cert.cxx
 stap-gen-cert.cxx
 staplog.c
 stapregex.cxx
+stapregex-defines.h
 stapregex-dfa.cxx
 stapregex-dfa.h
 stapregex.h
