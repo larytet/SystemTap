@@ -2239,7 +2239,9 @@ translate_bpf_pass (systemtap_session& s)
 
           if (!init.empty())
             {
-              t = begin_v[0]->tok;
+              if (!begin_v.empty())
+                t = begin_v[0]->tok;
+
               program p;
               translate_init_and_probe_v(p, glob, init, begin_v);
               p.generate();
