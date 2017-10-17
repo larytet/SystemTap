@@ -1984,6 +1984,10 @@ void add_global_var_display (systemtap_session& s)
   // dump mode at all, since it'll never be used.
   if (s.dump_mode) return;
 
+  // The bpf runtime currently lacks support for foreach statements which 
+  // this function might generate.
+  if (s.runtime_mode == systemtap_session::bpf_runtime) return;
+
   varuse_collecting_visitor vut(s);
 
   for (unsigned i=0; i<s.probes.size(); i++)
