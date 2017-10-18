@@ -18,6 +18,7 @@
 %else
 %{!?with_dyninst: %global with_dyninst 0}
 %endif
+%{!?with_bpf: %global with_bpf 0%{?fedora} >= 22 || 0%{?rhel} >= 7}
 %{!?with_systemd: %global with_systemd 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
 %{!?with_emacsvim: %global with_emacsvim 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
 %{!?with_java: %global with_java 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
@@ -1019,6 +1020,9 @@ done
 %if %{with_dyninst}
 %{_bindir}/stapdyn
 %endif
+%if %{with_bpf}
+%{_bindir}/stapbpf}
+%endif
 %dir %{_libexecdir}/systemtap
 %{_libexecdir}/systemtap/stapio
 %{_libexecdir}/systemtap/stap-authorize-cert
@@ -1034,6 +1038,9 @@ done
 %{_mandir}/man8/staprun.8*
 %if %{with_dyninst}
 %{_mandir}/man8/stapdyn.8*
+%endif
+%if %{with_bpf}
+%{_mandir}/man8/stapbpf.8*
 %endif
 %doc README README.security AUTHORS NEWS 
 %{!?_licensedir:%global license %%doc}
