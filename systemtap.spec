@@ -1021,7 +1021,7 @@ done
 %{_bindir}/stapdyn
 %endif
 %if %{with_bpf}
-%{_bindir}/stapbpf}
+%{_bindir}/stapbpf
 %endif
 %dir %{_libexecdir}/systemtap
 %{_libexecdir}/systemtap/stapio
