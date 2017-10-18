@@ -3207,7 +3207,10 @@ struct dead_assignment_remover: public update_visitor
 struct assignment_symbol_fetcher
   : public symbol_fetcher
 {
-  assignment_symbol_fetcher (symbol *&sym): symbol_fetcher(sym)
+  const token* assignment_t;
+
+  assignment_symbol_fetcher (symbol *&sym, const token* a_t): symbol_fetcher(sym),
+                                                              assignment_t(a_t)
   {}
 
   void visit_target_symbol (target_symbol*)
@@ -3245,17 +3248,18 @@ struct assignment_symbol_fetcher
     if (t->type == tok_operator && t->content == ".")
       // guess someone misused . in $foo->bar.baz expression
       // XXX why are we only checking this in lvalues?
-      throw SEMANTIC_ERROR (_("Expecting lvalue expression, try -> instead"), t);
+      throw SEMANTIC_ERROR (_("Expecting lvalue for assignment, try -> instead"),
+                            assignment_t, t);
     else
-      throw SEMANTIC_ERROR (_("Expecting lvalue expression"), t);
+      throw SEMANTIC_ERROR (_("Expecting lvalue for assignment"), assignment_t, t);
   }
 };
 
 symbol *
-get_assignment_symbol_within_expression (expression *e)
+get_assignment_symbol_within_expression (expression *e, const token *a_t)
 {
   symbol *sym = NULL;
-  assignment_symbol_fetcher fetcher(sym);
+  assignment_symbol_fetcher fetcher(sym, a_t);
   e->visit (&fetcher);
   return sym; // NB: may be null!
 }
@@ -3267,7 +3271,7 @@ dead_assignment_remover::visit_assignment (assignment* e)
   replace (e->left);
   replace (e->right);
 
-  symbol* left = get_assignment_symbol_within_expression (e->left);
+  symbol* left = get_assignment_symbol_within_expression (e->left, e->tok);
   if (left) // not unresolved $target, so intended sideeffect may be elided
     {
       vardecl* leftvar = left->referent;
