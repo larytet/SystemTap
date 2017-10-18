@@ -45,6 +45,7 @@ proc dyninst_kfails {test} {
 	semok/thirtytwo.stp -
 	semok/transko.stp -
 	semok/twelve.stp -
+	semok/twenty.stp -
 	semok/twentyeight.stp -
 	semok/twentyfive.stp -
 	semok/twentyfour.stp -
