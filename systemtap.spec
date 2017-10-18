@@ -1158,6 +1158,9 @@ done
 
 # PRERELEASE
 %changelog
+* Wed Oct 17 2017 Frank Ch. Eigler <fche@redhat.com> - 3.2-1
+- Upstream release.
+
 * Fri Feb 17 2017 Frank Ch. Eigler <fche@redhat.com> - 3.1-1
 - Upstream release.
 

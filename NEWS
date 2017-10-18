@@ -1,4 +1,4 @@
-* What's new in version 3.2, PRERELEASE
+* What's new in version 3.2, 2017-10-18
 
 - SystemTap now includes an extended Berkeley Packet Filter (eBPF)
   backend. This experimental backend does not use kernel modules
