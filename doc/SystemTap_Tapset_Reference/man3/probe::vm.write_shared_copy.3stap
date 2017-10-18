@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::vm.write_shared_copy
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Memory Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::VM\&.WRITE_SH" "3stap" "March 2016" "SystemTap Tapset Reference" "Memory Tapset"
+.TH "PROBE::VM\&.WRITE_SH" "3stap" "October 2017" "SystemTap Tapset Reference" "Memory Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,6 +36,11 @@ vm\&.write_shared_copy
 .fi
 .SH "VALUES"
 .PP
+\fIzero\fR
+.RS 4
+boolean indicating whether it is a zero page (can do a clear instead of a copy)
+.RE
+.PP
 \fIaddress\fR
 .RS 4
 The address of the shared write
@@ -44,11 +49,6 @@ The address of the shared write
 \fIname\fR
 .RS 4
 Name of the probe point
-.RE
-.PP
-\fIzero\fR
-.RS 4
-boolean indicating whether it is a zero page (can do a clear instead of a copy)
 .RE
 .SH "CONTEXT"
 .PP

@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: function::qsq_start
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Queue Statistics Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::QSQ_START" "3stap" "March 2016" "SystemTap Tapset Reference" "Queue Statistics Tapset"
+.TH "FUNCTION::QSQ_START" "3stap" "October 2017" "SystemTap Tapset Reference" "Queue Statistics Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -42,6 +42,6 @@ the name of the service that finished
 .RE
 .SH "DESCRIPTION"
 .PP
-This function resets the statistics counters for the given queue, and restarts tracking from the moment the function was called\&. This function is also used to create initialize a queue\&.
+This function resets the statistics counters for the given queue, and restarts tracking from the moment the function was called\&. This function is also used to create intialize a queue\&.
 .SH SEE ALSO\n 
 .IR tapset::queue_stats (3stap)

@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::nfs.fop.write_iter
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Network File Storage Tapsets
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NFS\&.FOP\&.W" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.TH "PROBE::NFS\&.FOP\&.W" "3stap" "October 2017" "SystemTap Tapset Reference" "Network File Storage Tapsets"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,6 +36,16 @@ nfs\&.fop\&.write_iter
 .fi
 .SH "VALUES"
 .PP
+\fIfile_name\fR
+.RS 4
+file name
+.RE
+.PP
+\fIcount\fR
+.RS 4
+read bytes
+.RE
+.PP
 \fIdev\fR
 .RS 4
 device identifier
@@ -54,16 +64,6 @@ offset of the file
 \fIino\fR
 .RS 4
 inode number
-.RE
-.PP
-\fIcount\fR
-.RS 4
-read bytes
-.RE
-.PP
-\fIfile_name\fR
-.RS 4
-file name
 .RE
 .SH SEE ALSO\n 
 .IR tapset::nfs (3stap)

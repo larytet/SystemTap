@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::vm.brk
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Memory Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::VM\&.BRK" "3stap" "March 2016" "SystemTap Tapset Reference" "Memory Tapset"
+.TH "PROBE::VM\&.BRK" "3stap" "October 2017" "SystemTap Tapset Reference" "Memory Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,11 +36,6 @@ vm\&.brk
 .fi
 .SH "VALUES"
 .PP
-\fIlength\fR
-.RS 4
-the length of the memory segment
-.RE
-.PP
 \fIaddress\fR
 .RS 4
 the requested address
@@ -49,6 +44,11 @@ the requested address
 \fIname\fR
 .RS 4
 name of the probe point
+.RE
+.PP
+\fIlength\fR
+.RS 4
+the length of the memory segment
 .RE
 .SH "CONTEXT"
 .PP

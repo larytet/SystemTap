@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::tcp.setsockopt
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Networking Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::TCP\&.SETSOCK" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.TH "PROBE::TCP\&.SETSOCK" "3stap" "October 2017" "SystemTap Tapset Reference" "Networking Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -42,24 +42,19 @@ Used to access values for
 \fBsetsockopt\fR
 .RE
 .PP
-\fIoptstr\fR
-.RS 4
-Resolves optname to a human\-readable format
-.RE
-.PP
 \fIname\fR
 .RS 4
 Name of this probe
 .RE
 .PP
-\fIsock\fR
+\fIoptname\fR
 .RS 4
-Network socket
+TCP socket options (e\&.g\&. TCP_NODELAY, TCP_MAXSEG, etc)
 .RE
 .PP
-\fIlevel\fR
+\fIoptstr\fR
 .RS 4
-The level at which the socket options will be manipulated
+Resolves optname to a human\-readable format
 .RE
 .PP
 \fIfamily\fR
@@ -67,9 +62,14 @@ The level at which the socket options will be manipulated
 IP address family
 .RE
 .PP
-\fIoptname\fR
+\fIlevel\fR
 .RS 4
-TCP socket options (e\&.g\&. TCP_NODELAY, TCP_MAXSEG, etc)
+The level at which the socket options will be manipulated
+.RE
+.PP
+\fIsock\fR
+.RS 4
+Network socket
 .RE
 .SH "CONTEXT"
 .PP

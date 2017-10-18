@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::nfs.proc.write_setup
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Network File Storage Tapsets
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NFS\&.PROC\&." "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.TH "PROBE::NFS\&.PROC\&." "3stap" "October 2017" "SystemTap Tapset Reference" "Network File Storage Tapsets"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,34 +36,9 @@ nfs\&.proc\&.write_setup
 .fi
 .SH "VALUES"
 .PP
-\fIversion\fR
+\fIoffset\fR
 .RS 4
-NFS version
-.RE
-.PP
-\fIserver_ip\fR
-.RS 4
-IP address of server
-.RE
-.PP
-\fIprot\fR
-.RS 4
-transfer protocol
-.RE
-.PP
-\fIbitmask1\fR
-.RS 4
-V4 bitmask representing the set of attributes supported on this filesystem
-.RE
-.PP
-\fIcount\fR
-.RS 4
-bytes written in this execution
-.RE
-.PP
-\fIsize\fR
-.RS 4
-bytes written in this execution
+the file offset
 .RE
 .PP
 \fIhow\fR
@@ -71,14 +46,39 @@ bytes written in this execution
 used to set args\&.stable\&. The stable value could be: NFS_UNSTABLE,NFS_DATA_SYNC,NFS_FILE_SYNC (in nfs\&.proc3\&.write_setup and nfs\&.proc4\&.write_setup)
 .RE
 .PP
+\fIcount\fR
+.RS 4
+bytes written in this execution
+.RE
+.PP
+\fIserver_ip\fR
+.RS 4
+IP address of server
+.RE
+.PP
+\fIsize\fR
+.RS 4
+bytes written in this execution
+.RE
+.PP
+\fIbitmask1\fR
+.RS 4
+V4 bitmask representing the set of attributes supported on this filesystem
+.RE
+.PP
 \fIbitmask0\fR
 .RS 4
 V4 bitmask representing the set of attributes supported on this filesystem
 .RE
 .PP
-\fIoffset\fR
+\fIversion\fR
 .RS 4
-the file offset
+NFS version
+.RE
+.PP
+\fIprot\fR
+.RS 4
+transfer protocol
 .RE
 .SH "DESCRIPTION"
 .PP

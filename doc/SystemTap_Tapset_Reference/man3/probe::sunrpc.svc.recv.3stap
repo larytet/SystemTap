@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::sunrpc.svc.recv
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Networking Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::SUNRPC\&.SVC\" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.TH "PROBE::SUNRPC\&.SVC\" "3stap" "October 2017" "SystemTap Tapset Reference" "Networking Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,14 +36,14 @@ sunrpc\&.svc\&.recv
 .fi
 .SH "VALUES"
 .PP
-\fItimeout\fR
-.RS 4
-the timeout of waiting for data
-.RE
-.PP
 \fIsv_name\fR
 .RS 4
 the service name
+.RE
+.PP
+\fIsv_nrthreads\fR
+.RS 4
+the number of concurrent threads
 .RE
 .PP
 \fIsv_prog\fR
@@ -51,9 +51,9 @@ the service name
 the number of the program
 .RE
 .PP
-\fIsv_nrthreads\fR
+\fItimeout\fR
 .RS 4
-the number of concurrent threads
+the timeout of waiting for data
 .RE
 .SH SEE ALSO\n 
 .IR tapset::rpc (3stap)

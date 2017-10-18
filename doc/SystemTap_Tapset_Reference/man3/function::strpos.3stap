@@ -1,0 +1,61 @@
+'\" t
+.\"     Title: function::strpos
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
+.\"    Manual: A collection of standard string functions
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::STRPOS" "3stap" "October 2017" "SystemTap Tapset Reference" "A collection of standard strin"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::strpos \- Returns location of a substring within another string
+.SH "SYNOPSIS"
+.sp
+.nf
+    strpos:long(s1:string,s2:string)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIs1\fR
+.RS 4
+string to search in
+.RE
+.PP
+\fIs2\fR
+.RS 4
+substring to find
+.RE
+.SH "DESCRIPTION"
+.PP
+This function returns location of the first occurence of string
+\fIs2\fR
+within
+\fIs1\fR, namely the return value is 0 in case
+\fIs2\fR
+is a prefix of
+\fIs1\fR\&. If
+\fIs2\fR
+is not a substring of
+\fIs1\fR, then the return value is \-1\&.
+.SH SEE ALSO\n 
+.IR tapset::string (3stap)

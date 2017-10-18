@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::sunrpc.clnt.bind_new_program
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Networking Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::SUNRPC\&.CLNT" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.TH "PROBE::SUNRPC\&.CLNT" "3stap" "October 2017" "SystemTap Tapset Reference" "Networking Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,19 +36,9 @@ sunrpc\&.clnt\&.bind_new_program
 .fi
 .SH "VALUES"
 .PP
-\fIold_progname\fR
+\fIold_prog\fR
 .RS 4
-the name of old RPC program
-.RE
-.PP
-\fIprogname\fR
-.RS 4
-the name of new RPC program
-.RE
-.PP
-\fIold_vers\fR
-.RS 4
-the version of old RPC program
+the number of old RPC program
 .RE
 .PP
 \fIservername\fR
@@ -56,19 +46,29 @@ the version of old RPC program
 the server machine name
 .RE
 .PP
+\fIold_progname\fR
+.RS 4
+the name of old RPC program
+.RE
+.PP
+\fIold_vers\fR
+.RS 4
+the version of old RPC program
+.RE
+.PP
 \fIprog\fR
 .RS 4
 the number of new RPC program
 .RE
 .PP
+\fIprogname\fR
+.RS 4
+the name of new RPC program
+.RE
+.PP
 \fIvers\fR
 .RS 4
 the version of new RPC program
-.RE
-.PP
-\fIold_prog\fR
-.RS 4
-the number of old RPC program
 .RE
 .SH SEE ALSO\n 
 .IR tapset::rpc (3stap)

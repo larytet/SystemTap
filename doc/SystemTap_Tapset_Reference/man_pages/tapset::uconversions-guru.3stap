@@ -1,0 +1,82 @@
+.\" -*- nroff -*-
+.TH TAPSET::UCONVERSIONS-GURU 3stap "October 2017" "SystemTap Tapset Reference"
+.SH NAME
+tapset::uconversions-guru \- systemtap uconversions-guru tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B set_user_string 
+Writes a string to user memory
+.IP
+See 
+.IR function::set_user_string (3stap)
+ for details.
+.P
+.TP
+.B set_user_string_n 
+Writes a string of given length to user memory
+.IP
+See 
+.IR function::set_user_string_n (3stap)
+ for details.
+.P
+.TP
+.B set_user_long 
+Writes a long value to user memory
+.IP
+See 
+.IR function::set_user_long (3stap)
+ for details.
+.P
+.TP
+.B set_user_int 
+Writes an int value to user memory
+.IP
+See 
+.IR function::set_user_int (3stap)
+ for details.
+.P
+.TP
+.B set_user_short 
+Writes a short value to user memory
+.IP
+See 
+.IR function::set_user_short (3stap)
+ for details.
+.P
+.TP
+.B set_user_char 
+Writes a char value to user memory
+.IP
+See 
+.IR function::set_user_char (3stap)
+ for details.
+.P
+.TP
+.B set_user_pointer 
+Writes a pointer value to user memory.
+.IP
+See 
+.IR function::set_user_pointer (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::set_user_string (3stap),
+.BR
+.IR \%function::set_user_string_n (3stap),
+.BR
+.IR \%function::set_user_long (3stap),
+.BR
+.IR \%function::set_user_int (3stap),
+.BR
+.IR \%function::set_user_short (3stap),
+.BR
+.IR \%function::set_user_char (3stap),
+.BR
+.IR \%function::set_user_pointer (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

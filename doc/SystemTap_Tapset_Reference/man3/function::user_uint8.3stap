@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: function::user_uint8
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: String and data retrieving functions Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::USER_UINT8" "3stap" "March 2016" "SystemTap Tapset Reference" "String and data retrieving fun"
+.TH "FUNCTION::USER_UINT8" "3stap" "October 2017" "SystemTap Tapset Reference" "String and data retrieving fun"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-function::user_uint8 \- Retrieves an unsigned 8\-bit integer value stored in user space
+function::user_uint8 \- Retrieves a unsigned 8\-bit integer value stored in user space
 .SH "SYNOPSIS"
 .sp
 .nf

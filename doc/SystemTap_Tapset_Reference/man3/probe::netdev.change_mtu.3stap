@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::netdev.change_mtu
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Networking Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NETDEV\&.CHAN" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.TH "PROBE::NETDEV\&.CHAN" "3stap" "October 2017" "SystemTap Tapset Reference" "Networking Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,14 +36,14 @@ netdev\&.change_mtu
 .fi
 .SH "VALUES"
 .PP
-\fInew_mtu\fR
-.RS 4
-The new MTU
-.RE
-.PP
 \fIdev_name\fR
 .RS 4
 The device that will have the MTU changed
+.RE
+.PP
+\fInew_mtu\fR
+.RS 4
+The new MTU
 .RE
 .PP
 \fIold_mtu\fR

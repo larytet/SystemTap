@@ -6,9 +6,11 @@
 <bookinfo id="SystemTap_Beginners_Guide">
 	<title>SystemTap Beginners Guide</title>
         <subtitle>Introduction to SystemTap</subtitle>
+        <!-- PRERELEASE -->
 	<edition>3.2</edition>
 
 	<productname>SystemTap</productname>
+        <!-- PRERELEASE -->
 	<productnumber>3.2</productnumber>
 
 	<pubsnumber>2</pubsnumber>

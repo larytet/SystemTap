@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH TAPSET::UCONVERSIONS 3stap "March 2016" "SystemTap Tapset Reference"
+.TH TAPSET::UCONVERSIONS 3stap "October 2017" "SystemTap Tapset Reference"
 .SH NAME
 tapset::uconversions \- systemtap uconversions tapset
  
@@ -143,6 +143,14 @@ See
  for details.
 .P
 .TP
+.B user_char_error 
+Retrieves a char value stored in user space
+.IP
+See 
+.IR function::user_char_error (3stap)
+ for details.
+.P
+.TP
 .B user_char 
 Retrieves a char value stored in user space
 .IP
@@ -156,6 +164,14 @@ Retrieves a char value stored in user space
 .IP
 See 
 .IR function::user_char_warn (3stap)
+ for details.
+.P
+.TP
+.B user_short_error 
+Retrieves a short value stored in user space
+.IP
+See 
+.IR function::user_short_error (3stap)
  for details.
 .P
 .TP
@@ -175,6 +191,14 @@ See
  for details.
 .P
 .TP
+.B user_ushort_error 
+Retrieves an unsigned short value stored in user space
+.IP
+See 
+.IR function::user_ushort_error (3stap)
+ for details.
+.P
+.TP
 .B user_ushort 
 Retrieves an unsigned short value stored in user space
 .IP
@@ -188,6 +212,14 @@ Retrieves an unsigned short value stored in user space
 .IP
 See 
 .IR function::user_ushort_warn (3stap)
+ for details.
+.P
+.TP
+.B user_int_error 
+Retrieves an int value stored in user space
+.IP
+See 
+.IR function::user_int_error (3stap)
  for details.
 .P
 .TP
@@ -207,6 +239,14 @@ See
  for details.
 .P
 .TP
+.B user_long_error 
+Retrieves a long value stored in user space
+.IP
+See 
+.IR function::user_long_error (3stap)
+ for details.
+.P
+.TP
 .B user_long 
 Retrieves a long value stored in user space
 .IP
@@ -220,6 +260,14 @@ Retrieves a long value stored in user space
 .IP
 See 
 .IR function::user_long_warn (3stap)
+ for details.
+.P
+.TP
+.B user_ulong_error 
+Retrieves a unsigned long value stored in user space
+.IP
+See 
+.IR function::user_ulong_error (3stap)
  for details.
 .P
 .TP
@@ -239,6 +287,14 @@ See
  for details.
 .P
 .TP
+.B user_int8_error 
+Retrieves a 8-bit integer value stored in user space
+.IP
+See 
+.IR function::user_int8_error (3stap)
+ for details.
+.P
+.TP
 .B user_int8 
 Retrieves a 8-bit integer value stored in user space
 .IP
@@ -247,11 +303,27 @@ See
  for details.
 .P
 .TP
+.B user_uint8_error 
+Retrieves a unsigned 8-bit integer value stored in user space
+.IP
+See 
+.IR function::user_uint8_error (3stap)
+ for details.
+.P
+.TP
 .B user_uint8 
-Retrieves an unsigned 8-bit integer value stored in user space
+Retrieves a unsigned 8-bit integer value stored in user space
 .IP
 See 
 .IR function::user_uint8 (3stap)
+ for details.
+.P
+.TP
+.B user_int16_error 
+Retrieves a 16-bit integer value stored in user space
+.IP
+See 
+.IR function::user_int16_error (3stap)
  for details.
 .P
 .TP
@@ -263,11 +335,27 @@ See
  for details.
 .P
 .TP
+.B user_uint16_error 
+Retrieves an unsigned 16-bit integer value stored in user space
+.IP
+See 
+.IR function::user_uint16_error (3stap)
+ for details.
+.P
+.TP
 .B user_uint16 
 Retrieves an unsigned 16-bit integer value stored in user space
 .IP
 See 
 .IR function::user_uint16 (3stap)
+ for details.
+.P
+.TP
+.B user_int32_error 
+Retrieves a 32-bit integer value stored in user space
+.IP
+See 
+.IR function::user_int32_error (3stap)
  for details.
 .P
 .TP
@@ -279,11 +367,27 @@ See
  for details.
 .P
 .TP
+.B user_uint32_error 
+Retrieves an unsigned 32-bit integer value stored in user space
+.IP
+See 
+.IR function::user_uint32_error (3stap)
+ for details.
+.P
+.TP
 .B user_uint32 
 Retrieves an unsigned 32-bit integer value stored in user space
 .IP
 See 
 .IR function::user_uint32 (3stap)
+ for details.
+.P
+.TP
+.B user_int64_error 
+Retrieves a 64-bit integer value stored in user space
+.IP
+See 
+.IR function::user_int64_error (3stap)
  for details.
 .P
 .TP
@@ -295,11 +399,35 @@ See
  for details.
 .P
 .TP
+.B user_uint64_error 
+Retrieves an unsigned 64-bit integer value stored in user space
+.IP
+See 
+.IR function::user_uint64_error (3stap)
+ for details.
+.P
+.TP
 .B user_uint64 
 Retrieves an unsigned 64-bit integer value stored in user space
 .IP
 See 
 .IR function::user_uint64 (3stap)
+ for details.
+.P
+.TP
+.B user_buffer_quoted 
+Retrieves and quotes buffer from user space
+.IP
+See 
+.IR function::user_buffer_quoted (3stap)
+ for details.
+.P
+.TP
+.B user_buffer_quoted_error 
+Retrieves and quotes buffer from user space
+.IP
+See 
+.IR function::user_buffer_quoted_error (3stap)
  for details.
 
 .SH SEE ALSO
@@ -324,45 +452,77 @@ See
 .BR
 .IR \%function::user_string_quoted_utf16 (3stap),
 .BR
+.IR \%function::user_char_error (3stap),
+.BR
 .IR \%function::user_char (3stap),
 .BR
 .IR \%function::user_char_warn (3stap),
+.BR
+.IR \%function::user_short_error (3stap),
 .BR
 .IR \%function::user_short (3stap),
 .BR
 .IR \%function::user_short_warn (3stap),
 .BR
+.IR \%function::user_ushort_error (3stap),
+.BR
 .IR \%function::user_ushort (3stap),
 .BR
 .IR \%function::user_ushort_warn (3stap),
+.BR
+.IR \%function::user_int_error (3stap),
 .BR
 .IR \%function::user_int (3stap),
 .BR
 .IR \%function::user_int_warn (3stap),
 .BR
+.IR \%function::user_long_error (3stap),
+.BR
 .IR \%function::user_long (3stap),
 .BR
 .IR \%function::user_long_warn (3stap),
+.BR
+.IR \%function::user_ulong_error (3stap),
 .BR
 .IR \%function::user_ulong (3stap),
 .BR
 .IR \%function::user_ulong_warn (3stap),
 .BR
+.IR \%function::user_int8_error (3stap),
+.BR
 .IR \%function::user_int8 (3stap),
+.BR
+.IR \%function::user_uint8_error (3stap),
 .BR
 .IR \%function::user_uint8 (3stap),
 .BR
+.IR \%function::user_int16_error (3stap),
+.BR
 .IR \%function::user_int16 (3stap),
+.BR
+.IR \%function::user_uint16_error (3stap),
 .BR
 .IR \%function::user_uint16 (3stap),
 .BR
+.IR \%function::user_int32_error (3stap),
+.BR
 .IR \%function::user_int32 (3stap),
+.BR
+.IR \%function::user_uint32_error (3stap),
 .BR
 .IR \%function::user_uint32 (3stap),
 .BR
+.IR \%function::user_int64_error (3stap),
+.BR
 .IR \%function::user_int64 (3stap),
 .BR
+.IR \%function::user_uint64_error (3stap),
+.BR
 .IR \%function::user_uint64 (3stap),
+.BR
+.IR \%function::user_buffer_quoted (3stap),
+.BR
+.IR \%function::user_buffer_quoted_error (3stap),
 .BR
 .IR \%stap (1),
 .IR \%stapprobes (3stap)

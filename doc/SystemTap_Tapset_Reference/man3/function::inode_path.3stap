@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: function::inode_path
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Directory-entry (dentry) Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::INODE_PATH" "3stap" "March 2016" "SystemTap Tapset Reference" "Directory-entry (dentry) Tapse"
+.TH "FUNCTION::INODE_PATH" "3stap" "October 2017" "SystemTap Tapset Reference" "Directory-entry (dentry) Tapse"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------

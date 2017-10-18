@@ -190,12 +190,12 @@ function real_mount:long(vfsmnt:long)
  *   @dentry: direntry pointer.
  *   @vfsmnt: vfsmnt pointer.
  */
+function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
+{
 /*
  * Note that this function is based on __d_path() in RHEL6-era kernels
  * and prepend_path() in RHEL7+ kernels.
  */
-function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
-{
 	/*
 	 * There are various synthetic filesystems that never get
 	 * mounted. Filesystems needing to implement special "root

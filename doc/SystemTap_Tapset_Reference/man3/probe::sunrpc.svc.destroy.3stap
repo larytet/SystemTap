@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::sunrpc.svc.destroy
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Networking Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::SUNRPC\&.SVC\" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.TH "PROBE::SUNRPC\&.SVC\" "3stap" "October 2017" "SystemTap Tapset Reference" "Networking Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,24 +36,9 @@ sunrpc\&.svc\&.destroy
 .fi
 .SH "VALUES"
 .PP
-\fIsv_prog\fR
-.RS 4
-the number of the program
-.RE
-.PP
-\fIsv_nrthreads\fR
-.RS 4
-the number of concurrent threads
-.RE
-.PP
 \fIrpcbadfmt\fR
 .RS 4
 the count of requests dropped for bad formats
-.RE
-.PP
-\fIsv_name\fR
-.RS 4
-the service name
 .RE
 .PP
 \fInettcpconn\fR
@@ -61,9 +46,24 @@ the service name
 the count of accepted TCP connections
 .RE
 .PP
+\fIsv_progname\fR
+.RS 4
+the name of the program
+.RE
+.PP
 \fInetcnt\fR
 .RS 4
 the count of received RPC requests
+.RE
+.PP
+\fIsv_nrthreads\fR
+.RS 4
+the number of concurrent threads
+.RE
+.PP
+\fIsv_prog\fR
+.RS 4
+the number of the program
 .RE
 .PP
 \fIrpccnt\fR
@@ -71,14 +71,14 @@ the count of received RPC requests
 the count of valid RPC requests
 .RE
 .PP
+\fIsv_name\fR
+.RS 4
+the service name
+.RE
+.PP
 \fIrpcbadauth\fR
 .RS 4
 the count of requests drooped for authentication failure
-.RE
-.PP
-\fIsv_progname\fR
-.RS 4
-the name of the program
 .RE
 .SH SEE ALSO\n 
 .IR tapset::rpc (3stap)

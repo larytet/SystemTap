@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::irq_handler.entry
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Interrupt Request (IRQ) Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::IRQ_HANDLER\&" "3stap" "March 2016" "SystemTap Tapset Reference" "Interrupt Request (IRQ) Tapset"
+.TH "PROBE::IRQ_HANDLER\&" "3stap" "October 2017" "SystemTap Tapset Reference" "Interrupt Request (IRQ) Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,44 +36,9 @@ irq_handler\&.entry
 .fi
 .SH "VALUES"
 .PP
-\fIflags\fR
-.RS 4
-Flags for IRQ handler
-.RE
-.PP
-\fIdev_id\fR
-.RS 4
-Cookie to identify device
-.RE
-.PP
 \fIthread_flags\fR
 .RS 4
 Flags related to thread
-.RE
-.PP
-\fIdir\fR
-.RS 4
-pointer to the proc/irq/NN/name entry
-.RE
-.PP
-\fIhandler\fR
-.RS 4
-interrupt handler function
-.RE
-.PP
-\fIaction\fR
-.RS 4
-struct irqaction* for this interrupt num
-.RE
-.PP
-\fIthread_fn\fR
-.RS 4
-interrupt handler function for threaded interrupts
-.RE
-.PP
-\fInext_irqaction\fR
-.RS 4
-pointer to next irqaction for shared interrupts
 .RE
 .PP
 \fIdev_name\fR
@@ -81,19 +46,54 @@ pointer to next irqaction for shared interrupts
 name of device
 .RE
 .PP
-\fIflags_str\fR
+\fIthread_fn\fR
 .RS 4
-symbolic string representation of IRQ flags
-.RE
-.PP
-\fIirq\fR
-.RS 4
-irq number
+interrupt handler function for threaded interrupts
 .RE
 .PP
 \fIthread\fR
 .RS 4
 thread pointer for threaded interrupts
+.RE
+.PP
+\fIhandler\fR
+.RS 4
+interrupt handler function
+.RE
+.PP
+\fIflags\fR
+.RS 4
+Flags for IRQ handler
+.RE
+.PP
+\fIflags_str\fR
+.RS 4
+symbolic string representation of IRQ flags
+.RE
+.PP
+\fInext_irqaction\fR
+.RS 4
+pointer to next irqaction for shared interrupts
+.RE
+.PP
+\fIaction\fR
+.RS 4
+struct irqaction* for this interrupt num
+.RE
+.PP
+\fIdir\fR
+.RS 4
+pointer to the proc/irq/NN/name entry
+.RE
+.PP
+\fIdev_id\fR
+.RS 4
+Cookie to identify device
+.RE
+.PP
+\fIirq\fR
+.RS 4
+irq number
 .RE
 .SH SEE ALSO\n 
 .IR tapset::irq (3stap)

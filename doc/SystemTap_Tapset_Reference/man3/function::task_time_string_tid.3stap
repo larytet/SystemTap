@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: function::task_time_string_tid
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Task Time Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::TASK_TIME_" "3stap" "March 2016" "SystemTap Tapset Reference" "Task Time Tapset"
+.TH "FUNCTION::TASK_TIME_" "3stap" "October 2017" "SystemTap Tapset Reference" "Task Time Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------

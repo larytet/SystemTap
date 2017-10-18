@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::nfs.proc.commit_setup
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Network File Storage Tapsets
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NFS\&.PROC\&." "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.TH "PROBE::NFS\&.PROC\&." "3stap" "October 2017" "SystemTap Tapset Reference" "Network File Storage Tapsets"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -41,9 +41,14 @@ nfs\&.proc\&.commit_setup
 bytes in this commit
 .RE
 .PP
-\fIcount\fR
+\fIbitmask0\fR
 .RS 4
-bytes in this commit
+V4 bitmask representing the set of attributes supported on this filesystem
+.RE
+.PP
+\fIversion\fR
+.RS 4
+NFS version
 .RE
 .PP
 \fIbitmask1\fR
@@ -56,14 +61,9 @@ V4 bitmask representing the set of attributes supported on this filesystem
 transfer protocol
 .RE
 .PP
-\fIserver_ip\fR
+\fIcount\fR
 .RS 4
-IP address of server
-.RE
-.PP
-\fIversion\fR
-.RS 4
-NFS version
+bytes in this commit
 .RE
 .PP
 \fIoffset\fR
@@ -71,9 +71,9 @@ NFS version
 the file offset
 .RE
 .PP
-\fIbitmask0\fR
+\fIserver_ip\fR
 .RS 4
-V4 bitmask representing the set of attributes supported on this filesystem
+IP address of server
 .RE
 .SH "DESCRIPTION"
 .PP

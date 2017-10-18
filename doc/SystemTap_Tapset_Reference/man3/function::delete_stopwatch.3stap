@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: function::delete_stopwatch
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Timestamp Functions
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::DELETE_STO" "3stap" "March 2016" "SystemTap Tapset Reference" "Timestamp Functions"
+.TH "FUNCTION::DELETE_STO" "3stap" "October 2017" "SystemTap Tapset Reference" "Timestamp Functions"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------

@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: function::ctime
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Time utility functions
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::CTIME" "3stap" "March 2016" "SystemTap Tapset Reference" "Time utility functions"
+.TH "FUNCTION::CTIME" "3stap" "October 2017" "SystemTap Tapset Reference" "Time utility functions"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,6 +68,6 @@ Note that the real C library
 \fBctime\fR
 function puts a newline (\*(Aq\en\*(Aq) character at the end of the string that this function does not\&. Also note that since the kernel has no concept of timezones, the returned time is always in GMT\&.
 .PP
-Without an argument, does the same as ctime(\fBgettimeofday_s\fR)\&.
+
 .SH SEE ALSO\n 
 .IR tapset::ctime (3stap)

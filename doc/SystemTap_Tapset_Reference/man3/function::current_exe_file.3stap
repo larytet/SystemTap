@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: function::current_exe_file
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2017
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Context Functions
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "FUNCTION::CURRENT_EX" "3stap" "March 2017" "SystemTap Tapset Reference" "Context Functions"
+.TH "FUNCTION::CURRENT_EX" "3stap" "October 2017" "SystemTap Tapset Reference" "Context Functions"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -39,8 +39,6 @@ function::current_exe_file \- get the file struct pointer for the current task\*
 None
 .SH "DESCRIPTION"
 .PP
-This function returns the file struct pointer for the
-current task\*(Aqs executable file\&. Note that the file struct pointer
-isn\*(Aqt locked on return\&. The return value of this function can be passed to
-.IR function::fullpath_struct_file (3stap)
+This function returns the file struct pointer for the current task\*(Aqs executable file\&. Note that the file struct pointer isn\*(Aqt locked on return\&. The return value of this function can be passed to
+\fBfullpath_struct_file\fR
 to get the path from the file struct\&.

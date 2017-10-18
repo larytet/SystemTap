@@ -1,0 +1,63 @@
+'\" t
+.\"     Title: function::kernel_buffer_quoted
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
+.\"    Manual: String and data retrieving functions Tapset
+.\"    Source: SystemTap Tapset Reference
+.\"  Language: English
+.\"
+.TH "FUNCTION::KERNEL_BUF" "3stap" "October 2017" "SystemTap Tapset Reference" "String and data retrieving fun"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+function::kernel_buffer_quoted \- Retrieves and quotes buffer from kernel space
+.SH "SYNOPSIS"
+.sp
+.nf
+1) kernel_buffer_quoted:string(addr:long,inlen:long)
+.fi
+.sp
+.nf
+2) kernel_buffer_quoted:string(addr:long,inlen:long,outlen:long)
+.fi
+.SH "ARGUMENTS"
+.PP
+\fIaddr\fR
+.RS 4
+the kernel space address to retrieve the buffer from
+.RE
+.PP
+\fIinlen\fR
+.RS 4
+the exact length of the buffer to read
+.RE
+.PP
+\fIoutlen\fR
+.RS 4
+the maximum length of the output string
+.RE
+.SH "DESCRIPTION"
+.PP
+1) Reads inlen characters of a buffer from the given kernel space memory address, and returns up to MAXSTRINGLEN characters, where any ASCII characters that are not printable are replaced by the corresponding escape sequence in the returned string\&. Note that the string will be surrounded by double quotes\&. On the rare cases when kernel space data is not accessible at the given address, the address itself is returned as a string, without double quotes\&.
+.PP
+2) Reads inlen characters of a buffer from the given kernel space memory address, and returns up to outlen characters, where any ASCII characters that are not printable are replaced by the corresponding escape sequence in the returned string\&. Note that the string will be surrounded by double quotes\&. On the rare cases when kernel space data is not accessible at the given address, the address itself is returned as a string, without double quotes\&.
+.SH SEE ALSO\n 
+.IR tapset::conversions (3stap)

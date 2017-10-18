@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH TAPSET::CONTEXT 3stap "March 2016" "SystemTap Tapset Reference"
+.TH TAPSET::CONTEXT 3stap "October 2017" "SystemTap Tapset Reference"
 .SH NAME
 tapset::context \- systemtap context tapset
  

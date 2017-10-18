@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::signal.handle
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Signal Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::SIGNAL\&.HAND" "3stap" "March 2016" "SystemTap Tapset Reference" "Signal Tapset"
+.TH "PROBE::SIGNAL\&.HAND" "3stap" "October 2017" "SystemTap Tapset Reference" "Signal Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,19 +36,9 @@ signal\&.handle
 .fi
 .SH "VALUES"
 .PP
-\fIsinfo\fR
+\fIsig_mode\fR
 .RS 4
-The address of the siginfo table
-.RE
-.PP
-\fIka_addr\fR
-.RS 4
-The address of the k_sigaction table associated with the signal
-.RE
-.PP
-\fIsig_code\fR
-.RS 4
-The si_code value of the siginfo signal
+Indicates whether the signal was a user\-mode or kernel\-mode signal
 .RE
 .PP
 \fIname\fR
@@ -56,19 +46,19 @@ The si_code value of the siginfo signal
 Name of the probe point
 .RE
 .PP
-\fIregs\fR
+\fIka_addr\fR
 .RS 4
-The address of the kernel\-mode stack area (deprecated in SystemTap 2\&.1)
-.RE
-.PP
-\fIsig_mode\fR
-.RS 4
-Indicates whether the signal was a user\-mode or kernel\-mode signal
+The address of the k_sigaction table associated with the signal
 .RE
 .PP
 \fIsig_name\fR
 .RS 4
 A string representation of the signal
+.RE
+.PP
+\fIsinfo\fR
+.RS 4
+The address of the siginfo table
 .RE
 .PP
 \fIsig\fR
@@ -79,6 +69,16 @@ The signal number that invoked the signal handler
 \fIoldset_addr\fR
 .RS 4
 The address of the bitmask array of blocked signals (deprecated in SystemTap 2\&.1)
+.RE
+.PP
+\fIregs\fR
+.RS 4
+The address of the kernel\-mode stack area (deprecated in SystemTap 2\&.1)
+.RE
+.PP
+\fIsig_code\fR
+.RS 4
+The si_code value of the siginfo signal
 .RE
 .SH SEE ALSO\n 
 .IR tapset::signal (3stap)

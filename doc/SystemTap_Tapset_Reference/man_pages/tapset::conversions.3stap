@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH TAPSET::CONVERSIONS 3stap "March 2016" "SystemTap Tapset Reference"
+.TH TAPSET::CONVERSIONS 3stap "October 2017" "SystemTap Tapset Reference"
 .SH NAME
 tapset::conversions \- systemtap conversions tapset
  
@@ -125,6 +125,30 @@ Retrieves a pointer value stored in kernel memory
 See 
 .IR function::kernel_pointer (3stap)
  for details.
+.P
+.TP
+.B kernel_buffer_quoted 
+Retrieves and quotes buffer from kernel space
+.IP
+See 
+.IR function::kernel_buffer_quoted (3stap)
+ for details.
+.P
+.TP
+.B kernel_buffer_quoted 
+Retrieves and quotes buffer from kernel space
+.IP
+See 
+.IR function::kernel_buffer_quoted (3stap)
+ for details.
+.P
+.TP
+.B kernel_buffer_quoted_error 
+Retrieves and quotes buffer from kernel space
+.IP
+See 
+.IR function::kernel_buffer_quoted_error (3stap)
+ for details.
 
 .SH SEE ALSO
 .BR
@@ -151,6 +175,10 @@ See
 .IR \%function::kernel_char (3stap),
 .BR
 .IR \%function::kernel_pointer (3stap),
+.BR
+.IR \%function::kernel_buffer_quoted (3stap),
+.BR
+.IR \%function::kernel_buffer_quoted_error (3stap),
 .BR
 .IR \%stap (1),
 .IR \%stapprobes (3stap)

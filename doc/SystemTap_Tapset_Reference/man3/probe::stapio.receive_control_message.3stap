@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::stapio.receive_control_message
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: SystemTap Translator Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::STAPIO\&.RECE" "3stap" "March 2016" "SystemTap Tapset Reference" "SystemTap Translator Tapset"
+.TH "PROBE::STAPIO\&.RECE" "3stap" "October 2017" "SystemTap Tapset Reference" "SystemTap Translator Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,6 +36,11 @@ stapio\&.receive_control_message
 .fi
 .SH "VALUES"
 .PP
+\fIlen\fR
+.RS 4
+the length (in bytes) of the data blob
+.RE
+.PP
 \fItype\fR
 .RS 4
 type of message being send; defined in runtime/transport/transport_msgs\&.h
@@ -45,13 +50,8 @@ type of message being send; defined in runtime/transport/transport_msgs\&.h
 .RS 4
 a ptr to a binary blob of data sent as the control message
 .RE
-.PP
-\fIlen\fR
-.RS 4
-the length (in bytes) of the data blob
-.RE
 .SH "DESCRIPTION"
 .PP
-Fires just after a message was received and before it\*(Aqs processed\&.
+Fires just after a message was receieved and before it\*(Aqs processed\&.
 .SH SEE ALSO\n 
 .IR tapset::stap_staticmarkers (3stap)

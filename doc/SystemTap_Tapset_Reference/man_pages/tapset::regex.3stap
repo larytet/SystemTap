@@ -1,0 +1,42 @@
+.\" -*- nroff -*-
+.TH TAPSET::REGEX 3stap "October 2017" "SystemTap Tapset Reference"
+.SH NAME
+tapset::regex \- systemtap regex tapset
+ 
+.SH DESCRIPTION
+.TP
+.P
+.TP
+.B matched_str 
+Return the last matched string.
+.IP
+See 
+.IR function::matched_str (3stap)
+ for details.
+.P
+.TP
+.B matched 
+Return a given matched subexpression.
+.IP
+See 
+.IR function::matched (3stap)
+ for details.
+.P
+.TP
+.B ngroups 
+Number of subexpressions in the last match.
+.IP
+See 
+.IR function::ngroups (3stap)
+ for details.
+
+.SH SEE ALSO
+.BR
+.IR \%function::matched_str (3stap),
+.BR
+.IR \%function::matched (3stap),
+.BR
+.IR \%function::ngroups (3stap),
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)

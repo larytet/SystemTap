@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::signal.wakeup
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Signal Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::SIGNAL\&.WAKE" "3stap" "March 2016" "SystemTap Tapset Reference" "Signal Tapset"
+.TH "PROBE::SIGNAL\&.WAKE" "3stap" "October 2017" "SystemTap Tapset Reference" "Signal Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,24 +36,24 @@ signal\&.wakeup
 .fi
 .SH "VALUES"
 .PP
-\fIstate_mask\fR
-.RS 4
-A string representation indicating the mask of task states to wake\&. Possible values are TASK_INTERRUPTIBLE, TASK_STOPPED, TASK_TRACED, TASK_WAKEKILL, and TASK_INTERRUPTIBLE\&.
-.RE
-.PP
 \fIsig_pid\fR
 .RS 4
 The PID of the process to wake
 .RE
 .PP
-\fIpid_name\fR
+\fIstate_mask\fR
 .RS 4
-Name of the process to wake
+A string representation indicating the mask of task states to wake\&. Possible values are TASK_INTERRUPTIBLE, TASK_STOPPED, TASK_TRACED, TASK_WAKEKILL, and TASK_INTERRUPTIBLE\&.
 .RE
 .PP
 \fIresume\fR
 .RS 4
 Indicates whether to wake up a task in a STOPPED or TRACED state
+.RE
+.PP
+\fIpid_name\fR
+.RS 4
+Name of the process to wake
 .RE
 .SH SEE ALSO\n 
 .IR tapset::signal (3stap)

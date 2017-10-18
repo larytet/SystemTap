@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH TAPSET::STRING 3stap "March 2016" "SystemTap Tapset Reference"
+.TH TAPSET::STRING 3stap "October 2017" "SystemTap Tapset Reference"
 .SH NAME
 tapset::string \- systemtap string tapset
  
@@ -36,6 +36,14 @@ Returns whether a string is a substring of another string
 .IP
 See 
 .IR function::isinstr (3stap)
+ for details.
+.P
+.TP
+.B strpos 
+Returns location of a substring within another string
+.IP
+See 
+.IR function::strpos (3stap)
  for details.
 .P
 .TP
@@ -87,6 +95,8 @@ See
 .IR \%function::stringat (3stap),
 .BR
 .IR \%function::isinstr (3stap),
+.BR
+.IR \%function::strpos (3stap),
 .BR
 .IR \%function::text_str (3stap),
 .BR

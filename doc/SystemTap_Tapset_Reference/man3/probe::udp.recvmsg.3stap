@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::udp.recvmsg
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Networking Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::UDP\&.RECVMSG" "3stap" "March 2016" "SystemTap Tapset Reference" "Networking Tapset"
+.TH "PROBE::UDP\&.RECVMSG" "3stap" "October 2017" "SystemTap Tapset Reference" "Networking Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,19 +36,14 @@ udp\&.recvmsg
 .fi
 .SH "VALUES"
 .PP
+\fIsock\fR
+.RS 4
+Network socket used by the process
+.RE
+.PP
 \fIdport\fR
 .RS 4
 UDP destination port
-.RE
-.PP
-\fIdaddr\fR
-.RS 4
-A string representing the destination IP address
-.RE
-.PP
-\fIsize\fR
-.RS 4
-Number of bytes received by the process
 .RE
 .PP
 \fIname\fR
@@ -56,14 +51,14 @@ Number of bytes received by the process
 The name of this probe
 .RE
 .PP
-\fIsport\fR
-.RS 4
-UDP source port
-.RE
-.PP
 \fIfamily\fR
 .RS 4
 IP address family
+.RE
+.PP
+\fIsport\fR
+.RS 4
+UDP source port
 .RE
 .PP
 \fIsaddr\fR
@@ -71,9 +66,14 @@ IP address family
 A string representing the source IP address
 .RE
 .PP
-\fIsock\fR
+\fIsize\fR
 .RS 4
-Network socket used by the process
+Number of bytes received by the process
+.RE
+.PP
+\fIdaddr\fR
+.RS 4
+A string representing the destination IP address
 .RE
 .SH "CONTEXT"
 .PP

@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH TAPSET::PROC_MEM 3stap "March 2016" "SystemTap Tapset Reference"
+.TH TAPSET::PROC_MEM 3stap "October 2017" "SystemTap Tapset Reference"
 .SH NAME
 tapset::proc_mem \- systemtap proc_mem tapset
  

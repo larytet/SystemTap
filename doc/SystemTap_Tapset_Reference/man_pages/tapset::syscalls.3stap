@@ -1,5 +1,5 @@
 ." -*- nroff -*-
-.TH TAPSET::SYSCALLS 3stap "March 2016" "Systemtap Tapset Reference"
+.TH TAPSET::SYSCALLS 3stap "October 2017" "Systemtap Tapset Reference"
 .SH NAME
 tapset::syscalls \- systemtap syscall tapset
 
@@ -91,7 +91,7 @@ path
 .P
 .TP
 .B syscall.clock_adjtime
-clk_id, clk_id_str, tx_uaddr
+clk_id, clk_id_str, tx_uaddr, tx_uaddr_str
 .P
 .TP
 .B syscall.clock_getres
@@ -103,11 +103,11 @@ clk_id, clk_id_str, tp_uaddr
 .P
 .TP
 .B syscall.clock_nanosleep
-clk_id, clk_id_str, flags, flags_str, rem_uaddr, req_uaddr
+clk_id, clk_id_str, flags, flags_str, rem_uaddr, req_str, req_uaddr
 .P
 .TP
 .B syscall.clock_settime
-clk_id, clk_id_str, tp_uaddr
+clk_id, clk_id_str, tp_uaddr, tp_uaddr_str
 .P
 .TP
 .B syscall.clone
@@ -123,7 +123,7 @@ buf_str, buf_uaddr
 .P
 .TP
 .B syscall.compat_clock_nanosleep
-clk_id, clk_id_str, flags, flags_str, rem_uaddr, req_uaddr
+clk_id, clk_id_str, flags, flags_str, rem_uaddr, req_str, req_uaddr
 .P
 .TP
 .B syscall.compat_execve
@@ -135,15 +135,15 @@ args, dirfd, dirfd_str, env_str, filename, flags, flags_str
 .P
 .TP
 .B syscall.compat_fadvise64
-advice, fd, len, offset
+advice, advice_str, fd, len, offset
 .P
 .TP
 .B syscall.compat_fadvise64_64
-advice, fd, len, offset
+advice, advice_str, fd, len, offset
 .P
 .TP
 .B syscall.compat_fallocate
-fd, len, mode, offset
+fd, len, mode, mode_str, offset
 .P
 .TP
 .B syscall.compat_ftruncate64
@@ -155,7 +155,7 @@ futex_uaddr, op, uaddr2_uaddr, utime_uaddr, val3, val
 .P
 .TP
 .B syscall.compat_futimesat
-dirfd, dirfd_str, filename, filename_uaddr, tvp_uaddr
+dirfd, dirfd_str, filename, filename_uaddr, tvp_str, tvp_uaddr
 .P
 .TP
 .B syscall.compat_getitimer
@@ -167,15 +167,15 @@ buffer_uaddr, cookie, len
 .P
 .TP
 .B syscall.compat_nanosleep
-rem_uaddr, req_uaddr
+rem_uaddr, req_str, req_uaddr
 .P
 .TP
 .B syscall.compat_ppoll
-
+fds_uaddr, nfds, sigmask, sigsetsize, tsp, tsp_str
 .P
 .TP
 .B syscall.compat_pselect6
-
+exceptfds, nfds, readfds, sigmask, timeout, timeout_str, writefds
 .P
 .TP
 .B syscall.compat_readahead
@@ -183,19 +183,19 @@ count, fd, offset
 .P
 .TP
 .B syscall.compat_recvmmsg
-flags, flags_str, mmsg_uaddr, s, timeout_uaddr, vlen
+flags, flags_str, mmsg_uaddr, s, timeout_str, timeout_uaddr, vlen
 .P
 .TP
 .B syscall.compat_rt_sigprocmask
-how, how_str, oldset_uaddr, set_uaddr
+how, how_str, oldset_uaddr, set_str, set_uaddr, sigsetsize
 .P
 .TP
 .B syscall.compat_select
-exceptfds_uaddr, n, readfds_uaddr, timeout_uaddr, writefds_uaddr
+exceptfds_uaddr, n, readfds_uaddr, timeout_str, timeout_uaddr, writefds_uaddr
 .P
 .TP
 .B syscall.compat_setitimer
-ovalue_uaddr, value_uaddr, which
+ovalue_uaddr, value_str, value_uaddr, which, which_str
 .P
 .TP
 .B syscall.compat_signalfd
@@ -223,7 +223,7 @@ arg, cmd, cmdstr, semid, semnum
 .P
 .TP
 .B syscall.compat_sys_semtimedop
-nsops, semid, sops_uaddr, timeout_uaddr
+nsops, semid, sops_uaddr, timeout_str, timeout_uaddr
 .P
 .TP
 .B syscall.compat_sys_sendmsg
@@ -231,7 +231,7 @@ flags, flags_str, msg_uaddr, s
 .P
 .TP
 .B syscall.compat_sys_shmat
-shmaddr_uaddr, shmflg, shmid
+shmaddr_uaddr, shmflg, shmflg_str, shmid
 .P
 .TP
 .B syscall.compat_sys_shmctl
@@ -239,7 +239,7 @@ buf_uaddr, cmd, cmd_str, shmid
 .P
 .TP
 .B syscall.compat_sys_utimes
-filename
+filename, timeval, tvp_uaddr_str
 .P
 .TP
 .B syscall.compat_truncate64
@@ -251,7 +251,7 @@ actime, buf_uaddr, filename, filename_uaddr, modtime
 .P
 .TP
 .B syscall.compat_utimensat
-dfd, dfd_str, filename, filename_uaddr, flags, flags_str, tsp_uaddr
+dfd, dfd_str, filename, filename_uaddr, flags, flags_str, tsp_str, tsp_uaddr
 .P
 .TP
 .B syscall.compat_vmsplice
@@ -260,6 +260,10 @@ fd, flags, flags_str, iov, nr_segs
 .TP
 .B syscall.connect
 addrlen, serv_addr_uaddr, sockfd, uaddr_af, uaddr_ip, uaddr_ip_port, uaddr_ipv6_flowinfo, uaddr_ipv6_scope_id
+.P
+.TP
+.B syscall.copy_file_range
+fd_in, fd_out, flags, len, off_in, off_out
 .P
 .TP
 .B syscall.creat
@@ -275,11 +279,11 @@ oldfd
 .P
 .TP
 .B syscall.dup2
-flags, newfd, oldfd
+flags, flags_str, newfd, oldfd
 .P
 .TP
 .B syscall.dup3
-flags, newfd, oldfd
+flags, flags_str, newfd, oldfd
 .P
 .TP
 .B syscall.epoll_create
@@ -323,11 +327,11 @@ dirfd, dirfd_str, mode, mode_str, pathname
 .P
 .TP
 .B syscall.fadvise64
-advice, fd, len, offset
+advice, advice_str, fd, len, offset
 .P
 .TP
 .B syscall.fadvise64_64
-advice, fd, len, offset
+advice, advice_str, fd, len, offset
 .P
 .TP
 .B syscall.fallocate
@@ -431,7 +435,7 @@ futex_uaddr, op, uaddr2_uaddr, utime_uaddr, val3, val
 .P
 .TP
 .B syscall.futimesat
-dirfd, dirfd_str, filename, filename_uaddr, tvp_uaddr
+dirfd, dirfd_str, filename, filename_uaddr, tvp_str, tvp_uaddr
 .P
 .TP
 .B syscall.get_mempolicy
@@ -443,7 +447,7 @@ len_uaddr, list_head_uaddr, pid
 .P
 .TP
 .B syscall.get_thread_area
-u_info_uaddr
+u_info_str, u_info_uaddr
 .P
 .TP
 .B syscall.getcpu
@@ -559,7 +563,7 @@ len, uargs, umod_uaddr
 .P
 .TP
 .B syscall.inotify_add_watch
-fd, mask, path, path_uaddr
+fd, mask, mask_str, path, path_uaddr
 .P
 .TP
 .B syscall.inotify_init
@@ -627,7 +631,7 @@ arg2, arg3, arg4, arg5, option
 .P
 .TP
 .B syscall.kill
-pid, sig
+pid, sig, sig_name
 .P
 .TP
 .B syscall.lchown
@@ -694,6 +698,10 @@ advice, advice_str, length, start
 flags, flags_str, len, maxnode, mode, mode_str, nmask_uaddr, start
 .P
 .TP
+.B syscall.membarrier
+cmd, cmd_str, flags
+.P
+.TP
 .B syscall.memfd_create
 flags, flags_str, uname
 .P
@@ -715,7 +723,7 @@ dirfd, dirfd_str, mode, pathname
 .P
 .TP
 .B syscall.mknod
-dev, mode, pathname
+dev, mode, mode_str, pathname
 .P
 .TP
 .B syscall.mknodat
@@ -726,12 +734,16 @@ dev, dirfd, dirfd_str, mode, mode_str, pathname
 addr, len
 .P
 .TP
+.B syscall.mlock2
+addr, flags, flags_str, len
+.P
+.TP
 .B syscall.mlockall
-flags
+flags, flags_str
 .P
 .TP
 .B syscall.mmap2
-fd, flags, length, pgoffset, prot, start
+fd, flags, flags_str, length, pgoffset, prot, prot_str, start
 .P
 .TP
 .B syscall.modify_ldt
@@ -759,7 +771,7 @@ mqdes, notification_uaddr
 .P
 .TP
 .B syscall.mq_open
-filename, mode, name_uaddr, oflag, u_attr_uaddr
+filename, mode, name_uaddr, oflag, oflag_str, u_attr_uaddr
 .P
 .TP
 .B syscall.mq_timedreceive
@@ -775,7 +787,7 @@ u_name, u_name_uaddr
 .P
 .TP
 .B syscall.mremap
-flags, new_address, new_size, old_address, old_size
+flags, flags_str, new_address, new_size, old_address, old_size
 .P
 .TP
 .B syscall.msgctl
@@ -795,7 +807,7 @@ msgflg, msgflg_str, msgp_uaddr, msgsz, msqid
 .P
 .TP
 .B syscall.msync
-flags, length, start
+flags, flags_str, length, start
 .P
 .TP
 .B syscall.munlock
@@ -815,7 +827,7 @@ dfd, dfd_str, flags, flags_str, handle_uaddr, mnt_id_uaddr, pathname
 .P
 .TP
 .B syscall.nanosleep
-rem_uaddr, req_uaddr
+rem_uaddr, req_str, req_uaddr
 .P
 .TP
 .B syscall.ni_syscall
@@ -827,7 +839,7 @@ inc
 .P
 .TP
 .B syscall.open
-filename, flags, mode
+filename, flags, flags_str, mode
 .P
 .TP
 .B syscall.open_by_handle_at
@@ -835,7 +847,7 @@ flags, flags_str, handle_uaddr, mount_dfd, mount_dfd_str
 .P
 .TP
 .B syscall.openat
-dfd, dfd_str, filename, flags, mode
+dfd, dfd_str, filename, flags, flags_str, mode
 .P
 .TP
 .B syscall.pause
@@ -863,7 +875,7 @@ nfds, timeout, ufds_uaddr
 .P
 .TP
 .B syscall.ppoll
-
+fds_uaddr, nfds, sigmask, sigsetsize, tsp, tsp_str
 .P
 .TP
 .B syscall.prctl
@@ -878,8 +890,12 @@ buf_uaddr, count, fd, offset
 count, fd, offset, vector_uaddr
 .P
 .TP
+.B syscall.preadv2
+count, fd, flags, flags_str, offset, vector_uaddr
+.P
+.TP
 .B syscall.prlimit64
-new_rlim_uaddr, old_rlim_uaddr, pid, resource
+new_rlim_str, new_rlim_uaddr, old_rlim_uaddr, pid, resource, resource_str
 .P
 .TP
 .B syscall.process_vm_readv
@@ -891,7 +907,7 @@ flags, liovcnt, local_iov_uaddr, pid, remote_iov_uaddr, riovcnt
 .P
 .TP
 .B syscall.pselect6
-
+exceptfds, nfds, readfds, sigmask, timeout, timeout_str, writefds
 .P
 .TP
 .B syscall.ptrace
@@ -899,11 +915,15 @@ addr, data, pid, request
 .P
 .TP
 .B syscall.pwrite
-buf_uaddr, count, fd, offset
+buf_str, buf_uaddr, count, fd, offset
 .P
 .TP
 .B syscall.pwritev
 count, fd, offset, vector_uaddr
+.P
+.TP
+.B syscall.pwritev2
+count, fd, flags, flags_str, offset, vector_uaddr
 .P
 .TP
 .B syscall.quotactl
@@ -947,7 +967,7 @@ addr_uaddr, addrlen_uaddr, buf_uaddr, flags, flags_str, len, s
 .P
 .TP
 .B syscall.recvmmsg
-flags, flags_str, mmsg_uaddr, s, timeout_uaddr, vlen
+flags, flags_str, mmsg_uaddr, s, timeout_str, timeout_uaddr, vlen
 .P
 .TP
 .B syscall.recvmsg
@@ -955,7 +975,7 @@ flags, flags_str, msg_uaddr, s
 .P
 .TP
 .B syscall.remap_file_pages
-flags, pgoff, prot, size, start
+flags, flags_str, pgoff, prot, prot_str, size, start
 .P
 .TP
 .B syscall.removexattr
@@ -975,7 +995,7 @@ flags, flags_str, newdfd, newdfd_str, newname, newname_str, olddfd, olddfd_str, 
 .P
 .TP
 .B syscall.request_key
-callout_info_uaddr, description_uaddr, destringid, type_uaddr
+callout_info_uaddr, description_str, description_uaddr, destringid, type_str, type_uaddr
 .P
 .TP
 .B syscall.restart_syscall
@@ -987,11 +1007,11 @@ pathname
 .P
 .TP
 .B syscall.rt_sigaction
-act_uaddr, oact_uaddr, sig, sigsetsize
+act_str, act_uaddr, oact_uaddr, sig, sig_str, sigsetsize
 .P
 .TP
 .B syscall.rt_sigaction32
-act_uaddr, oact_uaddr, sig, sigsetsize
+act_str, act_uaddr, oact_uaddr, sig, sig_str, sigsetsize
 .P
 .TP
 .B syscall.rt_sigpending
@@ -999,11 +1019,11 @@ set_uaddr, sigsetsize
 .P
 .TP
 .B syscall.rt_sigprocmask
-how, how_str, oldset_uaddr, set_uaddr
+how, how_str, oldset_uaddr, set_str, set_uaddr, sigsetsize
 .P
 .TP
 .B syscall.rt_sigqueueinfo
-pid, sig, uinfo_uaddr
+pid, sig, sig_name, siginfo_str, uinfo_uaddr
 .P
 .TP
 .B syscall.rt_sigreturn
@@ -1011,23 +1031,23 @@ pid, sig, uinfo_uaddr
 .P
 .TP
 .B syscall.rt_sigsuspend
-set_uaddr, sigsetsize
+set_str, set_uaddr, sigsetsize
 .P
 .TP
 .B syscall.rt_sigtimedwait
-sigsetsize, uinfo_uaddr, uthese_uaddr, uts_uaddr
+sigsetsize, uinfo_str, uinfo_uaddr, uthese_str, uthese_uaddr, uts_str, uts_uaddr
 .P
 .TP
 .B syscall.rt_tgsigqueueinfo
-sig, tgid, tid, uinfo_uaddr
+sig, sig_str, tgid, tid, uinfo_str, uinfo_uaddr
 .P
 .TP
 .B syscall.sched_get_priority_max
-policy
+policy, policy_str
 .P
 .TP
 .B syscall.sched_get_priority_min
-policy
+policy, policy_str
 .P
 .TP
 .B syscall.sched_getaffinity
@@ -1071,11 +1091,11 @@ p_uaddr, pid, policy, policy_str
 .P
 .TP
 .B syscall.seccomp
-flags, flags_str, op, op_str, uargs, uargs_uaddr
+flags, flags_str, op, op_str, uargs_uaddr
 .P
 .TP
 .B syscall.select
-exceptfds_uaddr, n, readfds_uaddr, timeout_uaddr, writefds_uaddr
+exceptfds_uaddr, n, readfds_uaddr, timeout_str, timeout_uaddr, writefds_uaddr
 .P
 .TP
 .B syscall.semctl
@@ -1091,11 +1111,11 @@ nsops, semid, sops_uaddr
 .P
 .TP
 .B syscall.semtimedop
-nsops, semid, sops_uaddr, timeout_uaddr
+nsops, semid, sops_uaddr, timeout_str, timeout_uaddr
 .P
 .TP
 .B syscall.send
-buf_uaddr, flags, flags_str, len, s
+buf, buf_uaddr, flags, flags_str, len, s
 .P
 .TP
 .B syscall.sendfile
@@ -1111,7 +1131,7 @@ flags, flags_str, msg_uaddr, s
 .P
 .TP
 .B syscall.sendto
-buf_uaddr, flags, flags_str, len, s, to_uaddr, tolen
+buf, buf_uaddr, flags, flags_str, len, s, to_str, to_uaddr, tolen
 .P
 .TP
 .B syscall.set_mempolicy
@@ -1123,7 +1143,7 @@ len, list_head_uaddr
 .P
 .TP
 .B syscall.set_thread_area
-u_info_uaddr
+u_info_str, u_info_uaddr
 .P
 .TP
 .B syscall.set_tid_address
@@ -1155,11 +1175,11 @@ hostname_uaddr, len, name_str
 .P
 .TP
 .B syscall.setitimer
-ovalue_uaddr, value_uaddr, which
+ovalue_uaddr, value_str, value_uaddr, which, which_str
 .P
 .TP
 .B syscall.setns
-fd, nstype
+fd, nstype, nstype_str
 .P
 .TP
 .B syscall.setpgid
@@ -1203,7 +1223,7 @@ euid, ruid
 .P
 .TP
 .B syscall.setrlimit
-resource, rlim_uaddr
+resource, resource_str, rlim_str, rlim_uaddr
 .P
 .TP
 .B syscall.setsid
@@ -1215,11 +1235,11 @@ fd, level, level_str, optlen, optname, optname_str, optval_uaddr
 .P
 .TP
 .B syscall.settimeofday
-tv_uaddr, tz_uaddr
+tv_str, tv_uaddr, tz_str, tz_uaddr
 .P
 .TP
 .B syscall.settimeofday32
-tv_uaddr, tz_uaddr
+tv_str, tv_uaddr, tz_str, tz_uaddr
 .P
 .TP
 .B syscall.setuid
@@ -1235,7 +1255,7 @@ flags, flags_str, name_str, name_uaddr, path, path_uaddr, size, value_str, value
 .P
 .TP
 .B syscall.shmat
-shmaddr_uaddr, shmflg, shmid
+shmaddr_uaddr, shmflg, shmflg_str, shmid
 .P
 .TP
 .B syscall.shmctl
@@ -1255,15 +1275,15 @@ how, how_str, s
 .P
 .TP
 .B syscall.sigaction32
-act_uaddr, oact_uaddr, sig
+act_str, act_uaddr, oact_uaddr, sig, sig_str
 .P
 .TP
 .B syscall.sigaltstack
-uoss_uaddr, uss_uaddr
+uoss_uaddr, uss_str, uss_uaddr
 .P
 .TP
 .B syscall.signal
-handler, sig
+handler, handler_str, sig, sig_str
 .P
 .TP
 .B syscall.signalfd
@@ -1271,7 +1291,7 @@ flags
 .P
 .TP
 .B syscall.sigpending
-
+set
 .P
 .TP
 .B syscall.sigprocmask
@@ -1283,15 +1303,15 @@ how, how_str, oldset_uaddr, set_uaddr
 .P
 .TP
 .B syscall.sigsuspend
-mask
+mask, mask_str
 .P
 .TP
 .B syscall.socket
-family, protocol, type
+family, family_str, protocol, protocol_str, type, type_str
 .P
 .TP
 .B syscall.socketpair
-family, protocol, sv_uaddr, type
+family, family_str, protocol, protocol_str, sv_uaddr, type, type_str
 .P
 .TP
 .B syscall.splice
@@ -1319,11 +1339,11 @@ t_uaddr
 .P
 .TP
 .B syscall.swapoff
-path
+path, path_uaddr
 .P
 .TP
 .B syscall.swapon
-path, swapflags, swapflags_str
+path, path_uaddr, swapflags, swapflags_str
 .P
 .TP
 .B syscall.symlink
@@ -1347,7 +1367,7 @@ fd
 .P
 .TP
 .B syscall.sysctl
-
+args
 .P
 .TP
 .B syscall.sysfs
@@ -1355,7 +1375,7 @@ arg1, arg2, option
 .P
 .TP
 .B syscall.sysinfo
-info_uaddr
+info_str, info_uaddr
 .P
 .TP
 .B syscall.syslog
@@ -1367,7 +1387,7 @@ fdin, fdout, flags, len
 .P
 .TP
 .B syscall.tgkill
-pid, sig, tgid
+pid, sig, sig_str, tgid
 .P
 .TP
 .B syscall.time
@@ -1391,7 +1411,7 @@ timerid, value_uaddr
 .P
 .TP
 .B syscall.timer_settime
-flags, ovalue_uaddr, timerid, value_uaddr
+flags, ovalue_uaddr, timerid, value_str, value_uaddr
 .P
 .TP
 .B syscall.timerfd_create
@@ -1403,15 +1423,15 @@ fd, value_uaddr
 .P
 .TP
 .B syscall.timerfd_settime
-fd, flags, flags_str, ovalue_uaddr, value_uaddr
+fd, flags, flags_str, ovalue_uaddr, value_str, value_uaddr
 .P
 .TP
 .B syscall.times
-buf_uaddr
+buf_str, buf_uaddr
 .P
 .TP
 .B syscall.tkill
-pid, sig
+pid, sig, sig_str
 .P
 .TP
 .B syscall.truncate
@@ -1427,7 +1447,7 @@ flags, flags_str, target
 .P
 .TP
 .B syscall.uname
-
+name_uaddr
 .P
 .TP
 .B syscall.unlink
@@ -1439,7 +1459,11 @@ dfd, dfd_str, flag, flag_str, pathname, pathname_str
 .P
 .TP
 .B syscall.unshare
-unshare_flags
+unshare_flags, unshare_flags_str
+.P
+.TP
+.B syscall.userfaultfd
+flags, flags_str
 .P
 .TP
 .B syscall.ustat
@@ -1455,11 +1479,11 @@ actime, buf_uaddr, filename, filename_uaddr, modtime
 .P
 .TP
 .B syscall.utimensat
-dfd, dfd_str, filename, filename_uaddr, flags, flags_str, tsp_uaddr
+dfd, dfd_str, filename, filename_uaddr, flags, flags_str, tsp_str, tsp_uaddr
 .P
 .TP
 .B syscall.utimes
-filename, filename_uaddr, tvp_uaddr
+filename, filename_uaddr, tvp_uaddr, tvp_uaddr_str
 .P
 .TP
 .B syscall.vfork
@@ -1487,7 +1511,7 @@ options, options_str, pid, status_uaddr
 .P
 .TP
 .B syscall.write
-buf_uaddr, count, fd
+buf_str, buf_uaddr, count, fd
 .P
 .TP
 .B syscall.writev

@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::nfsd.open
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Network File Storage Tapsets
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::NFSD\&.OPEN" "3stap" "March 2016" "SystemTap Tapset Reference" "Network File Storage Tapsets"
+.TH "PROBE::NFSD\&.OPEN" "3stap" "October 2017" "SystemTap Tapset Reference" "Network File Storage Tapsets"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,9 +36,9 @@ nfsd\&.open
 .fi
 .SH "VALUES"
 .PP
-\fIfh\fR
+\fIaccess\fR
 .RS 4
-file handle (the first part is the length of the file handle)
+indicates the type of open (read/write/commit/readdir\&.\&.\&.)
 .RE
 .PP
 \fIclient_ip\fR
@@ -46,9 +46,9 @@ file handle (the first part is the length of the file handle)
 the ip address of client
 .RE
 .PP
-\fIaccess\fR
+\fIfh\fR
 .RS 4
-indicates the type of open (read/write/commit/readdir\&.\&.\&.)
+file handle (the first part is the length of the file handle)
 .RE
 .PP
 \fItype\fR

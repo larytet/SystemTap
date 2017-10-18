@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: probe::scheduler.kthread_stop.return
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: March 2016
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
+.\"      Date: October 2017
 .\"    Manual: Scheduler Tapset
 .\"    Source: SystemTap Tapset Reference
 .\"  Language: English
 .\"
-.TH "PROBE::SCHEDULER\&.K" "3stap" "March 2016" "SystemTap Tapset Reference" "Scheduler Tapset"
+.TH "PROBE::SCHEDULER\&.K" "3stap" "October 2017" "SystemTap Tapset Reference" "Scheduler Tapset"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,14 +36,14 @@ scheduler\&.kthread_stop\&.return
 .fi
 .SH "VALUES"
 .PP
-\fIreturn_value\fR
-.RS 4
-return value after stopping the thread
-.RE
-.PP
 \fIname\fR
 .RS 4
 name of the probe point
+.RE
+.PP
+\fIreturn_value\fR
+.RS 4
+return value after stopping the thread
 .RE
 .SH SEE ALSO\n 
 .IR tapset::scheduler (3stap)

@@ -118,7 +118,7 @@ same convenience variables.
 <row><entry>
     clock_adjtime
 </entry><entry>
-    clk_id, clk_id_str, tx_uaddr
+    clk_id, clk_id_str, tx_uaddr, tx_uaddr_str
 </entry></row>
 <row><entry>
     clock_getres
@@ -133,12 +133,12 @@ same convenience variables.
 <row><entry>
     clock_nanosleep
 </entry><entry>
-    clk_id, clk_id_str, flags, flags_str, rem_uaddr, req_uaddr
+    clk_id, clk_id_str, flags, flags_str, rem_uaddr, req_str, req_uaddr
 </entry></row>
 <row><entry>
     clock_settime
 </entry><entry>
-    clk_id, clk_id_str, tp_uaddr
+    clk_id, clk_id_str, tp_uaddr, tp_uaddr_str
 </entry></row>
 <row><entry>
     clone
@@ -158,7 +158,7 @@ same convenience variables.
 <row><entry>
     compat_clock_nanosleep
 </entry><entry>
-    clk_id, clk_id_str, flags, flags_str, rem_uaddr, req_uaddr
+    clk_id, clk_id_str, flags, flags_str, rem_uaddr, req_str, req_uaddr
 </entry></row>
 <row><entry>
     compat_execve
@@ -173,17 +173,17 @@ same convenience variables.
 <row><entry>
     compat_fadvise64
 </entry><entry>
-    advice, fd, len, offset
+    advice, advice_str, fd, len, offset
 </entry></row>
 <row><entry>
     compat_fadvise64_64
 </entry><entry>
-    advice, fd, len, offset
+    advice, advice_str, fd, len, offset
 </entry></row>
 <row><entry>
     compat_fallocate
 </entry><entry>
-    fd, len, mode, offset
+    fd, len, mode, mode_str, offset
 </entry></row>
 <row><entry>
     compat_ftruncate64
@@ -198,7 +198,7 @@ same convenience variables.
 <row><entry>
     compat_futimesat
 </entry><entry>
-    dirfd, dirfd_str, filename, filename_uaddr, tvp_uaddr
+    dirfd, dirfd_str, filename, filename_uaddr, tvp_str, tvp_uaddr
 </entry></row>
 <row><entry>
     compat_getitimer
@@ -213,17 +213,17 @@ same convenience variables.
 <row><entry>
     compat_nanosleep
 </entry><entry>
-    rem_uaddr, req_uaddr
+    rem_uaddr, req_str, req_uaddr
 </entry></row>
 <row><entry>
     compat_ppoll
 </entry><entry>
-    
+    fds_uaddr, nfds, sigmask, sigsetsize, tsp, tsp_str
 </entry></row>
 <row><entry>
     compat_pselect6
 </entry><entry>
-    
+    exceptfds, nfds, readfds, sigmask, timeout, timeout_str, writefds
 </entry></row>
 <row><entry>
     compat_readahead
@@ -233,22 +233,22 @@ same convenience variables.
 <row><entry>
     compat_recvmmsg
 </entry><entry>
-    flags, flags_str, mmsg_uaddr, s, timeout_uaddr, vlen
+    flags, flags_str, mmsg_uaddr, s, timeout_str, timeout_uaddr, vlen
 </entry></row>
 <row><entry>
     compat_rt_sigprocmask
 </entry><entry>
-    how, how_str, oldset_uaddr, set_uaddr
+    how, how_str, oldset_uaddr, set_str, set_uaddr, sigsetsize
 </entry></row>
 <row><entry>
     compat_select
 </entry><entry>
-    exceptfds_uaddr, n, readfds_uaddr, timeout_uaddr, writefds_uaddr
+    exceptfds_uaddr, n, readfds_uaddr, timeout_str, timeout_uaddr, writefds_uaddr
 </entry></row>
 <row><entry>
     compat_setitimer
 </entry><entry>
-    ovalue_uaddr, value_uaddr, which
+    ovalue_uaddr, value_str, value_uaddr, which, which_str
 </entry></row>
 <row><entry>
     compat_signalfd
@@ -283,7 +283,7 @@ same convenience variables.
 <row><entry>
     compat_sys_semtimedop
 </entry><entry>
-    nsops, semid, sops_uaddr, timeout_uaddr
+    nsops, semid, sops_uaddr, timeout_str, timeout_uaddr
 </entry></row>
 <row><entry>
     compat_sys_sendmsg
@@ -293,7 +293,7 @@ same convenience variables.
 <row><entry>
     compat_sys_shmat
 </entry><entry>
-    shmaddr_uaddr, shmflg, shmid
+    shmaddr_uaddr, shmflg, shmflg_str, shmid
 </entry></row>
 <row><entry>
     compat_sys_shmctl
@@ -303,7 +303,7 @@ same convenience variables.
 <row><entry>
     compat_sys_utimes
 </entry><entry>
-    filename
+    filename, timeval, tvp_uaddr_str
 </entry></row>
 <row><entry>
     compat_truncate64
@@ -318,7 +318,7 @@ same convenience variables.
 <row><entry>
     compat_utimensat
 </entry><entry>
-    dfd, dfd_str, filename, filename_uaddr, flags, flags_str, tsp_uaddr
+    dfd, dfd_str, filename, filename_uaddr, flags, flags_str, tsp_str, tsp_uaddr
 </entry></row>
 <row><entry>
     compat_vmsplice
@@ -353,12 +353,12 @@ same convenience variables.
 <row><entry>
     dup2
 </entry><entry>
-    flags, newfd, oldfd
+    flags, flags_str, newfd, oldfd
 </entry></row>
 <row><entry>
     dup3
 </entry><entry>
-    flags, newfd, oldfd
+    flags, flags_str, newfd, oldfd
 </entry></row>
 <row><entry>
     epoll_create
@@ -413,12 +413,12 @@ same convenience variables.
 <row><entry>
     fadvise64
 </entry><entry>
-    advice, fd, len, offset
+    advice, advice_str, fd, len, offset
 </entry></row>
 <row><entry>
     fadvise64_64
 </entry><entry>
-    advice, fd, len, offset
+    advice, advice_str, fd, len, offset
 </entry></row>
 <row><entry>
     fallocate
@@ -548,7 +548,7 @@ same convenience variables.
 <row><entry>
     futimesat
 </entry><entry>
-    dirfd, dirfd_str, filename, filename_uaddr, tvp_uaddr
+    dirfd, dirfd_str, filename, filename_uaddr, tvp_str, tvp_uaddr
 </entry></row>
 <row><entry>
     get_mempolicy
@@ -563,7 +563,7 @@ same convenience variables.
 <row><entry>
     get_thread_area
 </entry><entry>
-    u_info_uaddr
+    u_info_str, u_info_uaddr
 </entry></row>
 <row><entry>
     getcpu
@@ -708,7 +708,7 @@ same convenience variables.
 <row><entry>
     inotify_add_watch
 </entry><entry>
-    fd, mask, path, path_uaddr
+    fd, mask, mask_str, path, path_uaddr
 </entry></row>
 <row><entry>
     inotify_init
@@ -793,7 +793,7 @@ same convenience variables.
 <row><entry>
     kill
 </entry><entry>
-    pid, sig
+    pid, sig, sig_name
 </entry></row>
 <row><entry>
     lchown
@@ -908,7 +908,7 @@ same convenience variables.
 <row><entry>
     mknod
 </entry><entry>
-    dev, mode, pathname
+    dev, mode, mode_str, pathname
 </entry></row>
 <row><entry>
     mknodat
@@ -928,12 +928,12 @@ same convenience variables.
 <row><entry>
     mlockall
 </entry><entry>
-    flags
+    flags, flags_str
 </entry></row>
 <row><entry>
     mmap2
 </entry><entry>
-    fd, flags, length, pgoffset, prot, start
+    fd, flags, flags_str, length, pgoffset, prot, prot_str, start
 </entry></row>
 <row><entry>
     modify_ldt
@@ -968,7 +968,7 @@ same convenience variables.
 <row><entry>
     mq_open
 </entry><entry>
-    filename, mode, name_uaddr, oflag, u_attr_uaddr
+    filename, mode, name_uaddr, oflag, oflag_str, u_attr_uaddr
 </entry></row>
 <row><entry>
     mq_timedreceive
@@ -988,7 +988,7 @@ same convenience variables.
 <row><entry>
     mremap
 </entry><entry>
-    flags, new_address, new_size, old_address, old_size
+    flags, flags_str, new_address, new_size, old_address, old_size
 </entry></row>
 <row><entry>
     msgctl
@@ -1013,7 +1013,7 @@ same convenience variables.
 <row><entry>
     msync
 </entry><entry>
-    flags, length, start
+    flags, flags_str, length, start
 </entry></row>
 <row><entry>
     munlock
@@ -1038,7 +1038,7 @@ same convenience variables.
 <row><entry>
     nanosleep
 </entry><entry>
-    rem_uaddr, req_uaddr
+    rem_uaddr, req_str, req_uaddr
 </entry></row>
 <row><entry>
     ni_syscall
@@ -1053,7 +1053,7 @@ same convenience variables.
 <row><entry>
     open
 </entry><entry>
-    filename, flags, mode
+    filename, flags, flags_str, mode
 </entry></row>
 <row><entry>
     open_by_handle_at
@@ -1063,7 +1063,7 @@ same convenience variables.
 <row><entry>
     openat
 </entry><entry>
-    dfd, dfd_str, filename, flags, mode
+    dfd, dfd_str, filename, flags, flags_str, mode
 </entry></row>
 <row><entry>
     pause
@@ -1098,7 +1098,7 @@ same convenience variables.
 <row><entry>
     ppoll
 </entry><entry>
-    
+    fds_uaddr, nfds, sigmask, sigsetsize, tsp, tsp_str
 </entry></row>
 <row><entry>
     prctl
@@ -1123,7 +1123,7 @@ same convenience variables.
 <row><entry>
     prlimit64
 </entry><entry>
-    new_rlim_uaddr, old_rlim_uaddr, pid, resource
+    new_rlim_str, new_rlim_uaddr, old_rlim_uaddr, pid, resource, resource_str
 </entry></row>
 <row><entry>
     process_vm_readv
@@ -1138,7 +1138,7 @@ same convenience variables.
 <row><entry>
     pselect6
 </entry><entry>
-    
+    exceptfds, nfds, readfds, sigmask, timeout, timeout_str, writefds
 </entry></row>
 <row><entry>
     ptrace
@@ -1148,7 +1148,7 @@ same convenience variables.
 <row><entry>
     pwrite
 </entry><entry>
-    buf_uaddr, count, fd, offset
+    buf_str, buf_uaddr, count, fd, offset
 </entry></row>
 <row><entry>
     pwritev
@@ -1213,7 +1213,7 @@ same convenience variables.
 <row><entry>
     recvmmsg
 </entry><entry>
-    flags, flags_str, mmsg_uaddr, s, timeout_uaddr, vlen
+    flags, flags_str, mmsg_uaddr, s, timeout_str, timeout_uaddr, vlen
 </entry></row>
 <row><entry>
     recvmsg
@@ -1223,7 +1223,7 @@ same convenience variables.
 <row><entry>
     remap_file_pages
 </entry><entry>
-    flags, pgoff, prot, size, start
+    flags, flags_str, pgoff, prot, prot_str, size, start
 </entry></row>
 <row><entry>
     removexattr
@@ -1248,7 +1248,7 @@ same convenience variables.
 <row><entry>
     request_key
 </entry><entry>
-    callout_info_uaddr, description_uaddr, destringid, type_uaddr
+    callout_info_uaddr, description_str, description_uaddr, destringid, type_str, type_uaddr
 </entry></row>
 <row><entry>
     restart_syscall
@@ -1263,12 +1263,12 @@ same convenience variables.
 <row><entry>
     rt_sigaction
 </entry><entry>
-    act_uaddr, oact_uaddr, sig, sigsetsize
+    act_str, act_uaddr, oact_uaddr, sig, sig_str, sigsetsize
 </entry></row>
 <row><entry>
     rt_sigaction32
 </entry><entry>
-    act_uaddr, oact_uaddr, sig, sigsetsize
+    act_str, act_uaddr, oact_uaddr, sig, sig_str, sigsetsize
 </entry></row>
 <row><entry>
     rt_sigpending
@@ -1278,12 +1278,12 @@ same convenience variables.
 <row><entry>
     rt_sigprocmask
 </entry><entry>
-    how, how_str, oldset_uaddr, set_uaddr
+    how, how_str, oldset_uaddr, set_str, set_uaddr, sigsetsize
 </entry></row>
 <row><entry>
     rt_sigqueueinfo
 </entry><entry>
-    pid, sig, uinfo_uaddr
+    pid, sig, sig_name, siginfo_str, uinfo_uaddr
 </entry></row>
 <row><entry>
     rt_sigreturn
@@ -1293,27 +1293,27 @@ same convenience variables.
 <row><entry>
     rt_sigsuspend
 </entry><entry>
-    set_uaddr, sigsetsize
+    set_str, set_uaddr, sigsetsize
 </entry></row>
 <row><entry>
     rt_sigtimedwait
 </entry><entry>
-    sigsetsize, uinfo_uaddr, uthese_uaddr, uts_uaddr
+    sigsetsize, uinfo_str, uinfo_uaddr, uthese_str, uthese_uaddr, uts_str, uts_uaddr
 </entry></row>
 <row><entry>
     rt_tgsigqueueinfo
 </entry><entry>
-    sig, tgid, tid, uinfo_uaddr
+    sig, sig_str, tgid, tid, uinfo_str, uinfo_uaddr
 </entry></row>
 <row><entry>
     sched_get_priority_max
 </entry><entry>
-    policy
+    policy, policy_str
 </entry></row>
 <row><entry>
     sched_get_priority_min
 </entry><entry>
-    policy
+    policy, policy_str
 </entry></row>
 <row><entry>
     sched_getaffinity
@@ -1373,7 +1373,7 @@ same convenience variables.
 <row><entry>
     select
 </entry><entry>
-    exceptfds_uaddr, n, readfds_uaddr, timeout_uaddr, writefds_uaddr
+    exceptfds_uaddr, n, readfds_uaddr, timeout_str, timeout_uaddr, writefds_uaddr
 </entry></row>
 <row><entry>
     semctl
@@ -1393,7 +1393,7 @@ same convenience variables.
 <row><entry>
     semtimedop
 </entry><entry>
-    nsops, semid, sops_uaddr, timeout_uaddr
+    nsops, semid, sops_uaddr, timeout_str, timeout_uaddr
 </entry></row>
 <row><entry>
     send
@@ -1418,7 +1418,7 @@ same convenience variables.
 <row><entry>
     sendto
 </entry><entry>
-    buf, buf_uaddr, flags, flags_str, len, s, to_uaddr, tolen
+    buf, buf_uaddr, flags, flags_str, len, s, to_str, to_uaddr, tolen
 </entry></row>
 <row><entry>
     set_mempolicy
@@ -1433,7 +1433,7 @@ same convenience variables.
 <row><entry>
     set_thread_area
 </entry><entry>
-    u_info_uaddr
+    u_info_str, u_info_uaddr
 </entry></row>
 <row><entry>
     set_tid_address
@@ -1473,12 +1473,12 @@ same convenience variables.
 <row><entry>
     setitimer
 </entry><entry>
-    ovalue_uaddr, value_uaddr, which
+    ovalue_uaddr, value_str, value_uaddr, which, which_str
 </entry></row>
 <row><entry>
     setns
 </entry><entry>
-    fd, nstype
+    fd, nstype, nstype_str
 </entry></row>
 <row><entry>
     setpgid
@@ -1533,7 +1533,7 @@ same convenience variables.
 <row><entry>
     setrlimit
 </entry><entry>
-    resource, rlim_uaddr
+    resource, resource_str, rlim_str, rlim_uaddr
 </entry></row>
 <row><entry>
     setsid
@@ -1548,12 +1548,12 @@ same convenience variables.
 <row><entry>
     settimeofday
 </entry><entry>
-    tv_uaddr, tz_uaddr
+    tv_str, tv_uaddr, tz_str, tz_uaddr
 </entry></row>
 <row><entry>
     settimeofday32
 </entry><entry>
-    tv_uaddr, tz_uaddr
+    tv_str, tv_uaddr, tz_str, tz_uaddr
 </entry></row>
 <row><entry>
     setuid
@@ -1573,7 +1573,7 @@ same convenience variables.
 <row><entry>
     shmat
 </entry><entry>
-    shmaddr_uaddr, shmflg, shmid
+    shmaddr_uaddr, shmflg, shmflg_str, shmid
 </entry></row>
 <row><entry>
     shmctl
@@ -1598,17 +1598,17 @@ same convenience variables.
 <row><entry>
     sigaction32
 </entry><entry>
-    act_uaddr, oact_uaddr, sig
+    act_str, act_uaddr, oact_uaddr, sig, sig_str
 </entry></row>
 <row><entry>
     sigaltstack
 </entry><entry>
-    uoss_uaddr, uss_uaddr
+    uoss_uaddr, uss_str, uss_uaddr
 </entry></row>
 <row><entry>
     signal
 </entry><entry>
-    handler, sig
+    handler, handler_str, sig, sig_str
 </entry></row>
 <row><entry>
     signalfd
@@ -1618,7 +1618,7 @@ same convenience variables.
 <row><entry>
     sigpending
 </entry><entry>
-    
+    set
 </entry></row>
 <row><entry>
     sigprocmask
@@ -1633,17 +1633,17 @@ same convenience variables.
 <row><entry>
     sigsuspend
 </entry><entry>
-    mask
+    mask, mask_str
 </entry></row>
 <row><entry>
     socket
 </entry><entry>
-    family, protocol, type
+    family, family_str, protocol, protocol_str, type, type_str
 </entry></row>
 <row><entry>
     socketpair
 </entry><entry>
-    family, protocol, sv_uaddr, type
+    family, family_str, protocol, protocol_str, sv_uaddr, type, type_str
 </entry></row>
 <row><entry>
     splice
@@ -1678,12 +1678,12 @@ same convenience variables.
 <row><entry>
     swapoff
 </entry><entry>
-    path
+    path, path_uaddr
 </entry></row>
 <row><entry>
     swapon
 </entry><entry>
-    path, swapflags, swapflags_str
+    path, path_uaddr, swapflags, swapflags_str
 </entry></row>
 <row><entry>
     symlink
@@ -1713,7 +1713,7 @@ same convenience variables.
 <row><entry>
     sysctl
 </entry><entry>
-    
+    args
 </entry></row>
 <row><entry>
     sysfs
@@ -1723,7 +1723,7 @@ same convenience variables.
 <row><entry>
     sysinfo
 </entry><entry>
-    info_uaddr
+    info_str, info_uaddr
 </entry></row>
 <row><entry>
     syslog
@@ -1738,7 +1738,7 @@ same convenience variables.
 <row><entry>
     tgkill
 </entry><entry>
-    pid, sig, tgid
+    pid, sig, sig_str, tgid
 </entry></row>
 <row><entry>
     time
@@ -1768,7 +1768,7 @@ same convenience variables.
 <row><entry>
     timer_settime
 </entry><entry>
-    flags, ovalue_uaddr, timerid, value_uaddr
+    flags, ovalue_uaddr, timerid, value_str, value_uaddr
 </entry></row>
 <row><entry>
     timerfd_create
@@ -1783,17 +1783,17 @@ same convenience variables.
 <row><entry>
     timerfd_settime
 </entry><entry>
-    fd, flags, flags_str, ovalue_uaddr, value_uaddr
+    fd, flags, flags_str, ovalue_uaddr, value_str, value_uaddr
 </entry></row>
 <row><entry>
     times
 </entry><entry>
-    buf_uaddr
+    buf_str, buf_uaddr
 </entry></row>
 <row><entry>
     tkill
 </entry><entry>
-    pid, sig
+    pid, sig, sig_str
 </entry></row>
 <row><entry>
     truncate
@@ -1813,7 +1813,7 @@ same convenience variables.
 <row><entry>
     uname
 </entry><entry>
-    
+    name_uaddr
 </entry></row>
 <row><entry>
     unlink
@@ -1828,7 +1828,7 @@ same convenience variables.
 <row><entry>
     unshare
 </entry><entry>
-    unshare_flags
+    unshare_flags, unshare_flags_str
 </entry></row>
 <row><entry>
     userfaultfd
@@ -1853,12 +1853,12 @@ same convenience variables.
 <row><entry>
     utimensat
 </entry><entry>
-    dfd, dfd_str, filename, filename_uaddr, flags, flags_str, tsp_uaddr
+    dfd, dfd_str, filename, filename_uaddr, flags, flags_str, tsp_str, tsp_uaddr
 </entry></row>
 <row><entry>
     utimes
 </entry><entry>
-    filename, filename_uaddr, tvp_uaddr
+    filename, filename_uaddr, tvp_uaddr, tvp_uaddr_str
 </entry></row>
 <row><entry>
     vfork
@@ -1893,7 +1893,7 @@ same convenience variables.
 <row><entry>
     write
 </entry><entry>
-    buf_uaddr, count, fd
+    buf_str, buf_uaddr, count, fd
 </entry></row>
 <row><entry>
     writev
